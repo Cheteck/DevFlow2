@@ -138,6 +138,7 @@ export class RuntimeKernel {
 
   // ─── Facade backward-compat sur les services modules ───
 
+  /** @deprecated Compat legacy — préférez `eventStore`. */
   get store() {
     return this.context.eventStore;
   }
@@ -150,6 +151,7 @@ export class RuntimeKernel {
     return this.context.permissions;
   }
 
+  /** @deprecated Compat legacy — préférez `events`. */
   get bus() {
     return this.context.events;
   }
@@ -158,6 +160,7 @@ export class RuntimeKernel {
     return this.context.events;
   }
 
+  /** @deprecated Compat legacy — préférez `authorization`. */
   get authz() {
     return this.context.authorization;
   }

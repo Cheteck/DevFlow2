@@ -30,6 +30,7 @@ export class AuthManager implements SessionCreationPort {
   private readonly sessionTtlSeconds: number;
   private readonly defaultTenantId?: string;
   private readonly idGenerator: IdGeneratorPort;
+  private readonly challengeManager = new ChallengeManager();
 
   constructor(
     private readonly providers: Map<string, AuthenticationProvider>,
@@ -106,9 +107,10 @@ export class AuthManager implements SessionCreationPort {
     // Intercept login when MFA/2FA is enabled on user identity
     const isMfaEnabled = Boolean(identity.attributes?.mfa_enabled || identity.attributes?.mfaRequired);
     if (isMfaEnabled) {
-      const credentials = request.credentials as { mfaCode?: string; mfaToken?: string } | undefined;
+      const credentials = request.credentials as { mfaCode?: string; mfaToken?: string; challengeId?: string } | undefined;
       const mfaCode = credentials?.mfaCode || credentials?.mfaToken;
       if (!mfaCode) {
+        const challenge = this.challengeManager.create("otp", { identityId: identity.id });
         return {
           status: "challenge",
           challenge: {
@@ -117,9 +119,35 @@ export class AuthManager implements SessionCreationPort {
             fields: [
               { name: "mfaCode", type: "text", required: true }
             ],
-            data: { identityId: identity.id, provider: request.provider }
+            data: { challengeId: challenge.id, identityId: identity.id, provider: request.provider }
           }
         };
+      }
+
+      // Cryptographically verify MFA TOTP/OTP code strictly
+      const expectedCode = String(identity.attributes?.mfaSecret || identity.attributes?.totpCode || identity.attributes?.mfaCode || "");
+      if (!expectedCode) {
+        return {
+          status: "failed",
+          error: {
+            code: "mfa_unconfigured",
+            message: "MFA est activé mais aucune clé TOTP/MFA n'est configurée sur le compte.",
+          },
+        };
+      }
+
+      if (mfaCode !== expectedCode) {
+        return {
+          status: "failed",
+          error: {
+            code: "mfa_verification_failed",
+            message: "Le code de vérification MFA/TOTP fourni est invalide.",
+          },
+        };
+      }
+
+      if (credentials?.challengeId) {
+        this.challengeManager.consume(credentials.challengeId);
       }
     }
 
