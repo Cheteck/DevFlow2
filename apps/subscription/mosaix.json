@@ -30,7 +30,7 @@
   "permissions": [
     "subscription:plan:read",
     "subscription:plan:write",
-    "subscription:subscribe",
+    "subscription:user:subscribe",
     "subscription:billing:manage"
   ],
   "events": [

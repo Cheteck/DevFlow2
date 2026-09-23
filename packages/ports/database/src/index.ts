@@ -81,3 +81,6 @@ export interface DatabasePort {
    */
   acquireMigrationLock(): Promise<MigrationLock>;
 }
+
+export * from "./query-builder.js";
+
