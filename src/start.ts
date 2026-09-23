@@ -131,7 +131,13 @@ const server = http.createServer(async (req, res) => {
   // CORS headers
   const reqHost = req.headers.host || "";
   const reqOrigin = req.headers.origin || "";
-  const allowedOrigin = reqOrigin && (reqOrigin.includes(reqHost) || reqOrigin.startsWith("http://localhost") || reqOrigin.startsWith("https://ais-")) ? reqOrigin : `http://${reqHost}`;
+  const allowedOrigins = process.env.ALLOWED_CORS_ORIGINS?.split(",").map(o => o.trim()) || [];
+  const isOriginAllowed = Boolean(reqOrigin && (
+    reqOrigin.includes(reqHost) ||
+    reqOrigin.startsWith("http://localhost") ||
+    allowedOrigins.includes(reqOrigin)
+  ));
+  const allowedOrigin = isOriginAllowed ? reqOrigin : `http://${reqHost}`;
   res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
