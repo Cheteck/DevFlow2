@@ -1,4 +1,4 @@
-# Phase 2: Core Resolution - Context
+﻿# Phase 2: Core Resolution - Context
 
 **Gathered:** 2026-08-09
 **Status:** Ready for planning
