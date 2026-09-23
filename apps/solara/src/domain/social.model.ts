@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 import { Model } from "@mosaix/sdk";
 
 export type SocialActorType = "user" | "space" | "organization" | "system";
@@ -188,7 +189,7 @@ export class SolaraSocialService {
     this.contentHooks.push(hook);
   }
 
-  createPost(
+  async createPost(
     actorType: SocialActorType,
     actorId: string,
     targetType: "feed" | "space" | "group" | "event",
@@ -197,7 +198,7 @@ export class SolaraSocialService {
     publicationType: DefaultPublicationType = "text",
     metadata?: Record<string, unknown>,
     mediaUrls: string[] = []
-  ): Post {
+  ): Promise<Post> {
     // Validate publication type metadata
     const validation = this.publicationTypeRegistry.validateMetadata(publicationType, metadata);
     if (!validation.valid) {
@@ -217,7 +218,7 @@ export class SolaraSocialService {
       }
     }
 
-    const id = `post-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const id = `post-${crypto.randomUUID()}`;
     const post: Post = {
       id,
       actorType,
@@ -237,9 +238,7 @@ export class SolaraSocialService {
     this.comments.set(id, []);
 
     if (this.repository) {
-      void this.repository.savePost(post).catch((err: unknown) => {
-        console.error("[Solara] Failed to persist post to Postgres:", err);
-      });
+      await this.repository.savePost(post);
     }
 
     return post;
@@ -331,15 +330,15 @@ export class SolaraSocialService {
     return this.getComments(postId);
   }
 
-  followActor(
+  async followActor(
     followerActorType: SocialActorType,
     followerActorId: string,
     targetActorType: SocialActorType,
     targetActorId: string
-  ): FollowerRelation {
+  ): Promise<FollowerRelation> {
     const key = `${targetActorType}:${targetActorId}`;
     const relation: FollowerRelation = {
-      id: `flw-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: `flw-${crypto.randomUUID()}`,
       followerActorType,
       followerActorId,
       targetActorType,
@@ -352,9 +351,7 @@ export class SolaraSocialService {
     this.followers.set(key, list);
 
     if (this.repository) {
-      void this.repository.addFollower(targetActorId, relation).catch((err: unknown) => {
-        console.error("[Solara] Failed to persist follower to Postgres:", err);
-      });
+      await this.repository.addFollower(targetActorId, relation);
     }
 
     return relation;

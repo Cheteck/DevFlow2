@@ -57,9 +57,9 @@ export class PspWebhookHandler {
         const signatureHeader = req.headers["x-psp-signature"] as string || req.headers["stripe-signature"] as string;
         const webhookSecret = process.env.PSP_WEBHOOK_SECRET || "mosaix_psp_webhook_secret_dev_key_2026";
 
-        // Validate signature
+        // Validate signature strictly in all environments
         const isValid = this.verifySignature(bodyStr, signatureHeader, webhookSecret);
-        if (!isValid && process.env.NODE_ENV === "production") {
+        if (!isValid) {
           sendProblemResponse(res, 401, "Invalid Signature", "La signature cryptographique du webhook est invalide.");
           return;
         }
