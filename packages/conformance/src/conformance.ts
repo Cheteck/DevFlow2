@@ -64,10 +64,10 @@ export class AppConformanceValidator {
     if (!Array.isArray(permissions)) {
       errors.push("Property 'permissions' must be an array.");
     } else {
-      const permRegex = /^[a-z0-9_.-]+:[a-z0-9_.-]+:[a-z0-9_.-]+:(tenant|organization|store|self)$/i;
+      const permRegex = /^[a-z0-9_.-]+:[a-z0-9_.-]+:[a-z0-9_.-]+(:(tenant|organization|store|self))?$/i;
       for (const perm of permissions) {
         if (typeof perm !== "string" || !permRegex.test(perm)) {
-          errors.push(`Permission [${perm}] must match valid 4-part permission pattern (domain:resource:action:scope where scope is tenant|organization|store|self).`);
+          errors.push(`Permission [${perm}] must match valid permission pattern (domain:resource:action[:scope]).`);
         }
       }
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PostgresDatabaseAdapter } from "./index";
+import { PostgresDatabaseAdapter, PostgresPoolManager } from "./index";
 import type { PgClient, PgQueryResult } from "./index";
 
 class MockPgClient implements PgClient {
@@ -115,5 +115,19 @@ describe("PostgresDatabaseAdapter", () => {
       "RELEASE mosaix_tx_1",
       "COMMIT",
     ]);
+  });
+
+  it("supports pooled execution via PostgresPoolManager", async () => {
+    const client = new MockPgClient([{ healthy: 1 }], 1);
+    const pool = new PostgresPoolManager(() => client);
+    const db = new PostgresDatabaseAdapter(pool);
+
+    const isHealthy = await pool.healthCheck();
+    expect(isHealthy).toBe(true);
+
+    const count = await db.execute("UPDATE users SET name = $1", ["Jane"]);
+    expect(count).toBe(1);
+
+    await db.close();
   });
 });

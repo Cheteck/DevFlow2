@@ -32,10 +32,10 @@ describe("MOSAIX-APP Conformance Validator Suite", () => {
     expect(result.errors.some((e) => e.includes("Property 'type' must be 'application'"))).toBe(true);
   });
 
-  it("validates all 9 workspace Bounded Applications in apps/", () => {
+  it("validates all 10 workspace Bounded Applications in apps/", () => {
     const results = AppConformanceValidator.validateAllWorkspaceApps("apps");
 
-    expect(Object.keys(results).length).toBe(9);
+    expect(Object.keys(results).length).toBe(10);
     expect(results["citadelle"]?.valid).toBe(true);
     expect(results["portfolio"]?.valid).toBe(true);
     expect(results["commerce"]?.valid).toBe(true);
@@ -45,5 +45,6 @@ describe("MOSAIX-APP Conformance Validator Suite", () => {
     expect(results["beam"]?.valid).toBe(true);
     expect(results["solidarity"]?.valid).toBe(true);
     expect(results["booking"]?.valid).toBe(true);
+    expect(results["subscription"]?.valid).toBe(true);
   });
 });
