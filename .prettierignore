@@ -1,0 +1,8 @@
+# Governance docs (AGENTS.md protocol + .project/ + .planning/ memory) follow
+# manual formatting conventions; do not auto-format them.
+AGENTS.md
+.project/
+.planning/
+
+# Lockfile is generated/managed by pnpm
+pnpm-lock.yaml

@@ -1,0 +1,78 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../.mosaix/build/apps/imperia",
+    "rootDir": ".",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "tsBuildInfoFile": "../../.mosaix/build/apps/imperia/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts",
+    "frontend/src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "frontend/src/**/*.test.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/types"
+    },
+    {
+      "path": "../../packages/container"
+    },
+    {
+      "path": "../../packages/http"
+    },
+    {
+      "path": "../../packages/security"
+    },
+    {
+      "path": "../../packages/control-plane"
+    },
+    {
+      "path": "../../packages/orm"
+    },
+    {
+      "path": "../../packages/ui-runtime"
+    },
+    {
+      "path": "../../packages/sdk"
+    },
+    {
+      "path": "../citadelle"
+    },
+    {
+      "path": "../portfolio"
+    },
+    {
+      "path": "../commerce"
+    },
+    {
+      "path": "../../packages/plugin-engine"
+    },
+    {
+      "path": "../../packages/conformance"
+    },
+    {
+      "path": "../../packages/telemetry"
+    },
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/migrations"
+    },
+    {
+      "path": "../beam"
+    },
+    {
+      "path": "../spaces"
+    },
+    {
+      "path": "../solara"
+    }
+  ]
+}

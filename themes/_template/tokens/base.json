@@ -1,0 +1,21 @@
+{
+  "colors": {
+    "primary": "#4f46e5",
+    "background": "#f8fafc",
+    "surface": "#ffffff",
+    "text": "#0f172a"
+  },
+  "typography": {
+    "fontFamily": "Inter, sans-serif",
+    "fontSizeBase": "16px"
+  },
+  "spacing": {
+    "md": "16px"
+  },
+  "radius": {
+    "md": "12px"
+  },
+  "breakpoints": {
+    "md": "768px"
+  }
+}

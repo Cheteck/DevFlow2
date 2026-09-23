@@ -1,0 +1,50 @@
+{
+  "type": "application",
+  "id": "@apps/imperia",
+  "name": "MosaiX Imperia Control Plane & Governance",
+  "version": "1.0.0",
+  "domain": {
+    "name": "imperia"
+  },
+  "runtime": {
+    "entrypoint": "./src/index.ts",
+    "isolation": "trusted"
+  },
+  "database": {
+    "strategy": "per-app"
+  },
+  "capabilities": [
+    {
+      "id": "imperia.governance.inspect",
+      "version": "1.0.0"
+    },
+    {
+      "id": "imperia.governance.audit",
+      "version": "1.0.0"
+    },
+    {
+      "id": "imperia.topology.query",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [
+    "imperia:governance:inspect",
+    "imperia:governance:audit",
+    "imperia:topology:query"
+  ],
+  "events": [
+    "imperia.policy.updated",
+    "imperia.audit.logged",
+    "imperia.circuit.tripped"
+  ],
+  "experience": {
+    "appCard": {
+      "title": "Imperia Gouvernance",
+      "icon": "⚡",
+      "description": "Plan de contrôle, topologie globale, politiques de sécurité et supervision runtime"
+    },
+    "frontend": {
+      "entrypoint": "./frontend/src/index.ts"
+    }
+  }
+}

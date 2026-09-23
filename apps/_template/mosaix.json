@@ -1,0 +1,39 @@
+{
+  "type": "application",
+  "id": "__APP_ID__",
+  "name": "__APP_NAME__",
+  "version": "1.0.0",
+  "domain": {
+    "name": "__DOMAIN__"
+  },
+  "runtime": {
+    "entrypoint": "./src/index.ts",
+    "isolation": "trusted"
+  },
+  "database": {
+    "strategy": "per-app"
+  },
+  "capabilities": [
+    {
+      "id": "__DOMAIN__.sample.action",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [
+    "__DOMAIN__:sample:read",
+    "__DOMAIN__:sample:write"
+  ],
+  "events": [
+    "__DOMAIN__.sample.created"
+  ],
+  "experience": {
+    "appCard": {
+      "title": "__APP_NAME__",
+      "icon": "🧩",
+      "description": "Template d'application modulaire MosaiX"
+    },
+    "frontend": {
+      "entrypoint": "./frontend/src/index.ts"
+    }
+  }
+}

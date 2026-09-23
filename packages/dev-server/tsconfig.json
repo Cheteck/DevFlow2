@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "../../.mosaix/build/packages/dev-server",
+    "rootDir": "../..",
+    "tsBuildInfoFile": "../../.mosaix/build/packages/dev-server/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "references": [
+    {
+      "path": "../contracts"
+    },
+    {
+      "path": "../core"
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "type": "application",
+  "id": "@apps/portfolio",
+  "name": "Portfolio & Product Information",
+  "version": "1.0.0",
+  "domain": {
+    "name": "portfolio"
+  },
+  "runtime": {
+    "entrypoint": "./src/index.ts",
+    "isolation": "trusted"
+  },
+  "database": {
+    "strategy": "per-app"
+  },
+  "capabilities": [
+    {
+      "id": "portfolio.vendable.create",
+      "version": "1.0.0"
+    },
+    {
+      "id": "portfolio.vendable.read",
+      "version": "1.0.0"
+    },
+    {
+      "id": "portfolio.vendable.publish",
+      "version": "1.0.0"
+    },
+    {
+      "id": "portfolio.vendable.search",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [
+    "portfolio:vendable:create",
+    "portfolio:vendable:read",
+    "portfolio:vendable:publish",
+    "portfolio:vendable:search"
+  ],
+  "events": [
+    "portfolio.vendable.created",
+    "portfolio.vendable.published",
+    "portfolio.workflow.updated"
+  ],
+  "experience": {
+    "appCard": {
+      "title": "Catalogue & Produits",
+      "icon": "🎨",
+      "description": "Gestion des catalogues d'offres, informations produits et publication"
+    },
+    "frontend": {
+      "entrypoint": "./frontend/src/index.ts"
+    }
+  }
+}

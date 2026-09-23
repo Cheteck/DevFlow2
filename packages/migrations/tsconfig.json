@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "../../.mosaix/build/packages/migrations",
+    "rootDir": "../..",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "tsBuildInfoFile": "../../.mosaix/build/packages/migrations/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts"
+  ],
+  "references": [
+    { "path": "../ports/database" },
+    { "path": "../contracts" },
+    { "path": "../types" }
+  ]
+}

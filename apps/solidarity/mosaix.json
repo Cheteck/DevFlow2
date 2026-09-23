@@ -1,0 +1,70 @@
+{
+  "type": "application",
+  "id": "@apps/solidarity",
+  "name": "MosaiX Solidarity",
+  "version": "1.0.0",
+  "domain": {
+    "name": "solidarity"
+  },
+  "runtime": {
+    "entrypoint": "./src/index.ts",
+    "isolation": "trusted"
+  },
+  "database": {
+    "strategy": "per-app"
+  },
+  "capabilities": [
+    {
+      "id": "solidarity.incident.create",
+      "version": "1.0.0"
+    },
+    {
+      "id": "solidarity.need.declare",
+      "version": "1.0.0"
+    },
+    {
+      "id": "solidarity.donation.submit",
+      "version": "1.0.0"
+    },
+    {
+      "id": "solidarity.hub.register",
+      "version": "1.0.0"
+    },
+    {
+      "id": "solidarity.mission.assign",
+      "version": "1.0.0"
+    },
+    {
+      "id": "solidarity.distribution.confirm",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [
+    "solidarity:incident:create",
+    "solidarity:need:declare",
+    "solidarity:donation:submit",
+    "solidarity:hub:register",
+    "solidarity:mission:manage",
+    "solidarity:distribution:confirm"
+  ],
+  "events": [
+    "solidarity.incident.created",
+    "solidarity.need.created",
+    "solidarity.need.satisfied",
+    "solidarity.donation.created",
+    "solidarity.resource.available",
+    "solidarity.mission.created",
+    "solidarity.mission.completed",
+    "solidarity.distribution.confirmed"
+  ],
+  "experience": {
+    "appCard": {
+      "title": "Solidarité d'Urgence",
+      "icon": "🤝",
+      "description": "Coordination des secours, collecte de dons, hubs logistiques et missions humanitaires"
+    },
+    "frontend": {
+      "entrypoint": "./frontend/src/index.ts"
+    }
+  }
+}

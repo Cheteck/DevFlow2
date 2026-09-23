@@ -1,0 +1,35 @@
+{
+  "name": "@apps/beam",
+  "version": "0.1.0",
+  "description": "MosaiX Beam — Real-time Instant Messaging Bounded Application",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsc --build --watch",
+    "build": "tsc --build",
+    "clean": "rimraf dist",
+    "test": "vitest run"
+  },
+  "files": [
+    "dist"
+  ],
+  "eslintBoundaries": {
+    "type": "app"
+  },
+  "dependencies": {
+    "@mosaix/commands": "workspace:*",
+    "@mosaix/container": "workspace:*",
+    "@mosaix/http": "workspace:*",
+    "@mosaix/orm": "workspace:*",
+    "@mosaix/sdk": "workspace:*",
+    "@mosaix/security": "workspace:*",
+    "@mosaix/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

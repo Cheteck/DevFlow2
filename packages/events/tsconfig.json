@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../.mosaix/build/packages/events",
+    "rootDir": "../..",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "tsBuildInfoFile": "../../.mosaix/build/packages/events/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "references": [
+    { "path": "../types" },
+    { "path": "../contracts" },
+    { "path": "../orm" },
+    { "path": "../ports/database" }
+  ]
+}

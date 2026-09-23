@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ThemeTokensV1",
+  "type": "object",
+  "required": ["colors", "typography", "spacing", "radius", "breakpoints"],
+  "properties": {
+    "colors": {
+      "type": "object",
+      "required": ["primary", "background", "surface", "text"],
+      "additionalProperties": { "type": "string" }
+    },
+    "typography": {
+      "type": "object",
+      "required": ["fontFamily", "fontSizeBase"],
+      "additionalProperties": { "type": "string" }
+    },
+    "spacing": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "radius": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "breakpoints": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

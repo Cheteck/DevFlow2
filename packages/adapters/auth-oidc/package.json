@@ -1,0 +1,40 @@
+{
+  "name": "@mosaix/adapter-auth-oidc",
+  "version": "0.1.0",
+  "description": "OpenID Connect authentication provider for MosaiX",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsc --build --watch",
+    "build": "tsc --build",
+    "clean": "rimraf dist",
+    "test": "vitest run"
+  },
+  "files": [
+    "dist"
+  ],
+  "eslintBoundaries": {
+    "type": "adapters"
+  },
+  "dependencies": {
+    "@mosaix/contracts": "workspace:*",
+    "@mosaix/ports-http": "workspace:*",
+    "@mosaix/ports-identity-store": "workspace:*",
+    "@mosaix/ports-session-creation": "workspace:*",
+    "@mosaix/ports-session-store": "workspace:*",
+    "@mosaix/ports-secrets": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@mosaix/dev-session",
+  "version": "0.1.0",
+  "description": "MosaiX Dev Session Management — session state machine and persistent stores",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "tsc --build --watch",
+    "build": "tsc --build",
+    "clean": "rimraf dist",
+    "test": "vitest run"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@mosaix/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

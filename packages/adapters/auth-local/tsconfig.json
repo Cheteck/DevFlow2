@@ -1,0 +1,41 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "../../.mosaix/build/packages/adapters__auth-local",
+    "rootDir": "../..",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "tsBuildInfoFile": "../../.mosaix/build/packages/adapters__auth-local/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts"
+  ],
+  "references": [
+    {
+      "path": "../../types"
+    },
+    {
+      "path": "../../contracts"
+    },
+    {
+      "path": "../../ports/credential-store"
+    },
+    {
+      "path": "../../ports/identity-store"
+    },
+    {
+      "path": "../../ports/secrets"
+    },
+    {
+      "path": "../../ports/crypto"
+    },
+    {
+      "path": "../../auth"
+    }
+  ]
+}

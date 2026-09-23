@@ -1,0 +1,35 @@
+{
+  "name": "@mosaix/adapter-http-fetch",
+  "version": "1.0.0",
+  "description": "Native Fetch HTTP client adapter implementing HttpPort for MosaiX",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsc --build --watch",
+    "build": "tsc --build",
+    "clean": "rimraf dist",
+    "test": "vitest run"
+  },
+  "files": [
+    "dist"
+  ],
+  "eslintBoundaries": {
+    "type": "adapters"
+  },
+  "dependencies": {
+    "@mosaix/ports-http": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}

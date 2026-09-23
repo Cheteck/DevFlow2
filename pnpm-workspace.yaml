@@ -1,0 +1,7 @@
+packages:
+  - 'packages/*'
+  - 'packages/adapters/*'
+  - 'packages/ports/*'
+  - 'apps/*'
+  - '!apps/_template'
+  - 'plugins/*'

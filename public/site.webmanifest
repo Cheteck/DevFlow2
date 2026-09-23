@@ -1,0 +1,17 @@
+{
+  "name": "MosaiX Platform",
+  "short_name": "MosaiX",
+  "description": "Plateforme Modulaire & Bounded Applications",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1326",
+  "theme_color": "#8b5cf6",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

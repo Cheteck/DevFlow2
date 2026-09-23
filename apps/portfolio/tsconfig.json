@@ -1,0 +1,42 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "../../.mosaix/build/apps/portfolio",
+    "rootDir": ".",
+    "declaration": true,
+    "declarationMap": true,
+    "tsBuildInfoFile": "../../.mosaix/build/apps/portfolio/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts",
+    "frontend/src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "frontend/src/**/*.test.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/types"
+    },
+    {
+      "path": "../../packages/contracts"
+    },
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/sdk"
+    },
+    {
+      "path": "../../packages/conformance"
+    },
+    {
+      "path": "./tsconfig.database.json"
+    },
+    {
+      "path": "./tsconfig.frontend.json"
+    }
+  ]
+}

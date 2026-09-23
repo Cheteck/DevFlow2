@@ -1,0 +1,36 @@
+{
+  "name": "@mosaix/adapter-email-ses",
+  "version": "1.0.0",
+  "description": "AWS SES email adapter implementing EmailPort for MosaiX",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsc --build --watch",
+    "build": "tsc --build",
+    "clean": "rimraf dist",
+    "test": "vitest run"
+  },
+  "files": [
+    "dist"
+  ],
+  "eslintBoundaries": {
+    "type": "adapters"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.600.0",
+    "@mosaix/ports-email": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "type": "application",
+  "id": "@apps/citadelle",
+  "name": "Citadelle",
+  "version": "1.0.0",
+  "domain": {
+    "name": "citadelle"
+  },
+  "runtime": {
+    "entrypoint": "./src/index.ts",
+    "isolation": "trusted"
+  },
+  "database": {
+    "strategy": "per-app"
+  },
+  "capabilities": [
+    {
+      "id": "identity.user.create",
+      "version": "1.0.0"
+    },
+    {
+      "id": "identity.user.lookup",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [
+    "citadelle:user:create",
+    "citadelle:user:read"
+  ],
+  "events": [
+    "identity.user.created",
+    "identity.user.updated"
+  ],
+  "experience": {
+    "appCard": {
+      "title": "Citadelle Identité",
+      "icon": "🛡️",
+      "description": "Authentification souveraine, gestion des profils et annuaire décentralisé"
+    },
+    "frontend": {
+      "entrypoint": "./frontend/src/index.ts"
+    }
+  }
+}

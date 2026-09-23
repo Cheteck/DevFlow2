@@ -1,0 +1,46 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "../../.mosaix/build/apps/commerce",
+    "rootDir": ".",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "tsBuildInfoFile": "../../.mosaix/build/apps/commerce/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts",
+    "frontend/src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "frontend/src/**/*.test.ts"
+  ],
+  "references": [
+    {
+      "path": "../../plugins/commerce-badge-plugin"
+    },
+    {
+      "path": "../../plugins/commerce-comparator-plugin"
+    },
+    {
+      "path": "../../plugins/commerce-recently-viewed-plugin"
+    },
+    {
+      "path": "../../plugins/commerce-reviews-plugin"
+    },
+    {
+      "path": "../../plugins/commerce-wishlist-plugin"
+    },
+    {
+      "path": "../../packages/sdk"
+    },
+    {
+      "path": "../../packages/types"
+    },
+    {
+      "path": "../../packages/conformance"
+    }
+  ]
+}

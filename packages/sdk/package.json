@@ -1,0 +1,25 @@
+{
+  "name": "@mosaix/sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@mosaix/config": "workspace:*",
+    "@mosaix/contracts": "workspace:*",
+    "@mosaix/container": "workspace:*",
+    "@mosaix/core": "workspace:*",
+    "@mosaix/http": "workspace:*",
+    "@mosaix/orm": "workspace:*",
+    "@mosaix/orchestration": "workspace:*",
+    "@mosaix/ports-feature-flags": "workspace:*",
+    "@mosaix/types": "workspace:*"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "type": "application",
+  "id": "@apps/beam",
+  "name": "MosaiX Beam Instant Messenger",
+  "version": "1.0.0",
+  "domain": {
+    "name": "messaging"
+  },
+  "runtime": {
+    "entrypoint": "./src/index.ts",
+    "isolation": "trusted"
+  },
+  "database": {
+    "strategy": "per-app"
+  },
+  "capabilities": [
+    {
+      "id": "beam.message.send",
+      "version": "1.0.0"
+    },
+    {
+      "id": "beam.conversation.create",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [
+    "beam:message:send",
+    "beam:conversation:read"
+  ],
+  "events": [
+    "beam.message.sent",
+    "beam.conversation.created"
+  ],
+  "experience": {
+    "appCard": {
+      "title": "Beam Messenger",
+      "icon": "💬",
+      "description": "Messagerie instantanée temps réel et salons collaboratifs"
+    },
+    "frontend": {
+      "entrypoint": "./frontend/src/index.ts"
+    }
+  }
+}

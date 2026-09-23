@@ -1,0 +1,32 @@
+{
+  "name": "@apps/commerce",
+  "version": "0.1.0",
+  "description": "Commerce Bounded Application Context — Order & Checkout Domain",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "tsc --build --watch",
+    "build": "tsc --build",
+    "clean": "rimraf dist",
+    "test": "vitest run"
+  },
+  "eslintBoundaries": {
+    "type": "app"
+  },
+  "dependencies": {
+    "@mosaix-plugin/commerce-badge": "workspace:*",
+    "@mosaix-plugin/commerce-comparator": "workspace:*",
+    "@mosaix-plugin/commerce-recently-viewed": "workspace:*",
+    "@mosaix-plugin/commerce-reviews": "workspace:*",
+    "@mosaix-plugin/commerce-wishlist": "workspace:*",
+    "@mosaix/sdk": "workspace:*",
+    "@mosaix/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts"
+}

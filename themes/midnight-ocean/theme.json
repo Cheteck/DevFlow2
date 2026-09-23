@@ -1,0 +1,87 @@
+{
+  "type": "theme",
+  "id": "midnight-ocean",
+  "name": "Midnight Ocean",
+  "version": "1.0.0",
+  "contractVersion": "1.0.0",
+  "tokens": {
+    "colors": {
+      "primary": "#0ea5e9",
+      "primaryHover": "#0284c7",
+      "secondary": "#38bdf8",
+      "background": "#0b132b",
+      "surface": "#1c2541",
+      "text": "#f8fafc",
+      "textMuted": "#94a3b8",
+      "border": "#3b4a6b",
+      "accent": "#f43f5e",
+      "danger": "#ef4444",
+      "success": "#10b981",
+      "warning": "#f59e0b"
+    },
+    "typography": {
+      "fontFamily": "system-ui, -apple-system, sans-serif",
+      "fontSizeBase": "16px",
+      "fontSizeSm": "14px",
+      "fontSizeLg": "18px",
+      "fontWeightNormal": "400",
+      "fontWeightMedium": "500",
+      "fontWeightBold": "700",
+      "lineHeight": "1.5"
+    },
+    "spacing": {
+      "xs": "4px",
+      "sm": "8px",
+      "md": "16px",
+      "lg": "24px",
+      "xl": "32px"
+    },
+    "radius": {
+      "sm": "4px",
+      "md": "8px",
+      "lg": "12px",
+      "full": "9999px"
+    },
+    "shadows": {
+      "sm": "0 1px 2px 0 rgba(0, 0, 0, 0.5)",
+      "md": "0 4px 6px -1px rgba(0, 0, 0, 0.3)",
+      "lg": "0 10px 15px -3px rgba(0, 0, 0, 0.4)"
+    },
+    "motion": {
+      "durationFast": "100ms",
+      "durationNormal": "200ms",
+      "easing": "ease-out"
+    }
+  },
+  "modes": {
+    "light": {
+      "colors": {
+        "background": "#f0f4f8",
+        "surface": "#ffffff",
+        "text": "#1e293b",
+        "textMuted": "#64748b",
+        "border": "#cbd5e1"
+      }
+    },
+    "dark": {
+      "colors": {
+        "background": "#0b132b",
+        "surface": "#1c2541",
+        "text": "#f8fafc",
+        "textMuted": "#94a3b8",
+        "border": "#3b4a6b"
+      }
+    },
+    "high-contrast": {
+      "colors": {
+        "primary": "#00ffff",
+        "primaryHover": "#80ffff",
+        "background": "#000000",
+        "surface": "#000000",
+        "text": "#ffffff",
+        "textMuted": "#ffffff",
+        "border": "#ffffff"
+      }
+    }
+  }
+}

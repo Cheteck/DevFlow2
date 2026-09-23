@@ -1,0 +1,55 @@
+{
+  "type": "application",
+  "id": "@apps/booking",
+  "name": "Booking",
+  "version": "1.0.0",
+  "domain": {
+    "name": "booking"
+  },
+  "runtime": {
+    "entrypoint": "./src/index.ts",
+    "isolation": "trusted"
+  },
+  "database": {
+    "strategy": "per-app"
+  },
+  "requires": [
+    { "id": "@apps/citadelle", "version": "^1.0.0" }
+  ],
+  "capabilities": [
+    {
+      "id": "booking.slot.create",
+      "version": "1.0.0"
+    },
+    {
+      "id": "booking.slot.list",
+      "version": "1.0.0"
+    },
+    {
+      "id": "booking.reservation.create",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [
+    "booking:slot:create",
+    "booking:slot:read",
+    "booking:reservation:create"
+  ],
+  "events": [
+    "booking.slot.created",
+    "booking.reservation.created"
+  ],
+  "routes": {
+    "prefix": "/booking"
+  },
+  "experience": {
+    "appCard": {
+      "title": "Réservations & Créneaux",
+      "icon": "📅",
+      "description": "Planification de créneaux, réservation de ressources et gestion des disponibilités"
+    },
+    "frontend": {
+      "entrypoint": "./frontend/src/index.ts"
+    }
+  }
+}

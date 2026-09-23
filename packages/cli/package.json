@@ -1,0 +1,39 @@
+{
+  "name": "@mosaix/cli",
+  "version": "0.1.0",
+  "description": "CLI tool for MosaiX platform managing .mosaix build/runtime folder",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "mosaix": "./bin/mosaix.js"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "rimraf dist",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mosaix/adapter-database-sqlite": "workspace:*",
+    "@mosaix/conformance": "workspace:*",
+    "@mosaix/contracts": "workspace:*",
+    "@mosaix/core": "workspace:*",
+    "@mosaix/mcp": "workspace:*",
+    "@mosaix/migrations": "workspace:*",
+    "@mosaix/schemas": "workspace:*",
+    "@mosaix/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}

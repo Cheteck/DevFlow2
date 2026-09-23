@@ -1,0 +1,48 @@
+{
+  "name": "@apps/citadelle",
+  "version": "0.1.0",
+  "description": "Citadelle (Identity) Bounded Context — MosaiX app",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "tsc --build --watch",
+    "build": "tsc --build",
+    "test": "vitest run",
+    "clean": "rimraf dist"
+  },
+  "eslintBoundaries": {
+    "type": "app"
+  },
+  "dependencies": {
+    "@mosaix/adapter-auth-local": "workspace:*",
+    "@mosaix/adapter-credential-store-postgres": "workspace:*",
+    "@mosaix/adapter-credential-store-sqlite": "workspace:*",
+    "@mosaix/adapter-id-uuid": "workspace:*",
+    "@mosaix/adapter-identity-store-postgres": "workspace:*",
+    "@mosaix/adapter-identity-store-sqlite": "workspace:*",
+    "@mosaix/adapter-session-store-redis": "workspace:*",
+    "@mosaix/adapter-session-store-sqlite": "workspace:*",
+    "@mosaix/adapter-token-store-postgres": "workspace:*",
+    "@mosaix/adapter-token-store-sqlite": "workspace:*",
+    "@mosaix/auth": "workspace:*",
+    "@mosaix/contracts": "workspace:*",
+    "@mosaix/core": "workspace:*",
+    "@mosaix/ports-credential-store": "workspace:*",
+    "@mosaix/ports-database": "workspace:*",
+    "@mosaix/ports-id": "workspace:*",
+    "@mosaix/ports-identity-store": "workspace:*",
+    "@mosaix/ports-secrets": "workspace:*",
+    "@mosaix/ports-session-creation": "workspace:*",
+    "@mosaix/ports-session-store": "workspace:*",
+    "@mosaix/ports-token-store": "workspace:*",
+    "@mosaix/sdk": "workspace:*",
+    "@mosaix/types": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts"
+}

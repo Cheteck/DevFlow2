@@ -1,0 +1,46 @@
+name: mosaix-staging-platform
+
+services:
+  mosaix-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - MOSAIX_ENV=staging
+      - MOSAIX_PORT=3000
+      - MOSAIX_AUTH_JWT_SECRET=staging-secret-key-mosaix-2026
+      - MOSAIX_DATABASE_URL=postgres://mosaix:mosaix_pass@mosaix-postgres:5432/mosaix_staging
+      - MOSAIX_REDIS_URL=redis://mosaix-redis:6379
+      - MOSAIX_TELEMETRY_OTLP_ENDPOINT=http://mosaix-jaeger:4318/v1/traces
+    depends_on:
+      mosaix-postgres:
+        condition: service_healthy
+      mosaix-redis:
+        condition: service_started
+
+  mosaix-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mosaix
+      POSTGRES_PASSWORD: mosaix_pass
+      POSTGRES_DB: mosaix_staging
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mosaix -d mosaix_staging"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mosaix-redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  mosaix-jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "4318:4318"

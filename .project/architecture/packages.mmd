@@ -1,0 +1,370 @@
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize': '12px'}}}%%
+%% MosaiX Framework — Package Architecture (detailed)
+%% Sources: packages/*/package.json, FRAMEWORK.md, .project/architecture/{kernel-architecture,monorepo-target-architecture,constitution}.md,
+%%          MOSAIX_APPLICATION_RUNTIME_SPEC.md, PACKAGES.md
+%% Conventions: L0..L7 = couches taxonomie cible (monorepo-target-architecture §B/L).
+%% Lois constitution: Apps never communicate directly (Loi 1) — tout inter-app passe par le Kernel ;
+%% Everything Is a Contract (Loi 2) — @mosaix/contracts est la spec canonique ;
+%% Runtime Is Arbiter Never Actor + No Business Logic in Kernel (Lois 3/6).
+flowchart TB
+    subgraph L0_ABI["L0-L2 — ABI & Contracts (foundation, leaf nodes)"]
+        direction TB
+        types["@mosaix/types<br/>Brands primitifs: UUID/ULID, TenantIdentity,<br/>RuntimeKernelState, Result/Option helpers<br/>⚠ zero-dep, leaf"]
+        contracts["@mosaix/contracts<br/>Couche spec canonique (Loi 2)<br/>application/ capability/ events/<br/>experience/ plugin/ security/ auth/<br/>theme/ route/ platform/ runtime/ session/<br/>mosaix-artifact/ version<br/>→ dep: types"]
+        schemas["@mosaix/schemas<br/>Validateurs Zod runtime (.strict)<br/>ApplicationManifestSchema, ThemeManifestSchema,<br/>event payload schemas, version compat<br/>→ dep: contracts, zod"]
+    end
+
+    subgraph L1_PORTS["L2 — Ports hexagonaux (24 abstractions, zero impl)"]
+        direction TB
+        subgraph PortsInfra["Infra"]
+            p_db["ports-database<br/>DatabasePort"]
+            p_cache["ports-cache"]
+            p_storage["ports-storage"]
+            p_search["ports-search"]
+            p_http["ports-http"]
+            p_config["ports-config"]
+            p_secrets["ports-secrets"]
+        end
+        subgraph PortsIdentity["Identity & Auth (ADR-0012)"]
+            p_ident["ports-identity-store"]
+            p_cred["ports-credential-store"]
+            p_sess["ports-session-store"]
+            p_sessmk["ports-session-creation"]
+            p_token["ports-token-store"]
+            p_crypto["ports-crypto"]
+        end
+        subgraph PortsMessagingObs["Messaging & Observability"]
+            p_bus["ports-message-bus"]
+            p_pubsub["ports-pubsub"]
+            p_evtstore["ports-event-store<br/>(sans adapter)"]
+            p_log["ports-logging"]
+            p_met["ports-metrics"]
+            p_trace["ports-tracing"]
+            p_email["ports-email"]
+            p_sms["ports-sms"]
+            p_id["ports-id"]
+            p_clock["ports-clock"]
+            p_ff["ports-feature-flags"]
+        end
+    end
+
+    subgraph L2_ADAPTERS["L3 — Adapters concrets (40 drivers)"]
+        direction TB
+        subgraph AdDbCache["DB / Cache / Storage / Search"]
+            a_pg["adapter-database-postgres"]
+            a_sqlite["adapter-database-sqlite"]
+            a_cachemem["adapter-cache-memory"]
+            a_cacheredis["adapter-cache-redis<br/>(ioredis)"]
+            a_storloc["adapter-storage-local"]
+            a_stors3["adapter-storage-s3<br/>(aws-sdk)"]
+            a_searchem["adapter-search-memory"]
+            a_searchels["adapter-search-elasticsearch"]
+        end
+        subgraph AdIdent["Identity / Session / Token / Crypto"]
+            a_idpg["adapter-identity-store-postgres"]
+            a_idlite["adapter-identity-store-sqlite"]
+            a_credpg["adapter-credential-store-postgres"]
+            a_credlite["adapter-credential-store-sqlite"]
+            a_sessredis["adapter-session-store-redis"]
+            a_sesslite["adapter-session-store-sqlite"]
+            a_tokpg["adapter-token-store-postgres"]
+            a_toklite["adapter-token-store-sqlite"]
+            a_authloc["adapter-auth-local"]
+            a_authoidc["adapter-auth-oidc"]
+            a_authwa["adapter-auth-webauthn"]
+            a_cryptnode["adapter-crypto-node"]
+            a_cryptweb["adapter-crypto-web"]
+        end
+        subgraph AdMsgObs["Messaging / Obs / Comms"]
+            a_busmx["adapter-messagebus-mosaix"]
+            a_kafka["adapter-kafka (kafkajs)"]
+            a_rabbit["adapter-rabbitmq (amqplib)"]
+            a_pino["adapter-logger-pino"]
+            a_winston["adapter-logger-winston"]
+            a_metotel["adapter-metrics-otel"]
+            a_traceotel["adapter-tracing-otel"]
+            a_ses["adapter-email-ses"]
+            a_smtp["adapter-email-smtp (nodemailer)"]
+            a_twilio["adapter-sms-twilio"]
+            a_uuid["adapter-id-uuid"]
+            a_ulid["adapter-id-ulid"]
+            a_clksys["adapter-clock-system"]
+            a_clkfake["adapter-clock-fake"]
+            a_ffmem["adapter-featureflags-memory"]
+            a_ffld["adapter-featureflags-launchdarkly"]
+            a_cfgEnv["adapter-config-env"]
+            a_secenv["adapter-secrets-env"]
+            a_httpfetch["adapter-http-fetch"]
+        end
+    end
+
+    subgraph L3_KERNEL["L3 — Runtime Kernel Plane (arbitre, jamais acteur — Lois 3/6)"]
+        direction TB
+        kernel["@mosaix/core — RuntimeKernel<br/>State machine: CREATED→INITIALIZING→READY→RUNNING→STOPPING→STOPPED<br/>(FAILED→INITIALIZING retry)<br/>install/registerModule (tri topo + cycle detect)<br/>register(manifest) • mountRouter(prefix, router)<br/>executeCapability (resolve→permission→validate→exec→trace)<br/>bus.publish/subscribe (schema→payload→permission→store→DLQ)<br/>→ dep: contracts, container, http, schemas, types, ports-database"]
+        kctx["KernelContext (contrat stable)<br/>Canoniques (throw si absent): permissions, authorization,<br/>capabilities, events, eventStore, eventSchemas<br/>Extensions (undefined si absent): logger, metrics, tracer<br/>setService/getService/hasService"]
+        kmod["KernelModule (interface)<br/>register sync → boot → start (tri topo) → stop (inverse)<br/>Default: PermissionsModule, CapabilitiesModule, EventsModule<br/>+ ObservabilityModule (logger/metrics/tracer)"]
+        subgraph Registries["Registries (cœur)"]
+            capreg["CapabilityRegistry<br/>register/resolve/bindContract<br/>registerExecutor + input/output validators"]
+            appreq["AppRegistry + AppLifecycle<br/>discovered→registered→ready→active<br/>(degraded/draining/disabled)"]
+            evtbus["DomainEventBus + EventStore<br/>journal append-only tenant-isolé, idempotent envelope.id"]
+            evtsch["EventSchemaRegistry<br/>single-owner-per-event (Loi 4)"]
+            ctxreg["ContextRegistry (Runtime v1.0)<br/>BACs/Plugins/Remote — path-decoupled<br/>fini les imports apps/* en dur"]
+            compar["ApplicationCompositionResolver (DAG)<br/>ApplicationDefinition → plan ordonné<br/>version ^semver + contract compliance"]
+            lifeuni["RuntimeComponentLifecycle (unifié)<br/>DISCOVERED→VALIDATED→RESOLVED→LOADED→<br/>INITIALIZED→ACTIVE→DISABLED<br/>(BACs, Capabilities, Adapters, Plugins)"]
+            routereg["RouteRegistry + TenantSchemaManager<br/>+ AppDatabaseResolver + ThemeResolver/TargetRegistry"]
+        end
+        container["@mosaix/container<br/>IoC hiérarchique (singleton/transient/scoped)<br/>createChild() par tenant — isolation BAC<br/>→ dep: types"]
+        kerr["KernelError hierarchy<br/>Registration/Lifecycle/Authorization/<br/>Capability/Event/Validation/ServiceNotInstalled"]
+    end
+
+    subgraph L4_PRIMITIVES["L4 — Framework Primitives (developer framework)"]
+        direction TB
+        subgraph CqrsEvt["CQRS / Events / Orchestration"]
+            commands_pkg["@mosaix/commands<br/>CommandBus + CommandHandler (CQRS)<br/>→ dep: types"]
+            events_pkg["@mosaix/events<br/>dispatcher DX sur EventBus kernel<br/>EventStore + TransactionalOutboxEngine<br/>OutboxWorker/Daemon + DLQ"]
+            orchestration["@mosaix/orchestration<br/>WorkflowEngine + Saga compensation<br/>→ dep: types"]
+            pipeline["@mosaix/pipeline<br/>onion async middleware<br/>zero-dep"]
+        end
+        subgraph HttpSec["HTTP / Security / Auth"]
+            http["@mosaix/http<br/>Controller, Router, HttpRequest/Response<br/>OpenApiGenerator • Guard.authorize wiring<br/>→ dep: contracts, types"]
+            security["@mosaix/security<br/>Policy, Guard, Ability<br/>Guard.authorize(ctx, permission)<br/>→ dep: types"]
+            authfw["@mosaix/auth (bounded context)<br/>providers, sessions, challenges, tokens<br/>→ dep: contracts, ports-*-store, ports-id"]
+        end
+        subgraph DataDx["Data / DX helpers"]
+            orm["@mosaix/orm<br/>QueryBuilder multi-dialecte (PG/SQLite AST)<br/>Model hasMany/belongsTo/m2m, Repository,<br/>Seeder, Factory, QueryCacheManager<br/>→ dep: ports-database, types"]
+            database["@mosaix/database<br/>AppDatabaseResolver + multi-tenant<br/>Persistent-first: DatabasePort d'abord,<br/>in-memory = fallback conditionnel<br/>→ dep: ports-database, types"]
+            migrations["@mosaix/migrations<br/>SchemaBuilder DSL, SQLite/PG grammars<br/>DAG tri topo, previewSQL, dry-run, audit<br/>→ dep: ports-database"]
+            traits["@mosaix/traits<br/>SoftDelete/Timestampable/Cacheable<br/>zero-dep"]
+            support["@mosaix/support<br/>collections, strings — zero-dep"]
+            config["@mosaix/config<br/>env typé, deep-freeze immuable,<br/>snapshots + listeners — zero-dep"]
+            cachepkg["@mosaix/cache<br/>façade DX → ports-cache"]
+            fspkg["@mosaix/filesystem<br/>façade DX → ports-storage"]
+        end
+        subgraph ExtObs["Extension / Observability"]
+            plugin["@mosaix/plugin-engine<br/>PluginManagementService lifecycle<br/>PluginSandbox (isolation)<br/>→ dep: contracts, types"]
+            telemetry["@mosaix/telemetry<br/>propagation trace/span (randomBytes)<br/>OTLP exporter → dep: types"]
+            control_plane["@mosaix/control-plane<br/>serveur admin: topologie, DLQ,<br/>circuit-breaker, migration preview<br/>→ dep: http, security, types"]
+            foundation_pkg["@mosaix/foundation<br/>ServiceProvider de base + bootstrap<br/>→ dep: container"]
+        end
+    end
+
+    subgraph L5_TOOLING["L5 — Tooling & Runtime Entry"]
+        direction TB
+        gateway["@mosaix/gateway — runtime-entry<br/>serveur HTTP Node natif + RouteRegistry<br/>OpenAPI /openapi.json, token-bucket rate-limit<br/>OidcGatewayMiddleware (zero-trust)<br/>→ dep: auth, core, http, pipeline, types"]
+        cli["@mosaix/cli<br/>binaire mosaix: scaffolder,<br/>mosaix doctor, checks<br/>→ dep: conformance, contracts, core, mcp, schemas, types"]
+        dev_server["@mosaix/dev-server<br/>watcher + HMR + session runtime<br/>→ dep: contracts, core"]
+        dev_session["@mosaix/dev-session<br/>state machine session + stores persistants<br/>→ dep: types"]
+        watcher["@mosaix/watcher<br/>reactive file watcher → dep: types"]
+        conformance["@mosaix/conformance<br/>AppConformanceValidator (MOSAIX-APP)<br/>manifests + capabilities + entry points<br/>→ dep: contracts, types"]
+        testing["@mosaix/testing<br/>fakes/doubles, ChaosInjector,<br/>E2ETestHarness, assertions<br/>→ dep: events"]
+        mcp["@mosaix/mcp — Agent Interop Layer<br/>Model Context Protocol server<br/>capabilities exposées aux agents<br/>→ dep: contracts, core, schemas, security, types"]
+        ui_runtime["@mosaix/ui-runtime<br/>SlotRegistry (pages/widgets sans couplage CT)<br/>Navigation + I18nEngine (FR/EN/AR)<br/>+ ThemeResolver côté shell<br/>→ dep: contracts, core"]
+    end
+
+    subgraph L6_SDK["L6 — SDK (façade développeur BAC)"]
+        direction TB
+        sdk["@mosaix/sdk — meta-package<br/>MANIFEST + ServiceProvider.register/boot<br/>createApp(kernel, tenant, adapters?)<br/>provideCapability • registerEventSchema<br/>→ dep: commands, container, contracts, core,<br/>events, filesystem, foundation, http, orchestration,<br/>orm, pipeline, security, support, telemetry,<br/>traits, types, testing, ports-feature-flags"]
+    end
+
+    subgraph L7_APPS["L7 — Bounded Applications (1 BAC = 1 bounded context — Loi 7)"]
+        direction TB
+        subgraph AppsCore["BACs"]
+            identity["@apps/identity<br/>IAM: credentials, tokens,<br/>sessions, profils (workflows user)"]
+            imperia["@apps/imperia<br/>gouvernance: topologie, policies,<br/>DLQ, circuit-breaker, SQL preview"]
+            spaces["@apps/spaces<br/>entity & page engine (Spaces),<br/>rôles équipe, audit acting-as"]
+            solidarity["@apps/solidarity<br/>crise: incidents, besoins, dons,<br/>hubs, missions, distributions"]
+            commerce["@apps/commerce<br/>orders, checkout sagas,<br/>paiement, workflows e-commerce"]
+            portfolio["@apps/portfolio<br/>PIM: vendables découplés,<br/>complétude, contenu FR/EN/AR"]
+            solara["@apps/solara<br/>feed social actor-agnostic,<br/>polls/articles/showcases, modération"]
+            beam["@apps/beam<br/>messagerie temps réel<br/>conversations DM/groupe, dispatch"]
+        end
+        subgraph Compositions["Compositions déclaratives (Runtime v1.0)"]
+            comp_market["marketplace.json<br/>ApplicationDefinition"]
+            comp_creator["creator-platform.json"]
+            comp_community["community-platform.json"]
+        end
+        subgraph PluginsApps["Plugins (extension plane)"]
+            plug_badge["commerce-badge"]
+            plug_comp["commerce-comparator"]
+            plug_wish["commerce-wishlist"]
+            plug_rev["commerce-reviews"]
+            plug_rec["commerce-recently-viewed"]
+            plug_mod["solara-content-moderator"]
+        end
+    end
+
+    %% ── Dépendances ABI ──
+    types --> contracts
+    contracts --> schemas
+    types --> schemas
+    types --> container
+    types --> config
+    types --> support
+    types --> traits
+    types --> pipeline
+    types --> commands_pkg
+    types --> orchestration
+    types --> security
+    types --> telemetry
+    types --> http
+    types --> control_plane
+    types --> plugin
+    types --> conformance
+    types --> dev_session
+    types --> watcher
+    types --> gateway
+    types --> database
+    types --> orm
+    types --> cachepkg
+    contracts --> http
+    contracts --> plugin
+    contracts --> conformance
+    contracts --> dev_server
+    contracts --> ui_runtime
+    contracts --> mcp
+    contracts --> authfw
+    schemas --> kernel
+    schemas --> mcp
+    schemas --> cli
+
+    %% ── Ports → fondation (ports ne dépendent que ABI) ──
+    types --> p_db
+    types --> p_cache
+    types --> p_storage
+    contracts --> p_db
+
+    %% ── Adapters → ports ──
+    p_db --> a_pg
+    p_db --> a_sqlite
+    p_cache --> a_cachemem
+    p_cache --> a_cacheredis
+    p_storage --> a_storloc
+    p_storage --> a_stors3
+    p_search --> a_searchem
+    p_search --> a_searchels
+    p_ident --> a_idpg
+    p_ident --> a_idlite
+    p_cred --> a_credpg
+    p_cred --> a_credlite
+    p_sess --> a_sessredis
+    p_sess --> a_sesslite
+    p_token --> a_tokpg
+    p_token --> a_toklite
+    p_log --> a_pino
+    p_log --> a_winston
+    p_met --> a_metotel
+    p_trace --> a_traceotel
+    p_email --> a_ses
+    p_email --> a_smtp
+    p_sms --> a_twilio
+    p_id --> a_uuid
+    p_id --> a_ulid
+    p_clock --> a_clksys
+    p_clock --> a_clkfake
+    p_ff --> a_ffmem
+    p_ff --> a_ffld
+    p_config --> a_cfgEnv
+    p_secrets --> a_secenv
+    p_http --> a_httpfetch
+    p_bus --> a_busmx
+    p_pubsub --> a_kafka
+    p_pubsub --> a_rabbit
+    p_crypto --> a_cryptnode
+    p_crypto --> a_cryptweb
+
+    %% ── Kernel ──
+    container --> kernel
+    http --> kernel
+    kernel --> kctx
+    kernel --> kmod
+    kernel --> capreg
+    kernel --> appreq
+    kernel --> evtbus
+    kernel --> evtsch
+    kernel --> ctxreg
+    kernel --> compar
+    kernel --> lifeuni
+    kernel --> routereg
+    kernel --> kerr
+    p_db --> kernel
+
+    %% ── Primitives → kernel/ABI ──
+    kernel --> gateway
+    authfw --> gateway
+    http --> gateway
+    pipeline --> gateway
+    http --> control_plane
+    security --> control_plane
+    container --> foundation_pkg
+    events_pkg --> testing
+
+    %% ── SDK (façade, jamais d'adapter direct — boundary sdk) ──
+    kernel --> sdk
+    commands_pkg --> sdk
+    http --> sdk
+    orchestration --> sdk
+    orm --> sdk
+    security --> sdk
+    telemetry --> sdk
+    traits --> sdk
+    container --> sdk
+    events_pkg --> sdk
+    fspkg --> sdk
+    foundation_pkg --> sdk
+    pipeline --> sdk
+    support --> sdk
+    testing --> sdk
+
+    %% ── Tooling ──
+    conformance --> cli
+    kernel --> cli
+    mcp --> cli
+    kernel --> dev_server
+    kernel --> ui_runtime
+    kernel --> mcp
+    security --> mcp
+
+    %% ── Apps (Loi 1: jamais d'import inter-app — que capabilities/events via kernel) ──
+    sdk --> identity
+    sdk --> imperia
+    sdk --> spaces
+    sdk --> solidarity
+    sdk --> commerce
+    sdk --> portfolio
+    sdk --> solara
+    sdk --> beam
+    compar --> comp_market
+    compar --> comp_creator
+    compar --> comp_community
+    ctxreg --> comp_market
+    lifeuni --> plug_badge
+    lifeuni --> plug_comp
+    lifeuni --> plug_wish
+    lifeuni --> plug_rev
+    lifeuni --> plug_rec
+    lifeuni --> plug_mod
+    commerce --> plug_badge
+    commerce --> plug_comp
+    commerce --> plug_wish
+    commerce --> plug_rev
+    commerce --> plug_rec
+    solara --> plug_mod
+
+    %% ── Styling ──
+    classDef abi fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef port fill:#e0f7fa,stroke:#00838f,stroke-width:1px
+    classDef adapter fill:#f1f8e9,stroke:#689f38,stroke-width:1px
+    classDef kernel fill:#fff3e0,stroke:#e65100,stroke-width:3px
+    classDef primitive fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px
+    classDef tooling fill:#ede7f6,stroke:#512da8,stroke-width:1px
+    classDef sdk fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef app fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+
+    class types,contracts,schemas abi
+    class p_db,p_cache,p_storage,p_search,p_http,p_config,p_secrets,p_ident,p_cred,p_sess,p_sessmk,p_token,p_crypto,p_bus,p_pubsub,p_evtstore,p_log,p_met,p_trace,p_email,p_sms,p_id,p_clock,p_ff port
+    class a_pg,a_sqlite,a_cachemem,a_cacheredis,a_storloc,a_stors3,a_searchem,a_searchels,a_idpg,a_idlite,a_credpg,a_credlite,a_sessredis,a_sesslite,a_tokpg,a_toklite,a_authloc,a_authoidc,a_authwa,a_cryptnode,a_cryptweb,a_busmx,a_kafka,a_rabbit,a_pino,a_winston,a_metotel,a_traceotel,a_ses,a_smtp,a_twilio,a_uuid,a_ulid,a_clksys,a_clkfake,a_ffmem,a_ffld,a_cfgEnv,a_secenv,a_httpfetch adapter
+    class kernel,kctx,kmod,capreg,appreq,evtbus,evtsch,ctxreg,compar,lifeuni,routereg,container,kerr kernel
+    class commands_pkg,events_pkg,orchestration,pipeline,http,security,authfw,orm,database,migrations,traits,support,config,cachepkg,fspkg,plugin,telemetry,control_plane,foundation_pkg primitive
+    class gateway,cli,dev_server,dev_session,watcher,conformance,testing,mcp,ui_runtime tooling
+    class sdk sdk
+    class identity,imperia,spaces,solidarity,commerce,portfolio,solara,beam,comp_market,comp_creator,comp_community,plug_badge,plug_comp,plug_wish,plug_rev,plug_rec,plug_mod app

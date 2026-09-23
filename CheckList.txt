@@ -1,0 +1,477 @@
+Bien sûr. Voici une **check-list complète d’audit et de vérification d’un projet Node.js**, couvrant le code, l’architecture, la sécurité, les performances, les tests, la base de données, le déploiement et la maintenance.
+
+ ## ✅ Checklist complète — Projet Node.js
+
+ ### 1\. 📁 Structure et architecture
+
+ - [ ] La structure des dossiers est claire et cohérente.
+- [ ] Les responsabilités sont correctement séparées.
+- [ ] Les routes/controllers ne contiennent pas de logique métier excessive.
+- [ ] La logique métier est isolée dans des services/use cases.
+- [ ] L'accès aux données est séparé de la logique métier.
+- [ ] Les middlewares sont correctement organisés.
+- [ ] Les utilitaires génériques sont centralisés.
+- [ ] Les constantes sont centralisées.
+- [ ] Les types/interfaces/schemas sont correctement organisés.
+- [ ] Les dépendances entre modules ne créent pas de cycles inutiles.
+- [ ] L'architecture est documentée.
+- [ ] Les conventions de nommage sont homogènes.
+- [ ] Le projet évite les fichiers "God Object" ou trop volumineux.
+
+ ### 2\. 📦 Node.js / package management
+
+ - [ ] La version de Node.js est explicitement définie.
+- [ ] Un `.nvmrc`, `volta`, `asdf` ou équivalent est utilisé si nécessaire.
+- [ ] `package.json` est propre et cohérent.
+- [ ] `package-lock.json` / `yarn.lock` / `pnpm-lock.yaml` est versionné.
+- [ ] Les dépendances inutilisées sont supprimées.
+- [ ] Les dépendances dupliquées sont identifiées.
+- [ ] Les dépendances sont régulièrement mises à jour.
+- [ ] Les dépendances critiques sont vérifiées contre les vulnérabilités.
+- [ ] Les `dependencies` et `devDependencies` sont correctement séparées.
+- [ ] Les scripts npm sont documentés et fonctionnels.
+- [ ] Les packages abandonnés ou non maintenus sont identifiés.
+- [ ] Les dépendances transitoires importantes sont surveillées.
+
+ ### 3\. 🧹 Qualité du code
+
+ - [ ] ESLint est configuré.
+- [ ] Prettier ou une convention de formatage équivalente est configurée.
+- [ ] Le linting passe sans erreur.
+- [ ] Le formatage est homogène.
+- [ ] Aucun `console.log()` de debug ne reste en production.
+- [ ] Aucun `TODO` critique n'est oublié.
+- [ ] Aucun code mort n'est présent.
+- [ ] Les fonctions sont suffisamment petites et ciblées.
+- [ ] Les noms de variables/fonctions sont explicites.
+- [ ] Les fonctions ont une responsabilité claire.
+- [ ] Les duplications importantes sont supprimées.
+- [ ] Les commentaires expliquent le "pourquoi" plutôt que le "quoi".
+- [ ] Les erreurs silencieuses sont évitées.
+- [ ] Les promesses sont correctement `await`/gérées.
+- [ ] Les erreurs asynchrones sont correctement propagées.
+- [ ] Les callbacks inutiles sont évités.
+- [ ] Les traitements synchrones bloquants sont évités dans les chemins critiques.
+
+ ### 4\. 🔐 Sécurité
+
+ - [ ] Les secrets ne sont jamais présents dans Git.
+- [ ] Les clés API sont stockées dans des variables d'environnement ou un secret manager.
+- [ ] `.env` est dans `.gitignore`.
+- [ ] Un `.env.example` est fourni sans secrets réels.
+- [ ] Les entrées utilisateur sont systématiquement validées.
+- [ ] Les données sont correctement sanitizées lorsque nécessaire.
+- [ ] La protection contre les injections SQL/NoSQL est en place.
+- [ ] La protection XSS est prise en compte.
+- [ ] La protection CSRF est prise en compte lorsque pertinente.
+- [ ] La protection contre le prototype pollution est vérifiée.
+- [ ] La protection SSRF est vérifiée si le serveur effectue des requêtes vers des URLs fournies par l'utilisateur.
+- [ ] Les uploads de fichiers sont sécurisés.
+- [ ] Les extensions et MIME types sont contrôlés.
+- [ ] Les tailles maximales d'upload sont définies.
+- [ ] Les mots de passe sont hashés avec un algorithme adapté.
+- [ ] Les tokens JWT ont une durée de vie raisonnable.
+- [ ] Les refresh tokens sont correctement protégés.
+- [ ] Les cookies sensibles utilisent `HttpOnly`.
+- [ ] Les cookies utilisent `Secure` lorsque nécessaire.
+- [ ] `SameSite` est correctement configuré.
+- [ ] CORS est correctement configuré.
+- [ ] Les headers HTTP de sécurité sont configurés.
+- [ ] Un rate limiting est présent sur les endpoints sensibles.
+- [ ] Les endpoints d'authentification sont protégés contre le brute force.
+- [ ] Les informations sensibles ne sont jamais écrites dans les logs.
+- [ ] Les messages d'erreur ne révèlent pas d'informations internes.
+- [ ] Les dépendances sont auditées.
+- [ ] `npm audit` / équivalent est régulièrement exécuté.
+- [ ] Les permissions système du processus Node.js sont minimales.
+- [ ] Les conteneurs n'utilisent pas inutilement `root`.
+- [ ] Les endpoints internes/admin sont protégés.
+
+ ### 5\. 🌐 API / HTTP
+
+ - [ ] Les endpoints suivent une convention cohérente.
+- [ ] Les méthodes HTTP sont correctement utilisées.
+- [ ] Les codes HTTP sont appropriés.
+- [ ] Les payloads d'entrée sont validés.
+- [ ] Les réponses ont un format cohérent.
+- [ ] Les erreurs API ont un format standardisé.
+- [ ] La pagination est présente sur les collections importantes.
+- [ ] Les filtres sont validés.
+- [ ] Les tris sont whitelistés.
+- [ ] Les limites de pagination sont définies.
+- [ ] Les timeouts sont configurés.
+- [ ] Les requêtes longues sont identifiées.
+- [ ] Les endpoints sensibles utilisent du rate limiting.
+- [ ] L'idempotence est gérée lorsque nécessaire.
+- [ ] Les versions d'API sont correctement gérées si nécessaire.
+- [ ] Swagger/OpenAPI est disponible si pertinent.
+- [ ] Les endpoints sont documentés.
+- [ ] Les endpoints obsolètes sont identifiés.
+- [ ] Les réponses HTTP ne contiennent pas de données inutiles.
+
+ ### 6\. 🔑 Authentification / autorisation
+
+ - [ ] Le système d'authentification est clairement défini.
+- [ ] Les mots de passe respectent une politique raisonnable.
+- [ ] Les mots de passe sont correctement hashés.
+- [ ] Les tokens ont une expiration.
+- [ ] Les refresh tokens sont correctement invalidés/révoqués si nécessaire.
+- [ ] Les permissions sont vérifiées côté serveur.
+- [ ] Le frontend ne constitue jamais la seule barrière d'autorisation.
+- [ ] Les contrôles d'accès sont effectués sur chaque ressource sensible.
+- [ ] Les utilisateurs ne peuvent pas accéder aux ressources d'autres utilisateurs.
+- [ ] Les rôles et permissions sont documentés.
+- [ ] Les comptes sensibles disposent éventuellement d'une MFA.
+- [ ] Les sessions sont correctement invalidées lors d'une déconnexion.
+
+ ### 7\. 🗄️ Base de données
+
+ - [ ] Les migrations sont versionnées.
+- [ ] Les migrations sont reproductibles.
+- [ ] Les indexes sont définis correctement.
+- [ ] Les requêtes lentes sont identifiées.
+- [ ] Les N+1 queries sont recherchées.
+- [ ] Les transactions sont utilisées lorsque nécessaire.
+- [ ] Les contraintes DB sont correctement définies.
+- [ ] Les relations sont cohérentes.
+- [ ] Les données sensibles sont protégées.
+- [ ] Les connexions DB utilisent un pool.
+- [ ] La taille du pool est configurée.
+- [ ] Les timeouts DB sont définis.
+- [ ] Les connexions sont correctement fermées.
+- [ ] Les erreurs DB sont correctement gérées.
+- [ ] Les sauvegardes sont configurées.
+- [ ] La restauration des sauvegardes a été testée.
+- [ ] Les environnements possèdent des bases séparées.
+- [ ] Les credentials DB ne sont pas hardcodés.
+- [ ] Les opérations destructives sont protégées.
+
+ ### 8\. ⚡ Performance
+
+ - [ ] Le démarrage de l'application est suffisamment rapide.
+- [ ] Aucun traitement CPU lourd ne bloque inutilement l'event loop.
+- [ ] Les opérations I/O sont asynchrones.
+- [ ] Les requêtes DB sont optimisées.
+- [ ] Les indexes sont adaptés.
+- [ ] Les réponses volumineuses sont paginées.
+- [ ] La compression HTTP est configurée lorsque pertinente.
+- [ ] Le caching est utilisé lorsqu'il apporte un réel bénéfice.
+- [ ] Redis ou un cache similaire est utilisé si nécessaire.
+- [ ] Les appels à des APIs externes ont des timeouts.
+- [ ] Les appels externes disposent éventuellement de retries contrôlés.
+- [ ] Les retries utilisent un backoff.
+- [ ] Les appels externes évitent les cascades de requêtes.
+- [ ] Les memory leaks potentielles sont recherchées.
+- [ ] Les listeners/events sont correctement nettoyés.
+- [ ] Les gros fichiers ne sont pas chargés entièrement en mémoire inutilement.
+- [ ] Les streams sont utilisés pour les gros volumes lorsque pertinent.
+- [ ] Les benchmarks existent pour les parties critiques.
+- [ ] La consommation CPU/RAM est monitorée.
+
+ ### 9\. 🧪 Tests
+
+ - [ ] Les tests unitaires existent.
+- [ ] Les tests d'intégration existent.
+- [ ] Les tests API existent.
+- [ ] Les parcours critiques sont couverts.
+- [ ] Les cas nominaux sont testés.
+- [ ] Les cas d'erreur sont testés.
+- [ ] Les cas limites sont testés.
+- [ ] Les permissions sont testées.
+- [ ] L'authentification est testée.
+- [ ] Les validations d'entrée sont testées.
+- [ ] Les transactions sont testées.
+- [ ] Les tests DB sont isolés.
+- [ ] Les tests sont déterministes.
+- [ ] Les tests ne dépendent pas d'un ordre particulier.
+- [ ] Les mocks sont utilisés avec modération.
+- [ ] Les tests end-to-end couvrent les scénarios critiques.
+- [ ] La couverture de code est mesurée.
+- [ ] La couverture n'est pas utilisée comme unique indicateur de qualité.
+- [ ] Les tests tournent automatiquement en CI.
+
+ ### 10\. 🚨 Gestion des erreurs
+
+ - [ ] Un système global de gestion des erreurs existe.
+- [ ] Les erreurs sont correctement classifiées.
+- [ ] Les erreurs métier sont distinguées des erreurs techniques.
+- [ ] Les erreurs HTTP sont normalisées.
+- [ ] Les stack traces ne sont pas exposées en production.
+- [ ] Les erreurs inattendues sont loguées.
+- [ ] Les erreurs critiques déclenchent des alertes.
+- [ ] Les promesses rejetées sont correctement gérées.
+- [ ] `uncaughtException` et `unhandledRejection` sont traités avec une stratégie appropriée.
+- [ ] L'application possède une stratégie de graceful shutdown.
+- [ ] Les connexions DB sont fermées proprement.
+- [ ] Les workers/background jobs sont arrêtés proprement.
+
+ ### 11\. 📝 Logging
+
+ - [ ] Un logger structuré est utilisé.
+- [ ] Les logs possèdent des niveaux (`debug`, `info`, `warn`, `error`, etc.).
+- [ ] Les logs sont exploitables en production.
+- [ ] Un correlation/request ID est utilisé si nécessaire.
+- [ ] Les erreurs contiennent suffisamment de contexte.
+- [ ] Les mots de passe ne sont jamais logués.
+- [ ] Les tokens ne sont jamais logués.
+- [ ] Les données personnelles sensibles sont masquées.
+- [ ] Les logs ont une politique de rétention.
+- [ ] Les logs peuvent être centralisés.
+- [ ] Le niveau de log production est adapté.
+- [ ] Les logs de debug ne polluent pas la production.
+
+ ### 12\. 📊 Monitoring / Observabilité
+
+ - [ ] Health check disponible.
+- [ ] Readiness check disponible si nécessaire.
+- [ ] Liveness check disponible si nécessaire.
+- [ ] CPU monitoré.
+- [ ] Mémoire monitorée.
+- [ ] Event loop lag monitoré si nécessaire.
+- [ ] Temps de réponse monitoré.
+- [ ] Taux d'erreur monitoré.
+- [ ] DB monitorée.
+- [ ] Files/queues monitorées.
+- [ ] APIs externes monitorées.
+- [ ] Alertes configurées.
+- [ ] Les métriques métier importantes sont disponibles.
+- [ ] Les traces distribuées sont utilisées lorsque nécessaire.
+
+ ### 13\. 🐳 Docker / Conteneurisation
+
+ - [ ] `Dockerfile` existe si Docker est utilisé.
+- [ ] Image Node.js adaptée à l'environnement.
+- [ ] Image suffisamment minimale.
+- [ ] `.dockerignore` présent.
+- [ ] Pas de secrets dans l'image.
+- [ ] L'application ne tourne pas inutilement en root.
+- [ ] Les dépendances sont installées de manière reproductible.
+- [ ] Le build utilise correctement le cache Docker.
+- [ ] Les dépendances de développement ne sont pas embarquées inutilement en production.
+- [ ] Le port est correctement exposé.
+- [ ] Les health checks sont configurés.
+- [ ] Les signaux système sont correctement transmis.
+- [ ] Le graceful shutdown fonctionne dans le conteneur.
+- [ ] Les limites CPU/RAM sont définies lorsque nécessaire.
+
+ ### 14\. 🚀 CI/CD
+
+ - [ ] Une pipeline CI existe.
+- [ ] Installation des dépendances automatique.
+- [ ] Lint automatique.
+- [ ] Tests automatiques.
+- [ ] Build automatique.
+- [ ] Audit des dépendances.
+- [ ] Vérification des secrets.
+- [ ] Build Docker automatisé si nécessaire.
+- [ ] Les artefacts sont versionnés.
+- [ ] Les déploiements sont reproductibles.
+- [ ] Les environnements sont séparés.
+- [ ] Les secrets sont gérés par le système CI/CD.
+- [ ] Les migrations DB sont gérées correctement.
+- [ ] Les rollback sont possibles.
+- [ ] Les déploiements peuvent être tracés.
+- [ ] Les releases sont versionnées.
+- [ ] Une stratégie de déploiement progressif existe pour les applications critiques.
+
+ ### 15\. 🌍 Variables d'environnement / Configuration
+
+ - [ ] Toutes les variables nécessaires sont documentées.
+- [ ] Un `.env.example` existe.
+- [ ] Les variables sont validées au démarrage.
+- [ ] Les valeurs par défaut dangereuses sont évitées.
+- [ ] Les secrets ne sont pas dans le repository.
+- [ ] Les configurations dev/staging/prod sont séparées.
+- [ ] Les URLs externes sont configurables.
+- [ ] Les timeouts sont configurables.
+- [ ] Les limites de taille sont configurables.
+- [ ] Les feature flags sont correctement gérés.
+
+ ### 16\. 📚 Documentation
+
+ - [ ] README présent.
+- [ ] Installation documentée.
+- [ ] Prérequis documentés.
+- [ ] Variables d'environnement documentées.
+- [ ] Commandes npm documentées.
+- [ ] Architecture documentée.
+- [ ] API documentée.
+- [ ] Authentification documentée.
+- [ ] Base de données documentée.
+- [ ] Migrations documentées.
+- [ ] Déploiement documenté.
+- [ ] Procédure de rollback documentée.
+- [ ] Procédure de troubleshooting documentée.
+- [ ] Décisions architecturales importantes documentées.
+- [ ] Les exemples sont à jour.
+
+ ### 17\. 🧰 Git
+
+ - [ ] `.gitignore` correctement configuré.
+- [ ] Aucun secret dans l'historique Git.
+- [ ] Les commits sont compréhensibles.
+- [ ] Les branches suivent une convention.
+- [ ] Les Pull Requests sont revues.
+- [ ] Les branches protégées sont configurées.
+- [ ] Les checks CI sont obligatoires avant merge.
+- [ ] Les fichiers générés inutiles ne sont pas versionnés.
+- [ ] Les gros fichiers inutiles ne sont pas présents dans Git.
+- [ ] Les tags/releases sont correctement utilisés.
+
+ ### 18\. ⚙️ Background jobs / Queues
+
+ Si le projet utilise des workers ou des queues :
+
+ - [ ] Les jobs sont idempotents.
+- [ ] Les retries sont configurés.
+- [ ] Le nombre maximum de retries est défini.
+- [ ] Le backoff est configuré.
+- [ ] Les jobs définitivement échoués sont conservés/analysables.
+- [ ] Les jobs peuvent être rejoués.
+- [ ] Les jobs ont un timeout.
+- [ ] Les jobs lourds ne bloquent pas l'API.
+- [ ] La concurrence est contrôlée.
+- [ ] Les queues sont monitorées.
+
+ ### 19\. 🔌 APIs et services externes
+
+ - [ ] Chaque service externe possède un timeout.
+- [ ] Les erreurs réseau sont gérées.
+- [ ] Les retries sont limités.
+- [ ] Le backoff est utilisé.
+- [ ] Les réponses externes sont validées.
+- [ ] Les changements de contrat sont surveillés.
+- [ ] Les credentials sont sécurisés.
+- [ ] Les quotas sont pris en compte.
+- [ ] Un circuit breaker est envisagé pour les services critiques.
+- [ ] Un fallback existe lorsque nécessaire.
+- [ ] Les appels externes sont monitorés.
+
+ ### 20\. 🧠 Architecture avancée
+
+ - [ ] Les bounded contexts sont identifiés si le domaine est complexe.
+- [ ] Les dépendances entre domaines sont maîtrisées.
+- [ ] Les règles métier ne dépendent pas directement de l'infrastructure.
+- [ ] L'inversion de dépendances est utilisée lorsqu'elle apporte une réelle valeur.
+- [ ] Les interfaces externes sont abstraites lorsque nécessaire.
+- [ ] Les événements métier sont clairement définis.
+- [ ] Les traitements synchrones/asynchrones sont distingués.
+- [ ] Les transactions distribuées sont évitées ou correctement conçues.
+- [ ] Les problèmes de cohérence éventuelle sont compris.
+- [ ] Le scaling horizontal est possible si nécessaire.
+
+ ### 21\. 📱 Si API consommée par un frontend
+
+ - [ ] Les contrats API sont stables.
+- [ ] Les DTOs sont définis.
+- [ ] Les champs inutiles ne sont pas exposés.
+- [ ] Les erreurs sont facilement exploitables par le frontend.
+- [ ] Les dates utilisent un format standard.
+- [ ] Les IDs utilisent un format cohérent.
+- [ ] Les règles de pagination sont documentées.
+- [ ] CORS est correctement configuré.
+- [ ] Les fichiers statiques sont correctement servis si nécessaire.
+- [ ] Les versions d'API sont gérées.
+
+ ### 22\. 🧪 Vérifications avant mise en production
+
+ - [ ] `npm test` passe.
+- [ ] `npm run lint` passe.
+- [ ] Le build passe.
+- [ ] Les tests d'intégration passent.
+- [ ] Les migrations ont été testées.
+- [ ] Les variables de production sont présentes.
+- [ ] Les secrets sont correctement injectés.
+- [ ] Les health checks fonctionnent.
+- [ ] Les logs fonctionnent.
+- [ ] Le monitoring fonctionne.
+- [ ] Les alertes fonctionnent.
+- [ ] Les backups sont disponibles.
+- [ ] Une restauration a été testée.
+- [ ] Le rollback a été testé.
+- [ ] Les performances ont été vérifiées.
+- [ ] Les endpoints critiques ont été testés.
+- [ ] Les permissions ont été vérifiées.
+- [ ] Les certificats TLS sont valides.
+- [ ] Les domaines/DNS sont corrects.
+- [ ] Les limites de ressources sont configurées.
+- [ ] Aucun secret ou `.env` n'est présent dans l'image/repository.
+- [ ] Le processus de déploiement a été testé sur staging.
+
+ ## 🔎 Audit automatique recommandé
+
+ Pour une première passe, tu peux notamment vérifier :
+
+```
+# Version Node
+node --version
+npm --version
+
+# Dépendances vulnérables
+npm audit
+
+# Dépendances obsolètes
+npm outdated
+
+# Lint
+npm run lint
+
+# Tests
+npm test
+
+# Tests avec couverture
+npm run test:coverage
+
+# Build
+npm run build
+
+# Vérification des dépendances inutilisées
+npx depcheck
+
+# Vérification des fichiers/secrets selon les outils utilisés
+```
+
+ Et pour un projet sérieux, je recommande de compléter avec **ESLint + Prettier + tests automatisés + audit des dépendances + SAST + secret scanning + CI/CD + monitoring**.
+
+ ### 🎯 Critères de validation finale
+
+ Tu peux aussi noter chaque domaine sur **0 à 2** :
+
+ - **0** = absent / dangereux
+- **1** = présent mais incomplet
+- **2** = correctement implémenté et vérifié
+
+ Les domaines à scorer :
+
+ | Domaine | Score /2 |
+| --- | --- |
+| Architecture | ☐ |
+| Qualité du code | ☐ |
+| Dépendances | ☐ |
+| Sécurité | ☐ |
+| API | ☐ |
+| Authentification | ☐ |
+| Base de données | ☐ |
+| Performance | ☐ |
+| Tests | ☐ |
+| Gestion des erreurs | ☐ |
+| Logging | ☐ |
+| Monitoring | ☐ |
+| Docker | ☐ |
+| CI/CD | ☐ |
+| Configuration | ☐ |
+| Documentation | ☐ |
+| Git | ☐ |
+| Jobs/Queues | ☐ |
+| Services externes | ☐ |
+| Production readiness | ☐ |
+
+ **Score maximal : 40/40.**
+
+ - **36–40** → 🟢 Très bon niveau
+- **30–35** → 🟢 Bon, quelques améliorations
+- **22–29** → 🟠 Risques à traiter
+- **15–21** → 🟠 Projet fragile
+- **0–14** → 🔴 Audit et remédiation prioritaires
+
+ Si ton objectif est de **faire un véritable audit d'un projet Node.js existant**, je peux aussi te transformer cette checklist en **grille d'audit professionnelle**, avec pour chaque contrôle : _critère, méthode de vérification, commande/outils, niveau de criticité (Critical/High/Medium/Low), résultat et action corrective_.

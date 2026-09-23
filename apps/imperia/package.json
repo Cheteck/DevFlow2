@@ -1,0 +1,43 @@
+{
+  "name": "@apps/imperia",
+  "version": "0.1.0",
+  "description": "MosaiX Imperia — Platform Governance & Control Application",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsc --build --watch",
+    "build": "tsc --build",
+    "clean": "rimraf dist",
+    "test": "vitest run"
+  },
+  "files": [
+    "dist"
+  ],
+  "eslintBoundaries": {
+    "type": "app"
+  },
+  "dependencies": {
+    "@mosaix/conformance": "workspace:*",
+    "@mosaix/container": "workspace:*",
+    "@mosaix/control-plane": "workspace:*",
+    "@mosaix/core": "workspace:*",
+    "@mosaix/http": "workspace:*",
+    "@mosaix/migrations": "workspace:*",
+    "@mosaix/plugin-engine": "workspace:*",
+    "@mosaix/ports-feature-flags": "workspace:*",
+    "@mosaix/schemas": "workspace:*",
+    "@mosaix/sdk": "workspace:*",
+    "@mosaix/security": "workspace:*",
+    "@mosaix/telemetry": "workspace:*",
+    "@mosaix/types": "workspace:*",
+    "@mosaix/ui-runtime": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

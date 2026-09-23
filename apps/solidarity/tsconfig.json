@@ -1,0 +1,37 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "../../.mosaix/build/apps/solidarity",
+    "rootDir": ".",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "tsBuildInfoFile": "../../.mosaix/build/apps/solidarity/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts",
+    "frontend/src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "frontend/src/**/*.test.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/types"
+    },
+    {
+      "path": "../../packages/container"
+    },
+    {
+      "path": "../../packages/http"
+    },
+    {
+      "path": "../../packages/sdk"
+    },
+    {
+      "path": "../../packages/conformance"
+    }
+  ]
+}

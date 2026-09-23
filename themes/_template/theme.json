@@ -1,0 +1,42 @@
+{
+  "type": "theme",
+  "id": "_template",
+  "name": "Template Theme",
+  "displayName": "MosaiX Template Theme",
+  "version": "1.0.0",
+  "author": "MosaiX Core Team",
+  "compatibility": {
+    "platform": ">=0.1.0"
+  },
+  "contractVersion": "1.0.0",
+  "defaultLayout": "full-width",
+  "availableLayouts": ["full-width", "sidebar"],
+  "slots": {
+    "header": {
+      "template": "slots/header.html",
+      "since": "1.0.0"
+    },
+    "footer": {
+      "template": "slots/footer.html",
+      "since": "1.0.0"
+    },
+    "hero": {
+      "template": "slots/hero.html",
+      "since": "1.0.0"
+    }
+  },
+  "layouts": {
+    "full-width": "layouts/full-width.html",
+    "sidebar": "layouts/sidebar.html"
+  },
+  "tokens": "tokens/base.json",
+  "assetPresets": {
+    "hero-banner": {
+      "dimensions": "1200x400",
+      "scope": "hero"
+    }
+  },
+  "settings": {
+    "schema": "settings.schema.json"
+  }
+}

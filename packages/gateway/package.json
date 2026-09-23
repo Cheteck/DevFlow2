@@ -1,0 +1,40 @@
+{
+  "name": "@mosaix/gateway",
+  "version": "0.1.0",
+  "description": "MosaiX HTTP Gateway — production HTTP server connecting to Kernel RouteRegistry",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "tsc --build --watch",
+    "build": "tsc --build",
+    "clean": "rimraf dist",
+    "test": "vitest run"
+  },
+  "files": [
+    "dist"
+  ],
+  "eslintBoundaries": {
+    "type": "gateway"
+  },
+  "dependencies": {
+    "@mosaix/auth": "workspace:*",
+    "@mosaix/core": "workspace:*",
+    "@mosaix/http": "workspace:*",
+    "@mosaix/pipeline": "workspace:*",
+    "@mosaix/telemetry": "workspace:*",
+    "@mosaix/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

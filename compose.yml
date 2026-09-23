@@ -1,0 +1,72 @@
+# MosaiX local dev stack: platform server (tsx watch) + postgres + redis.
+#
+#   docker compose up --build     # frontend -> http://localhost:3000/
+#   docker compose down           # stop
+#   docker compose down -v        # stop + drop db/cache data
+#
+# NOTE: the docker service is named `platform` (hosting container, -> platform-1)
+# on purpose, to avoid confusion with the 8 domain apps under apps/ (beam,
+# commerce, identity, imperia, portfolio, solara, solidarity, spaces).
+#
+# The app boots without a database (adapters fall back); postgres/redis are
+# provided for parity with .env.example and future persistent adapters.
+name: mosaix
+
+services:
+  platform:
+    build: .
+    image: mosaix-platform:local
+    command: ["pnpm", "start"]
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: development
+      CI: "true"
+      PORT: "3000"
+      HOST: "0.0.0.0"
+      DATABASE_URL: "postgresql://mosaix:mosaix@db:5432/mosaix"
+      REDIS_URL: "redis://cache:6379"
+      SESSION_TTL: "3600"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.mosaix
+      - pnpm-store:/home/node/.local/share/pnpm/store
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mosaix
+      POSTGRES_PASSWORD: mosaix
+      POSTGRES_DB: mosaix
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mosaix -d mosaix"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  cache:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  pnpm-store:

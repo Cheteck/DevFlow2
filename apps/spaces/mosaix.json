@@ -1,0 +1,46 @@
+{
+  "type": "application",
+  "id": "@apps/spaces",
+  "name": "MosaiX Spaces & Modular Pages",
+  "version": "1.0.0",
+  "domain": {
+    "name": "spaces"
+  },
+  "runtime": {
+    "entrypoint": "./src/index.ts",
+    "isolation": "trusted"
+  },
+  "database": {
+    "strategy": "per-app"
+  },
+  "capabilities": [
+    {
+      "id": "spaces.space.create",
+      "version": "1.0.0"
+    },
+    {
+      "id": "spaces.module.toggle",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [
+    "spaces:space:create",
+    "spaces:space:manage",
+    "spaces:space:read"
+  ],
+  "events": [
+    "spaces.space.created",
+    "spaces.module.enabled",
+    "spaces.module.disabled"
+  ],
+  "experience": {
+    "appCard": {
+      "title": "Espaces Collaboratifs",
+      "icon": "🪐",
+      "description": "Création d'espaces modulaires, intégration de widgets et navigation contextualisée"
+    },
+    "frontend": {
+      "entrypoint": "./frontend/src/index.ts"
+    }
+  }
+}

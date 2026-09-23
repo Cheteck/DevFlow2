@@ -1,0 +1,43 @@
+{
+  "extends": "../../packages/types/tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "../../.mosaix/build/apps/citadelle",
+    "rootDir": ".",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "tsBuildInfoFile": "../../.mosaix/build/apps/citadelle/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts",
+    "frontend/src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "frontend/src/**/*.test.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/types"
+    },
+    {
+      "path": "../../packages/contracts"
+    },
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/sdk"
+    },
+    {
+      "path": "../../packages/conformance"
+    },
+    {
+      "path": "../../packages/adapters/crypto-node"
+    },
+    {
+      "path": "../../packages/config"
+    }
+  ]
+}

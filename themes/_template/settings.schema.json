@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TemplateThemeSettings",
+  "type": "object",
+  "properties": {
+    "brandAccent": {
+      "type": "string",
+      "default": "#4f46e5",
+      "description": "Primary accent color for tenant branding"
+    },
+    "borderRadius": {
+      "type": "string",
+      "default": "12px",
+      "description": "Global border radius preset"
+    },
+    "enableHeroBanner": {
+      "type": "boolean",
+      "default": true,
+      "description": "Toggle hero banner visibility on landing views"
+    }
+  }
+}

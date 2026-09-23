@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../.mosaix/build/packages/pipeline",
+    "rootDir": "../..",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "tsBuildInfoFile": "../../.mosaix/build/packages/pipeline/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
+}

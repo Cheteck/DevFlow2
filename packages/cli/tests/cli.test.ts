@@ -1,0 +1,182 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
+import {
+  MosaixFolderManager,
+  PackageDiscoverer,
+  ProductionBuildCompiler,
+  MosaixCommandRouter,
+  EXIT_CODES,
+} from "../src/index.js";
+
+describe("MosaiX CLI PRD Specification Suite", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mosaix-cli-test-"));
+  });
+
+  afterEach(() => {
+    if (fs.existsSync(tmpDir)) {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  describe("MosaixFolderManager (.mosaix workspace structure)", () => {
+    it("should generate the full PRD .mosaix folder structure", () => {
+      const manager = new MosaixFolderManager(tmpDir);
+      const struct = manager.ensureFolderStructure();
+
+      expect(fs.existsSync(struct.root)).toBe(true);
+      expect(fs.existsSync(struct.buildDir.root)).toBe(true);
+      expect(fs.existsSync(struct.buildDir.client)).toBe(true);
+      expect(fs.existsSync(struct.buildDir.server)).toBe(true);
+      expect(fs.existsSync(struct.buildDir.shared)).toBe(true);
+      expect(fs.existsSync(struct.cacheDir.root)).toBe(true);
+      expect(fs.existsSync(struct.diagnosticsDir.root)).toBe(true);
+      expect(fs.existsSync(struct.manifestsDir.root)).toBe(true);
+      expect(fs.existsSync(struct.routesDir.root)).toBe(true);
+      expect(fs.existsSync(struct.runtimeDir.root)).toBe(true);
+      expect(fs.existsSync(struct.standaloneDir.root)).toBe(true);
+      expect(fs.existsSync(struct.staticDir)).toBe(true);
+      expect(fs.existsSync(struct.tracesDir.root)).toBe(true);
+    });
+
+    it("should synthesize manifests and build artifacts into .mosaix", () => {
+      const manager = new MosaixFolderManager(tmpDir);
+      const struct = manager.synthesizeManifests({
+        applications: { identity: { id: "identity" } },
+        capabilities: [{ name: "auth:login" }],
+        events: [{ name: "user:created" }],
+      });
+
+      expect(fs.existsSync(struct.buildIdFile)).toBe(true);
+      expect(fs.existsSync(struct.manifestsDir.applicationsJson)).toBe(true);
+      expect(fs.existsSync(struct.manifestsDir.capabilitiesJson)).toBe(true);
+      expect(fs.existsSync(struct.manifestsDir.eventsJson)).toBe(true);
+      expect(fs.existsSync(struct.manifestsDir.aggregatedJson)).toBe(true);
+      expect(fs.existsSync(struct.diagnosticsDir.buildJson)).toBe(true);
+      expect(fs.existsSync(struct.tracesDir.dependenciesJson)).toBe(true);
+
+      const buildId = fs.readFileSync(struct.buildIdFile, "utf8");
+      expect(buildId.startsWith("build_")).toBe(true);
+    });
+
+    it("should cleanly remove .mosaix folder when clean() is called", () => {
+      const manager = new MosaixFolderManager(tmpDir);
+      manager.ensureFolderStructure();
+      const mosaixPath = path.join(tmpDir, ".mosaix");
+      expect(fs.existsSync(mosaixPath)).toBe(true);
+
+      manager.clean();
+      expect(fs.existsSync(mosaixPath)).toBe(false);
+    });
+
+    it("should return built inspection state after manifest synthesis", () => {
+      const manager = new MosaixFolderManager(tmpDir);
+      expect(manager.inspect().status).toBe("not_built");
+
+      manager.synthesizeManifests({ applications: { portfolio: { id: "portfolio" } } });
+      const info = manager.inspect();
+      expect(info.status).toBe("built");
+      expect(info.mosaixFolderExists).toBe(true);
+      expect(info.buildId).toBeDefined();
+    });
+  });
+
+  describe("PackageDiscoverer", () => {
+    it("should discover packages with mosaix provider declarations in workspace", () => {
+      const pkgDir = path.join(tmpDir, "packages", "custom-pkg");
+      fs.mkdirSync(pkgDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(pkgDir, "package.json"),
+        JSON.stringify({
+          name: "@mosaix/custom-pkg",
+          version: "1.2.0",
+          mosaix: {
+            provider: "./dist/provider.js",
+            capabilities: ["custom:cap"],
+            events: ["custom:event"],
+            commands: ["custom:status"],
+          },
+        }),
+        "utf8",
+      );
+
+      const discoverer = new PackageDiscoverer(tmpDir);
+      const pkgs = discoverer.discover();
+
+      expect(pkgs.length).toBeGreaterThanOrEqual(1);
+      const found = pkgs.find((p) => p.name === "@mosaix/custom-pkg");
+      expect(found).toBeDefined();
+      expect(found?.version).toBe("1.2.0");
+      expect(found?.capabilities).toContain("custom:cap");
+      expect(found?.cliCommands).toContain("custom:status");
+    });
+  });
+
+  describe("ProductionBuildCompiler", () => {
+    it("should compile production bundle and output standalone files", () => {
+      const compiler = new ProductionBuildCompiler(tmpDir);
+      const manifest = compiler.compile([
+        { id: "identity", name: "Identity BAC", version: "1.0.0", entryPoint: "src/index.ts" },
+      ]);
+
+      expect(manifest.platformVersion).toBe("1.0.0");
+      expect(manifest.applications.length).toBe(1);
+
+      const manager = new MosaixFolderManager(tmpDir);
+      const struct = manager.getStructure();
+      expect(fs.existsSync(struct.standaloneDir.serverJs)).toBe(true);
+      expect(fs.existsSync(struct.standaloneDir.packageJson)).toBe(true);
+    });
+  });
+
+  describe("MosaixCommandRouter (CLI Commands)", () => {
+    it("should handle init, dev, build, rebuild, start, clean commands", async () => {
+      const router = new MosaixCommandRouter(tmpDir);
+
+      const initRes = await router.execute("init", { json: true });
+      expect(initRes.exitCode).toBe(EXIT_CODES.SUCCESS);
+
+      const devRes = await router.execute("dev", { json: true });
+      expect(devRes.exitCode).toBe(EXIT_CODES.SUCCESS);
+
+      const buildRes = await router.execute("build", { json: true });
+      expect(buildRes.exitCode).toBe(EXIT_CODES.SUCCESS);
+
+      const startRes = await router.execute("start", { json: true });
+      expect(startRes.exitCode).toBe(EXIT_CODES.SUCCESS);
+
+      const rebuildRes = await router.execute("rebuild", { json: true });
+      expect(rebuildRes.exitCode).toBe(EXIT_CODES.SUCCESS);
+
+      const cleanRes = await router.execute("clean", { json: true });
+      expect(cleanRes.exitCode).toBe(EXIT_CODES.SUCCESS);
+    });
+
+    it("should support general and inspection commands in JSON mode", async () => {
+      const router = new MosaixCommandRouter(tmpDir);
+      await router.execute("build", { json: true });
+
+      const aboutRes = await router.execute("about", { json: true });
+      expect(aboutRes.exitCode).toBe(EXIT_CODES.SUCCESS);
+
+      const listRes = await router.execute("list", { json: true });
+      expect(listRes.exitCode).toBe(EXIT_CODES.SUCCESS);
+
+      const doctorRes = await router.execute("doctor", { json: true });
+      expect(doctorRes.exitCode).toBe(EXIT_CODES.SUCCESS);
+
+      const inspectRes = await router.execute("inspect", { json: true });
+      expect(inspectRes.exitCode).toBe(EXIT_CODES.SUCCESS);
+    });
+
+    it("should return EXIT_CODES.GENERIC_ERROR for unknown commands", async () => {
+      const router = new MosaixCommandRouter(tmpDir);
+      const res = await router.execute("non_existent_cmd", { json: true });
+      expect(res.exitCode).toBe(EXIT_CODES.GENERIC_ERROR);
+    });
+  });
+});

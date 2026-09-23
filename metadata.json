@@ -1,0 +1,8 @@
+{
+  "name": "MosaiX Platform",
+  "description": "Plug & Play Modular Orchestration for Bounded Application Contexts",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

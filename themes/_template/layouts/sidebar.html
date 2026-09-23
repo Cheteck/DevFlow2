@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{title}}</title>
+</head>
+<body class="layout-sidebar">
+  {{slot:header}}
+  <div class="layout-container">
+    <aside class="sidebar">{{slot:sidebar}}</aside>
+    <main class="content">{{content}}</main>
+  </div>
+  {{slot:footer}}
+</body>
+</html>

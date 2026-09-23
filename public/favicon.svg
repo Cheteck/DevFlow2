@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="mosaix-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="#0b1326" />
+  <rect x="1" y="1" width="30" height="30" rx="7" fill="none" stroke="#494454" stroke-width="1" />
+  <path d="M7 10 L16 6 L25 10 L25 22 L16 26 L7 22 Z" fill="none" stroke="url(#mosaix-grad)" stroke-width="2" stroke-linejoin="round" />
+  <circle cx="16" cy="16" r="3.5" fill="#d0bcff" />
+</svg>

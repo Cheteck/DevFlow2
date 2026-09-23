@@ -1,0 +1,51 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../.mosaix/build/apps/solara",
+    "rootDir": ".",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "tsBuildInfoFile": "../../.mosaix/build/apps/solara/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts",
+    "frontend/src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "frontend/src/**/*.test.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/types"
+    },
+    {
+      "path": "../../packages/container"
+    },
+    {
+      "path": "../../packages/http"
+    },
+    {
+      "path": "../../packages/security"
+    },
+    {
+      "path": "../../packages/orm"
+    },
+    {
+      "path": "../../packages/plugin-engine"
+    },
+    {
+      "path": "../../packages/sdk"
+    },
+    {
+      "path": "../../packages/events"
+    },
+    {
+      "path": "../../packages/conformance"
+    },
+    {
+      "path": "../../plugins/solara-content-moderator"
+    }
+  ]
+}

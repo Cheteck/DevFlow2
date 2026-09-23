@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" width="160" height="40">
+  <defs>
+    <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a78bfa" />
+      <stop offset="100%" stop-color="#60a5fa" />
+    </linearGradient>
+  </defs>
+  <!-- Icon Symbol -->
+  <rect x="2" y="2" width="36" height="36" rx="10" fill="#131b2e" stroke="#2d3449" stroke-width="1.5" />
+  <path d="M10 14 L20 9 L30 14 L30 26 L20 31 L10 26 Z" fill="none" stroke="url(#logo-grad)" stroke-width="2.5" stroke-linejoin="round" />
+  <circle cx="20" cy="20" r="4" fill="#d0bcff" />
+  <!-- Brand Typography -->
+  <text x="48" y="26" fill="#f3f4f6" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="20" letter-spacing="-0.5">Mosai<tspan fill="#a78bfa">X</tspan></text>
+</svg>

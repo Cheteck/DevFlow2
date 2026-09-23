@@ -1,0 +1,20 @@
+{
+  "id": "community-platform",
+  "name": "MosaiX Community Platform",
+  "version": "1.0.0",
+  "description": "Community hub with spaces, social engine, messaging, and governance.",
+  "contexts": [
+    { "id": "@apps/citadelle", "version": "^1.0.0" },
+    { "id": "@apps/spaces", "version": "^1.0.0" },
+    { "id": "@apps/solara", "version": "^1.0.0" },
+    { "id": "@apps/beam", "version": "^1.0.0" },
+    { "id": "@apps/imperia", "version": "^1.0.0" }
+  ],
+  "capabilities": [
+    { "id": "identity.manage" },
+    { "id": "spaces.create" },
+    { "id": "solara.publish" },
+    { "id": "beam.conversations" },
+    { "id": "imperia.governance" }
+  ]
+}

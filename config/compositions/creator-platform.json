@@ -1,0 +1,20 @@
+{
+  "id": "creator-platform",
+  "name": "MosaiX Creator Platform",
+  "version": "1.0.0",
+  "description": "Digital goods, social feeds, spaces, and real-time messaging for content creators.",
+  "contexts": [
+    { "id": "@apps/citadelle", "version": "^1.0.0" },
+    { "id": "@apps/spaces", "version": "^1.0.0" },
+    { "id": "@apps/portfolio", "version": "^1.0.0" },
+    { "id": "@apps/solara", "version": "^1.0.0" },
+    { "id": "@apps/beam", "version": "^1.0.0" }
+  ],
+  "capabilities": [
+    { "id": "identity.manage" },
+    { "id": "spaces.create" },
+    { "id": "portfolio.vendables" },
+    { "id": "solara.publish" },
+    { "id": "beam.conversations" }
+  ]
+}

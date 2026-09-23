@@ -1,0 +1,36 @@
+{
+  "name": "@mosaix/adapter-metrics-otel",
+  "version": "1.0.0",
+  "description": "OpenTelemetry metrics adapter implementing MetricsPort for MosaiX",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsc --build --watch",
+    "build": "tsc --build",
+    "clean": "rimraf dist",
+    "test": "vitest run"
+  },
+  "files": [
+    "dist"
+  ],
+  "eslintBoundaries": {
+    "type": "adapters"
+  },
+  "dependencies": {
+    "@mosaix/ports-metrics": "workspace:*",
+    "@opentelemetry/api": "^1.9.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}

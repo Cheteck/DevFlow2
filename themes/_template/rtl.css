@@ -1,0 +1,5 @@
+/* RTL overrides for template theme */
+[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}

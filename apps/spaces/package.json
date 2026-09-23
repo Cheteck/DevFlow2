@@ -1,0 +1,35 @@
+{
+  "name": "@apps/spaces",
+  "version": "0.1.0",
+  "description": "MosaiX Spaces — Modular Entity & Page Application (Facebook Pages concept)",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsc --build --watch",
+    "build": "tsc --build",
+    "clean": "rimraf dist",
+    "test": "vitest run"
+  },
+  "files": [
+    "dist"
+  ],
+  "eslintBoundaries": {
+    "type": "app"
+  },
+  "dependencies": {
+    "@mosaix/container": "workspace:*",
+    "@mosaix/http": "workspace:*",
+    "@mosaix/orm": "workspace:*",
+    "@mosaix/sdk": "workspace:*",
+    "@mosaix/security": "workspace:*",
+    "@mosaix/types": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

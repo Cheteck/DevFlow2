@@ -1,0 +1,19 @@
+{
+  "name": "@apps/subscription",
+  "version": "1.0.0",
+  "description": "MosaiX Subscription & Recurring Billing Engine",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mosaix/contracts": "workspace:*",
+    "@mosaix/core": "workspace:*",
+    "@mosaix/schemas": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^2.0.0"
+  }
+}

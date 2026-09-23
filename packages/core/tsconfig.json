@@ -1,0 +1,38 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "../../.mosaix/build/packages/core",
+    "rootDir": "../..",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "tsBuildInfoFile": "../../.mosaix/build/packages/core/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts"
+  ],
+  "references": [
+    {
+      "path": "../types"
+    },
+    {
+      "path": "../contracts"
+    },
+    {
+      "path": "../schemas"
+    },
+    {
+      "path": "../container"
+    },
+    {
+      "path": "../http"
+    },
+    {
+      "path": "../ports/database"
+    }
+  ]
+}

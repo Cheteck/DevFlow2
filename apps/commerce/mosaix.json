@@ -1,0 +1,43 @@
+{
+  "type": "application",
+  "id": "@apps/commerce",
+  "name": "Commerce & Orders",
+  "version": "1.0.0",
+  "domain": {
+    "name": "commerce"
+  },
+  "runtime": {
+    "entrypoint": "./src/index.ts",
+    "isolation": "trusted"
+  },
+  "database": {
+    "strategy": "per-app"
+  },
+  "capabilities": [
+    {
+      "id": "commerce.order.create",
+      "version": "1.0.0"
+    },
+    {
+      "id": "commerce.order.read",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [
+    "commerce:order:create",
+    "commerce:order:read"
+  ],
+  "events": [
+    "commerce.order.created"
+  ],
+  "experience": {
+    "appCard": {
+      "title": "Boutique & Commandes",
+      "icon": "🛒",
+      "description": "Gestion des paniers, exécution de commandes et paiements sécurisés"
+    },
+    "frontend": {
+      "entrypoint": "./frontend/src/index.ts"
+    }
+  }
+}

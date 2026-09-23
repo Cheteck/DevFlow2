@@ -1,0 +1,45 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../.mosaix/build/apps/beam",
+    "rootDir": ".",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "tsBuildInfoFile": "../../.mosaix/build/apps/beam/.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts",
+    "frontend/src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "frontend/src/**/*.test.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/commands"
+    },
+    {
+      "path": "../../packages/types"
+    },
+    {
+      "path": "../../packages/container"
+    },
+    {
+      "path": "../../packages/http"
+    },
+    {
+      "path": "../../packages/security"
+    },
+    {
+      "path": "../../packages/orm"
+    },
+    {
+      "path": "../../packages/sdk"
+    },
+    {
+      "path": "../../packages/conformance"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"extends": "./tsconfig.json", "compilerOptions": {"composite": true, "rootDir": ".", "outDir": "../../.mosaix/build/apps/portfolio/frontend", "tsBuildInfoFile": "../../.mosaix/build/apps/portfolio/frontend/.tsbuildinfo"}, "include": ["frontend/**/*.ts"], "exclude": ["node_modules"]}

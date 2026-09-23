@@ -1,0 +1,52 @@
+{
+  "type": "application",
+  "id": "@apps/subscription",
+  "name": "MosaiX Subscription & Billing",
+  "version": "1.0.0",
+  "domain": {
+    "name": "subscription"
+  },
+  "runtime": {
+    "entrypoint": "./src/index.ts",
+    "isolation": "trusted"
+  },
+  "database": {
+    "strategy": "per-app"
+  },
+  "capabilities": [
+    {
+      "id": "subscription.plan.list",
+      "version": "1.0.0"
+    },
+    {
+      "id": "subscription.subscribe",
+      "version": "1.0.0"
+    },
+    {
+      "id": "subscription.metered.record",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [
+    "subscription:plan:read",
+    "subscription:plan:write",
+    "subscription:subscribe",
+    "subscription:billing:manage"
+  ],
+  "events": [
+    "subscription.plan.created",
+    "subscription.user.subscribed",
+    "subscription.billing.invoiced",
+    "subscription.user.cancelled"
+  ],
+  "experience": {
+    "appCard": {
+      "title": "Abonnements & Facturation",
+      "icon": "💳",
+      "description": "Gestion des forfaits récurrents, facturation à l'usage et limitation d'accès par capability-gating"
+    },
+    "frontend": {
+      "entrypoint": "./frontend/src/index.ts"
+    }
+  }
+}

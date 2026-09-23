@@ -1,0 +1,55 @@
+{
+  "type": "application",
+  "id": "@apps/solara",
+  "name": "MosaiX Solara Social Engine",
+  "version": "1.0.0",
+  "domain": {
+    "name": "social"
+  },
+  "runtime": {
+    "entrypoint": "./src/index.ts",
+    "isolation": "trusted"
+  },
+  "database": {
+    "strategy": "per-app"
+  },
+  "capabilities": [
+    {
+      "id": "solara.post.create",
+      "version": "1.0.0"
+    },
+    {
+      "id": "solara.comment.add",
+      "version": "1.0.0"
+    },
+    {
+      "id": "solara.reaction.add",
+      "version": "1.0.0"
+    },
+    {
+      "id": "solara.follower.add",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [
+    "solara:post:create",
+    "solara:comment:add",
+    "solara:follower:add",
+    "solara:moderate:content"
+  ],
+  "events": [
+    "solara.post.published",
+    "solara.comment.created",
+    "solara.follower.added"
+  ],
+  "experience": {
+    "appCard": {
+      "title": "Solara Social Feed",
+      "icon": "☀️",
+      "description": "Fil d'actualité social, publications et interactions de communauté"
+    },
+    "frontend": {
+      "entrypoint": "./frontend/src/index.ts"
+    }
+  }
+}

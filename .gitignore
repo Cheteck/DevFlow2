@@ -1,0 +1,55 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+coverage/
+*.tsbuildinfo
+*.js
+*.d.ts
+*.js.map
+*.d.ts.map
+!eslint.config.mjs
+
+# Mosaix
+.mosaix/
+.gemini/
+
+# Build artifacts
+build-errors.txt
+build-errors*.txt
+build-errors-*.txt
+build-output.txt
+build-*.txt
+build-final.txt
+tsc*.txt
+tsc_*.txt
+
+# Audit logs
+.agents/
+.ua/
+.kilo/
+
+# Temporary analysis files
+frontend_accessibility_analysis.md
+mosaix_folder_analysis.md
+AUDIT_GLOBAL_*.md
+AUDIT_GLOBAL_REV2_*.md
+apps/*/AUDIT_REPORT.md
+
+# Temporary prompt files
+prompt.txt
+prompt (2).txt
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.test
+.env.production
+.env.development
+
+# Compiled artifacts in source trees
+apps/*/src/**/*.js
+apps/*/src/**/*.d.ts
+apps/*/src/**/*.js.map
+apps/*/src/**/*.d.ts.map

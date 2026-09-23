@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ThemeManifest",
+  "type": "object",
+  "required": ["id", "name", "version", "contractVersion", "defaultLayout", "availableLayouts", "slots", "tokens"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "name": { "type": "string" },
+    "displayName": { "type": "string" },
+    "version": { "type": "string" },
+    "author": { "type": "string" },
+    "compatibility": {
+      "type": "object",
+      "properties": {
+        "platform": { "type": "string" }
+      }
+    },
+    "contractVersion": { "type": "string" },
+    "defaultLayout": { "type": "string" },
+    "availableLayouts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "slots": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["template", "since"],
+        "properties": {
+          "template": { "type": "string" },
+          "since": { "type": "string" }
+        }
+      }
+    },
+    "layouts": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "tokens": { "type": "object" },
+    "extends": { "type": "string" },
+    "assetPresets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "dimensions": { "type": "string" },
+          "scope": { "type": "string" }
+        }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "schema": { "type": "string" }
+      }
+    }
+  }
+}
