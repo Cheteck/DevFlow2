@@ -4,11 +4,12 @@ import type { SubscriptionPlan, UserSubscription } from "./subscription.js";
 export class SubscriptionService {
   private plans = new Map<string, SubscriptionPlan>();
   private subscriptions = new Map<string, UserSubscription>();
+  private initPromise?: Promise<void>;
 
   constructor(private readonly db?: DatabasePort) {
     this.seedDefaultPlans();
     if (this.db) {
-      void this.initDatabaseTable();
+      this.initPromise = this.initDatabaseTable();
     }
   }
 
@@ -139,7 +140,8 @@ export class SubscriptionService {
     return this.getUserSubscription(userId);
   }
 
-  subscribe(userId: string, planId: string): UserSubscription {
+  async subscribe(userId: string, planId: string): Promise<UserSubscription> {
+    if (this.initPromise) await this.initPromise;
     const plan = this.plans.get(planId);
     if (!plan) {
       throw new Error(`Plan [${planId}] non trouvé.`);
@@ -165,7 +167,7 @@ export class SubscriptionService {
     this.subscriptions.set(sub.id, sub);
 
     if (this.db) {
-      void this.db.query(
+      await this.db.query(
         `INSERT INTO user_subscriptions (id, user_id, plan_id, status, current_period_start, current_period_end, cancel_at_period_end, metered_usage_units, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (id) DO UPDATE SET
@@ -175,15 +177,13 @@ export class SubscriptionService {
            metered_usage_units = excluded.metered_usage_units,
            updated_at = excluded.updated_at`,
         [sub.id, sub.userId, sub.planId, sub.status, sub.currentPeriodStart, sub.currentPeriodEnd, sub.cancelAtPeriodEnd ? 1 : 0, sub.meteredUsageUnits, sub.createdAt, sub.updatedAt]
-      ).catch((err) => {
-        console.error("[Subscription] Failed to persist subscription to DB:", err);
-      });
+      );
     }
 
     return sub;
   }
 
-  recordMeteredUsage(userId: string, units: number): UserSubscription | undefined {
+  async recordMeteredUsage(userId: string, units: number): Promise<UserSubscription | undefined> {
     const sub = this.getUserSubscription(userId);
     if (!sub) return undefined;
 
@@ -192,12 +192,10 @@ export class SubscriptionService {
     this.subscriptions.set(sub.id, sub);
 
     if (this.db) {
-      void this.db.execute(
+      await this.db.execute(
         `UPDATE user_subscriptions SET metered_usage_units = ?, updated_at = ? WHERE id = ?`,
         [sub.meteredUsageUnits, sub.updatedAt, sub.id]
-      ).catch((err) => {
-        console.error("[Subscription] Failed to record metered usage in DB:", err);
-      });
+      );
     }
 
     return sub;
