@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 import { featureAsync } from "@mosaix/sdk";
 
 export interface ConversationModel {
@@ -39,7 +40,7 @@ export class BeamMessagingService {
     }
 
     const conv: ConversationModel = {
-      id: `conv-${Math.random().toString(36).substring(2, 9)}`,
+      id: `conv-${crypto.randomUUID()}`,
       type,
       participants,
       createdAt: new Date().toISOString(),
@@ -47,9 +48,7 @@ export class BeamMessagingService {
     this.conversations.set(conv.id, conv);
 
     if (this.repository) {
-      void this.repository.saveConversation(conv).catch((err: unknown) => {
-        console.error("[Beam] Failed to persist conversation to Postgres:", err);
-      });
+      await this.repository.saveConversation(conv);
     }
 
     return conv;
@@ -77,7 +76,7 @@ export class BeamMessagingService {
     }
 
     const msg: MessageModel = {
-      id: `msg-${Math.random().toString(36).substring(2, 9)}`,
+      id: `msg-${crypto.randomUUID()}`,
       conversationId,
       senderId,
       content,

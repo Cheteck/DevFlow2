@@ -1,3 +1,4 @@
+import { ChallengeManager } from "./challenge-manager.js";
 import type {
   AuthenticationProvider,
   AuthenticationRequest,
@@ -100,6 +101,26 @@ export class AuthManager implements SessionCreationPort {
           message: "Account is disabled",
         },
       };
+    }
+
+    // Intercept login when MFA/2FA is enabled on user identity
+    const isMfaEnabled = Boolean(identity.attributes?.mfa_enabled || identity.attributes?.mfaRequired);
+    if (isMfaEnabled) {
+      const credentials = request.credentials as { mfaCode?: string; mfaToken?: string } | undefined;
+      const mfaCode = credentials?.mfaCode || credentials?.mfaToken;
+      if (!mfaCode) {
+        return {
+          status: "challenge",
+          challenge: {
+            type: "otp",
+            message: "Validation du second facteur MFA (TOTP/OTP) requise.",
+            fields: [
+              { name: "mfaCode", type: "text", required: true }
+            ],
+            data: { identityId: identity.id, provider: request.provider }
+          }
+        };
+      }
     }
 
     const session = await this.createSession(

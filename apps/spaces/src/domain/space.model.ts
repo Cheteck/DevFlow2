@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 import { Model } from "@mosaix/sdk";
 import { SpaceTemplateRegistry, type SpaceTemplateType } from "./space-template";
 
@@ -56,17 +57,17 @@ export class SpaceService {
 
   constructor(private readonly repository?: SpaceRepositoryPort) {}
 
-  createSpaceFromTemplate(
+  async createSpaceFromTemplate(
     name: string,
     templateType: SpaceTemplateType,
     ownerId: string,
     tenantId: string,
     customDomain?: string,
     subscriptionPlan: "free" | "pro" | "enterprise" = "free"
-  ): Space {
+  ): Promise<Space> {
     const template = this.templateRegistry.getTemplate(templateType);
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const id = `space-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const id = `space-${crypto.randomUUID()}`;
 
     const space: Space = {
       id,
@@ -94,9 +95,7 @@ export class SpaceService {
 
     this.spaces.set(id, space);
     if (this.repository) {
-      void this.repository.createSpace(space).catch((err: unknown) => {
-        console.error("Failed to persist space:", err);
-      });
+      await this.repository.createSpace(space);
     }
     return space;
   }
@@ -195,27 +194,23 @@ export class SpaceService {
     return !!member && (member.role === "owner" || member.role === "administrator" || member.role === "admin");
   }
 
-  setCustomDomain(spaceId: string, domain: string): Space {
+  async setCustomDomain(spaceId: string, domain: string): Promise<Space> {
     const space = this.getSpace(spaceId);
     if (!space) throw new Error(`Space [${spaceId}] non trouvé.`);
 
     space.customDomain = domain;
     if (this.repository) {
-      void this.repository.setCustomDomain(spaceId, domain).catch((err: unknown) => {
-        console.error("Failed to persist space custom domain:", err);
-      });
+      await this.repository.setCustomDomain(spaceId, domain);
     }
     return space;
   }
 
-  followSpace(spaceId: string): number {
+  async followSpace(spaceId: string): Promise<number> {
     const space = this.getSpace(spaceId);
     if (!space) throw new Error(`Space [${spaceId}] non trouvé.`);
     space.followersCount++;
     if (this.repository) {
-      void this.repository.followSpace(spaceId).catch((err: unknown) => {
-        console.error("Failed to persist space follower count:", err);
-      });
+      await this.repository.followSpace(spaceId);
     }
     return space.followersCount;
   }

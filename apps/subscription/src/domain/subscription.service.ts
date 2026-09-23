@@ -1,11 +1,51 @@
+import type { DatabasePort } from "@mosaix/ports-database";
 import type { SubscriptionPlan, UserSubscription } from "./subscription.js";
 
 export class SubscriptionService {
   private plans = new Map<string, SubscriptionPlan>();
   private subscriptions = new Map<string, UserSubscription>();
 
-  constructor() {
+  constructor(private readonly db?: DatabasePort) {
     this.seedDefaultPlans();
+    if (this.db) {
+      void this.initDatabaseTable();
+    }
+  }
+
+  private async initDatabaseTable(): Promise<void> {
+    if (!this.db) return;
+    await this.db.execute(`
+      CREATE TABLE IF NOT EXISTS user_subscriptions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        plan_id TEXT,
+        status TEXT,
+        current_period_start INTEGER,
+        current_period_end INTEGER,
+        cancel_at_period_end INTEGER,
+        metered_usage_units INTEGER,
+        created_at INTEGER,
+        updated_at INTEGER
+      )
+    `).catch(() => null);
+
+    // Load existing subscriptions from DB
+    const rows = await this.db.query<Record<string, unknown>>(`SELECT * FROM user_subscriptions`).catch(() => []);
+    for (const r of rows) {
+      const sub: UserSubscription = {
+        id: String(r["id"]),
+        userId: String(r["user_id"] || ""),
+        planId: String(r["plan_id"] || ""),
+        status: String(r["status"] || "active") as any,
+        currentPeriodStart: Number(r["current_period_start"] || Date.now()),
+        currentPeriodEnd: Number(r["current_period_end"] || Date.now()),
+        cancelAtPeriodEnd: Boolean(r["cancel_at_period_end"]),
+        meteredUsageUnits: Number(r["metered_usage_units"] || 0),
+        createdAt: Number(r["created_at"] || Date.now()),
+        updatedAt: Number(r["updated_at"] || Date.now()),
+      };
+      this.subscriptions.set(sub.id, sub);
+    }
   }
 
   private seedDefaultPlans(): void {
@@ -72,6 +112,33 @@ export class SubscriptionService {
     );
   }
 
+  async getUserSubscriptionAsync(userId: string): Promise<UserSubscription | undefined> {
+    if (this.db) {
+      const rows = await this.db.query<Record<string, unknown>>(
+        `SELECT * FROM user_subscriptions WHERE user_id = ? AND (status = 'active' OR status = 'trialing') LIMIT 1`,
+        [userId]
+      ).catch(() => []);
+      if (rows.length > 0) {
+        const r = rows[0];
+        const sub: UserSubscription = {
+          id: String(r["id"]),
+          userId: String(r["user_id"] || ""),
+          planId: String(r["plan_id"] || ""),
+          status: String(r["status"] || "active") as any,
+          currentPeriodStart: Number(r["current_period_start"] || Date.now()),
+          currentPeriodEnd: Number(r["current_period_end"] || Date.now()),
+          cancelAtPeriodEnd: Boolean(r["cancel_at_period_end"]),
+          meteredUsageUnits: Number(r["metered_usage_units"] || 0),
+          createdAt: Number(r["created_at"] || Date.now()),
+          updatedAt: Number(r["updated_at"] || Date.now()),
+        };
+        this.subscriptions.set(sub.id, sub);
+        return sub;
+      }
+    }
+    return this.getUserSubscription(userId);
+  }
+
   subscribe(userId: string, planId: string): UserSubscription {
     const plan = this.plans.get(planId);
     if (!plan) {
@@ -96,6 +163,23 @@ export class SubscriptionService {
     };
 
     this.subscriptions.set(sub.id, sub);
+
+    if (this.db) {
+      void this.db.query(
+        `INSERT INTO user_subscriptions (id, user_id, plan_id, status, current_period_start, current_period_end, cancel_at_period_end, metered_usage_units, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (id) DO UPDATE SET
+           status = excluded.status,
+           current_period_start = excluded.current_period_start,
+           current_period_end = excluded.current_period_end,
+           metered_usage_units = excluded.metered_usage_units,
+           updated_at = excluded.updated_at`,
+        [sub.id, sub.userId, sub.planId, sub.status, sub.currentPeriodStart, sub.currentPeriodEnd, sub.cancelAtPeriodEnd ? 1 : 0, sub.meteredUsageUnits, sub.createdAt, sub.updatedAt]
+      ).catch((err) => {
+        console.error("[Subscription] Failed to persist subscription to DB:", err);
+      });
+    }
+
     return sub;
   }
 
@@ -106,6 +190,16 @@ export class SubscriptionService {
     sub.meteredUsageUnits += units;
     sub.updatedAt = Date.now();
     this.subscriptions.set(sub.id, sub);
+
+    if (this.db) {
+      void this.db.execute(
+        `UPDATE user_subscriptions SET metered_usage_units = ?, updated_at = ? WHERE id = ?`,
+        [sub.meteredUsageUnits, sub.updatedAt, sub.id]
+      ).catch((err) => {
+        console.error("[Subscription] Failed to record metered usage in DB:", err);
+      });
+    }
+
     return sub;
   }
 

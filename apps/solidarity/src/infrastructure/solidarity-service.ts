@@ -1,3 +1,4 @@
+import * as crypto from 'node:crypto';
 import type { Incident, Need, Donation, Resource, Hub, Mission, Distribution } from '../domain/models.js';
 
 export interface SolidarityRepositoryPort {
@@ -28,42 +29,38 @@ export class SolidarityService {
 
   constructor(private readonly repository?: SolidarityRepositoryPort) {}
 
-  createIncident(data: Omit<Incident, 'id' | 'status'>): Incident {
+  async createIncident(data: Omit<Incident, 'id' | 'status'>): Promise<Incident> {
     const incident: Incident = {
       ...data,
-      id: `INC-${Date.now()}`,
+      id: `INC-${crypto.randomUUID()}`,
       status: 'ACTIVE'
     };
     this.incidents.set(incident.id, incident);
     if (this.repository) {
-      void this.repository.saveIncident(incident).catch((err: unknown) => {
-        console.error("[Solidarity] Failed to persist incident:", err);
-      });
+      await this.repository.saveIncident(incident);
     }
     return incident;
   }
 
-  declareNeed(data: Omit<Need, 'id' | 'quantitySatisfied' | 'status' | 'createdAt'>): Need {
+  async declareNeed(data: Omit<Need, 'id' | 'quantitySatisfied' | 'status' | 'createdAt'>): Promise<Need> {
     const need: Need = {
       ...data,
-      id: `NEED-${Date.now()}`,
+      id: `NEED-${crypto.randomUUID()}`,
       quantitySatisfied: 0,
       status: 'OPEN',
       createdAt: new Date().toISOString()
     };
     this.needs.set(need.id, need);
     if (this.repository) {
-      void this.repository.saveNeed(need).catch((err: unknown) => {
-        console.error("[Solidarity] Failed to persist need:", err);
-      });
+      await this.repository.saveNeed(need);
     }
     return need;
   }
 
-  submitDonation(data: Omit<Donation, 'id' | 'verificationStatus' | 'createdAt'>): Donation {
+  async submitDonation(data: Omit<Donation, 'id' | 'verificationStatus' | 'createdAt'>): Promise<Donation> {
     const donation: Donation = {
       ...data,
-      id: `DON-${Date.now()}`,
+      id: `DON-${crypto.randomUUID()}`,
       verificationStatus: 'VERIFIED',
       createdAt: new Date().toISOString()
     };
@@ -71,7 +68,7 @@ export class SolidarityService {
 
     // Auto-create Resource
     const resource: Resource = {
-      id: `RES-${Date.now()}`,
+      id: `RES-${crypto.randomUUID()}`,
       donationId: donation.id,
       ownerId: donation.donorId,
       type: donation.itemType,
@@ -83,57 +80,47 @@ export class SolidarityService {
     this.resources.set(resource.id, resource);
 
     if (this.repository) {
-      void this.repository.saveDonation(donation).catch((err: unknown) => {
-        console.error("[Solidarity] Failed to persist donation:", err);
-      });
-      void this.repository.saveResource(resource).catch((err: unknown) => {
-        console.error("[Solidarity] Failed to persist resource:", err);
-      });
+      await this.repository.saveDonation(donation);
+      await this.repository.saveResource(resource);
     }
 
     return donation;
   }
 
-  registerHub(data: Omit<Hub, 'id'>): Hub {
+  async registerHub(data: Omit<Hub, 'id'>): Promise<Hub> {
     const hub: Hub = {
       ...data,
-      id: `HUB-${Date.now()}`
+      id: `HUB-${crypto.randomUUID()}`
     };
     this.hubs.set(hub.id, hub);
     if (this.repository) {
-      void this.repository.saveHub(hub).catch((err: unknown) => {
-        console.error("[Solidarity] Failed to persist hub:", err);
-      });
+      await this.repository.saveHub(hub);
     }
     return hub;
   }
 
-  assignMission(data: Omit<Mission, 'id' | 'status'>): Mission {
+  async assignMission(data: Omit<Mission, 'id' | 'status'>): Promise<Mission> {
     const mission: Mission = {
       ...data,
-      id: `MIS-${Date.now()}`,
+      id: `MIS-${crypto.randomUUID()}`,
       status: 'IN_TRANSIT'
     };
     this.missions.set(mission.id, mission);
     if (this.repository) {
-      void this.repository.saveMission(mission).catch((err: unknown) => {
-        console.error("[Solidarity] Failed to persist mission:", err);
-      });
+      await this.repository.saveMission(mission);
     }
     return mission;
   }
 
-  confirmDistribution(data: Omit<Distribution, 'id' | 'timestamp'>): Distribution {
+  async confirmDistribution(data: Omit<Distribution, 'id' | 'timestamp'>): Promise<Distribution> {
     const distribution: Distribution = {
       ...data,
-      id: `DIST-${Date.now()}`,
+      id: `DIST-${crypto.randomUUID()}`,
       timestamp: new Date().toISOString()
     };
     this.distributions.set(distribution.id, distribution);
     if (this.repository) {
-      void this.repository.saveDistribution(distribution).catch((err: unknown) => {
-        console.error("[Solidarity] Failed to persist distribution:", err);
-      });
+      await this.repository.saveDistribution(distribution);
     }
     return distribution;
   }

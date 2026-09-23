@@ -70,6 +70,9 @@ export class PortfolioServiceProvider {
     } else if (this.adapters.databasePort) {
       repository = new PostgresVendableRepository(this.adapters.databasePort);
     } else {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("[Portfolio] DatabasePort or VendableRepository is mandatory in production mode.");
+      }
       repository = new InMemoryVendableRepository();
     }
 

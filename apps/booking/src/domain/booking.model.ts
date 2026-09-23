@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 export type BookingStatus = 
   | "draft"
   | "pending"
@@ -136,7 +137,7 @@ export class BookingStateMachine {
 
     const eventType = eventTypeMap[targetStatus] || "booking.reservation.confirmed";
     const event: BookingDomainEvent = {
-      id: `evt-${Math.random().toString(36).substring(2, 9)}`,
+      id: `evt-${crypto.randomUUID()}`,
       type: eventType,
       aggregateId: reservation.id,
       payload: {
@@ -154,6 +155,7 @@ export class BookingStateMachine {
 }
 
 export class BookingService {
+  private slotLocks = new Map<string, Promise<void>>();
   private slots = new Map<string, BookingSlot>();
   private reservations = new Map<string, Reservation>();
   private idempotencyStore = new Map<string, string>();
@@ -242,7 +244,7 @@ export class BookingService {
     const capacity = input.capacity && input.capacity > 0 ? input.capacity : 1;
     const now = new Date().toISOString();
     const slot: BookingSlot = {
-      id: `slot-${Math.random().toString(36).substring(2, 9)}`,
+      id: `slot-${crypto.randomUUID()}`,
       providerId: input.providerId,
       serviceName: input.serviceName,
       startTime: input.startTime,
@@ -263,7 +265,7 @@ export class BookingService {
     }
 
     this.recordEvent({
-      id: `evt-${Math.random().toString(36).substring(2, 9)}`,
+      id: `evt-${crypto.randomUUID()}`,
       type: "booking.slot.created",
       aggregateId: slot.id,
       payload: { slotId: slot.id, providerId: slot.providerId, capacity },
@@ -297,6 +299,21 @@ export class BookingService {
   }
 
   async createReservation(input: CreateReservationInput): Promise<Reservation> {
+    // Acquire slot lock to prevent race conditions & double bookings
+    const currentLock = this.slotLocks.get(input.slotId) || Promise.resolve();
+    let releaseLock!: () => void;
+    const nextLock = new Promise<void>((resolve) => { releaseLock = resolve; });
+    this.slotLocks.set(input.slotId, currentLock.then(() => nextLock));
+
+    await currentLock;
+    try {
+      return await this.executeCreateReservation(input);
+    } finally {
+      releaseLock();
+    }
+  }
+
+  private async executeCreateReservation(input: CreateReservationInput): Promise<Reservation> {
     // Idempotency check
     if (input.idempotencyKey && this.idempotencyStore.has(input.idempotencyKey)) {
       const existingId = this.idempotencyStore.get(input.idempotencyKey)!;
@@ -325,7 +342,7 @@ export class BookingService {
       : undefined;
 
     const reservation: Reservation = {
-      id: `res-${Math.random().toString(36).substring(2, 9)}`,
+      id: `res-${crypto.randomUUID()}`,
       slotId: input.slotId,
       customerId: input.customerId,
       customerName: input.customerName,
@@ -357,7 +374,7 @@ export class BookingService {
       initialStatus === "held" ? "booking.hold.acquired" : "booking.reservation.confirmed";
 
     this.recordEvent({
-      id: `evt-${Math.random().toString(36).substring(2, 9)}`,
+      id: `evt-${crypto.randomUUID()}`,
       type: eventType,
       aggregateId: reservation.id,
       payload: { reservationId: reservation.id, slotId: slot.id, status: initialStatus },
