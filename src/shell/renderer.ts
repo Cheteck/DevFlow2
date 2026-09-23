@@ -2,7 +2,7 @@ import { escapeHtml } from "@mosaix/support";
 import { UserProfile, USER_PROFILES, SpaceProfile, SPACES_LIST } from "./profiles.js";
 import { shellRegistry } from "@mosaix/core";
 import { apps, APP_ICONS } from "./discovery.js";
-import { platformFeatureFlags } from "./feature-flags.js";
+import { platformFeatureFlags, DEFAULT_PLATFORM_FLAGS } from "./feature-flags.js";
 import "./contextual-actions";
 
 function getUserAllowedBacs(user?: UserProfile): string[] {
@@ -807,4 +807,272 @@ export function renderMobileDrawer(userOrHtml: UserProfile | string, activeRoute
     </div>
   `;
 }
+
+// -----------------------------------------------------------------------------
+// HEADER SEARCH & DEV INSPECTOR TRIGGER CONTROLS
+// -----------------------------------------------------------------------------
+export function renderHeaderSearchAndDevControls(): string {
+  return `
+    <!-- Quick Command Search Trigger Button (⌘K) -->
+    <button onclick="openCommandPalette()" class="hidden sm:flex items-center gap-2.5 bg-surface-container-low hover:bg-surface-container border border-outline-variant/20 hover:border-primary/40 px-3 py-1.5 rounded-xl text-xs text-on-surface-variant hover:text-on-surface transition-all cursor-pointer shadow-inner group" title="Recherche Rapide (⌘K)">
+      <span class="material-symbols-outlined text-base text-primary group-hover:scale-110 transition-transform">search</span>
+      <span class="font-medium">Rechercher / Commandes...</span>
+      <kbd class="hidden md:inline-block px-1.5 py-0.5 rounded bg-surface-container-highest border border-outline-variant/30 text-[10px] font-mono text-on-surface-variant font-bold shadow-sm">⌘K</kbd>
+    </button>
+
+    <!-- Developer & System Inspector Button (Ctrl+Shift+D) -->
+    <button onclick="openDevInspector()" class="flex items-center gap-1.5 bg-primary/10 hover:bg-primary/20 border border-primary/25 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-primary transition-all cursor-pointer hover:scale-105 active:scale-95" title="Inspecteur Système & Feature Flags (Ctrl+Shift+D)">
+      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span class="material-symbols-outlined text-sm">terminal</span>
+      <span class="hidden xl:inline">Dev Inspector</span>
+    </button>
+  `;
+}
+
+// -----------------------------------------------------------------------------
+// COMMAND PALETTE SPOTLIGHT MODAL (⌘K / CTRL+K)
+// -----------------------------------------------------------------------------
+export function renderCommandPaletteModal(): string {
+  return `
+    <!-- Command Palette Overlay -->
+    <div id="mosaix-cmd-palette" class="fixed inset-0 z-[200] hidden bg-black/60 backdrop-blur-md p-4 sm:p-6 md:p-20 flex items-start justify-center animate-fade-in" onclick="closeCommandPalette()">
+      <div class="w-full max-w-2xl bg-surface-container-high border border-outline-variant/30 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] transition-all duration-200" onclick="event.stopPropagation()">
+        
+        <!-- Search Input Bar -->
+        <div class="p-4 border-b border-outline-variant/20 flex items-center gap-3 bg-surface-container">
+          <span class="material-symbols-outlined text-primary text-xl">search</span>
+          <input 
+            type="text" 
+            id="mosaix-cmd-input" 
+            placeholder="Taper une commande ou chercher une application (ex: Solara, Dark, Admin, RDV)..." 
+            class="w-full bg-transparent border-none text-sm font-medium text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none"
+            oninput="filterCommandPalette(this.value)"
+            onkeydown="handleCommandPaletteKeydown(event)"
+          />
+          <kbd class="px-2 py-1 rounded bg-surface-container-highest border border-outline-variant/30 text-[10px] font-mono text-on-surface-variant">ESC</kbd>
+        </div>
+
+        <!-- Command Results Container -->
+        <div id="mosaix-cmd-results" class="p-3 overflow-y-auto space-y-4 flex-1 divide-y divide-outline-variant/10">
+          
+          <!-- Category 1: Applications BAC -->
+          <div class="space-y-1 pt-1">
+            <p class="text-[10px] font-bold text-primary uppercase tracking-wider px-2 mb-1">Applications & Bounded Contexts</p>
+            ${apps.map(app => `
+              <a href="${app.route}" class="cmd-item flex items-center justify-between p-2.5 rounded-xl hover:bg-primary/10 transition group text-xs font-semibold text-on-surface">
+                <div class="flex items-center gap-3">
+                  <span class="text-lg p-1.5 rounded-lg bg-surface-container border border-outline-variant/20">${app.icon}</span>
+                  <div>
+                    <p class="font-bold text-on-surface group-hover:text-primary transition">${escapeHtml(app.name)}</p>
+                    <p class="text-[10px] text-on-surface-variant">${escapeHtml(app.description || app.category)}</p>
+                  </div>
+                </div>
+                <span class="text-[10px] text-on-surface-variant font-mono group-hover:text-primary">${app.route} &rarr;</span>
+              </a>
+            `).join("")}
+          </div>
+
+          <!-- Category 2: Rôles & Profils Test -->
+          <div class="space-y-1 pt-3">
+            <p class="text-[10px] font-bold text-primary uppercase tracking-wider px-2 mb-1">Changer d'Identité Active (RBAC)</p>
+            ${Object.values(USER_PROFILES).map(profile => `
+              <button onclick="switchUserRole('${profile.role}'); closeCommandPalette();" class="cmd-item w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-primary/10 transition group text-xs font-semibold text-on-surface text-left">
+                <div class="flex items-center gap-3">
+                  <span class="text-base">${profile.avatar}</span>
+                  <div>
+                    <p class="font-bold text-on-surface group-hover:text-primary transition">${escapeHtml(profile.name)}</p>
+                    <p class="text-[10px] text-on-surface-variant">${escapeHtml(profile.roleLabel)}</p>
+                  </div>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[10px] bg-surface-variant/40 border border-outline-variant/20">Changer rôle</span>
+              </button>
+            `).join("")}
+          </div>
+
+          <!-- Category 3: Actions Système & Dev Tools -->
+          <div class="space-y-1 pt-3">
+            <p class="text-[10px] font-bold text-primary uppercase tracking-wider px-2 mb-1">Outils Système & Thèmes</p>
+            
+            <button onclick="openDevInspector(); closeCommandPalette();" class="cmd-item w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-primary/10 transition group text-xs font-semibold text-on-surface text-left">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary text-base">terminal</span>
+                <span>Ouvrir l'Inspecteur Dev (Feature Flags & Logs)</span>
+              </div>
+              <kbd class="px-1.5 py-0.5 rounded bg-surface-container-highest text-[9px] font-mono">Ctrl+Shift+D</kbd>
+            </button>
+
+            <button onclick="setTheme('dark'); closeCommandPalette();" class="cmd-item w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-primary/10 transition group text-xs font-semibold text-on-surface text-left">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary text-base">dark_mode</span>
+                <span>Passer en Mode Sombre (Dark Theme)</span>
+              </div>
+              <span class="text-[10px] text-on-surface-variant">Thème</span>
+            </button>
+
+            <button onclick="setTheme('light'); closeCommandPalette();" class="cmd-item w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-primary/10 transition group text-xs font-semibold text-on-surface text-left">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary text-base">light_mode</span>
+                <span>Passer en Mode Clair (Light Theme)</span>
+              </div>
+              <span class="text-[10px] text-on-surface-variant">Thème</span>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Footer Shortcuts Legend -->
+        <div class="p-3 border-t border-outline-variant/20 bg-surface-container flex items-center justify-between text-[11px] text-on-surface-variant">
+          <div class="flex items-center gap-3">
+            <span><kbd class="px-1 py-0.5 rounded bg-surface-container-highest text-[9px]">↑</kbd> <kbd class="px-1 py-0.5 rounded bg-surface-container-highest text-[9px]">↓</kbd> Naviguer</span>
+            <span><kbd class="px-1 py-0.5 rounded bg-surface-container-highest text-[9px]">↵</kbd> Sélectionner</span>
+          </div>
+          <span>MosaiX Command Palette v1.2</span>
+        </div>
+
+      </div>
+    </div>
+  `;
+}
+
+// -----------------------------------------------------------------------------
+// DEVELOPER & SYSTEM INSPECTOR DRAWER (FEATURE FLAGS & BAC MATRIX)
+// -----------------------------------------------------------------------------
+export function renderDevInspectorDrawer(): string {
+  const flagsList = Object.entries(DEFAULT_PLATFORM_FLAGS);
+
+  return `
+    <!-- Dev Inspector Drawer Overlay -->
+    <div id="mosaix-dev-inspector" class="fixed inset-0 z-[200] hidden bg-black/50 backdrop-blur-sm flex justify-end animate-fade-in" onclick="closeDevInspector()">
+      <div class="w-full max-w-xl bg-surface-container-high border-l border-outline-variant/30 h-full shadow-2xl flex flex-col justify-between overflow-hidden" onclick="event.stopPropagation()">
+        
+        <!-- Drawer Header -->
+        <div class="p-4 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container">
+          <div class="flex items-center gap-2.5">
+            <span class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></span>
+            <h2 class="font-bold text-sm text-on-surface flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary text-lg">terminal</span>
+              Inspecteur Développeur & Health Console
+            </h2>
+          </div>
+          <button onclick="closeDevInspector()" class="p-1.5 rounded-lg hover:bg-surface-variant/40 text-on-surface-variant hover:text-on-surface transition font-bold">&times;</button>
+        </div>
+
+        <!-- Tab Controls -->
+        <div class="flex items-center border-b border-outline-variant/20 bg-surface-container-low px-4 gap-2 text-xs font-semibold">
+          <button onclick="switchDevTab('bacs')" id="dev-tab-btn-bacs" class="dev-tab-btn px-3 py-2.5 border-b-2 border-primary text-primary transition cursor-pointer">
+            Applications (${apps.length})
+          </button>
+          <button onclick="switchDevTab('flags')" id="dev-tab-btn-flags" class="dev-tab-btn px-3 py-2.5 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface transition cursor-pointer">
+            Feature Flags (${flagsList.length})
+          </button>
+          <button onclick="switchDevTab('system')" id="dev-tab-btn-system" class="dev-tab-btn px-3 py-2.5 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface transition cursor-pointer">
+            Santé & Persistance
+          </button>
+        </div>
+
+        <!-- Tab 1: BAC Bounded Contexts -->
+        <div id="dev-tab-content-bacs" class="p-4 overflow-y-auto flex-1 space-y-3">
+          <p class="text-[11px] text-on-surface-variant">Statut d'exécution et contrats d'interface des Bounded Contexts (BACs) :</p>
+          <div class="space-y-2">
+            ${apps.map(app => `
+              <div class="p-3 rounded-xl bg-surface-container border border-outline-variant/20 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <span class="text-xl p-1.5 rounded-lg bg-surface-container-highest">${app.icon}</span>
+                  <div>
+                    <h4 class="font-bold text-xs text-on-surface">${escapeHtml(app.name)}</h4>
+                    <p class="text-[10px] text-on-surface-variant font-mono">${app.id} • ${app.route}</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">SQL Actif</span>
+                  <a href="${app.route}" class="p-1 rounded hover:bg-surface-variant/40 text-primary text-xs" title="Ouvrir application">&rarr;</a>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+
+        <!-- Tab 2: Feature Flags Switchboard -->
+        <div id="dev-tab-content-flags" class="p-4 overflow-y-auto flex-1 space-y-3 hidden">
+          <p class="text-[11px] text-on-surface-variant">Basculez les fonctionnalités en direct sans redémarrer le serveur :</p>
+          <div class="space-y-2">
+            ${flagsList.map(([key, flag]) => `
+              <div class="p-3 rounded-xl bg-surface-container border border-outline-variant/20 flex items-center justify-between gap-3">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-xs font-bold text-on-surface truncate">${key}</span>
+                    <span class="px-1.5 py-0.2 rounded text-[8px] font-semibold bg-primary/10 text-primary border border-primary/20 shrink-0">${flag.category}</span>
+                  </div>
+                  <p class="text-[10px] text-on-surface-variant mt-0.5">${escapeHtml(flag.description)}</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input type="checkbox" ${flag.value ? 'checked' : ''} onchange="toggleFeatureFlag('${key}', this.checked)" class="sr-only peer">
+                  <div class="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+
+        <!-- Tab 3: System Health & Persistence -->
+        <div id="dev-tab-content-system" class="p-4 overflow-y-auto flex-1 space-y-4 hidden">
+          <div class="p-4 rounded-xl bg-surface-container border border-outline-variant/20 space-y-3">
+            <h3 class="font-bold text-xs text-on-surface flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary text-base">database</span>
+              Base de Données & Stockage SQL
+            </h3>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div class="p-2 rounded bg-surface-container-low border border-outline-variant/10">
+                <span class="text-[10px] text-on-surface-variant block">Moteur Persistant</span>
+                <span class="font-bold text-emerald-400">SQLite / PostgreSQL</span>
+              </div>
+              <div class="p-2 rounded bg-surface-container-low border border-outline-variant/10">
+                <span class="text-[10px] text-on-surface-variant block">Sécurité Webhooks</span>
+                <span class="font-bold text-primary">HMAC-SHA256 Actif</span>
+              </div>
+              <div class="p-2 rounded bg-surface-container-low border border-outline-variant/10">
+                <span class="text-[10px] text-on-surface-variant block">Challenge MFA</span>
+                <span class="font-bold text-emerald-400">TOTP Intercepteur OK</span>
+              </div>
+              <div class="p-2 rounded bg-surface-container-low border border-outline-variant/10">
+                <span class="text-[10px] text-on-surface-variant block">Identifiants Uniques</span>
+                <span class="font-bold text-primary">Crypto.randomUUID</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-surface-container border border-outline-variant/20 space-y-2">
+            <h3 class="font-bold text-xs text-on-surface flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary text-base">memory</span>
+              Performance du Serveur Express/SSR
+            </h3>
+            <div class="text-xs text-on-surface-variant space-y-1">
+              <div class="flex justify-between"><span>Port d'écoute :</span><span class="font-mono text-on-surface">3000</span></div>
+              <div class="flex justify-between"><span>Architecture :</span><span class="font-mono text-on-surface">Hexagonale (Ports / Adapters)</span></div>
+              <div class="flex justify-between"><span>Thème dynamique :</span><span class="font-mono text-primary">Midnight Pulse</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Drawer Footer -->
+        <div class="p-3 border-t border-outline-variant/20 bg-surface-container flex items-center justify-between text-[11px] text-on-surface-variant">
+          <span>MosaiX Dev Tools v1.5</span>
+          <button onclick="closeDevInspector()" class="px-3 py-1 rounded-lg bg-surface-variant/40 hover:bg-surface-variant/60 text-on-surface transition font-semibold">Fermer</button>
+        </div>
+
+      </div>
+    </div>
+  `;
+}
+
+// -----------------------------------------------------------------------------
+// TOAST NOTIFICATION CONTAINER & CLIENT JS
+// -----------------------------------------------------------------------------
+export function renderToastContainer(): string {
+  return `
+    <div id="mosaix-toast-container" class="fixed top-4 right-4 z-[300] flex flex-col gap-2 pointer-events-none"></div>
+  `;
+}
+
 export { getActiveUserProfile } from "./profiles.js";
+

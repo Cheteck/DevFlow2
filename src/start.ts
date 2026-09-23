@@ -48,7 +48,16 @@ import { USER_PROFILES, getActiveUserProfile, getActiveSpaceProfile } from "./sh
 import { feedStore, type FeedPost, initFeedStore } from "./shell/feed-store.js";
 import { saveCompositionOverridesToFile, loadCompositionOverridesFromFile, SavedBlockOverride } from "./shell/editor.js";
 import { apps } from "./shell/discovery.js";
-import { renderPrimarySidebar, renderSecondarySidebar, renderUserSwitcherWidget, renderMobileDrawer } from "./shell/renderer.js";
+import { 
+  renderPrimarySidebar, 
+  renderSecondarySidebar, 
+  renderUserSwitcherWidget, 
+  renderMobileDrawer,
+  renderHeaderSearchAndDevControls,
+  renderCommandPaletteModal,
+  renderDevInspectorDrawer,
+  renderToastContainer
+} from "./shell/renderer.js";
 import { platformFeatureFlags } from "./shell/feature-flags.js";
 
 const PORT = 3000;
@@ -184,6 +193,28 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(400, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ success: false, error: "Rôle invalide" }));
     }
+    return;
+  }
+
+  // API Route: Override Feature Flag
+  if (pathname === "/api/feature-flags/override" && req.method === "POST") {
+    try {
+      let bodyStr = "";
+      for await (const chunk of req) {
+        bodyStr += chunk;
+      }
+      const body = JSON.parse(bodyStr || "{}");
+      if (body.key && typeof body.value !== "undefined") {
+        await platformFeatureFlags.setFlagValue(body.key, body.value);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: true, key: body.key, value: body.value }));
+        return;
+      }
+    } catch (e) {
+      console.error("Failed to override feature flag:", e);
+    }
+    res.writeHead(400, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: false, error: "Payload feature flag invalide" }));
     return;
   }
 
@@ -802,6 +833,8 @@ ${renderHeadBlock(matchedApp.name, activeMode, renderThemeStyleTag(activeMode), 
         </div>
 
         <div class="flex items-center gap-3 shrink-0">
+          ${renderHeaderSearchAndDevControls()}
+
           <!-- Dynamic Language Selector -->
           <div class="hidden lg:flex items-center gap-1 bg-surface-container-low border border-outline-variant/20 p-1 rounded-xl text-xs" id="mosaix-lang-selector">
             <button onclick="setLocale('fr')" id="lang-btn-fr" class="px-2.5 py-1 rounded-lg transition text-on-surface-variant hover:bg-surface-variant/30 font-semibold cursor-pointer">FR</button>
@@ -1158,6 +1191,8 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
         </div>
 
         <div class="flex items-center gap-2 sm:gap-3 ml-auto">
+          ${renderHeaderSearchAndDevControls()}
+
           <!-- CS-Cart UniTheme Style Live Block Editor Toggle -->
           <button id="live-editor-toggle-btn" onclick="toggleLiveBlockEditor()" class="px-2.5 sm:px-3 py-1.5 rounded-xl border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-all text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm">
             <span class="material-symbols-outlined text-sm">dashboard_customize</span>
@@ -1879,8 +1914,125 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
         console.error("Failed to publish post:", e);
       }
     }
+
+    // Global Toast Notification Helper
+    window.showMosaixToast = function(message, type = 'info') {
+      const container = document.getElementById('mosaix-toast-container');
+      if (!container) return;
+      const toast = document.createElement('div');
+      const isSuccess = type === 'success';
+      const isError = type === 'error';
+      toast.className = 'px-4 py-2.5 rounded-xl text-xs font-semibold shadow-2xl border flex items-center gap-2.5 pointer-events-auto transition-all duration-300 animate-fade-in ' + (isSuccess ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500/30' : isError ? 'bg-red-950/90 text-red-300 border-red-500/30' : 'bg-surface-container-highest text-on-surface border-outline-variant/30');
+      toast.innerHTML = '<span class="material-symbols-outlined text-base">' + (isSuccess ? 'check_circle' : isError ? 'error' : 'info') + '</span><span>' + message + '</span>';
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-8px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    };
+
+    // Command Palette Client Functions
+    function openCommandPalette() {
+      const modal = document.getElementById('mosaix-cmd-palette');
+      const input = document.getElementById('mosaix-cmd-input');
+      if (modal) {
+        modal.classList.remove('hidden');
+        if (input) {
+          input.value = '';
+          filterCommandPalette('');
+          setTimeout(() => input.focus(), 50);
+        }
+      }
+    }
+
+    function closeCommandPalette() {
+      const modal = document.getElementById('mosaix-cmd-palette');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function filterCommandPalette(query) {
+      const q = (query || '').toLowerCase().trim();
+      const items = document.querySelectorAll('.cmd-item');
+      items.forEach(item => {
+        const text = item.textContent?.toLowerCase() || '';
+        if (!q || text.includes(q)) {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+    }
+
+    function handleCommandPaletteKeydown(e) {
+      if (e.key === 'Escape') {
+        closeCommandPalette();
+      }
+    }
+
+    // Dev Inspector Client Functions
+    function openDevInspector() {
+      const modal = document.getElementById('mosaix-dev-inspector');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeDevInspector() {
+      const modal = document.getElementById('mosaix-dev-inspector');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function switchDevTab(tabName) {
+      ['bacs', 'flags', 'system'].forEach(t => {
+        const content = document.getElementById('dev-tab-content-' + t);
+        const btn = document.getElementById('dev-tab-btn-' + t);
+        if (content && btn) {
+          if (t === tabName) {
+            content.classList.remove('hidden');
+            btn.classList.add('border-primary', 'text-primary');
+            btn.classList.remove('border-transparent', 'text-on-surface-variant');
+          } else {
+            content.classList.add('hidden');
+            btn.classList.remove('border-primary', 'text-primary');
+            btn.classList.add('border-transparent', 'text-on-surface-variant');
+          }
+        }
+      });
+    }
+
+    async function toggleFeatureFlag(flagKey, enabled) {
+      try {
+        const res = await fetch('/api/feature-flags/override', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: flagKey, value: enabled })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showMosaixToast('Feature Flag ' + flagKey + ' : ' + (enabled ? 'Activé' : 'Désactivé'), 'success');
+        } else {
+          showMosaixToast('Erreur mise à jour flag', 'error');
+        }
+      } catch (e) {
+        showMosaixToast('Erreur réseau', 'error');
+      }
+    }
+
+    // Keyboard Shortcuts Listener
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openCommandPalette();
+      }
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        openDevInspector();
+      }
+    });
   </script>
   ${renderMobileDrawer(apps.map(a => `<a href="${a.route}" class="flex items-center gap-3 p-2.5 rounded-xl text-xs font-semibold text-on-surface hover:bg-surface-variant/40 transition"><span>${a.icon}</span><span>${a.name}</span></a>`).join(''))}
+  ${renderCommandPaletteModal()}
+  ${renderDevInspectorDrawer()}
+  ${renderToastContainer()}
 </body>
 </html>`);
 });
