@@ -1,7 +1,3 @@
-/**
- * @mosaix/ports-session-store — Session store port for MosaiX authentication.
- */
-
 export interface Session {
   id: string;
   identityId: string;
@@ -10,7 +6,7 @@ export interface Session {
   createdAt: string;
   expiresAt: string;
   revokedAt?: string;
-  attributes: Record<string, unknown>;
+  attributes?: Record<string, unknown>;
 }
 
 export interface SessionStore {
@@ -19,4 +15,5 @@ export interface SessionStore {
   revoke(id: string): Promise<void>;
   revokeAllForIdentity(identityId: string): Promise<void>;
   listActiveForIdentity(identityId: string): Promise<Session[]>;
+  touch?(id: string, expiresAt: string): Promise<void>;
 }

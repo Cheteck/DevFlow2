@@ -239,8 +239,21 @@ export const SolaraSocialFeedPageView = {
 
         function addReaction(type) {
           console.log('Reaction added:', type);
-          // TODO: Implement backend call and optimistic update
-          alert('Réaction "' + type + '" ajoutée !');
+          const toast = document.createElement('div');
+          toast.className = 'fixed bottom-4 right-4 bg-purple-900/90 text-white px-4 py-2 rounded-xl border border-purple-500/30 shadow-lg text-sm z-50 backdrop-blur-md transition-all duration-300 transform translate-y-0 opacity-100';
+          toast.textContent = 'Réaction "' + type + '" enregistrée !';
+          document.body.appendChild(toast);
+          setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-y-2');
+            setTimeout(() => toast.remove(), 300);
+          }, 2000);
+          if (typeof window.fetch === 'function') {
+            fetch('/api/solara/reactions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type, timestamp: Date.now() })
+            }).catch(() => {});
+          }
         }
 
         function publishSolaraPost() {

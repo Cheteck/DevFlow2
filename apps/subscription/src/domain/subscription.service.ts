@@ -1,5 +1,5 @@
 import type { DatabasePort } from "@mosaix/ports-database";
-import type { SubscriptionPlan, UserSubscription } from "./subscription.js";
+import type { SubscriptionPlan, UserSubscription, SubscriptionStatus } from "./subscription.js";
 
 export class SubscriptionService {
   private plans = new Map<string, SubscriptionPlan>();
@@ -37,7 +37,7 @@ export class SubscriptionService {
         id: String(r["id"]),
         userId: String(r["user_id"] || ""),
         planId: String(r["plan_id"] || ""),
-        status: String(r["status"] || "active") as any,
+        status: (String(r["status"] || "active") as SubscriptionStatus),
         currentPeriodStart: Number(r["current_period_start"] || Date.now()),
         currentPeriodEnd: Number(r["current_period_end"] || Date.now()),
         cancelAtPeriodEnd: Boolean(r["cancel_at_period_end"]),
@@ -125,7 +125,7 @@ export class SubscriptionService {
           id: String(r["id"]),
           userId: String(r["user_id"] || ""),
           planId: String(r["plan_id"] || ""),
-          status: String(r["status"] || "active") as any,
+          status: (String(r["status"] || "active") as SubscriptionStatus),
           currentPeriodStart: Number(r["current_period_start"] || Date.now()),
           currentPeriodEnd: Number(r["current_period_end"] || Date.now()),
           cancelAtPeriodEnd: Boolean(r["cancel_at_period_end"]),

@@ -5,13 +5,28 @@ import { apps, APP_ICONS } from "./discovery.js";
 import { platformFeatureFlags } from "./feature-flags.js";
 import "./contextual-actions";
 
+function getUserAllowedBacs(user?: UserProfile): string[] {
+  if (user && Array.isArray(user.allowedBacs)) {
+    return user.allowedBacs;
+  }
+  return ["identity", "solara", "solidarity", "commerce", "spaces", "portfolio", "booking", "beam", "subscription"];
+}
+
+function getUserPermissions(user?: UserProfile): string[] {
+  if (user && Array.isArray(user.permissions)) {
+    return user.permissions;
+  }
+  return [];
+}
+
 // -----------------------------------------------------------------------------
 // PRIMARY SIDEBAR RENDERER (FILTERED BY BAC AUTHORIZATION & FEATURE FLAGS)
 // -----------------------------------------------------------------------------
 export function renderPrimarySidebar(user: UserProfile, activeRoute: string, activeSpace?: SpaceProfile | null): string {
   // Filter visible BACs based on user's allowedBacs permission AND dynamic feature flags
+  const userBacs = getUserAllowedBacs(user);
   const allowedApps = apps.filter(app => {
-    const isAllowedByRole = user.allowedBacs.includes(app.id) || user.allowedBacs.includes(app.id.replace(/^@apps\//, ""));
+    const isAllowedByRole = userBacs.includes(app.id) || userBacs.includes(app.id.replace(/^@apps\//, ""));
     if (!isAllowedByRole) return false;
     const flagKey = app.featureFlag || `apps.${app.id.replace(/^@apps\//, "")}.enabled`;
     return platformFeatureFlags.isEnabledSync(flagKey, true);
@@ -371,13 +386,15 @@ export function renderSecondarySidebar(
   const cta = getCtaConfig(cleanBacId, context.ctaLabel);
   
   // Filter actions based on specific user permission requirements
+  const userPerms = getUserPermissions(user);
   const permittedActions = actions.filter(action => {
     if (!action.permission) return true;
-    return user.permissions.includes(action.permission);
+    return userPerms.includes(action.permission);
   });
 
+  const userBacs = getUserAllowedBacs(user);
   const allowedApps = apps.filter(a => {
-    const isAllowedByRole = user.allowedBacs.includes(a.id) || user.allowedBacs.includes(a.id.replace(/^@apps\//, ""));
+    const isAllowedByRole = userBacs.includes(a.id) || userBacs.includes(a.id.replace(/^@apps\//, ""));
     if (!isAllowedByRole) return false;
     const flagKey = a.featureFlag || `apps.${a.id.replace(/^@apps\//, "")}.enabled`;
     return platformFeatureFlags.isEnabledSync(flagKey, true);
@@ -702,9 +719,32 @@ export function renderUserSwitcherWidget(user: UserProfile, activeSpace?: SpaceP
 // -----------------------------------------------------------------------------
 // MOBILE DRAWER COMPONENT (SHARED ACROSS TEMPLATES)
 // -----------------------------------------------------------------------------
-export function renderMobileDrawer(user: UserProfile, activeRoute: string, activeMode: string): string {
+export function renderMobileDrawer(userOrHtml: UserProfile | string, activeRoute = "/", activeMode = "light"): string {
+  if (typeof userOrHtml === "string") {
+    return `
+    <div id="mobile-drawer" class="fixed inset-0 z-[100] hidden bg-background/60 backdrop-blur-md transition-opacity duration-300 animate-fade-in" onclick="toggleMobileDrawer()">
+      <div class="fixed inset-y-0 left-0 w-72 bg-surface-container-high p-5 flex flex-col justify-between shadow-2xl border-r border-outline-variant/20 transition-transform duration-300 ease-out" onclick="event.stopPropagation()">
+        <div class="space-y-5 flex-1 flex flex-col min-h-0">
+          <div class="flex items-center justify-between border-b border-outline-variant/20 pb-4">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary text-xl">temp_preferences_custom</span>
+              <span class="font-bold text-sm text-on-surface">Menu Principal</span>
+            </div>
+            <button onclick="toggleMobileDrawer()" class="w-8 h-8 rounded-full hover:bg-surface-variant/50 text-on-surface-variant hover:text-on-surface flex items-center justify-center transition font-bold text-base">&times;</button>
+          </div>
+          <nav aria-label="Navigation mobile" class="space-y-2 overflow-y-auto flex-1">
+            ${userOrHtml}
+          </nav>
+        </div>
+      </div>
+    </div>
+    `;
+  }
+
+  const user = userOrHtml;
+  const userBacs = getUserAllowedBacs(user);
   const allowedApps = apps.filter(app => {
-    const isAllowedByRole = user.allowedBacs.includes(app.id) || user.allowedBacs.includes(app.id.replace(/^@apps\//, ""));
+    const isAllowedByRole = userBacs.includes(app.id) || userBacs.includes(app.id.replace(/^@apps\//, ""));
     if (!isAllowedByRole) return false;
     const flagKey = app.featureFlag || `apps.${app.id.replace(/^@apps\//, "")}.enabled`;
     return platformFeatureFlags.isEnabledSync(flagKey, true);

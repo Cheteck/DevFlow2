@@ -4,7 +4,7 @@ export class InMemorySecretsAdapter implements SecretsPort {
   private secrets = new Map<string, string>();
 
   async getSecret(key: string): Promise<string | undefined> {
-    return this.secrets.get(key) ?? process.env[key] ?? "dev-secret-key-123";
+    return this.secrets.get(key) ?? process.env[key] ?? (process.env.NODE_ENV === "test" ? "dev-secret-key-123" : undefined);
   }
 
   async getRequiredSecret(key: string): Promise<string> {

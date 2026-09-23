@@ -2,25 +2,10 @@
   "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "composite": true,
-    "outDir": "../../.mosaix/build/packages/ports__session-store",
-    "rootDir": "../..",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "tsBuildInfoFile": "../../.mosaix/build/packages/ports__session-store/.tsbuildinfo"
+    "outDir": "../../../.mosaix/build/packages/ports/session-store",
+    "rootDir": "."
   },
   "include": [
     "src/**/*.ts"
-  ],
-  "exclude": [
-    "src/**/*.test.ts"
-  ],
-  "references": [
-    {
-      "path": "../../types"
-    },
-    {
-      "path": "../../contracts"
-    }
   ]
 }
