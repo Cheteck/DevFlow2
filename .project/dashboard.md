@@ -1,6 +1,6 @@
 # MosaiX Dashboard
-**Dernière mise à jour :** 2026-09-24  
-**Statut Global :** 🟢 Système Nominal (Moteur d'autorisation unique v2 & toutes les migrations et modèles métier de persistance implémentés)
+**Dernière mise à jour :** 2026-09-24 — Vérification `af20893` + `1dd2342`  
+**Statut Global :** 🟡 Partiel — `EffectivePermissionResolver` + `Money/Timestamp` + schémas commerce/beam/booking/citadelle/subscription livrés ; `PermissionRegistry`, `roles/role_permissions`, `solidarity/solara`, `Money` wiring et `DATA-07/08` restent ouverts
 
 
 ---
@@ -15,13 +15,21 @@
 
 ---
 
-## 2. Gaps Résolus & Améliorations Récentes
+## 2. Vérification Dernier Commit `af20893` + `1dd2342` (2026-09-24)
 
-- ✅ **P0 - Moteur d'Autorisation Unique v2 (`@mosaix/core`)** : `EffectivePermissionResolver` avec priorité absolue `DENY > ALLOW` sur segment wildcard/exact, `UserAuthorizationContext` avec snapshot mémoire, horodatage et invalidation transactionnelle `authorizationVersion`.
-- ✅ **P0 - Value Objects Monnaie & Temps (`@mosaix/core`)** : Implémentation universelle de `Money` (opérations sur entiers en cents, validation ISO 4217, sérialisation) et `Timestamp` (ISO 8601, epoch ms).
-- ✅ **P0 - Implémentation Intégrale des Modèles et Migrations** : Migrations et schémas Postgres versionnés créés pour tous les modèles métier de persistance (`commerce_offers`, `commerce_payment_intents`, `commerce_auctions`, `commerce_auction_bids`, `commerce_carts`, `beam_messages` enrichi, `beam_notifications`, `beam_push_subscriptions`, `booking_waitlists`, `booking_reminders`, `user_subscriptions`, `coupons`, `invoices`, `metering_buckets`, `portfolio_categories`, `portfolio_variants`, `citadelle_identities` rôles & MFA, `solara_*` 4 tables, `solidarity_*` 7 tables).
+- ✅ **P1-02 `EffectivePermissionResolver` (`@mosaix/core`)** : `PermissionDecision{allowed, matchedPermission, effect, source}`, `UserAuthorizationContext{authorizationVersion, generatedAt, allows, denies, decisionMap}`, `matchPermissionPattern` wildcard, `buildContext` + `bumpVersion(userId:spaceId)`, `can()` `DENY>ALLOW` absolu — 4 tests `effective-permission-resolver.test.ts` verts (refund deny, override, version).
+- ✅ **DATA-06 `Money`/`Timestamp`** : `Money.fromCents/fromAmount add/subtract toJSON` + `Timestamp toIso/toEpochMs` — `value-objects.test.ts` 3 tests verts ; wiring domaine (`commerce-offer.model.ts:19` etc.) reste à faire.
+- ✅ **DATA-02/03/04 Commerce/Beam** : `commerce_offers/payment_intents/auctions/bids/carts/cart_items` (7 tables), `beam_messages` enrichi `replyTo/thread/reactions/attachments/encryptedPayload` + `beam_notifications/push_subscriptions`.
+- 🟠 **DATA-01/05 Partiels** : `portfolio_vendables` 13 cols + `categories/variants` OK (manque `translations/relations/media`), `booking_waitlists/reminders` + `citadelle roles/mfa_secret` + `coupons/invoices/metering` OK — **manquent** `solidarity_*` 7 tables + `solara_*` `categories/translations` + `PermissionRegistry` (ROLE-P1-01).
+- 🔴 **Restant** : `PermissionRegistry` `permission.ts:21`, `roles/role_permissions/global_user_roles/space_members/permission_overrides/acting_as_audit_events` (P2-P7), `Money` wiring + `DATA-07/08`.
+- ⚠️ Correction : le statut précédent "Implémentation Intégrale des Modèles" supprimé — **non intégrale**, voir backlog §7.
 
-## 3. Gaps Résolus & Améliorations Récentes
+## 3. Backlog Actif (16 tâches) — Synthèse
+
+- **ROLE** : P1-02 ✅, P1-01/P2-P7+AUDIT 🔴 (voir backlog §5+§7)
+- **DATA** : DATA-02/03/04 ✅, DATA-01/05/06 🟠, DATA-07/08 🔴 (voir backlog §6+§7)
+
+## 4. Gaps Résolus & Améliorations Récentes (archive)
 
 - ✅ **P0 - Micro QueryBuilder DML Typé (`@mosaix/ports-database`)** : Moteur de requêtes typées (`SelectQueryBuilder`, `InsertQueryBuilder`, `UpdateQueryBuilder`, `DeleteQueryBuilder`) avec binding automatique anti-injection ($1/$2 pour Postgres, ? pour SQLite).
 - ✅ **P0 - Gestionnaire de Pool PostgreSQL (`PostgresPoolManager`)** : Support de pooling de connexions, health check automatique (`SELECT 1`), retries sur erreurs transitoires et fermeture propre.
