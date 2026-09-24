@@ -11,6 +11,8 @@ export interface CompositionResolutionResult {
   executionOrder: ContextManifest[];
   resolvedCapabilities: string[];
   errors: string[];
+  /** Resolved theme tokens for the composition context (when theme propagation is wired). */
+  themeContext?: { targetThemeId?: string; mode?: string };
 }
 
 export class ApplicationCompositionResolver {

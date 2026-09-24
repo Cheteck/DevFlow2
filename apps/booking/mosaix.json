@@ -14,7 +14,10 @@
     "strategy": "per-app"
   },
   "requires": [
-    { "id": "@apps/citadelle", "version": "^1.0.0" }
+    {
+      "id": "@apps/citadelle",
+      "version": "^1.0.0"
+    }
   ],
   "capabilities": [
     {
@@ -51,5 +54,6 @@
     "frontend": {
       "entrypoint": "./frontend/src/index.ts"
     }
-  }
+  },
+  "themeContract": "mosaix-default@^1.0.0"
 }

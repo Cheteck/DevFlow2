@@ -48,5 +48,6 @@
     "frontend": {
       "entrypoint": "./frontend/src/index.ts"
     }
-  }
+  },
+  "themeContract": "mosaix-default@^1.0.0"
 }

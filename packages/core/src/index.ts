@@ -242,6 +242,11 @@ export type {
 // Built-in Kernel Modules & Services
 export * from "./modules/index";
 
+// Theme persistence + BAC targets
+export { PostgresThemeAssignmentsStore } from "./theme/postgres-theme-assignments-store";
+export { ThemeAssignmentsMigrationProvider } from "./theme/theme-assignments-migration";
+export { BAC_THEME_TARGETS, registerBacThemeTargets } from "./theme/bac-theme-targets";
+
 // Effective Permission Resolver & Value Objects
 export {
   EffectivePermissionResolver,
