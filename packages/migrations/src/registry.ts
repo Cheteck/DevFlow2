@@ -5,6 +5,7 @@
  * Simplified Laravel-like Multi-App Migration Architecture.
  */
 
+export { computeChecksum } from "./checksum";
 import { computeChecksum } from "./checksum";
 import { MigrationConflictError } from "./errors";
 import type { Migration, MigrationProvider } from "./migration";
