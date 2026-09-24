@@ -53,3 +53,4 @@ apps/*/src/**/*.js
 apps/*/src/**/*.d.ts
 apps/*/src/**/*.js.map
 apps/*/src/**/*.d.ts.map
+pnpm-lock.yaml
