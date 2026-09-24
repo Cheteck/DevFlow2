@@ -1,6 +1,6 @@
 # MosaiX Dashboard
-**Dernière mise à jour :** 2026-09-24  
-**Statut Global :** 🟢 Système Nominal — Moteur d'Autorisation Unique v2 (`PermissionRegistry` & `EffectivePermissionResolver`), Schémas RBAC & Audit, Modèles & Value Objects (`Money`, `Timestamp`), et Modèle de Caractéristiques Produits Extensibles CS-Cart (`portfolio_features`, `portfolio_feature_groups`, `portfolio_vendable_features`, `portfolio_variation_groups`) tous livrés et validés.
+**Dernière mise à jour :** 2026-09-24 — Pull `ac99009`/`0ebe478`/`356422d` + PRD-0011 complet + PRDs v1.3  
+**Statut Global :** 🟢 Système Nominal — Moteur d'Autorisation v2, 14 tables Portfolio CS-Cart, `portfolio_proposals` + `ProposalService` (`PRD-0010` v1.3), `Money`/`Timestamp` livrés ; reste `DATA-07/08` + `THEME` UI + `PRD-0011` 19 pages
 
 
 ---
@@ -20,12 +20,12 @@
 - ✅ **ROLE-P1-01 `PermissionRegistry` (`@mosaix/core`)** : Support de `registerPermission({ key, description, scopes, assignableBy })`, `isRegistered`, `getRegistered`, et validation stricte des permissions atomiques.
 - ✅ **ROLE-P1-02 `EffectivePermissionResolver` (`@mosaix/core`)** : Moteur de résolution avec règle prioritaire `DENY > ALLOW`, contextes de snapshot `UserAuthorizationContext`, horodatage et versioning `authorizationVersion`.
 - ✅ **ROLE-P2..P7 RBAC, Dynamique & Audit** : Migrations Postgres pour `permissions`, `roles`, `role_permissions`, `global_user_roles`, `space_members`, `permission_overrides`, `acting_as_audit_events` et `role_audit_events`.
-- ✅ **DATA-01..06 Modèles & Value Objects** : Complétion des migrations pour `portfolio_translations`, `portfolio_relations`, `portfolio_media_assets`, `solara_categories`, `solara_translations`, et intégration des helpers `Money` / `Timestamp` dans les services domaine (`CommerceOfferService`, etc.).
-- ✅ **DATA-09 Caractéristiques Extensibles CS-Cart (GSMArena Xiaomi 18 Pro Max)** : Ingestion et modélisation des caractéristiques complexes type CS-Cart (`portfolio_feature_groups`, `portfolio_features`, `portfolio_feature_variants`, `portfolio_vendable_features`, `portfolio_variation_groups`, `portfolio_variation_group_features`).
-- ✅ **PRD-0010 — Portfolio Propositions par les Spaces (v1.3)** : Implémentation du flux de proposition par les Spaces (`portfolio_proposals`, `ProposalService`, `ProposalRepository`, workflow `Draft → Submitted → InReview → Approved/ChangesRequested/Rejected`, et création atomique du `Vendable` publié).
+- ✅ **DATA-01 + DATA-09 Portfolio CS-Cart 14 tables** : `portfolio_vendables/categories/vendable_categories/variants/translations/relations/media_assets/feature_groups/features/feature_variants/vendable_features/variant_features/variation_groups` (`ac99009`/`0ebe478`, 198L) — Xiaomi 18 Pro Max `gsmarena.com/14958` modélisé en 3 SKU `variation_group_id`.
+- ✅ **PRD-0010 Proposals v1.3 simplifiée** : `portfolio_proposals` 1 table mutable (contenu courant écrasé, `platform_feedback`, `vendable_id NULL→V987`) + `ProposalService` 7 méthodes `createDraft→approve` (`356422d`, 197L) — sans `proposal_revisions`, audit externe.
+- ✅ **PRD-0011 Portfolio complet** : PRD `PRD-0011-portfolio.md` v1.0 + §10 MeshJS `G:\MeshJS-by-Jules\apps\catalog` (`CatalogEngine` 12 repos, `CategoryEngine.getParentChain`, `StickerEngine` 4 conditions) + `themeContract` 10 BACs (`2395e23`).
 
 ## 3. Statut du Backlog Actif
-- **Statut Global** : All 17 tasks completed and verified in the test suite and build system.
+- **Statut Global** : 12/17 livrées (ROLE, DATA-01..06/09, PRD-0010 DB) — restent `DATA-07` triggers, `DATA-08` `Record<string,unknown>`, `THEME` UI `CompositionResolver.themeContext`, `PRD-0011` 19 pages (DB done, UI à faire).
 
 
 ## 4. Gaps Résolus & Améliorations Récentes (archive)

@@ -1,7 +1,7 @@
 # MosaiX / IJIDeals Platform — Active Backlog
 
-- **Dernière mise à jour :** 2026-09-24 — CS-Cart Features (DATA-09) ajouté pour Xiaomi 18 Pro Max GSMArena
-- **Statut global :** FEAT-01..13 archivés — 17 tâches : §7 vérification 2026-09-24 close (ROLE-P1/P2 + DATA-01..06 livrés) / 5 restantes (DATA-07/08/09 + compléments) + 1 nouvelle (DATA-09 CS-Cart) — voir §6. Historique dans `.project/archive/completed-backlog-history.md`.
+- **Dernière mise à jour :** 2026-09-24 — Pull `0ebe478`+`356422d` + PRD-0011 Portfolio complet + vérification MeshJS catalog
+- **Statut global :** FEAT-01..13 archivés — 17 tâches : 12 livrées (ROLE-P1/P2, DATA-01/02/03/04/05/06/09, PRD-0010 proposals) / 5 restantes (DATA-07/08 + THEME propagation UI + PRD-0011 pages 19 routes) — voir §7-§8. Historique dans `.project/archive/completed-backlog-history.md`.
 
 ---
 
@@ -229,19 +229,27 @@ Gaps issus de l'analyse `apps/*/src/domain/*.ts` vs `infrastructure/migrations.t
 
 ---
 
-### 7. Vérification 2026-09-24 — Clôture Intégrale de la Phase
+### 7. Vérification 2026-09-24 — Pull `ac99009`/`0ebe478`/`356422d` + PRD-0011
 
-**Commits & Fichiers de livraison :**
-- `feat(core): implement permission registry, effective resolver, value objects` — `packages/core/src/permission.ts` (registerPermission, assertRegistered, listRegistered), `effective-permission-resolver.ts`, `value-objects.ts` + tests.
-- `feat(migrations): RBAC, dynamic roles, audit, portfolio/solara/solidarity table completions` — `spaces/migrations/20260922162100_create_spaces_tables.ts` (`permissions`, `roles`, `role_permissions`, `global_user_roles`, `space_members`, `permission_overrides`, `acting_as_audit_events`, `role_audit_events`), `portfolio` (`portfolio_translations`, `portfolio_relations`, `portfolio_media_assets`), `solara` (`solara_categories`, `solara_translations`), `commerce-offer.model.ts` (`Money` helpers).
+**Commits vérifiés :**
+- `ac99009 feat(portfolio): implement CS-Cart feature schema` — 14 tables `portfolio_*` (`feature_groups/features/feature_variants/vendable_features/variant_features/variation_groups`) pour Xiaomi 18 Pro Max `gsmarena.com/14958`
+- `0ebe478 feat(portfolio): update schema` — refactor `portfolio_vendables` (content/classification/quality nullable) + 14 tables consolidées (198L)
+- `356422d feat(portfolio): implement space proposal workflow` — `Proposal` `proposal.ts:1` + `ProposalService` `proposal-service.ts:1` (197L `Draft→Approved` 7 méthodes) + `proposal-repository.ts` + `in-memory-proposal-repository.ts` + migration `20260924120000:1` `portfolio_proposals` (9 cols JSONB) + `proposal.test.ts` (85L)
+
+**PRD-0011 Portfolio complet** `PRD-0011-portfolio.md:1` (v1.0, 2026-09-24, 19 routes `Dashboard→Export`) créé — **DB partiellement livrée** (`proposal` + 14 tables CS-Cart) ; **UI 19 pages reste à implémenter** (Dashboard, Vendables All/New, fiche 8 onglets, Categories arbre, Features/Groups, Variation Models, Search, Import/Export, Proposals). **Inspiration MeshJS** `G:\MeshJS-by-Jules\apps\catalog` `ARCHITECTURE.md:17` `CatalogEngine` (12 repos) + `CategoryEngine.getParentChain` + `StickerEngine` (4 conditions) + `AUDIT.md:40` monolithe 1504L — 7 idées intégrées `PRD-0011:§10`.
 
 | Tâche | Attendu | Livré | Verdict |
 |---|---|---|---|
 | **ROLE-P1-01** PermissionRegistry `permission.ts` | `registerPermission({key, description, scopes, assignableBy})` + validation | **Livré** — `registerPermission`, `isRegistered`, `getRegistered`, `listRegistered`, `permission.test.ts` vert | ✅ Livré |
 | **ROLE-P1-02** EffectivePermissionResolver `effective-permission-resolver.ts` | `PermissionEffect ALLOW|DENY`, `PermissionDecision`, `UserAuthorizationContext`, `DENY>ALLOW` | **Livré** — `EffectivePermissionResolver`, `UserAuthorizationContext`, `bumpVersion`, `effective-permission-resolver.test.ts` vert | ✅ Livré |
 | **ROLE-P2..P7** RBAC & Audit | Tables `permissions`, `roles`, `role_permissions`, `global_user_roles`, `space_members`, `permission_overrides`, `acting_as_audit_events`, `role_audit_events` | **Livré** — Schéma relationnel Postgres complet dans `spaces/migrations/20260922162100_create_spaces_tables.ts` | ✅ Livré |
-| **DATA-01** Portfolio | `vendables` + `categories`, `variants`, `translations`, `relations`, `media_assets` | **Livré** — 6 tables créées dans `portfolio/migrations/20260922162000_create_portfolio_tables.ts` | ✅ Livré |
+| **DATA-01** Portfolio | `vendables` + `categories`, `variants`, `translations`, `relations`, `media_assets` + 14 tables CS-Cart | **Livré** — 14 tables `portfolio_vendables/categories/vendable_categories/variants/translations/relations/media_assets/feature_groups/features/feature_variants/vendable_features/variant_features/variation_groups` dans `20260922162000:7` (198L) | ✅ Livré |
+| **DATA-09** CS-Cart | `portfolio_feature_*` + Xiaomi | **Livré** — `ac99009` 14 tables, seed Groups Network/Body/Display | ✅ Livré |
+| **PRD-0010 Proposals** | `portfolio_proposals` workflow 1 table mutable | **Livré** — `20260924120000:6` + `ProposalService` 7 méthodes `createDraft→approve` + `proposal.test.ts` | ✅ Livré |
 | **DATA-02/03** Commerce | `commerce_offers/payment_intents/auctions/bids/carts/cart_items` | **Livré** — 7 tables créées dans `commerce/migrations.ts` | ✅ Livré |
 | **DATA-04** Beam | `beam_messages` enrichi + `beam_notifications/push_subscriptions` | **Livré** — Table enrichie avec `replyTo/thread/reactions/attachments/encryptedPayload` + 2 tables notifications/push | ✅ Livré |
 | **DATA-05** Booking/Citadelle/Subscription/Solara/Solidarity | Tables manquantes pour tous les 10 BACs | **Livré** — `booking_waitlists`, `booking_reminders`, `citadelle roles/mfa_secret`, `coupons`, `invoices`, `metering_buckets`, `solara_*` 6 tables, `solidarity_*` 7 tables | ✅ Livré |
 | **DATA-06** Money/Timestamp | `Money` & `Timestamp` VOs + wiring domaine | **Livré** — VOs dans `value-objects.ts` + intégration `getMoney` & `calculatePayoutMoney` dans `CommerceOfferService` | ✅ Livré |
+| **PRD-0011 UI** Portfolio 19 routes | Dashboard + 8 onglets fiche + Categories/Features/Variation/Search/Import/Export + Proposals UI | **Reste** — DB done, **UI à implémenter** (THEME propagation BACs `2395e23` + `PostgresThemeAssignmentsStore` + `BAC_THEME_TARGETS` pose base) | 🟡 À faire |
+
+**Restant backlog actif** : `DATA-07` (`reservedCount` triggers), `DATA-08` (`Record<string,unknown>` typage), `THEME` UI `CompositionResolver.themeContext` → `Shell`, `PRD-0011` 19 pages. `PRD-0010` et `PRD-0011` DB clos, PRDs eux-mêmes créés `.project/prd/PRD-0010-portfolio-proposals.md` v1.3 + `PRD-0011-portfolio.md` v1.0+MeshJS.
