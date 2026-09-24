@@ -1,13 +1,13 @@
-import { identityContributions, IdentityLoginPageView, IdentityRegisterPageView, IdentityGdprPrivacyPageView } from "../../apps/citadelle/frontend/src/index.js";
-import { solaraContributions, SolaraSocialFeedPageView } from "../../apps/solara/frontend/src/index.js";
-import { solidarityContributions, SolidarityPageView } from "../../apps/solidarity/frontend/src/index.js";
-import { imperiaContributions, ImperiaGovernancePageView } from "../../apps/imperia/frontend/src/index.js";
-import { spacesContributions, SpaceDashboardPageView } from "../../apps/spaces/frontend/src/index.js";
-import { commerceContributions, CommerceCheckoutPageView } from "../../apps/commerce/frontend/src/index.js";
-import { beamContributions, BeamConversationPageView } from "../../apps/beam/frontend/src/index.js";
-import { portfolioContributions, PortfolioCatalogPageView } from "../../apps/portfolio/frontend/src/index.js";
-import { bookingContributions, BookingPageView } from "../../apps/booking/frontend/src/index.js";
-import { subscriptionContributions, SubscriptionPageView } from "../../apps/subscription/frontend/src/index.js";
+import { identityContributions, IdentityLoginPageView, IdentityRegisterPageView, IdentityGdprPrivacyPageView } from "../../apps/citadelle/src/presentation/index.js";
+import { solaraContributions, SolaraSocialFeedPageView } from "../../apps/solara/src/presentation/index.js";
+import { solidarityContributions, SolidarityPageView } from "../../apps/solidarity/src/presentation/index.js";
+import { imperiaContributions, ImperiaGovernancePageView } from "../../apps/imperia/src/presentation/index.js";
+import { spacesContributions, SpaceDashboardPageView } from "../../apps/spaces/src/presentation/index.js";
+import { commerceContributions, CommerceCheckoutPageView } from "../../apps/commerce/src/presentation/index.js";
+import { beamContributions, BeamConversationPageView } from "../../apps/beam/src/presentation/index.js";
+import { portfolioContributions, PortfolioCatalogPageView } from "../../apps/portfolio/src/presentation/index.js";
+import { bookingContributions, BookingPageView } from "../../apps/booking/src/presentation/index.js";
+import { subscriptionContributions, SubscriptionPageView } from "../../apps/subscription/src/presentation/index.js";
 
 export interface BacPluginRegistration {
   id: string;

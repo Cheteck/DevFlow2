@@ -6,8 +6,8 @@ import type * as http from "node:http";
 import type { URL } from "node:url";
 import type { ThemeMode } from "@mosaix/contracts";
 import type { CompositionOverrideManager } from "@mosaix/core";
-import { applyThemeMode } from "../shell/theme/theme-bridge.js";
-import { saveCompositionOverridesToFile, type SavedBlockOverride } from "../shell/editor.js";
+import { applyThemeMode } from "../../shell/theme/theme-bridge.js";
+import { saveCompositionOverridesToFile, type SavedBlockOverride } from "../../shell/editor.js";
 
 export async function handleThemeRoutes(
   req: http.IncomingMessage,

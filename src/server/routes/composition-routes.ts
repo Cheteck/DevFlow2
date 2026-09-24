@@ -4,9 +4,9 @@
 
 import type * as http from "node:http";
 import type { URL } from "node:url";
-import { CompositionManager } from "../shell/composition-loader.js";
+import { CompositionManager } from "../../shell/composition-loader.js";
 import type { CompositionOverrideManager } from "@mosaix/core";
-import { saveCompositionOverridesToFile } from "../shell/editor.js";
+import { saveCompositionOverridesToFile } from "../../shell/editor.js";
 
 export function handleCompositionRoutes(
   req: http.IncomingMessage,

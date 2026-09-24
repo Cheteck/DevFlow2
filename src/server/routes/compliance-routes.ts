@@ -4,13 +4,13 @@
 
 import type * as http from "node:http";
 import type { URL } from "node:url";
-import { pspWebhookHandler } from "../shell/psp-webhook-handler.js";
-import type { AnonymizationOrchestrator } from "../shell/anonymization-orchestrator.js";
-import type { DistributedEventBackplane } from "../shell/event-backplane.js";
-import type { UserProfile } from "../shell/profiles.js";
-import { feedStore } from "../shell/feed-store.js";
-import { apps } from "../shell/discovery.js";
-import { bacRegistry } from "../generated-bac-registry.js";
+import { pspWebhookHandler } from "../../shell/psp-webhook-handler.js";
+import type { AnonymizationOrchestrator } from "../../shell/anonymization-orchestrator.js";
+import type { DistributedEventBackplane } from "../../shell/event-backplane.js";
+import type { UserProfile } from "../../shell/profiles.js";
+import { feedStore } from "../../shell/feed-store.js";
+import { apps } from "../../shell/discovery.js";
+import { bacRegistry } from "../../generated-bac-registry.js";
 
 export async function handleComplianceAndSystemRoutes(
   req: http.IncomingMessage,

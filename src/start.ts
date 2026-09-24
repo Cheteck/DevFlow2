@@ -12,7 +12,6 @@ import type { ThemeMode } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
 import {
   CompositionOverrideManager,
-  CompositionStore,
 } from "@mosaix/core";
 
 // Shell services & state
@@ -33,15 +32,14 @@ import { renderBacAdminSafely } from "./shell/renderer.js";
 // Server decoupling modules
 import { handleMaintenanceGate } from "./server/middleware/maintenance-gate.js";
 import { dispatchApiRequest } from "./server/api-dispatcher.js";
-import { renderBacPage } from "./shell/pages/bac-page.ts";
-import { renderHomePage } from "./shell/pages/home-page.ts";
+import { renderBacPage } from "./shell/pages/bac-page.js";
+import { renderHomePage } from "./shell/pages/home-page.js";
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
 let activeMode: ThemeMode = "dark";
 
 // Composition Overrides Store initialization
-const compositionStore = new CompositionStore();
-const compositionOverrideManager = new CompositionOverrideManager(compositionStore);
+const compositionOverrideManager = new CompositionOverrideManager();
 loadSavedCompositionOverrides(compositionOverrideManager);
 
 // Global CSS styles

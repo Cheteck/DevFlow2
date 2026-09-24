@@ -4,7 +4,7 @@
 
 import type * as http from "node:http";
 import type { URL } from "node:url";
-import { USER_PROFILES } from "../shell/profiles.js";
+import { USER_PROFILES } from "../../shell/profiles.js";
 
 export function handleUserAndSpaceRoutes(
   req: http.IncomingMessage,

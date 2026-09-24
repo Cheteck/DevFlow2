@@ -5,10 +5,10 @@
 import type * as http from "node:http";
 import type { URL } from "node:url";
 import { escapeHtml } from "@mosaix/support";
-import { feedStore, type FeedPost } from "../shell/feed-store.js";
-import type { FeedService } from "../shell/feed-service.js";
-import type { DistributedEventBackplane } from "../shell/event-backplane.js";
-import type { UserProfile } from "../shell/profiles.js";
+import { feedStore, type FeedPost } from "../../shell/feed-store.js";
+import type { FeedService } from "../../shell/feed-service.js";
+import type { DistributedEventBackplane } from "../../shell/event-backplane.js";
+import type { UserProfile } from "../../shell/profiles.js";
 
 export async function handleFeedRoutes(
   req: http.IncomingMessage,

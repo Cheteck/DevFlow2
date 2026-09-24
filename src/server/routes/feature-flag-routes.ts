@@ -4,7 +4,7 @@
 
 import type * as http from "node:http";
 import type { URL } from "node:url";
-import { platformFeatureFlags } from "../shell/feature-flags.js";
+import { platformFeatureFlags } from "../../shell/feature-flags.js";
 
 export async function handleFeatureFlagRoutes(
   req: http.IncomingMessage,

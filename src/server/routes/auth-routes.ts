@@ -4,7 +4,7 @@
 
 import type * as http from "node:http";
 import type { URL } from "node:url";
-import { registrationWizardService } from "../../apps/citadelle/src/domain/registration-wizard.service.js";
+import { registrationWizardService } from "../../../apps/citadelle/src/domain/registration-wizard.service.js";
 
 export async function handleAuthRoutes(
   req: http.IncomingMessage,

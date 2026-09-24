@@ -4,10 +4,10 @@
  */
 
 import type * as http from "node:http";
-import { maintenanceService } from "../../apps/imperia/src/domain/maintenance.service.js";
-import { renderMaintenancePage } from "../shell/renderer.js";
-import { renderHeadBlock } from "../shell/ssr-engine.js";
-import { renderThemeStyleTag } from "../shell/theme/theme-bridge.js";
+import { maintenanceService } from "../../../apps/imperia/src/domain/maintenance.service.js";
+import { renderMaintenancePage } from "../../shell/renderer.js";
+import { renderHeadBlock } from "../../shell/ssr-engine.js";
+import { renderThemeStyleTag } from "../../shell/theme/theme-bridge.js";
 import type { ThemeMode } from "@mosaix/contracts";
 
 export function handleMaintenanceGate(

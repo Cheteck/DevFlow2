@@ -4,9 +4,9 @@
 
 import type * as http from "node:http";
 import type { URL } from "node:url";
-import { maintenanceService } from "../../apps/imperia/src/domain/maintenance.service.js";
-import { sendProblemResponse } from "../shell/http-errors.js";
-import type { UserProfile } from "../shell/profiles.js";
+import { maintenanceService } from "../../../apps/imperia/src/domain/maintenance.service.js";
+import { sendProblemResponse } from "../../shell/http-errors.js";
+import type { UserProfile } from "../../shell/profiles.js";
 
 export async function handleMaintenanceRoutes(
   req: http.IncomingMessage,

@@ -12,11 +12,11 @@ import {
   renderMobileDrawer,
   renderUserSwitcherWidget,
   renderHeaderSearchAndDevControls,
-  renderHeadBlock,
-  renderThemeStyleTag,
   renderShellToastContainer,
   renderShellConfirmModal,
 } from "../renderer.js";
+import { renderHeadBlock } from "../ssr-engine.js";
+import { renderThemeStyleTag } from "../theme/theme-bridge.js";
 import { getShellClientScripts } from "../client/shell-client-scripts.js";
 
 export interface HomePageOptions {

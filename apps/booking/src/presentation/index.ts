@@ -473,7 +473,6 @@ export const BookingPageView = {
   },
 };
 
-
 export const bookingNavigationItems = [
   { id: "nav-booking", label: "Booking", route: "/booking", pageView: BookingPageView },
 ];

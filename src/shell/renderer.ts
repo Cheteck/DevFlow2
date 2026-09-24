@@ -3,6 +3,7 @@ import { UserProfile, USER_PROFILES, SpaceProfile, SPACES_LIST } from "./profile
 import { shellRegistry } from "@mosaix/core";
 import { apps, APP_ICONS } from "./discovery.js";
 import { platformFeatureFlags, DEFAULT_PLATFORM_FLAGS } from "./feature-flags.js";
+import { IMPERIA_NAV_SECTIONS } from "./imperia-nav.js";
 import "./contextual-actions";
 
 function getUserAllowedBacs(user?: UserProfile): string[] {
@@ -258,98 +259,27 @@ export function renderSecondarySidebar(
 
         <!-- Scrollable Menu of Integrated BAC Admin Pages -->
         <div id="mosaix-slot-shell-sidebar-secondary" data-mosaix-slot="shell.sidebar.secondary" class="flex flex-col gap-1 flex-grow overflow-y-auto pr-1 secondary-sidebar-scroll transition-all">
-          <div class="flex items-center justify-between px-2 pt-1 mb-1">
-            <span class="text-[10px] font-bold text-on-surface-variant/70 uppercase tracking-wider">Cœur de Plateforme</span>
-            <span class="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-surface-variant/40 text-on-surface-variant/80">4</span>
-          </div>
-          
-          <button onclick="switchAdminTab('metrics')" id="sidebar-tab-metrics" data-search="métriques logs télémétrie cluster monitoring" class="admin-tab-btn sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 transition-all duration-200 group text-xs font-medium w-full text-left cursor-pointer border border-transparent">
-            <div class="flex items-center gap-2.5 truncate">
-              <span class="material-symbols-outlined text-base text-primary/80 group-hover:scale-110 transition-transform">monitoring</span>
-              <span class="truncate">Métriques & Logs</span>
+          ${IMPERIA_NAV_SECTIONS.map((section, sIdx) => `
+            <div class="flex items-center justify-between px-2 pb-1 mb-1 ${sIdx === 0 ? 'pt-1' : 'pt-4 border-t border-outline-variant/10'}">
+              <span class="text-[10px] font-bold text-on-surface-variant/70 uppercase tracking-wider">${escapeHtml(section.title)}</span>
+              <span class="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-surface-variant/40 text-on-surface-variant/80">${section.items.length}</span>
             </div>
-            <span class="px-1.5 py-0.2 text-[9px] font-bold rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-              <span class="w-1 h-1 rounded-full bg-emerald-400 animate-ping"></span>
-              LIVE
-            </span>
-          </button>
 
-          <button onclick="switchAdminTab('feature-flags')" id="sidebar-tab-feature-flags" data-search="feature flags bascules toggles capacités modules runtime" class="admin-tab-btn sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 transition-all duration-200 group text-xs font-medium w-full text-left cursor-pointer border border-transparent">
-            <div class="flex items-center gap-2.5 truncate">
-              <span class="material-symbols-outlined text-base text-primary/80 group-hover:scale-110 transition-transform">toggle_on</span>
-              <span class="truncate">Feature Flags</span>
-            </div>
-            <span class="px-1.5 py-0.2 text-[9px] font-bold rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30">PORTS</span>
-          </button>
-
-          <button onclick="switchAdminTab('contracts')" id="sidebar-tab-contracts" data-search="contrats diagnostics conformité bac audit" class="admin-tab-btn sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 transition-all duration-200 group text-xs font-medium w-full text-left cursor-pointer border border-transparent">
-            <div class="flex items-center gap-2.5 truncate">
-              <span class="material-symbols-outlined text-base text-primary/80 group-hover:scale-110 transition-transform">approval_delegation</span>
-              <span class="truncate">Contrats & Diagnostics</span>
-            </div>
-            <span class="px-1.5 py-0.2 text-[9px] font-bold rounded-md bg-primary/20 text-primary border border-primary/30">6/6</span>
-          </button>
-
-          <button onclick="switchAdminTab('settings')" id="sidebar-tab-settings" data-search="configuration cluster cluster settings système" class="admin-tab-btn sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 transition-all duration-200 group text-xs font-medium w-full text-left cursor-pointer border border-transparent">
-            <div class="flex items-center gap-2.5 truncate">
-              <span class="material-symbols-outlined text-base text-primary/80 group-hover:scale-110 transition-transform">settings_applications</span>
-              <span class="truncate">Configuration Cluster</span>
-            </div>
-            <span class="px-1.5 py-0.2 text-[9px] font-bold rounded-md bg-surface-variant/50 text-on-surface-variant">VITE</span>
-          </button>
-
-          <div class="flex items-center justify-between px-2 pt-4 pb-1 mb-1 border-t border-outline-variant/10">
-            <span class="text-[10px] font-bold text-on-surface-variant/70 uppercase tracking-wider">Gestionnaires BAC</span>
-            <span class="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-surface-variant/40 text-on-surface-variant/80">6</span>
-          </div>
-
-          <button onclick="switchAdminTab('identity-admin')" id="sidebar-tab-identity-admin" data-search="gestion utilisateurs sso auth identity" class="admin-tab-btn sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 transition-all duration-200 group text-xs font-medium w-full text-left cursor-pointer border border-transparent">
-            <div class="flex items-center gap-2.5 truncate">
-              <span class="material-symbols-outlined text-base text-primary/80 group-hover:scale-110 transition-transform">manage_accounts</span>
-              <span class="truncate">Gestion Utilisateurs</span>
-            </div>
-            <span class="px-1.5 py-0.2 text-[9px] font-bold rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">SSO</span>
-          </button>
-
-          <button onclick="switchAdminTab('solara-admin')" id="sidebar-tab-solara-admin" data-search="modération solara feed ia sécurité" class="admin-tab-btn sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 transition-all duration-200 group text-xs font-medium w-full text-left cursor-pointer border border-transparent">
-            <div class="flex items-center gap-2.5 truncate">
-              <span class="material-symbols-outlined text-base text-primary/80 group-hover:scale-110 transition-transform">shield</span>
-              <span class="truncate">Modération Solara</span>
-            </div>
-            <span class="px-1.5 py-0.2 text-[9px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">IA</span>
-          </button>
-
-          <button onclick="switchAdminTab('beam-admin')" id="sidebar-tab-beam-admin" data-search="supervision beam messenger chat websocket" class="admin-tab-btn sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 transition-all duration-200 group text-xs font-medium w-full text-left cursor-pointer border border-transparent">
-            <div class="flex items-center gap-2.5 truncate">
-              <span class="material-symbols-outlined text-base text-primary/80 group-hover:scale-110 transition-transform">forum</span>
-              <span class="truncate">Supervision Beam</span>
-            </div>
-            <span class="px-1.5 py-0.2 text-[9px] font-bold rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">RTC</span>
-          </button>
-
-          <button onclick="switchAdminTab('spaces-admin')" id="sidebar-tab-spaces-admin" data-search="quotas espaces spaces storage partition" class="admin-tab-btn sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 transition-all duration-200 group text-xs font-medium w-full text-left cursor-pointer border border-transparent">
-            <div class="flex items-center gap-2.5 truncate">
-              <span class="material-symbols-outlined text-base text-primary/80 group-hover:scale-110 transition-transform">workspaces</span>
-              <span class="truncate">Quotas d'Espaces</span>
-            </div>
-            <span class="px-1.5 py-0.2 text-[9px] font-bold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">STORE</span>
-          </button>
-
-          <button onclick="switchAdminTab('commerce-admin')" id="sidebar-tab-commerce-admin" data-search="livre commerce boutique commandes transactions" class="admin-tab-btn sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 transition-all duration-200 group text-xs font-medium w-full text-left cursor-pointer border border-transparent">
-            <div class="flex items-center gap-2.5 truncate">
-              <span class="material-symbols-outlined text-base text-primary/80 group-hover:scale-110 transition-transform">shopping_bag</span>
-              <span class="truncate">Livre Commerce</span>
-            </div>
-            <span class="px-1.5 py-0.2 text-[9px] font-bold rounded bg-pink-500/20 text-pink-300 border border-pink-500/30">PAY</span>
-          </button>
-
-          <button onclick="switchAdminTab('portfolio-admin')" id="sidebar-tab-portfolio-admin" data-search="registre créatif portfolio vitrine art" class="admin-tab-btn sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 transition-all duration-200 group text-xs font-medium w-full text-left cursor-pointer border border-transparent">
-            <div class="flex items-center gap-2.5 truncate">
-              <span class="material-symbols-outlined text-base text-primary/80 group-hover:scale-110 transition-transform">palette</span>
-              <span class="truncate">Registre Créatif</span>
-            </div>
-            <span class="px-1.5 py-0.2 text-[9px] font-bold rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">NFT</span>
-          </button>
+            ${section.items.map(item => `
+              <button onclick="switchAdminTab('${item.id}')" id="sidebar-tab-${item.id}" data-search="${escapeHtml(item.searchKeywords)}" class="admin-tab-btn sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 transition-all duration-200 group text-xs font-medium w-full text-left cursor-pointer border border-transparent">
+                <div class="flex items-center gap-2.5 truncate">
+                  <span class="material-symbols-outlined text-base text-primary/80 group-hover:scale-110 transition-transform">${escapeHtml(item.icon)}</span>
+                  <span class="truncate">${escapeHtml(item.label)}</span>
+                </div>
+                ${item.badgeText ? `
+                  <span class="px-1.5 py-0.2 text-[9px] font-bold rounded ${item.badgeClass || 'bg-primary/20 text-primary'} ${item.isLive ? 'flex items-center gap-1' : ''}">
+                    ${item.isLive ? '<span class="w-1 h-1 rounded-full bg-emerald-400 animate-ping"></span>' : ''}
+                    ${escapeHtml(item.badgeText)}
+                  </span>
+                ` : ''}
+              </button>
+            `).join("")}
+          `).join("")}
 
           <div id="secondary-sidebar-empty-state" class="hidden text-center py-6 text-xs text-on-surface-variant/60 italic">
             Aucun outil trouvé.
@@ -1124,5 +1054,6 @@ export function renderToastContainer(): string {
   `;
 }
 
+export { renderShellToastContainer, renderShellConfirmModal } from "./client/shell-client-scripts.js";
 export { getActiveUserProfile } from "./profiles.js";
 

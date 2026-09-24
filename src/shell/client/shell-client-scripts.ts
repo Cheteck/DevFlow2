@@ -3,6 +3,29 @@
  * Provides unified toast, dialogs, localization, theme, user/space switcher, and search.
  */
 
+export function renderShellToastContainer(): string {
+  return `<div id="shell-toast-container" class="fixed bottom-4 right-4 z-[300] flex flex-col gap-2 max-w-sm w-full pointer-events-auto"></div>`;
+}
+
+export function renderShellConfirmModal(): string {
+  return `
+    <div id="shell-confirm-modal" class="fixed inset-0 z-[350] bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+      <div class="glass-card rounded-2xl p-6 max-w-md w-full border border-outline-variant/30 shadow-2xl space-y-4">
+        <h3 id="shell-confirm-title" class="font-bold text-base text-on-surface">Confirmation</h3>
+        <p id="shell-confirm-message" class="text-xs text-on-surface-variant leading-relaxed"></p>
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <button id="shell-confirm-cancel" class="px-4 py-2 rounded-xl border border-outline-variant/30 hover:bg-surface-variant/40 text-xs font-semibold text-on-surface transition cursor-pointer">
+            Annuler
+          </button>
+          <button id="shell-confirm-ok" class="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold transition shadow-md shadow-primary/20 cursor-pointer">
+            Confirmer
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 export function getShellClientScripts(): string {
   return `
     <script>
