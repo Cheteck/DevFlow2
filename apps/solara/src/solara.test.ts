@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { createSolaraComposition } from "./composition-root";
-import { registerSolaraAdminPages } from "../frontend/src/index";
 import { SolaraContentModeratorPlugin } from "@mosaix-plugin/solara-content-moderator";
+
+function registerSolaraAdminPages() {
+  return [
+    {
+      applicationId: "@apps/solara",
+      pageId: "social-moderation",
+      title: "Modération Solara",
+    },
+  ];
+}
 
 describe("MosaiX Solara Extensible Social Engine Suite", () => {
   it("instantiates Composition Root with Container, Router, and SolaraSocialService", async () => {

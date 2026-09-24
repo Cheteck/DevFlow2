@@ -1,4 +1,5 @@
 import * as crypto from "node:crypto";
+import { Money } from "@mosaix/core";
 
 export type SellerEntityType = "space" | "tenant" | "user" | "organization" | "collective" | string;
 
@@ -161,6 +162,19 @@ export class CommerceOfferService {
       platformCommissionInCents: platformCommission,
       netSellerPayoutInCents: netPayout,
       currency: offer.currency,
+    };
+  }
+
+  getMoney(offer: CommerceOffer): Money {
+    return Money.fromCents(offer.priceInCents, offer.currency);
+  }
+
+  calculatePayoutMoney(offer: CommerceOffer, totalQuantity: number = 1): { gross: Money; commission: Money; net: Money } {
+    const breakdown = this.calculatePayout(offer, totalQuantity);
+    return {
+      gross: Money.fromCents(breakdown.grossAmountInCents, breakdown.currency),
+      commission: Money.fromCents(breakdown.platformCommissionInCents, breakdown.currency),
+      net: Money.fromCents(breakdown.netSellerPayoutInCents, breakdown.currency),
     };
   }
 }

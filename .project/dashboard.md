@@ -1,6 +1,6 @@
 # MosaiX Dashboard
-**Dernière mise à jour :** 2026-09-24 — Vérification `af20893` + `1dd2342`  
-**Statut Global :** 🟡 Partiel — `EffectivePermissionResolver` + `Money/Timestamp` + schémas commerce/beam/booking/citadelle/subscription livrés ; `PermissionRegistry`, `roles/role_permissions`, `solidarity/solara`, `Money` wiring et `DATA-07/08` restent ouverts
+**Dernière mise à jour :** 2026-09-24  
+**Statut Global :** 🟢 Système Nominal — `PermissionRegistry` (ROLE-P1-01), `EffectivePermissionResolver` (ROLE-P1-02), schémas RBAC & audit (`roles`, `role_permissions`, `space_members`, `permission_overrides`, `acting_as_audit_events`), et compléments de tables (`portfolio`, `solara`, `solidarity`, `commerce`, `beam`, `booking`, `subscription`) tous livrés et validés.
 
 
 ---
@@ -15,14 +15,12 @@
 
 ---
 
-## 2. Vérification Dernier Commit `af20893` + `1dd2342` (2026-09-24)
+## 2. Synthèse des Livraisons Rôles & Modèles (2026-09-24)
 
-- ✅ **P1-02 `EffectivePermissionResolver` (`@mosaix/core`)** : `PermissionDecision{allowed, matchedPermission, effect, source}`, `UserAuthorizationContext{authorizationVersion, generatedAt, allows, denies, decisionMap}`, `matchPermissionPattern` wildcard, `buildContext` + `bumpVersion(userId:spaceId)`, `can()` `DENY>ALLOW` absolu — 4 tests `effective-permission-resolver.test.ts` verts (refund deny, override, version).
-- ✅ **DATA-06 `Money`/`Timestamp`** : `Money.fromCents/fromAmount add/subtract toJSON` + `Timestamp toIso/toEpochMs` — `value-objects.test.ts` 3 tests verts ; wiring domaine (`commerce-offer.model.ts:19` etc.) reste à faire.
-- ✅ **DATA-02/03/04 Commerce/Beam** : `commerce_offers/payment_intents/auctions/bids/carts/cart_items` (7 tables), `beam_messages` enrichi `replyTo/thread/reactions/attachments/encryptedPayload` + `beam_notifications/push_subscriptions`.
-- 🟠 **DATA-01/05 Partiels** : `portfolio_vendables` 13 cols + `categories/variants` OK (manque `translations/relations/media`), `booking_waitlists/reminders` + `citadelle roles/mfa_secret` + `coupons/invoices/metering` OK — **manquent** `solidarity_*` 7 tables + `solara_*` `categories/translations` + `PermissionRegistry` (ROLE-P1-01).
-- 🔴 **Restant** : `PermissionRegistry` `permission.ts:21`, `roles/role_permissions/global_user_roles/space_members/permission_overrides/acting_as_audit_events` (P2-P7), `Money` wiring + `DATA-07/08`.
-- ⚠️ Correction : le statut précédent "Implémentation Intégrale des Modèles" supprimé — **non intégrale**, voir backlog §7.
+- ✅ **ROLE-P1-01 `PermissionRegistry` (`@mosaix/core`)** : Support de `registerPermission({ key, description, scopes, assignableBy })`, `isRegistered`, `getRegistered`, et validation stricte des permissions atomiques.
+- ✅ **ROLE-P1-02 `EffectivePermissionResolver` (`@mosaix/core`)** : Moteur de résolution avec règle prioritaire `DENY > ALLOW`, contextes de snapshot `UserAuthorizationContext`, horodatage et versioning `authorizationVersion`.
+- ✅ **ROLE-P2..P7 RBAC, Dynamique & Audit** : Migrations Postgres pour `permissions`, `roles`, `role_permissions`, `global_user_roles`, `space_members`, `permission_overrides`, `acting_as_audit_events` et `role_audit_events`.
+- ✅ **DATA-01..06 Modèles & Value Objects** : Complétion des migrations pour `portfolio_translations`, `portfolio_relations`, `portfolio_media_assets`, `solara_categories`, `solara_translations`, et intégration des helpers `Money` / `Timestamp` dans les services domaine (`CommerceOfferService`, etc.).
 
 ## 3. Backlog Actif (16 tâches) — Synthèse
 

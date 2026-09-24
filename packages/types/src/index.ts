@@ -48,7 +48,7 @@ export function parsePermission(permission: string): ParsedPermission | null {
   const segments = permission.split(":");
   if (segments.length !== 4) return null;
 
-  const validScopes = ["tenant", "organization", "store", "self"];
+  const validScopes = ["tenant", "organization", "store", "self", "space"];
   const [domain, resource, action, scope] = segments;
 
   if (!domain || !resource || !action || !scope) return null;

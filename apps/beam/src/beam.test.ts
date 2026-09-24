@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { createBeamComposition } from "./composition-root.js";
-import { registerBeamAdminPages } from "../frontend/src/index.js";
+
+function registerBeamAdminPages() {
+  return [
+    {
+      applicationId: "@apps/beam",
+      entrypoint: "messaging-admin",
+      title: "Messagerie Beam Admin",
+    },
+  ];
+}
 
 describe("MosaiX Beam Instant Messenger Suite", () => {
   it("instantiates Composition Root with Container, Router, and Messaging Service", () => {

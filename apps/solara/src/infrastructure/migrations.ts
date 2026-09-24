@@ -54,10 +54,31 @@ export class SolaraPostgresMigrationProvider implements MigrationProvider {
       table.index("idx_reactions_actor", ["actorId"]);
     });
 
+    builder.createTable("solara_categories", (table) => {
+      table.string("id").primary();
+      table.string("name");
+      table.string("slug");
+      table.string("description").nullable();
+      table.timestamp("createdAt");
+      table.unique("uniq_solara_categories_slug", ["slug"]);
+    });
+
+    builder.createTable("solara_translations", (table) => {
+      table.string("id").primary();
+      table.string("postId");
+      table.string("lang");
+      table.string("translatedContent");
+      table.timestamp("createdAt");
+      table.foreignKey("postId", "solara_posts", "id");
+      table.index("idx_solara_trans_post_lang", ["postId", "lang"]);
+    });
+
     const statements = builder.blueprints.flatMap((bp) => grammar.compile(bp));
     const sqlContent = statements.map((s) => s.sql).join("\n");
 
     const downStatements = [
+      { type: "dropTable" as const, table: "solara_translations" },
+      { type: "dropTable" as const, table: "solara_categories" },
       { type: "dropTable" as const, table: "solara_reactions" },
       { type: "dropTable" as const, table: "solara_followers" },
       { type: "dropTable" as const, table: "solara_comments" },
@@ -78,6 +99,8 @@ export class SolaraPostgresMigrationProvider implements MigrationProvider {
           "table:solara_comments",
           "table:solara_followers",
           "table:solara_reactions",
+          "table:solara_categories",
+          "table:solara_translations",
         ],
       },
     ];

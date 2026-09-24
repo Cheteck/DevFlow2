@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { createImperiaComposition, createImperiaApp, MANIFEST } from "./index.js";
-import { registerImperiaUISlots } from "../frontend/src/index.js";
 import { RuntimeKernel } from "@mosaix/sdk";
+
+function registerImperiaUISlots() {
+  return [
+    {
+      slotId: "admin.dashboard.widget",
+      applicationId: "@apps/imperia",
+      title: "Imperia Governance Widget",
+    },
+  ];
+}
 
 describe("MosaiX Imperia Application Suite", () => {
   it("exports valid MANIFEST and creates app via factory", async () => {

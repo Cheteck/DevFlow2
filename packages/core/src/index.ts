@@ -83,6 +83,7 @@ export type {
 } from "./event-bus";
 
 export { PermissionRegistry, AuthorizationEngine } from "./permission";
+export type { RegisteredPermissionDefinition } from "./permission";
 
 export { RuntimeKernel } from "./kernel";
 export type { KernelHooks, KernelOptions } from "./kernel";

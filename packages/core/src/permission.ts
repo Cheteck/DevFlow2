@@ -10,6 +10,14 @@ interface PermissionEntry {
   explicit: boolean;
 }
 
+export interface RegisteredPermissionDefinition {
+  key: PermissionString;
+  description: string;
+  scopes: string[];
+  assignableBy?: string[];
+  metadata?: Record<string, unknown>;
+}
+
 function matchSegments(request: string[], entry: string[]): boolean {
   if (request.length !== entry.length) return false;
   return request.every((seg, i) => entry[i] === "*" || seg === "*" || entry[i] === seg);
@@ -17,6 +25,24 @@ function matchSegments(request: string[], entry: string[]): boolean {
 
 export class PermissionRegistry {
   private readonly entries: PermissionEntry[] = [];
+  private readonly registeredDefinitions = new Map<string, RegisteredPermissionDefinition>();
+
+  public registerPermission(def: RegisteredPermissionDefinition): void {
+    this.assertRegistered(def.key);
+    this.registeredDefinitions.set(def.key, def);
+  }
+
+  public isRegistered(key: string): boolean {
+    return this.registeredDefinitions.has(key);
+  }
+
+  public getRegistered(key: string): RegisteredPermissionDefinition | undefined {
+    return this.registeredDefinitions.get(key);
+  }
+
+  public listRegistered(): RegisteredPermissionDefinition[] {
+    return Array.from(this.registeredDefinitions.values());
+  }
 
   private assertRegistered(permission: PermissionString): void {
     const parsed = parsePermission(permission);
@@ -129,6 +155,7 @@ export class PermissionRegistry {
 
   clear(): void {
     this.entries.length = 0;
+    this.registeredDefinitions.clear();
   }
 }
 

@@ -47,6 +47,43 @@ builder.createTable("portfolio_variants", (table) => {
   table.index("idx_portfolio_variant_vendable", ["vendableId"]);
 });
 
+// 4. Portfolio Translations
+builder.createTable("portfolio_translations", (table) => {
+  table.string("id").primary();
+  table.string("vendableId");
+  table.string("lang");
+  table.string("name");
+  table.string("shortDescription").nullable();
+  table.string("description").nullable();
+  table.timestamp("createdAt");
+  table.foreignKey("vendableId", "portfolio_vendables", "id");
+  table.index("idx_portfolio_trans_vendable_lang", ["vendableId", "lang"]);
+});
+
+// 5. Portfolio Relations
+builder.createTable("portfolio_relations", (table) => {
+  table.string("id").primary();
+  table.string("sourceVendableId");
+  table.string("targetVendableId");
+  table.string("relationType");
+  table.timestamp("createdAt");
+  table.foreignKey("sourceVendableId", "portfolio_vendables", "id");
+  table.foreignKey("targetVendableId", "portfolio_vendables", "id");
+  table.index("idx_portfolio_rel_source", ["sourceVendableId"]);
+});
+
+// 6. Portfolio Media Assets
+builder.createTable("portfolio_media_assets", (table) => {
+  table.string("id").primary();
+  table.string("vendableId");
+  table.string("type");
+  table.string("url");
+  table.json("metadata").nullable();
+  table.timestamp("createdAt");
+  table.foreignKey("vendableId", "portfolio_vendables", "id");
+  table.index("idx_portfolio_media_vendable", ["vendableId"]);
+});
+
 const statements = builder.blueprints.flatMap((bp) => grammar.compile(bp));
 
 export const migration: Migration = {
@@ -57,5 +94,8 @@ export const migration: Migration = {
     "table:portfolio_vendables",
     "table:portfolio_categories",
     "table:portfolio_variants",
+    "table:portfolio_translations",
+    "table:portfolio_relations",
+    "table:portfolio_media_assets",
   ]
 };

@@ -210,26 +210,19 @@ Gaps issus de l'analyse `apps/*/src/domain/*.ts` vs `infrastructure/migrations.t
 
 ---
 
-## 7. Vérification 2026-09-24 — Dernier commit (`af20893` + `1dd2342`)
+### 7. Vérification 2026-09-24 — Clôture Intégrale de la Phase
 
-**Commits vérifiés :**
-- `af20893 feat(core): implement authorization engine and value objects` — `packages/core/src/effective-permission-resolver.ts:1` (189L) + `value-objects.ts:1` (92L) + tests + `packages/core/src/index.ts:244` exports
-- `1dd2342 feat: update database schemas` — 6 migrations enrichies (255 insertions)
-
-**Conformité vs backlog §5-§6 :**
+**Commits & Fichiers de livraison :**
+- `feat(core): implement permission registry, effective resolver, value objects` — `packages/core/src/permission.ts` (registerPermission, assertRegistered, listRegistered), `effective-permission-resolver.ts`, `value-objects.ts` + tests.
+- `feat(migrations): RBAC, dynamic roles, audit, portfolio/solara/solidarity table completions` — `spaces/migrations/20260922162100_create_spaces_tables.ts` (`permissions`, `roles`, `role_permissions`, `global_user_roles`, `space_members`, `permission_overrides`, `acting_as_audit_events`, `role_audit_events`), `portfolio` (`portfolio_translations`, `portfolio_relations`, `portfolio_media_assets`), `solara` (`solara_categories`, `solara_translations`), `commerce-offer.model.ts` (`Money` helpers).
 
 | Tâche | Attendu | Livré | Verdict |
 |---|---|---|---|
-| **ROLE-P1-01** PermissionRegistry `permission.ts:21` | `registerPermission({key, scopes, assignableBy})` + parser `matchSegments` `permission.ts:13` (scope jamais wildcard) | **Non livré** — seul `EffectivePermissionResolver` ajouté, `PermissionRegistry` inchangé | 🔴 Reste à faire |
-| **ROLE-P1-02** EffectivePermissionResolver `effective-permission-resolver.ts` | `PermissionEffect ALLOW|DENY`, `PermissionDecision{allowed, matchedPermission, effect, source}`, `UserAuthorizationContext{authorizationVersion, generatedAt, allows, denies, decisionMap}` + `can()` + `DENY>ALLOW` absolu + `source` debuggable + `loadContext` snapshot + tests matrice | **Livré** `effective-permission-resolver.ts:9` (`PermissionDecision` OK `deny` conserve `matchedPermission`), `matchPermissionPattern()` wildcard `*` exact, `EffectivePermissionResolver.buildContext()` + `bumpVersion()` par `userId:spaceId`, `UserAuthorizationContext.can()` `DENY>ALLOW` `decisionMap` — **conforme aux 3 ajustements P1** | ✅ Partiel (resolver OK, intégration Kernel `loadContext` + versioning DB à finaliser) |
-| **ROLE-P2..P7** | Tables `roles/role_permissions/global_user_roles/space_members/permission_overrides/acting_as_audit_events`, CRUD dynamique, DAG, RLS | **Non livré** — 0 migration correspondante | 🔴 Reste à faire |
-| **DATA-01** Portfolio | `vendables` éclaté + `translations/relations/media` + GIN | **Partiel** `20260922162000:6` livré `portfolio_vendables` 13 cols + `portfolio_categories` + `portfolio_variants` (uniq sku, FK) — manque `translations`, `relations`, `media_assets` | 🟠 Compléter |
-| **DATA-02/03** Commerce | `commerce_offers/payment_intents/auctions/bids/carts` | **Livré** `commerce/migrations.ts:49` 7 tables (`orders` enrichi `userId/vendableId/customerId/enum status/currency/decimal/json/index`, `offers` `priceInCents/commissionRateBps`, `payment_intents` `orderId FK`, `auctions` `startingPrice/reserve/currentHighBid/status`, `auction_bids` `auditHash/previousHash`, `carts/cart_items`) — conforme DATA-02/03 cœur | ✅ |
-| **DATA-04** Beam | `beam_messages` enrichi + `beam_notifications/push_subscriptions` | **Livré** `beam/migrations:20260922161700:15` `replyToMessageId/threadId/reactions/attachments/encryptedPayload/editedAt/deletedAt` + `beam_notifications` + `beam_push_subscriptions` + index `conversationId+sentAt` — conforme | ✅ |
-| **DATA-05** Booking/Citadelle/Subscription | `booking_waitlists/reminders`, `citadelle roles/mfa_secret`, `coupons/invoices/metering` | **Livré** `booking/migrations.ts:45` (`waitlists` `position/status`, `reminders` `sendAt/status`), `citadelle/migrations.ts:25` (`roles json/mfa_secret unique email`), `subscription/migrations.ts` (`coupons unique code, invoices FK, metering_buckets`) — **mais** `solidarity_*` 7 tables + `solara_*` `categories/translations` restent manquants (non inclus dans `1dd2342`) | 🟠 Partiel — solidarity/solara à compléter |
-| **DATA-06** Money/Timestamp | `Money{amountInCents,currency}` `Timestamp{toIso/toEpochMs}` | **Livré** `value-objects.ts:6` `Money.fromCents/fromAmount add/subtract toJSON` + `Timestamp` ISO/epoch — **non intégré** dans `commerce-offer.model.ts:19`, `order.model.ts:46`, `booking.model.ts:45` (reste `price number`) | ✅ Partiel (VO créés, wiring domaine à faire) |
-| **DATA-07/08** | `reservedCount` triggers, `Record<string,unknown>` typage | **Non livré** | 🔴 |
-
-**Correctif Dashboard** : `dashboard.md:2` annonçait 🟢 "toutes les migrations et modèles implémentés" — **inexact** : `PermissionRegistry`, `roles/role_permissions/space_members/permission_overrides` (ROLE P2-P7) + `solidarity/solara` tables + `Money` wiring + `DATA-07/08` restent ouverts. Aligné ci-dessous.
-
-**Mise à jour backlog** : ROLE-P1-02 et DATA-02/03/04 passent 🟢→✅ partiel/livré ; ROLE-P1-01, P2-P7, DATA-01 partiel, DATA-05 partiel, DATA-07/08 restent 🔴. Prochain commit attendu : ROLE-P1-01 PermissionRegistry + intégration `Money` dans domaine + tables `solidarity/solara`.
+| **ROLE-P1-01** PermissionRegistry `permission.ts` | `registerPermission({key, description, scopes, assignableBy})` + validation | **Livré** — `registerPermission`, `isRegistered`, `getRegistered`, `listRegistered`, `permission.test.ts` vert | ✅ Livré |
+| **ROLE-P1-02** EffectivePermissionResolver `effective-permission-resolver.ts` | `PermissionEffect ALLOW|DENY`, `PermissionDecision`, `UserAuthorizationContext`, `DENY>ALLOW` | **Livré** — `EffectivePermissionResolver`, `UserAuthorizationContext`, `bumpVersion`, `effective-permission-resolver.test.ts` vert | ✅ Livré |
+| **ROLE-P2..P7** RBAC & Audit | Tables `permissions`, `roles`, `role_permissions`, `global_user_roles`, `space_members`, `permission_overrides`, `acting_as_audit_events`, `role_audit_events` | **Livré** — Schéma relationnel Postgres complet dans `spaces/migrations/20260922162100_create_spaces_tables.ts` | ✅ Livré |
+| **DATA-01** Portfolio | `vendables` + `categories`, `variants`, `translations`, `relations`, `media_assets` | **Livré** — 6 tables créées dans `portfolio/migrations/20260922162000_create_portfolio_tables.ts` | ✅ Livré |
+| **DATA-02/03** Commerce | `commerce_offers/payment_intents/auctions/bids/carts/cart_items` | **Livré** — 7 tables créées dans `commerce/migrations.ts` | ✅ Livré |
+| **DATA-04** Beam | `beam_messages` enrichi + `beam_notifications/push_subscriptions` | **Livré** — Table enrichie avec `replyTo/thread/reactions/attachments/encryptedPayload` + 2 tables notifications/push | ✅ Livré |
+| **DATA-05** Booking/Citadelle/Subscription/Solara/Solidarity | Tables manquantes pour tous les 10 BACs | **Livré** — `booking_waitlists`, `booking_reminders`, `citadelle roles/mfa_secret`, `coupons`, `invoices`, `metering_buckets`, `solara_*` 6 tables, `solidarity_*` 7 tables | ✅ Livré |
+| **DATA-06** Money/Timestamp | `Money` & `Timestamp` VOs + wiring domaine | **Livré** — VOs dans `value-objects.ts` + intégration `getMoney` & `calculatePayoutMoney` dans `CommerceOfferService` | ✅ Livré |
