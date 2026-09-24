@@ -156,4 +156,6 @@ export * from "./domain/governance-slot-resolver.js";
 export * from "./domain/plugin-manager.service.js";
 export * from "./domain/control-plane-supervisor.service.js";
 export * from "./domain/migration-governance.service.js";
+export * from "./domain/maintenance.service.js";
+export * from "./domain/category-analysis.service.js";
 

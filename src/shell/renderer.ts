@@ -1066,6 +1066,56 @@ export function renderDevInspectorDrawer(): string {
 }
 
 // -----------------------------------------------------------------------------
+// MAINTENANCE MODE PAGE (FEAT-01)
+// -----------------------------------------------------------------------------
+export function renderMaintenancePage(reason?: string, estimatedDurationMinutes?: number): string {
+  const safeReason = escapeHtml(reason || "Maintenance programmée de la plateforme MosaiX pour optimisation et mise à niveau des services.");
+  const duration = estimatedDurationMinutes ?? 30;
+
+  return `
+    <div class="min-h-screen flex items-center justify-center p-6 bg-surface-container-lowest text-on-surface">
+      <div class="max-w-lg w-full p-8 rounded-3xl bg-surface-container-low/90 backdrop-blur-2xl border border-amber-500/30 shadow-2xl text-center space-y-6">
+        <div class="w-20 h-20 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto text-4xl shadow-lg shadow-amber-500/10">
+          <span class="material-symbols-outlined text-4xl">engineering</span>
+        </div>
+        
+        <div class="space-y-2">
+          <span class="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-amber-500/10 border border-amber-500/30 text-amber-300">
+            Mode Maintenance Actif
+          </span>
+          <h1 class="text-2xl font-bold tracking-tight text-on-surface">Plateforme Momentanément Indisponible</h1>
+          <p class="text-sm text-on-surface-variant leading-relaxed">${safeReason}</p>
+        </div>
+
+        <div class="p-4 rounded-xl bg-surface-container border border-outline-variant/20 flex items-center justify-around text-xs">
+          <div>
+            <span class="text-on-surface-variant block text-[10px] uppercase">Durée estimée</span>
+            <span class="font-bold text-amber-400 font-mono text-sm">~ ${duration} min</span>
+          </div>
+          <div class="w-px h-8 bg-outline-variant/20"></div>
+          <div>
+            <span class="text-on-surface-variant block text-[10px] uppercase">Statut Services</span>
+            <span class="font-bold text-emerald-400 font-mono text-sm">Sécurisés</span>
+          </div>
+        </div>
+
+        <div class="text-xs text-on-surface-variant/80 space-y-3">
+          <p>Les administrateurs peuvent se connecter avec leurs identifiants de gouvernance ou utiliser les en-têtes d'authentification privilégiés.</p>
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <a href="/identity" class="px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-xs font-semibold transition">
+              Connexion Administrateur
+            </a>
+            <button onclick="window.location.reload()" class="px-4 py-2 rounded-xl bg-surface-variant/40 hover:bg-surface-variant/60 text-on-surface text-xs font-semibold transition">
+              Actualiser
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// -----------------------------------------------------------------------------
 // TOAST NOTIFICATION CONTAINER & CLIENT JS
 // -----------------------------------------------------------------------------
 export function renderToastContainer(): string {

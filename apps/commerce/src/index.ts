@@ -132,6 +132,8 @@ export * from "./domain/order.service.js";
 export * from "./domain/order-state-machine.js";
 export * from "./domain/commerce-payment-intent.js";
 export * from "./domain/commerce-offer.model.js";
+export * from "./domain/auction.service.js";
+export * from "./domain/delivery-partner.service.js";
 export * from "./infrastructure/order.repository.js";
 
 

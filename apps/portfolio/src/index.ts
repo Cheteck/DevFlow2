@@ -149,6 +149,9 @@ export * from "./domain/portfolio-service.js";
 export * from "./domain/portfolio-search.port.js";
 export * from "./domain/portfolio-bulk-media.js";
 export * from "./domain/portfolio-errors.js";
+export * from "./domain/product-wizard.service.js";
+export * from "./domain/shop-inventory-report.service.js";
+export * from "./domain/shop-analytics.service.js";
 
 export * from "./infrastructure/persistence/vendable.model.js";
 export * from "./vendable-workflow.js";

@@ -28,3 +28,6 @@ export class SlotRegistry {
     this.contributions = [];
   }
 }
+
+export * from "./plugins/form-help-sidebar.plugin.js";
+export * from "./plugins/qr-code-generator.plugin.js";

@@ -158,6 +158,7 @@ export * from "./domain/acting-as-space.js";
 export * from "./domain/domain-state-machine.js";
 export * from "./domain/space-usage-audit.js";
 export * from "./domain/spaces-analytics-scim.js";
+export * from "./domain/business-registry.service.js";
 export * from "./infrastructure/space-controller.js";
 
 

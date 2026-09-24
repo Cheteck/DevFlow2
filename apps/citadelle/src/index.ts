@@ -225,5 +225,6 @@ export * from "./domain/user-service.js";
 export * from "./domain/password-hasher.port.js";
 export * from "./domain/session-tokens.js";
 export * from "./domain/citadelle-oauth-providers.js";
+export * from "./domain/registration-wizard.service.js";
 
 

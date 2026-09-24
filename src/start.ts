@@ -56,9 +56,11 @@ import {
   renderHeaderSearchAndDevControls,
   renderCommandPaletteModal,
   renderDevInspectorDrawer,
-  renderToastContainer
+  renderToastContainer,
+  renderMaintenancePage
 } from "./shell/renderer.js";
 import { platformFeatureFlags } from "./shell/feature-flags.js";
+import { maintenanceService } from "../apps/imperia/src/domain/maintenance.service.js";
 
 const PORT = 3000;
 const HOST = process.env.HOST || "0.0.0.0";
@@ -166,6 +168,87 @@ const server = http.createServer(async (req, res) => {
   if (pathname.startsWith("/api/")) {
     const limiter = pathname === "/api/user/gdpr-anonymize" ? strictRateLimiter : standardRateLimiter;
     if (!limiter.middleware(pathname)(req, res)) {
+      return;
+    }
+  }
+
+  // API Route: Imperia Maintenance Mode (FEAT-01)
+  if (pathname === "/api/imperia/maintenance") {
+    if (req.method === "GET") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(maintenanceService.getMaintenanceStatus()));
+      return;
+    }
+
+    if (req.method === "POST") {
+      // Must be platform-admin or imperia role
+      const isAllowed = maintenanceService.isUserBypassed(currentUser?.role, currentUser?.permissions) ||
+                        req.headers["x-mosaix-role"] === "platform-admin";
+      if (!isAllowed) {
+        sendProblemResponse(res, 403, "Forbidden", "Seuls les administrateurs de gouvernance peuvent modifier le mode maintenance.");
+        return;
+      }
+
+      try {
+        let bodyStr = "";
+        for await (const chunk of req) {
+          bodyStr += chunk;
+        }
+        const body = JSON.parse(bodyStr || "{}");
+        const updated = maintenanceService.setMaintenanceMode(
+          Boolean(body.enabled),
+          body.reason,
+          body.estimatedDurationMinutes,
+          currentUser?.name ?? "platform-admin"
+        );
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: true, maintenance: updated }));
+      } catch (err) {
+        sendProblemResponse(res, 400, "Bad Request", String(err));
+      }
+      return;
+    }
+  }
+
+  // FEAT-01: Enforce Maintenance Mode Gate (APIs in 503, Web Pages in Maintenance View)
+  if (maintenanceService.isMaintenanceActive()) {
+    const isBypassed = maintenanceService.isUserBypassed(currentUser?.role, currentUser?.permissions) ||
+                       req.headers["x-mosaix-role"] === "platform-admin" ||
+                       pathname === "/identity" ||
+                       pathname.startsWith("/api/auth/") ||
+                       pathname === "/api/user/switch" ||
+                       pathname === "/api/theme";
+
+    if (!isBypassed) {
+      if (pathname.startsWith("/api/")) {
+        res.setHeader("Retry-After", "1800");
+        sendProblemResponse(
+          res,
+          503,
+          "Service Unavailable",
+          maintenanceService.getMaintenanceStatus().reason || "La plateforme est actuellement en mode maintenance programmée.",
+          {
+            retryAfterSeconds: 1800,
+            estimatedDurationMinutes: maintenanceService.getMaintenanceStatus().estimatedDurationMinutes ?? 30,
+          }
+        );
+        return;
+      }
+
+      // Render Maintenance HTML Page for browser navigation
+      const status = maintenanceService.getMaintenanceStatus();
+      const headHtml = renderHeadBlock("Mode Maintenance — MosaiX Platform", activeMode, sharedStyles, renderThemeStyleTag(activeMode));
+      const html = `<!DOCTYPE html>
+<html lang="fr" class="${activeMode === 'dark' ? 'dark' : ''}" data-theme-mode="${activeMode}">
+<head>
+  ${headHtml}
+</head>
+<body class="bg-surface-container-lowest text-on-surface antialiased overflow-x-hidden">
+  ${renderMaintenancePage(status.reason, status.estimatedDurationMinutes)}
+</body>
+</html>`;
+      res.writeHead(503, { "Content-Type": "text/html; charset=utf-8", "Retry-After": "1800" });
+      res.end(html);
       return;
     }
   }

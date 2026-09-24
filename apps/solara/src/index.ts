@@ -119,5 +119,6 @@ export async function createSolaraApp(
 export * from "./domain/social.model.js";
 export * from "./domain/solara-moderation-pipeline.js";
 export * from "./domain/solara-feed-realtime.js";
+export * from "./domain/social-auto-share-plugin.js";
 
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-09-24 — Remédiation des God Objects & Architecture Découplée
+
+### Refactored & Decoupled
+- **`src/start.ts` Modular Router & Dispatcher** :
+  - Isolé le middleware de maintenance dans `src/server/middleware/maintenance-gate.ts`.
+  - Isolé les routes API dans `src/server/routes/` :
+    - `theme-routes.ts` (`/api/theme`)
+    - `user-routes.ts` (`/api/user/switch`, `/api/space/switch`)
+    - `feature-flag-routes.ts` (`/api/feature-flags/*`)
+    - `composition-routes.ts` (`/api/compositions`, `/api/composition/override`)
+    - `auth-routes.ts` (`/api/auth/register/wizard/*`)
+  - Routeur central `src/server/api-dispatcher.ts` pour acheminer les requêtes sans encombrer le point d'entrée.
+- **`apps/imperia/frontend` Modularisation** :
+  - Extraction des composants et utilitaires sous `apps/imperia/frontend/src/components/imperia-helpers.ts`.
+- **`apps/portfolio` Domain Decoupling** :
+  - Extraction de l'analyseur CSV conforme RFC4180 dans `apps/portfolio/src/domain/csv-parser.ts`.
+- **`src/shell` UI Decoupling** :
+  - Composant de maintenance isolé dans `src/shell/components/maintenance-page.ts`.
+
+### Validation
+- `compile_applet` → **Build réussi (0 erreurs)**.
+- `vitest run` → **100% des tests validés**.
+- `restart_dev_server` → Dev server opérationnel sur port 3000.
+
 ## 2026-09-22 — Architecture & Static Assets Management (`@mosaix/http` & `/public`)
 
 ### Added

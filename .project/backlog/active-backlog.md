@@ -46,25 +46,25 @@ Règle plugin vs cœur (modèle `plugin-engine` tiers ui/application/privileged 
 - **PLUGIN** = optionnel par boutique, sans état critique, event-driven, enrichit l'UI.
 
 ### 🔴 Urgent
-- **FEAT-01 Mode maintenance** [CŒUR] (imperia + shell) : toggle admin, page maintenance pour les autres, bypass seuls rôles platform-admin/imperia, APIs en 503 sauf admin. Statut: pending.
-- **FEAT-02 Inscription multi-étapes** [CŒUR] (citadelle + ui-runtime) : wizard step-by-step, progression, validation/sauvegarde par étape. Statut: pending.
-- **FEAT-03 Ajout produit multi-étapes** [CŒUR] (portfolio + ui-runtime) : wizard vendable create, progression, draft persistant. Statut: pending.
-- **FEAT-04 Enchères** [CŒUR + plugins périphériques] (commerce + portfolio + beam) : anglaise avec prix de réserve + extension anti-sniping + paiement via commerce ; moteur cœur `commerce.auction.*` (prix départ, offres, durée, clôture, historique opposable) ; badges/notifications/auto-bid en plugins `application`. Statut: pending.
+- **FEAT-01 Mode maintenance** [CŒUR] (imperia + shell) : toggle admin, page maintenance pour les autres, bypass seuls rôles platform-admin/imperia, APIs en 503 sauf admin. Statut: ✅ COMPLÉTÉ & TESTÉ.
+- **FEAT-02 Inscription multi-étapes** [CŒUR] (citadelle + ui-runtime) : wizard step-by-step, progression, validation/sauvegarde par étape. Statut: ✅ COMPLÉTÉ & TESTÉ.
+- **FEAT-03 Ajout produit multi-étapes** [CŒUR] (portfolio + ui-runtime) : wizard vendable create, progression, draft persistant. Statut: ✅ COMPLÉTÉ & TESTÉ.
+- **FEAT-04 Enchères** [CŒUR + plugins périphériques] (commerce + portfolio + beam) : anglaise avec prix de réserve + extension anti-sniping + paiement via commerce ; moteur cœur `commerce.auction.*` (prix départ, offres, durée, clôture, historique opposable) ; badges/notifications/auto-bid en plugins `application`. Statut: ✅ COMPLÉTÉ & TESTÉ.
 
 ### 🟠 Priorité élevée
-- **FEAT-05 Comptes sociétés de livraison** [CŒUR] (citadelle + commerce + spaces) : inscription puis validation admin, assignation manuelle par le vendeur, profil entreprise, gestion livraisons, suivi statuts, dashboard dédié. Statut: pending.
-- **FEAT-06 Rapports boutiques** [CŒUR + plugin rendu] (portfolio + commerce) : moteur données cœur (rares, bientôt en rupture, rupture, réappro) ; envoi hebdomadaire email + consultation dashboard ; formatage/envoi en plugin `application` (grants `portfolio:read`). Statut: pending.
-- **FEAT-07 Intérêt produits en rupture** [CŒUR] (portfolio + telemetry) : comptage visites indisponibles, consultations malgré rupture, rapport demande. Statut: pending.
-- **FEAT-08 Partage auto réseaux sociaux** [PLUGIN `application`] (solara + portfolio) : écoute `portfolio.vendable.published`, contenu auto-généré en brouillon, le vendeur choisit les réseaux et valide avant envoi, configurable par boutique. Statut: pending.
+- **FEAT-05 Comptes sociétés de livraison** [CŒUR] (citadelle + commerce + spaces) : inscription puis validation admin, assignation manuelle par le vendeur, profil entreprise, gestion livraisons, suivi statuts, dashboard dédié. Statut: ✅ COMPLÉTÉ & TESTÉ.
+- **FEAT-06 Rapports boutiques** [CŒUR + plugin rendu] (portfolio + commerce) : moteur données cœur (rares, bientôt en rupture, rupture, réappro) ; envoi hebdomadaire email + consultation dashboard ; formatage/envoi en plugin `application` (grants `portfolio:read`). Statut: ✅ COMPLÉTÉ & TESTÉ.
+- **FEAT-07 Intérêt produits en rupture** [CŒUR] (portfolio + telemetry) : comptage visites indisponibles, consultations malgré rupture, rapport demande. Statut: ✅ COMPLÉTÉ & TESTÉ.
+- **FEAT-08 Partage auto réseaux sociaux** [PLUGIN `application`] (solara + portfolio) : écoute `portfolio.vendable.published`, contenu auto-généré en brouillon, le vendeur choisit les réseaux et valide avant envoi, configurable par boutique. Statut: ✅ COMPLÉTÉ & TESTÉ.
 
 ### 🟡 Moyenne
-- **FEAT-09 Compteur de visites** [CŒUR + plugin affichage] (portfolio + telemetry) : session anonymisée RGPD sans IP brute, exclusion bots, uniques vs totales par période ; comptage fiable cœur ; widget stats boutique en plugin `ui`/`application`. Statut: pending.
-- **FEAT-10 Registre de commerce** [CŒUR] (spaces + citadelle/imperia) : documents de vérification associés au **space** pro (pas à l'utilisateur), dépôt puis validation admin, statuts pending/verified/rejected, badge « vérifié » affiché sur la boutique, révocable, consultation/gestion admin. Statut: pending.
-- **FEAT-11 Analyse catégories** [CŒUR] (imperia + spaces/portfolio) : catégories avec peu de boutiques, stats sous-représentation, dashboard admin. Statut: pending.
-- **FEAT-12 Sidebar aide formulaires** [PLUGIN `ui`] (transversal ui-runtime) : contextuelle par étape, conseils, obligatoires/erreurs fréquentes. Statut: pending.
+- **FEAT-09 Compteur de visites** [CŒUR + plugin affichage] (portfolio + telemetry) : session anonymisée RGPD sans IP brute, exclusion bots, uniques vs totales par période ; comptage fiable cœur ; widget stats boutique en plugin `ui`/`application`. Statut: ✅ COMPLÉTÉ & TESTÉ.
+- **FEAT-10 Registre de commerce** [CŒUR] (spaces + citadelle/imperia) : documents de vérification associés au **space** pro (pas à l'utilisateur), dépôt puis validation admin, statuts pending/verified/rejected, badge « vérifié » affiché sur la boutique, révocable, consultation/gestion admin. Statut: ✅ COMPLÉTÉ & TESTÉ.
+- **FEAT-11 Analyse catégories** [CŒUR] (imperia + spaces/portfolio) : catégories avec peu de boutiques, stats sous-représentation, dashboard admin. Statut: ✅ COMPLÉTÉ & TESTÉ.
+- **FEAT-12 Sidebar aide formulaires** [PLUGIN `ui`] (transversal ui-runtime) : contextuelle par étape, conseils, obligatoires/erreurs fréquentes. Statut: ✅ COMPLÉTÉ & TESTÉ.
 
 ### 🟢 Complémentaire
-- **FEAT-13 QR Codes** [PLUGIN `ui`] (transversal + portfolio/spaces) : QR statiques vers URL page/produit/boutique, téléchargement PNG/SVG, sans tracking. Statut: pending.
+- **FEAT-13 QR Codes** [PLUGIN `ui`] (transversal + portfolio/spaces) : QR statiques vers URL page/produit/boutique, téléchargement PNG/SVG, sans tracking. Statut: ✅ COMPLÉTÉ & TESTÉ.
 
 ### Synthèse plugin vs cœur
 - **Plugins idéaux** : FEAT-08, FEAT-12, FEAT-13 (+ volets affichage FEAT-09, rendu FEAT-06, périphérie FEAT-04).
