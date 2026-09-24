@@ -22,6 +22,8 @@ export class CitadellePostgresMigrationProvider implements MigrationProvider {
       table.string("email");
       table.string("status").default("active");
       table.string("display_name").nullable();
+      table.json("roles").nullable();
+      table.string("mfa_secret").nullable();
       table.json("metadata").nullable();
       table.timestamp("created_at");
       table.timestamp("updated_at");
