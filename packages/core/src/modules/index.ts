@@ -9,8 +9,6 @@
 import { CapabilitiesModule } from "./capabilities-module.js";
 import { EventsModule } from "./events-module.js";
 import { PermissionsModule } from "./permissions-module.js";
-import { PluginModule } from "./plugin-module.js";
-import { MaintenanceModule } from "./maintenance-module.js";
 import type { KernelModule } from "../kernel-module.js";
 
 export { CapabilitiesModule } from "./capabilities-module.js";

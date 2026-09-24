@@ -3,9 +3,6 @@
  * Implements single authorization engine (ROLE-P1-01 & ROLE-P1-02).
  */
 
-import type { PermissionString } from "@mosaix/types";
-import { parsePermission } from "@mosaix/types";
-
 export type PermissionEffect = "ALLOW" | "DENY";
 
 export interface PermissionSource {

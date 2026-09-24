@@ -3,18 +3,14 @@ import { SchemaBuilder, PostgresGrammar, computeChecksum, type Migration } from 
 const builder = new SchemaBuilder();
 const grammar = new PostgresGrammar();
 
-// 1. Portfolio Vendables
+// 1. Portfolio Vendables (PIM Catalog Core)
 builder.createTable("portfolio_vendables", (table) => {
   table.string("id").primary();
   table.string("reference");
   table.enum("type", ["Product", "Service", "DigitalProduct", "Experience"]);
   table.enum("status", ["Draft", "In Review", "Published", "Archived"]);
-  table.json("content");
-  table.json("characteristics");
-  table.json("classification");
-  table.json("media");
-  table.json("variants");
-  table.json("relations");
+  table.json("content").nullable();
+  table.json("classification").nullable();
   table.json("quality").nullable();
   table.timestamp("createdAt");
   table.timestamp("updatedAt");
@@ -29,25 +25,35 @@ builder.createTable("portfolio_categories", (table) => {
   table.string("name");
   table.string("parentId").nullable();
   table.timestamp("createdAt");
+  table.foreignKey("parentId", "portfolio_categories", "id");
   table.unique("uniq_portfolio_cat_slug", ["slug"]);
   table.index("idx_portfolio_cat_parent", ["parentId"]);
 });
 
-// 3. Portfolio Variants
+// 3. Portfolio Vendable Categories Mapping
+builder.createTable("portfolio_vendable_categories", (table) => {
+  table.string("vendableId");
+  table.string("categoryId");
+  table.foreignKey("vendableId", "portfolio_vendables", "id");
+  table.foreignKey("categoryId", "portfolio_categories", "id");
+  table.unique("uniq_vendable_category", ["vendableId", "categoryId"]);
+  table.index("idx_vendable_cats_category", ["categoryId"]);
+});
+
+// 4. Portfolio Variants (Abstract Catalog Variant without stock/price)
 builder.createTable("portfolio_variants", (table) => {
   table.string("id").primary();
   table.string("vendableId");
   table.string("sku");
   table.string("name");
-  table.integer("priceInCents");
-  table.integer("stock").default(0);
   table.timestamp("createdAt");
+  table.timestamp("updatedAt");
   table.foreignKey("vendableId", "portfolio_vendables", "id");
   table.unique("uniq_portfolio_variant_sku", ["sku"]);
   table.index("idx_portfolio_variant_vendable", ["vendableId"]);
 });
 
-// 4. Portfolio Translations
+// 5. Portfolio Translations
 builder.createTable("portfolio_translations", (table) => {
   table.string("id").primary();
   table.string("vendableId");
@@ -57,10 +63,11 @@ builder.createTable("portfolio_translations", (table) => {
   table.string("description").nullable();
   table.timestamp("createdAt");
   table.foreignKey("vendableId", "portfolio_vendables", "id");
+  table.unique("uniq_vendable_translation_lang", ["vendableId", "lang"]);
   table.index("idx_portfolio_trans_vendable_lang", ["vendableId", "lang"]);
 });
 
-// 5. Portfolio Relations
+// 6. Portfolio Relations
 builder.createTable("portfolio_relations", (table) => {
   table.string("id").primary();
   table.string("sourceVendableId");
@@ -72,7 +79,7 @@ builder.createTable("portfolio_relations", (table) => {
   table.index("idx_portfolio_rel_source", ["sourceVendableId"]);
 });
 
-// 6. Portfolio Media Assets
+// 7. Portfolio Media Assets
 builder.createTable("portfolio_media_assets", (table) => {
   table.string("id").primary();
   table.string("vendableId");
@@ -84,7 +91,7 @@ builder.createTable("portfolio_media_assets", (table) => {
   table.index("idx_portfolio_media_vendable", ["vendableId"]);
 });
 
-// 7. CS-Cart Product Feature Groups
+// 8. CS-Cart Product Feature Groups
 builder.createTable("portfolio_feature_groups", (table) => {
   table.string("id").primary();
   table.string("code");
@@ -93,7 +100,7 @@ builder.createTable("portfolio_feature_groups", (table) => {
   table.unique("uniq_feature_group_code", ["code"]);
 });
 
-// 8. CS-Cart Product Features
+// 9. CS-Cart Product Features
 builder.createTable("portfolio_features", (table) => {
   table.string("id").primary();
   table.string("groupId").nullable();
@@ -108,17 +115,18 @@ builder.createTable("portfolio_features", (table) => {
   table.index("idx_features_group", ["groupId"]);
 });
 
-// 9. CS-Cart Product Feature Variants
+// 10. CS-Cart Product Feature Variants
 builder.createTable("portfolio_feature_variants", (table) => {
   table.string("id").primary();
   table.string("featureId");
   table.string("variant");
   table.timestamp("createdAt");
   table.foreignKey("featureId", "portfolio_features", "id");
+  table.unique("uniq_feature_variant_value", ["featureId", "variant"]);
   table.index("idx_feature_variants_feature", ["featureId"]);
 });
 
-// 10. CS-Cart Product Vendable Features Mapping
+// 11. CS-Cart Product Vendable Features Mapping
 builder.createTable("portfolio_vendable_features", (table) => {
   table.string("id").primary();
   table.string("vendableId");
@@ -133,7 +141,19 @@ builder.createTable("portfolio_vendable_features", (table) => {
   table.index("idx_vendable_features_vendable", ["vendableId"]);
 });
 
-// 11. CS-Cart Variation Groups
+// 12. CS-Cart Product Variant Features (Attributes defining what a Variant is)
+builder.createTable("portfolio_variant_features", (table) => {
+  table.string("variantId");
+  table.string("featureId");
+  table.string("variantValueId").nullable();
+  table.string("valueText").nullable();
+  table.foreignKey("variantId", "portfolio_variants", "id");
+  table.foreignKey("featureId", "portfolio_features", "id");
+  table.foreignKey("variantValueId", "portfolio_feature_variants", "id");
+  table.unique("uniq_variant_feature", ["variantId", "featureId"]);
+});
+
+// 13. CS-Cart Variation Groups
 builder.createTable("portfolio_variation_groups", (table) => {
   table.string("id").primary();
   table.string("parentVendableId");
@@ -143,7 +163,7 @@ builder.createTable("portfolio_variation_groups", (table) => {
   table.index("idx_variation_groups_parent", ["parentVendableId"]);
 });
 
-// 12. CS-Cart Variation Group Features
+// 14. CS-Cart Variation Group Features
 builder.createTable("portfolio_variation_group_features", (table) => {
   table.string("id").primary();
   table.string("groupId");
@@ -162,6 +182,7 @@ export const migration: Migration = {
   resources: [
     "table:portfolio_vendables",
     "table:portfolio_categories",
+    "table:portfolio_vendable_categories",
     "table:portfolio_variants",
     "table:portfolio_translations",
     "table:portfolio_relations",
@@ -170,6 +191,7 @@ export const migration: Migration = {
     "table:portfolio_features",
     "table:portfolio_feature_variants",
     "table:portfolio_vendable_features",
+    "table:portfolio_variant_features",
     "table:portfolio_variation_groups",
     "table:portfolio_variation_group_features",
   ]
