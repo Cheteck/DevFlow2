@@ -1,8 +1,10 @@
 /**
- * @mosaix/plugin-engine/adapters — Static & Workspace Plugin Loaders
+ * @mosaix/plugin-engine/adapters — Static & Dynamic Workspace Plugin Loaders
  */
 
-import type { PluginManifest } from "../core";
+import type { PluginManifest } from "../core/index.js";
+
+export * from "./workspace-loader.js";
 
 export class StaticPluginLoader {
   private manifests = new Map<string, PluginManifest>();

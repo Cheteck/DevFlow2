@@ -1,9 +1,12 @@
 /**
- * @mosaix/plugin-engine/management — Plugin Management Service & Diagnostics
+ * @mosaix/plugin-engine/management — Plugin Management Service, Marketplace & CLI
  */
 
-import type { PluginEngine } from "../runtime";
-import type { PluginDefinition, PluginState } from "../core";
+export * from "./marketplace-registry.js";
+export * from "./plugin-cli.js";
+
+import type { PluginEngine } from "../runtime/index.js";
+import type { PluginDefinition, PluginState } from "../core/index.js";
 
 export interface PluginDiagnostics {
   pluginId: string;
@@ -13,14 +16,10 @@ export interface PluginDiagnostics {
 }
 
 export class PluginManagementService {
-  private engine: PluginEngine;
-
-  constructor(engine: PluginEngine) {
-    this.engine = engine;
-  }
+  constructor(private readonly engine: PluginEngine) {}
 
   list(): PluginDefinition[] {
-    return Array.from(this.engine.registry["plugins"].values());
+    return this.engine.registry.list();
   }
 
   get(pluginId: string): PluginDefinition | undefined {
