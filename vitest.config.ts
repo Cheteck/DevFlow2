@@ -56,6 +56,10 @@ export default defineConfig({
       "@apps/beam": path.resolve(__dirname, "./apps/beam/src/index.ts"),
       "@apps/portfolio": path.resolve(__dirname, "./apps/portfolio/src/index.ts"),
       "@apps/booking": path.resolve(__dirname, "./apps/booking/src/index.ts"),
+      "@apps/subscription": path.resolve(__dirname, "./apps/subscription/src/index.ts"),
+      "@mosaix/dev-session": path.resolve(__dirname, "./packages/dev-session/src/index.ts"),
+      "@mosaix/dev-server": path.resolve(__dirname, "./packages/dev-server/src/index.ts"),
     },
+
   },
 });

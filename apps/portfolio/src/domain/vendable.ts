@@ -5,13 +5,47 @@ export type VendableType =
   | "Experience";
 
 export type WorkflowStatus =
-  "Draft" | "In Review" | "Validated" | "Published" | "Archived";
+  | "Draft"
+  | "In Review"
+  | "NeedsApproval"
+  | "Scheduled"
+  | "Validated"
+  | "Published"
+  | "Expired"
+  | "Archived";
 
 export interface VendableIdentity {
   id: string;
   reference: string;
   type: VendableType;
   status: WorkflowStatus;
+}
+
+export interface VendableDiscount {
+  code: string;
+  percent?: number;
+  amount?: number;
+  validUntil?: string;
+}
+
+export interface VendablePricing {
+  basePrice: number;
+  currency: string;
+  taxClass?: string;
+  discounts?: VendableDiscount[];
+}
+
+export interface VendableInventory {
+  sku: string;
+  stock: number;
+  reserved: number;
+  reorderPoint: number;
+}
+
+export interface VendableSeo {
+  slug: string;
+  metaTitle?: string;
+  metaDesc?: string;
 }
 
 export interface LocalizedContent {
@@ -49,6 +83,8 @@ export interface VariantItem {
   content?: VendableContent | undefined;
   characteristics?: VendableCharacteristics | undefined;
   media?: VendableMedia | undefined;
+  pricing?: VendablePricing | undefined;
+  inventory?: VendableInventory | undefined;
 }
 
 export type VendableVariants = VariantItem[];
@@ -81,5 +117,9 @@ export interface Vendable {
   media: VendableMedia;
   variants: VendableVariants;
   relations: VendableRelations;
+  pricing?: VendablePricing | undefined;
+  inventory?: VendableInventory | undefined;
+  seo?: VendableSeo | undefined;
   quality?: InformationQuality | undefined;
 }
+

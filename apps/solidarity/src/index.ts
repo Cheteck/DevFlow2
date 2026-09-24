@@ -126,5 +126,9 @@ export function createSolidarityComposition(parentContainer?: Container) {
 }
 
 export * from "./domain/models.js";
+export * from "./domain/solidarity-geospatial-matching.js";
+export * from "./domain/solidarity-offline-reports.js";
 export * from "./application/solidarity-commands.js";
+
 export * from "./infrastructure/solidarity-service.js";
+

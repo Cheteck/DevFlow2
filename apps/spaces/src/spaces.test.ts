@@ -31,8 +31,8 @@ describe("MosaiX Spaces BAC — Core Capabilities & Closed Gaps", () => {
     expect(app.manifest.id).toBe("@apps/spaces");
   });
 
-  it("creates a space with template and maps domain (PRD-Spaces)", () => {
-    const space = service.createSpaceFromTemplate(
+  it("creates a space with template and maps domain (PRD-Spaces)", async () => {
+    const space = await service.createSpaceFromTemplate(
       "Bijoux Amel",
       "shop",
       "usr-amel",
@@ -43,6 +43,7 @@ describe("MosaiX Spaces BAC — Core Capabilities & Closed Gaps", () => {
     expect(space.template).toBe("shop");
     expect(space.slug).toBe("bijoux-amel");
   });
+
 
   it("evaluates custom domain DNS and SSL state transitions (GAP-01)", () => {
     let domainRecord = SpaceCustomDomainEngine.initiateDomainVerification("bijoux-amel.com");

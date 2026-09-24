@@ -129,4 +129,9 @@ export function createCommerceComposition(parentContainer?: Container) {
 
 export * from "./domain/order.model.js";
 export * from "./domain/order.service.js";
+export * from "./domain/order-state-machine.js";
+export * from "./domain/commerce-payment-intent.js";
+export * from "./domain/commerce-offer.model.js";
 export * from "./infrastructure/order.repository.js";
+
+

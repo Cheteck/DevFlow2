@@ -36,7 +36,7 @@ export class SolaraController extends Controller {
     }
 
     try {
-      const post = this.socialService.createPost(
+      const post = await this.socialService.createPost(
         body.actorType,
         body.actorId,
         body.targetType,
@@ -48,6 +48,7 @@ export class SolaraController extends Controller {
       );
       return this.created({ message: "Publication créée avec succès", post });
     } catch (err: unknown) {
+
       const errorMsg = err instanceof Error ? err.message : String(err);
       return this.badRequest(errorMsg);
     }

@@ -147,9 +147,13 @@ export function createImperiaComposition(parentContainer?: Container, adapters?:
 // =============================================================
 export * from "./domain/audit-log.model.js";
 export * from "./domain/governance-policy.js";
+export * from "./domain/imperia-compliance-drift.js";
+export * from "./domain/imperia-rego-cost-incident.js";
 export * from "./domain/platform-topology.service.js";
+
 export * from "./domain/platform-settings.service.js";
 export * from "./domain/governance-slot-resolver.js";
 export * from "./domain/plugin-manager.service.js";
 export * from "./domain/control-plane-supervisor.service.js";
 export * from "./domain/migration-governance.service.js";
+

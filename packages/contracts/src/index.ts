@@ -180,5 +180,7 @@ export * from "./runtime";
 export * from "./session";
 export * from "./route";
 export * from "./experience";
+export * from "./openapi-contract-generator";
 
 export type * from "./application/application-definition";
+

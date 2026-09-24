@@ -110,3 +110,12 @@ export async function createBookingApp(
     provider: new BookingServiceProvider(adapters),
   });
 }
+
+// =============================================================
+// SECTION 5 — DOMAIN EXPORTS
+// =============================================================
+export * from "./domain/booking.model.js";
+export * from "./domain/booking-calendar-sync.js";
+export * from "./domain/booking-portal-resources.js";
+
+

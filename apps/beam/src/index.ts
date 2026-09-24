@@ -110,3 +110,13 @@ export async function createBeamApp(
     provider: new BeamServiceProvider(_adapters),
   });
 }
+
+// =============================================================
+// SECTION 5 — DOMAIN EXPORTS
+// =============================================================
+export * from "./domain/messaging.model.js";
+export * from "./domain/beam-e2e-crypto.js";
+export * from "./domain/beam-rich-messaging.js";
+export * from "./domain/beam-push-storage-search.js";
+
+

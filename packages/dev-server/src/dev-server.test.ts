@@ -6,7 +6,9 @@ describe("DevServer (Phase 3)", () => {
     const devServer = new DevServer();
     const session = devServer.startSession({ sessionId: "test-session", appId: "test-app", targetDir: process.cwd() });
 
-    expect(session).toBe("test-session");
+    expect(session.id).toBe("test-session");
+    expect(session.appId).toBe("test-app");
+    expect(session.state).toBe("RUNNING");
   });
 
   it("returns diagnostics summary", () => {
@@ -14,6 +16,9 @@ describe("DevServer (Phase 3)", () => {
     devServer.startSession({ sessionId: "test-session", appId: "test-app", targetDir: process.cwd() });
 
     const result = devServer.triggerHMR("test-session", "file.ts");
-    expect(result.status).toBe("hmr-reloaded");
+    expect(result.type).toBe("update");
+    expect(result.sessionId).toBe("test-session");
+    expect(result.fileChanged).toBe("file.ts");
   });
+
 });

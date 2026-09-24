@@ -19,4 +19,8 @@ export class InMemoryUserRepository implements UserRepository {
     this.users.set(user.id, user);
     return user;
   }
+
+  async delete(id: string): Promise<boolean> {
+    return this.users.delete(id);
+  }
 }

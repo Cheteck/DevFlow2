@@ -44,4 +44,54 @@ describe("Commerce App Plugins Integration Suite", () => {
     expect(badge.getBadgeLabel("new")).toBe("Nouveau");
     expect(badge.getBadgeLabel("promo")).toBe("Promo -20%");
   });
+
+  it("handles agnostic vendable offers for spaces, tenants, and creators", async () => {
+    const { CommerceOfferService } = await import("./domain/commerce-offer.model.js");
+    const service = new CommerceOfferService();
+
+    // 1. Space creates an offer for a vendable item
+    const spaceOffer = await service.createOffer({
+      seller: { type: "space", id: "space-artisanat-kabyle", name: "Artisanat Kabyle" },
+      vendableId: "vend-pottery-01",
+      title: "Poterie Traditionnelle Kabyle",
+      priceInCents: 4500, // 45.00 EUR
+      currency: "EUR",
+      stockAllocation: 15,
+      commissionRateBps: 500, // 5% platform commission
+      payoutDestination: { provider: "stripe_connect", accountId: "acct_space_123" },
+    });
+
+    expect(spaceOffer.id).toBeDefined();
+    expect(spaceOffer.seller.type).toBe("space");
+    expect(spaceOffer.seller.id).toBe("space-artisanat-kabyle");
+    expect(spaceOffer.status).toBe("ACTIVE");
+
+    // 2. Individual creator creates an offer for the same or different vendable item
+    const creatorOffer = await service.createOffer({
+      seller: { type: "user", id: "usr-karim", name: "Karim Potter" },
+      vendableId: "vend-pottery-01",
+      title: "Poterie Faite Main - Karim",
+      priceInCents: 4200,
+      currency: "EUR",
+      commissionRateBps: 700, // 7% platform commission
+    });
+
+    expect(creatorOffer.seller.type).toBe("user");
+
+    // 3. Query offers by seller
+    const spaceOffers = await service.listOffersBySeller("space", "space-artisanat-kabyle");
+    expect(spaceOffers).toHaveLength(1);
+    expect(spaceOffers[0].id).toBe(spaceOffer.id);
+
+    // 4. Query active offers for a specific vendable
+    const vendableOffers = await service.listActiveOffersForVendable("vend-pottery-01");
+    expect(vendableOffers).toHaveLength(2);
+
+    // 5. Calculate payout breakdown with platform commission
+    const payout = service.calculatePayout(spaceOffer, 2); // 2 units = 90.00 EUR
+    expect(payout.grossAmountInCents).toBe(9000);
+    expect(payout.platformCommissionInCents).toBe(450); // 5% of 9000 = 450
+    expect(payout.netSellerPayoutInCents).toBe(8550); // 9000 - 450 = 8550
+  });
 });
+

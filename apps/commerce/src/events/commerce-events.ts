@@ -32,6 +32,25 @@ export const commerceOrderCreatedSchema = {
   },
 };
 
+export const simpleOrderEventSchema = {
+  safeParse(input: unknown): { success: boolean; error?: unknown } {
+    if (typeof input !== "object" || input === null) {
+      return { success: false, error: "Expected object" };
+    }
+    const record = input as Record<string, unknown>;
+    if (typeof record.orderId !== "string" || record.orderId.length === 0) {
+      return { success: false, error: { orderId: "orderId must be a non-empty string" } };
+    }
+    return { success: true };
+  },
+};
+
 export const commerceEventPayloadSchemas = {
   "commerce.order.created": commerceOrderCreatedSchema,
+  "commerce.order.paid": simpleOrderEventSchema,
+  "commerce.order.shipped": simpleOrderEventSchema,
+  "commerce.order.cancelled": simpleOrderEventSchema,
+  "commerce.refund.initiated": simpleOrderEventSchema,
+  "commerce.inventory.reserve": simpleOrderEventSchema,
 } as const;
+

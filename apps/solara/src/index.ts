@@ -112,3 +112,12 @@ export async function createSolaraApp(
     provider: new SolaraServiceProvider(_adapters),
   });
 }
+
+// =============================================================
+// SECTION 5 — DOMAIN EXPORTS
+// =============================================================
+export * from "./domain/social.model.js";
+export * from "./domain/solara-moderation-pipeline.js";
+export * from "./domain/solara-feed-realtime.js";
+
+

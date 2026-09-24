@@ -146,6 +146,10 @@ export const bootstrapPortfolioApp = createPortfolioApp;
 // =============================================================
 export * from "./domain/vendable.js";
 export * from "./domain/portfolio-service.js";
+export * from "./domain/portfolio-search.port.js";
+export * from "./domain/portfolio-bulk-media.js";
 export * from "./domain/portfolio-errors.js";
+
 export * from "./infrastructure/persistence/vendable.model.js";
 export * from "./vendable-workflow.js";
+
