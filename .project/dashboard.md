@@ -1,6 +1,6 @@
 # MosaiX Dashboard
-**Dernière mise à jour :** 2026-09-24  
-**Statut Global :** 🟢 Système Nominal (Toutes les fonctionnalités du backlog FEAT-01 à FEAT-13 sont implémentées, testées et les God Objects remédiés)
+**Dernière mise à jour :** 2026-09-24 (backlog vérifié)  
+**Statut Global :** 🟡 13 tâches actives — FEAT-01..13 archivés, gaps critiques rôles & modèles identifiés (5 ROLE + 8 DATA)
 
 
 ---
@@ -15,7 +15,12 @@
 
 ---
 
-## 2. Gaps Résolus & Améliorations Récentes
+## 2. Backlog Actif (16 tâches) — Moteur d'autorisation unique v2 2026-09-24
+- **ROLE P1-P7 + AUDIT (10 tickets)** : P1 fige `DENY>ALLOW` absolu + `PermissionDecision{allowed,effect,source}` + `snapshot{authorizationVersion,generatedAt}` + versioning sécurité ; P1 `can`/`authorize`/`loadContext` sans UI ; P2-P4 migrations Global→Space→dynamic `POST /spaces/:id/roles` via `Authorization→RoleGovernance→Registry→DB→invalidation` ; P5 `deny>allow` + DAG ; P6 `acting-as ⊆ actor` ; P7 RLS barrière indépendante ; AUDIT `role.*` transverse
+- **DATA-01..08** : éclatement Vendable, commerce offers/payment_intents, persistance enchères, enrichissement Beam, tables manquantes Booking/Solidarity/Solara, Money/Timestamp, dénormalisation sous triggers, typage Record<string,unknown>
+- Détail : `.project/backlog/active-backlog.md` §5 (7 phases + 3 ajustements) + §6 — Schéma `roles/role_permissions/permission_overrides` + `deny` conserve règle source
+
+## 3. Gaps Résolus & Améliorations Récentes
 
 - ✅ **P0 - Micro QueryBuilder DML Typé (`@mosaix/ports-database`)** : Moteur de requêtes typées (`SelectQueryBuilder`, `InsertQueryBuilder`, `UpdateQueryBuilder`, `DeleteQueryBuilder`) avec binding automatique anti-injection ($1/$2 pour Postgres, ? pour SQLite).
 - ✅ **P0 - Gestionnaire de Pool PostgreSQL (`PostgresPoolManager`)** : Support de pooling de connexions, health check automatique (`SELECT 1`), retries sur erreurs transitoires et fermeture propre.

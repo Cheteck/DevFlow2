@@ -1,7 +1,7 @@
 # MosaiX / IJIDeals Platform — Active Backlog
 
-- **Dernière mise à jour :** 2026-09-23
-- **Statut global :** Toutes les actions du backlog ont été implémentées et validées. Les actions complétées sont archivées dans `.project/archive/completed-backlog-history.md`.
+- **Dernière mise à jour :** 2026-09-24 (vérification rôles & modèles)
+- **Statut global :** FEAT-01..13 archivés (vérifiés) — 16 tâches actives (§5 ROLE P1-P7 + AUDIT 10 tickets + §6 DATA-01..08). Historique complet dans `.project/archive/completed-backlog-history.md`.
 
 ---
 
@@ -31,7 +31,30 @@ L'historique complet et détaillé des implémentations antérieures (Phases 1 �
 
 ---
 
-## 3. Prochaines Étapes Opérationnelles (Roadmap Horizon Futurs)
+## 3. Vérification du 2026-09-24 — Élagage des tâches déjà implémentées
+
+Vérification code-vs-backlog effectuée le 2026-09-24 (analyse `apps/*/src/domain`, `infrastructure/migrations.ts`, `postgres-*-repository.ts`, `packages/core/src/permission.ts`, `packages/migrations/src/grammar.ts`) :
+
+| FEAT | Fichiers présents | Verdict |
+|---|---|---|
+| FEAT-01 maintenance `imperia/maintenance.service.ts:12` | oui | ✅ conservé archivé — bypass `platform-admin/imperia/admin` + `platform:admin` `imperia:admin` opérationnel |
+| FEAT-02 inscription multi-étapes `citadelle/registration-wizard.service.ts:174` | oui | ✅ archivé |
+| FEAT-03 produit multi-étapes `portfolio/product-wizard.service.ts` | oui | ✅ archivé |
+| FEAT-04 enchères `commerce/auction.service.ts:71` (320L, ECDH non, anti-sniping, auditHash SHA256) | oui | ⚠️ **partiel** — service `Map` mémoire `auction.service.ts:72`, aucune table `commerce_auctions/bids` → persistance manquante, reclassé en DATA-03 |
+| FEAT-05 comptes livraison `commerce/delivery-partner.service.ts:132` | oui | ✅ archivé (vérif `verifiedBy adminUserId`) |
+| FEAT-06 rapports boutiques `portfolio/shop-analytics.service.ts` + `shop-inventory-report.service.ts` | oui | ✅ archivé |
+| FEAT-07 intérêt rupture `portfolio` telemetry | oui | ✅ archivé |
+| FEAT-08 partage auto `solara/social-auto-share-plugin.ts` | oui | ✅ archivé |
+| FEAT-09 compteur visites `portfolio` telemetry | oui | ✅ archivé |
+| FEAT-10 registre commerce `spaces/business-registry.service.ts:109` (`verifySpace/rejectSpace/revokeVerification`) | oui | ✅ archivé |
+| FEAT-11 analyse catégories `imperia/category-analysis.service.ts` | oui | ✅ archivé |
+| FEAT-12 sidebar aide `ui-runtime` | oui | ✅ archivé |
+| FEAT-13 QR Codes `transversal` | oui | ✅ archivé |
+| BAC-CIT-01..06, BAC-COM-01..07, etc. | oui | ✅ archivés — services domaine présents, mais **persistance incomplète** (voir §5-6) |
+
+**Action d'élagage** : FEAT-01..13 et BAC-TRV restent archivés dans `completed-backlog-history.md`. Seuls les **gaps de persistance & rôles** ci-dessous restent actifs. Doublons éliminés : `VariantModel` vs `VariantItem`, `VendableModel` vs `Vendable` (unifier en §6).
+
+## 4. Prochaines Étapes Opérationnelles (Roadmap Horizon Futurs)
 Les actions suivantes représentent des chantiers d'infrastructure et d'industrialisation en environnement de production réel :
 
 - **INFRA-01** : Déploiement en cluster Kubernetes multi-régions avec connectivité managée Kafka et RabbitMQ live.
@@ -39,7 +62,7 @@ Les actions suivantes représentent des chantiers d'infrastructure et d'industri
 
 ---
 
-## 4. Fonctionnalités & Améliorations (entrée 2026-09-24, ordre de dev recommandé)
+## 4bis. Fonctionnalités & Améliorations — Archive (entrée 2026-09-24, conservée pour traçabilité)
 
 Règle plugin vs cœur (modèle `plugin-engine` tiers ui/application/privileged ; plugins existants = légers, optionnels, jamais sur chemin critique) :
 - **CŒUR** = argent, identité, sécurité, gouvernance, invariants, RBAC, persistance per-app.
@@ -69,3 +92,118 @@ Règle plugin vs cœur (modèle `plugin-engine` tiers ui/application/privileged 
 ### Synthèse plugin vs cœur
 - **Plugins idéaux** : FEAT-08, FEAT-12, FEAT-13 (+ volets affichage FEAT-09, rendu FEAT-06, périphérie FEAT-04).
 - **Cœur obligatoire** : FEAT-01, 02, 03, 04 (moteur), 05, 06 (moteur), 07, 09 (comptage), 10, 11.
+
+---
+
+## 5. Moteur d'autorisation unique — Rôles dynamiques en production (Refonte 2026-09-24)
+
+> **Principe** : les rôles sont des **données administrables** ; les permissions et le moteur restent **contrôlés par le code**. L'app n'interroge jamais les rôles :
+> ```ts
+> authorization.can(userId, "commerce:order:create:space", { spaceId })
+> // ou
+> authorization.authorize("commerce:order:create:space", { spaceId, organizationId }, userId)
+> ```
+> Le moteur résout `can` à partir du registre, pas l'inverse. Ref fondatrice : ton retour §1-14.
+
+**Modèle cible — contrat figé dès P1** (ajustements 1-3 du retour)
+```
+EffectivePermissions(user, space) =
+  GlobalPermissions(user) ∪ SpacePermissions(user, space) ∪ ExplicitOverrides(user, space)
+  effectif = ALLOW - DENY
+  règle : DENY explicite > ALLOW explicite, indépendamment de la provenance
+           global DENY + space ALLOW → DENY
+           global ALLOW + space DENY → DENY
+           absence de permission ≠ DENY (ALLOW global + aucune règle Space = ALLOW)
+  matcher : if anyMatchingDeny(permission) → DENY; else if anyMatchingAllow → ALLOW; else DENY
+            (DENY gagne toujours, même wildcard DENY vs exact ALLOW : ALLOW commerce:order:refund:space + DENY commerce:order:* → DENY)
+```
+Parser `permission: "commerce:order:create:space"` → `{domain:"commerce",resource:"order",action:"create",scope:"space"}` (`packages/types/src/index.ts:46` `parsePermission`, `packages/core/src/permission.ts:13` `matchSegments`). Le resolver collecte tous les matches puis applique `DENY > ALLOW` à spécificité équivalente — complexité dans `match`, pas dans la priorité.
+
+**Snapshot + versioning (sécurité, pas optimisation) — exigence P1** : `UserAuthorizationContext = await authorization.loadContext(userId, {spaceId, organizationId})` charge une fois ; `context.can(perm)` résout en mémoire. Chaque snapshot porte `{userId, spaceId, authorizationVersion, generatedAt, allows, denies}`. À chaque `can()` : `version actuelle === version snapshot ? utiliser : recalculer`. Invalidation par `Role changed / permission changed / membership changed / override changed / role assigned|revoked → authorization_version++` (version par Space `space.authorization_version` + par utilisateur `user.authorization_version`). Évite fenêtre `10:01 permission sensible accordée → 10:02 révoquée → 10:04 cache encore valide → usage indu`.
+
+**Schéma cible (unifié, pas JSONB comme source de vérité)**
+```sql
+permissions(key PK, description, scope, assignableBy JSONB, metadata JSONB)
+roles(id PK, key, name, scopeType GLOBAL|SPACE, scopeId nullable, rank int, isSystem bool, inheritsFrom FK, createdBy, createdAt, updatedAt)
+role_permissions(roleId FK, permissionKey FK → permissions.key, effect ALLOW|DENY, PK(roleId,permissionKey))
+global_user_roles(userId FK, roleId FK, grantedBy, grantedAt, expiresAt, PK(userId,roleId))
+space_members(spaceId FK, userId FK, roleId FK → roles.id, createdAt, updatedAt, PK(spaceId,userId))
+permission_overrides(userId, spaceId nullable, permissionKey FK, effect ALLOW|DENY, expiresAt, grantedBy, PK(userId,spaceId,permissionKey))
+acting_as_audit_events(id PK, actorUserId, targetUserId, spaceId, action, metadata JSONB, permissionsUsed JSONB, ip, createdAt)
+```
+Remplace `allowedCapabilities JSONB` comme source vérité → `role_permissions`; `permissionsOverride JSONB` → `permission_overrides`.
+
+### Phase 1 — Permission Engine (fondation, garde-fou) — **doit figer P1 : règles DENY/ALLOW/wildcard + versioning + contrat PermissionRegistry**
+
+- **ROLE-P1-01 PermissionRegistry + parser/matcher** — Registre déclaratif des permissions atomiques stables (`commerce:order:create:space`, `imperia:governance:manage:platform`, `identity:impersonate:space`...), `registerPermission({key, description, scopes:["space"], assignableBy:["owner","admin"]})`, validation à la création de rôle (refuse `database:drop:production` si non registré). Parser/matcher `permission.ts:13` : `match(permission)` définit ce qui match (wildcard `*` sur `domain|resource|action` uniquement, `scope` jamais wildcard `permission.ts:28`). Fichiers : `packages/core/src/permission.ts` (étendre `assertRegistered`), `packages/schemas/src/index.ts` (zod `PermissionSchema`). Critères : `createSpaceRole` avec permission inconnue → 400. Tests : registre ~40 clés. **Aucune UI ni nouveau rôle métier nécessaire pour valider P1.**
+- **ROLE-P1-02 EffectivePermissionResolver + AuthorizationContext + contrat décision** — `packages/core/src/effective-permission-resolver.ts` strict avec contrat figé dès P1 :
+  ```ts
+  type PermissionEffect = "ALLOW" | "DENY";
+  type PermissionDecision = { allowed: boolean; matchedPermission: string | null; effect: PermissionEffect | null; source: PermissionSource | null };
+  // source = {role:"space:editor", spaceId:"abc123"} ou {override:"user:123"}
+  // Règle : if anyMatchingDeny(permission) → DENY; else if anyMatchingAllow → ALLOW; else DENY
+  ```
+  `resolve({userId, spaceId, organizationId}) → {allows:Set, denies:Set, source:Map<Permission, {effect, role, scopeId}>}` avec `source` debuggable + `denies` conserve **la règle qui a provoqué le deny** (pas seulement Set final). `authorization.can(userId, perm, ctx)` / `authorize(perm, ctx, userId)` uniques, `loadContext(userId, ctx) → UserAuthorizationContext{userId, spaceId, authorizationVersion, generatedAt, allows, denies}` + `can()` mémoire. Versioning `space.authorization_version` + `user.authorization_version`, `version++` sur `role/permission/membership/override` changed → `loadContext` compare version et recalcule si stale. Conserve adaptateurs legacy (`requireAdmin`, `isUserAdmin`) derrière le resolver. Critères : `can("commerce:order:create:space",{spaceId})` ignore origine mais trace `source` ; `global DENY + space ALLOW → DENY` testé. Tests priorité : matrice §14 (wildcard `commerce:order:*` ALLOW + exact `commerce:order:refund:space` DENY → DENY).
+
+### Phase 2 — Global RBAC (migration)
+
+- **ROLE-P2-01 Tables globales + migration** — `permissions`, `roles(scopeType=GLOBAL)`, `role_permissions`, `global_user_roles` (SQL ci-dessus). Migrer `citadelle_identities.roles string[]` `citadelle/user.model.ts:6` (défaut `["citizen"]`) + vocabulaires éclatés (`admin/platform-governor/platform-admin/super-admin/imperia` `imperia-controller.ts:65` + `maintenance.service.ts:24`) → enum `superadmin|admin|moderator|support|citizen` hiérarchie `superadmin(100)>admin(80)>moderator(60)>support(40)>citizen(10)` (rank = qui gère qui, pas autorisation). Seed `superadmin:["*"]`, `moderator:["solara:post:moderate:tenant"]`. Remplacer `requireAdmin()` par `authorize("imperia:governance:manage:platform", {organizationId:"platform"}, userId)` et `maintenance bypass` par `platform:maintenance:bypass:platform`. Critères : ancien `roles.includes("admin")` supprimé, tous les checks passent par `can`.
+
+### Phase 3 — Space RBAC (migration) — **avec date de suppression legacy**
+
+- **ROLE-P3-01 Tables Space + migration team JSONB** — `roles(scopeType=SPACE, scopeId=spaceId)`, `role_permissions`, `space_members` (ci-dessus). Migrer `spaces_spaces.team JSONB` + `space_members` orpheline `migrations/20260922162100:15` + `SpaceRolePolicyEngine` Map `space-roles.ts:12` (`owner:["*"]` etc.) → DB. Seed par space : `owner(100):["*"]`, `admin(80):["spaces.*","commerce.*"]`, `editor(60):["portfolio:vendable:*:space"]`, `moderator(40)`, `analyst(20)` + `custom` créables. `SpaceService.addTeamMember()` `space.model.ts:166` → `INSERT ... ON CONFLICT (space_id,user_id) DO UPDATE`. **Compat temporaire `team JSONB` lecture seule avec deadline** : `legacy → nouveau modèle` en P3, suppression lecture legacy en fin de P3 (ne pas laisser deux sources de vérité actives indéfiniment). Critères : `SpaceRolePolicyEngine` lit DB, plus de `Map`.
+
+### Phase 4 — Rôles dynamiques (sans migration SQL)
+
+- **ROLE-P4-01 CRUD applicatif transactionnel** — API minimale :
+  ```
+  POST   /spaces/:spaceId/roles
+  PATCH  /spaces/:spaceId/roles/:roleId
+  DELETE /spaces/:spaceId/roles/:roleId
+  POST   /spaces/:spaceId/members/:userId/roles
+  DELETE /spaces/:spaceId/members/:userId/roles
+  ```
+  Chaque mutation : `Authorization → RoleGovernancePolicy → PermissionRegistry → transaction DB → authorization invalidation` (client ne peut jamais écrire directement `role_permissions`). `roleService.createSpaceRole({spaceId,key:"order-manager",name, permissions:["commerce:order:read:space"...], actorId})`, `updateRole`, `deleteRole`, `assignRole`, `revokeRole` transactionnels, validés contre `PermissionRegistry` (assignableBy). `Owner → créé Order Manager → sélectionne permissions → assigne à Alice` sans migration. Validation : `rank` ≠ autorisation, sert à `qui peut modifier/assigner ce rôle`. Fichiers : `apps/spaces/src/domain/space-roles.ts:29` (`createRole` devient DB), `space.model.ts`. Critères : création custom en prod sans déploiement, permission inconnue rejetée.
+
+### Phase 5 — Overrides + héritage DAG (séparés)
+
+- **ROLE-P5-A Permission overrides** — `permission_overrides` + `role_permissions.effect` (`ALLOW|DENY`), `effective = ALLOW - DENY`, règle figée P1 `deny > allow` absolu. Ex : `allow commerce:order:*` + `deny commerce:order:refund:space` → `create/update ✅`, `refund ❌` (DENY gagne même si ALLOW exact vs DENY wildcard : `ALLOW commerce:order:refund:space` + `DENY commerce:order:*` → DENY).
+- **ROLE-P5-B Héritage DAG** — `roles.inheritsFrom` DAG validé dans la même transaction : `A→B` OK, `A→B→C` OK jusqu'à profondeur définie, `A→B→A` rejeté, pas de cross-scope (`SPACE` n'hérite pas `GLOBAL`), pas vers rôle supprimable, explosion graphe bornée. `OrderManager inherits Editor` OK. Matrice tests : `Global allow|Space deny → deny`, `wildcard allow + exact deny → deny`, `role expiré/membership supprimée → deny`, `acting-as sans permission → deny` (`§14` retour, 10 cas).
+
+### Phase 6 — Acting-as strict + audit
+
+- **ROLE-P6-01 Impersonation découplée** — Capacités `identity:impersonate:user|space` distinctes de `permission de faire X` + règle `acting-as permissions ⊆ actor permissions` (jamais d'élévation). Contexte conserve `{actorUserId, subjectUserId, spaceId, actingAs:true}` (jamais `currentUserId = targetUserId` remplacé). Audit `acting_as_audit_events(actorUserId, targetUserId, spaceId, action, metadata, permissionsUsed, reason, startedAt, endedAt, ip)` `acting-as-space.ts:32` étendu (vs `restricted` seul). Fichiers : `apps/spaces/src/domain/acting-as-space.ts`, `citadelle`.
+
+### Phase 7 — RLS (barrière indépendante, après RBAC)
+
+- **ROLE-P7-01 Isolation PostgreSQL** — RLS = barrière indépendante, pas `RBAC → génère policies` :
+  ```
+  Application authorization  +  Database isolation (RLS)
+  ```
+  Partage `spaceId` mais responsabilités distinctes. Via `PostgresBacSchemaMigrator` `postgres-bac-schema-migrator.ts:25` / `postgres-schema-grammar.ts:37` (`ENABLE RLS`, `POLICY tenant_isolation USING tenant_id=current_setting(...)`) + `SET LOCAL app.current_tenant_id/space_id` `kernel.ts:478` + `TenantIdentity` `tenant-schema-manager.ts:17`. Architecture `HTTP → Authorization → Business → Tenant/Space context → RLS`. Supprimer `database-bootstrap.ts:28` SQLite divergeant à la fin, pas en P1. Criticité infra distincte.
+
+### Transverse — Role/Authorization Audit (ajout §14 retour)
+
+- **ROLE-AUDIT** — Au-delà de `acting_as_audit_events`, tracer :
+  ```
+  role.created | role.updated | role.deleted | role.permission_added | role.permission_removed
+  role.assigned | role.revoked | permission.override_created | permission.override_removed | role.inheritance_changed
+  ```
+  avec `{actor, target, space, before, after, timestamp, request/session metadata}`. Critique dès que rôles dynamiques en prod. Table `role_audit_events`.
+
+**Ordre** : P1 → P2 → P3 → P4 → P5 → P6 → P7. Tests matrice `| Global | Space | Override | Résultat |` (10 cas §14 du retour, dont `global deny + space allow → deny` à documenter).
+
+## 6. Modèles de données — Enrichissement & persistance manquante (nouveau)
+
+Gaps issus de l'analyse `apps/*/src/domain/*.ts` vs `infrastructure/migrations.ts` vs `postgres-*-repository.ts` : `Vendable` 9 objets → 5 cols migration `portfolio/migrations/20260922162000:6` vs 13 cols repo `postgres-vendable-repository.ts:42` ; `commerce_offers/payment_intents/auctions` fantômes (`auction.service.ts:22` 320L, `commerce-offer.model.ts:13`, `commerce-payment-intent.ts:10`) ; `beam RichMessageMetadata` `beam-rich-messaging.ts:6` + `EncryptedMessagePayload` `beam-e2e-crypto.ts:3` absents de `MessageModel` `messaging.model.ts:11` ; `solidarity` 13 interfaces `models.ts:1` → 2 tables ; `solara` 3 tables manquantes ; `subscription` `INTEGER epoch ms` vs `TIMESTAMPTZ` ; `View` counts dénormalisés sans trigger ; `Record<string,unknown>` 14×.
+
+- **DATA-01 [CŒUR] Portfolio — éclatement Vendable** — Tables `vendables(id, reference UNIQUE, type enum, status enum, createdAt, updatedAt)` + `vendable_translations(vendable_id FK, lang, name, shortDescription, description)` + `vendable_variants(id, vendable_id FK, sku UNIQUE, pricing JSONB, inventory JSONB)` (unifier `VariantModel` `persistence/vendable.model.ts:7` + `VariantItem` `vendable.ts:80`) + `vendable_relations(source_id FK, targetId, type enum)` + `media_assets(id, vendable_id FK, type, url, metadata)` + `GIN on characteristics/specifications`. Supprimer duplication `pricing/inventory` root vs variant → `variant overrides`. Col `reference` unique race-safe. Fichiers : `apps/portfolio/src/domain/vendable.ts`, `infrastructure/migrations/20260922162000_create_portfolio_tables.ts`, `postgres-vendable-repository.ts`. Criticité 🔴
+- **DATA-02 [CŒUR] Commerce — matérialiser offres/paiements** — `commerce_offers(id, seller_type enum, seller_id, vendableId FK, priceInCents integer CHECK >=0, currency CHAR(3), status enum, stockAllocation, commissionRateBps, payoutDestination JSONB, metadata JSONB, createdAt)` + `commerce_payment_intents(id, orderId FK, amount, currency, status enum 8, clientSecret, amountReceived/Refunded, metadata)` + FK `commerce_orders.vendableId → vendables.id`. Migrer `grammar.ts:249` `case "decimal"` → `DECIMAL(12,2)`. Remplacer `Array.filter` `commerce-offer.model.ts:139` par `WHERE seller_type=$1 AND seller_id=$2`. Criticité 🔴
+- **DATA-03 [CŒUR] Commerce — persistance enchères** — `commerce_auctions(id, vendableId FK, sellerId, sellerSpaceId, startPrice, reservePrice, minBidIncrement, currency, currentBid, highestBidderId, status enum draft|active|closed|cancelled, startTime, endTime, antiSnipingWindow/Extension, extensionsCount, reserveMet, winningBidId, settledOrderId FK)` + `commerce_auction_bids(id, auction_id FK, bidderId, bidderName, amount, timestamp, auditHash, previousHash)` chaîne SHA256 `auction.service.ts:193` vérifiable. Remplacer `Map<string,Auction>` `auction.service.ts:72` par repo Postgres + `SELECT FOR UPDATE` sur `placeBid`. Criticité 🟠
+- **DATA-04 [CŒUR] Beam — enrichir messaging** — Étendre `beam_messages` `20260922161700:13` : `reply_to_message_id FK, thread_id, edited_at, deleted_at, reactions JSONB GIN, attachments JSONB, encrypted_payload JSONB (EncryptedMessagePayload)` + `beam_conversation_participants(conversation_id FK, user_id FK, PK composite, idx_user_id)` remplace `participants JSON` `messaging.model.ts:7` + `beam_message_reactions` normalisée si besoin. Index composite `(conversation_id, sentAt DESC)` pour pagination. Fichiers : `apps/beam/src/domain/messaging.model.ts`, `beam-rich-messaging.ts`, `beam-e2e-crypto.ts`. Criticité 🟠
+- **DATA-05 [CŒUR] Booking/Solidarity/Solara — tables manquantes** — Booking : `booking_waitlists`, `booking_reminders` (`booking-calendar-sync.ts:87`, `booking-portal-resources.ts:3`), fix `reservations` vs `booking_reservations` `migrations.ts:34` vs `postgres-booking-repository.ts:60`, `CHECK (startTime<endTime)`, `idempotency_keys` table (remplace `idempotencyStore` Map `booking.model.ts:161`). Solidarity : `incidents, resources, hubs, missions, distributions, allocations` (5 manquantes `migrations.ts:18`). Solara : `solara_posts, solara_comments, solara_followers` (3 manquantes, seule `reactions` existe). Subscription : migrer `user_subscriptions` `INTEGER` → `TIMESTAMPTZ` `subscription.service.ts:18` via `MigrationProvider`. Criticité 🔴
+- **DATA-06 [CŒUR] Normaliser valeur & temps** — Value objects `Money{amountInCents integer, currency CHAR(3) CHECK length 3}` et `Timestamp TIMESTAMPTZ` uniques : remplacer `price number` Booking, `totalAmount number` Order, `meteredUsageUnits number` Subscription, `string` vs `Date` vs `number` disparates (`space.model.ts:40 Date`, `booking.model.ts:39 string`). Linter `no-float-money`. Fichiers : `commerce-offer.model.ts:19`, `order.model.ts:46`, `booking.model.ts:45`, `subscription.ts:23`. Criticité 🟡
+- **DATA-07 [CŒUR] Dénormalisation sous contrôle** — `BookingSlot.reservedCount` `booking.model.ts:42` + `Post.likeCount/commentsCount` `social.model.ts:90` + `Space.followersCount` `space.model.ts:14` + `Vendable quality.completeness` `vendable.ts:108` : `SELECT FOR UPDATE` ou triggers `AFTER INSERT ON reservations / reactions / followers` + `CHECK (reservedCount <= capacity)` + job purge `holdExpiresAt`. Supprimer incréments mémoire `space.model.ts:211` hors transaction. Criticité 🟠
+- **DATA-08 [CŒUR] Typer les `Record<string,unknown>`** — Remplacer 14 occurrences (`VendableCharacteristics.attributes` `vendable.ts:61`, `MediaItem.metadata`, `CommerceOffer.metadata`, `Post.metadata` `social.model.ts:89`, `AuditLog.metadata` etc.) par Zod `z.infer` + `JSON Schema` GIN indexé ; `SellerEntityType | string` → `z.enum([...])` ; `PublicationTypeRegistry.validateMetadata()` `social.model.ts:63` rendu bloquant (throw déjà `social.model.ts:206` mais `metadata?:` optionnel contourne). Fichiers : `packages/schemas/src/index.ts`, `apps/*/src/domain/*.ts`. Criticité 🟡
+
+> Ordre d'exécution recommandé : ROLE-01/02/04 + DATA-01/02/05 (P0) → ROLE-03 + DATA-03/04/07 (P1) → ROLE-05 + DATA-06/08 (P2).
