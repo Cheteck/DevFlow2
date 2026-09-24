@@ -102,6 +102,9 @@ export class SQLiteGrammar implements Grammar {
       case "integer":
         parts.push("INTEGER");
         break;
+      case "decimal":
+        parts.push("NUMERIC");
+        break;
       case "uuid":
         parts.push("TEXT");
         break;
@@ -255,6 +258,9 @@ export class PostgresGrammar implements Grammar {
         break;
       case "integer":
         parts.push("INTEGER");
+        break;
+      case "decimal":
+        parts.push("DECIMAL(12,2)");
         break;
       case "uuid":
         parts.push("UUID");

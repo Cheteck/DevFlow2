@@ -6,7 +6,14 @@
 export interface ColumnDefinition {
   readonly name: string;
   readonly type:
-    "string" | "integer" | "uuid" | "timestamp" | "json" | "enum" | "boolean";
+    | "string"
+    | "integer"
+    | "decimal"
+    | "uuid"
+    | "timestamp"
+    | "json"
+    | "enum"
+    | "boolean";
   readonly primary?: boolean;
   readonly nullable?: boolean;
   readonly default?: unknown;
@@ -110,6 +117,10 @@ export class TableBuilder {
     return this.column(name, "integer");
   }
 
+  decimal(name: string): ColumnBuilder {
+    return this.column(name, "decimal");
+  }
+
   uuid(name: string): ColumnBuilder {
     return this.column(name, "uuid");
   }
@@ -183,6 +194,10 @@ export class ColumnBuilder {
 
   integer(name: string): ColumnBuilder {
     return this.tableBuilder.integer(name);
+  }
+
+  decimal(name: string): ColumnBuilder {
+    return this.tableBuilder.decimal(name);
   }
 
   uuid(name: string): ColumnBuilder {

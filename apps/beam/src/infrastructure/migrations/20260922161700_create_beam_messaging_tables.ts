@@ -6,18 +6,21 @@ const grammar = new PostgresGrammar();
 builder.createTable("beam_conversations", (table) => {
   table.string("id").primary();
   table.string("type");
-  table.json("metadata").nullable();
-  table.timestamp("created_at");
+  table.json("participants");
+  table.json("data").nullable();
+  table.timestamp("createdAt");
+  table.index("idx_beam_conv_created", ["createdAt"]);
 });
 
 builder.createTable("beam_messages", (table) => {
   table.string("id").primary();
-  table.string("conversation_id");
-  table.string("sender_id");
+  table.string("conversationId");
+  table.string("senderId");
   table.string("content");
-  table.boolean("is_read").default(false);
-  table.timestamp("created_at");
-  table.foreignKey("conversation_id", "beam_conversations", "id");
+  table.timestamp("sentAt");
+  table.foreignKey("conversationId", "beam_conversations", "id");
+  table.index("idx_beam_messages_conv_sent", ["conversationId", "sentAt"]);
+  table.index("idx_beam_messages_sender", ["senderId"]);
 });
 
 const statements = builder.blueprints.flatMap((bp) => grammar.compile(bp));

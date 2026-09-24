@@ -11,10 +11,9 @@ builder.createTable("commerce_order_items", (table) => {
   table.integer("quantity");
   table.decimal("price");
   table.foreignKey("order_id", "commerce_orders", "id");
+  table.index("idx_order_items_order_id", ["order_id"]);
+  table.index("idx_order_items_product_id", ["product_id"]);
 });
-
-builder.createIndex("commerce_orders", "idx_orders_customer", ["customerId"]);
-builder.createIndex("commerce_orders", "idx_orders_status", ["status"]);
 
 const statements = builder.blueprints.flatMap((bp) => grammar.compile(bp));
 

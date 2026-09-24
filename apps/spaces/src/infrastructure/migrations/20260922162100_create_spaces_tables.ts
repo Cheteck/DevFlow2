@@ -3,20 +3,26 @@ import { SchemaBuilder, PostgresGrammar, computeChecksum, type Migration } from 
 const builder = new SchemaBuilder();
 const grammar = new PostgresGrammar();
 
-builder.createTable("spaces", (table) => {
+builder.createTable("spaces_spaces", (table) => {
   table.string("id").primary();
   table.string("name");
-  table.string("slug").unique("uniq_space_slug", ["slug"]);
-  table.string("owner_id");
-  table.timestamp("created_at");
-});
-
-builder.createTable("space_members", (table) => {
-  table.string("id").primary();
-  table.string("space_id");
-  table.string("user_id");
-  table.string("role");
-  table.foreignKey("space_id", "spaces", "id");
+  table.string("slug");
+  table.string("category").nullable();
+  table.string("template").nullable();
+  table.string("ownerId");
+  table.string("tenantId").nullable();
+  table.integer("followersCount").default(0);
+  table.string("customDomain").nullable();
+  table.json("enabledCapabilities").nullable();
+  table.json("publicNavigation").nullable();
+  table.json("team").nullable();
+  table.json("data");
+  table.timestamp("createdAt");
+  table.timestamp("updatedAt").nullable();
+  table.unique("uniq_spaces_slug", ["slug"]);
+  table.index("idx_spaces_owner", ["ownerId"]);
+  table.index("idx_spaces_tenant", ["tenantId"]);
+  table.index("idx_spaces_domain", ["customDomain"]);
 });
 
 const statements = builder.blueprints.flatMap((bp) => grammar.compile(bp));
@@ -25,5 +31,5 @@ export const migration: Migration = {
   id: "20260922162100_create_spaces_tables",
   content: statements.map((s) => s.sql).join("\n"),
   checksum: computeChecksum(statements.map((s) => s.sql).join("\n")),
-  resources: ["table:spaces", "table:space_members"]
+  resources: ["table:spaces_spaces"]
 };

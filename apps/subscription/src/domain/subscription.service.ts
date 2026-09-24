@@ -13,6 +13,14 @@ export class SubscriptionService {
     }
   }
 
+  private formatQuery(sql: string): string {
+    if (this.db?.capabilities?.dialect === "postgres") {
+      let idx = 1;
+      return sql.replace(/\?/g, () => `$${idx++}`);
+    }
+    return sql;
+  }
+
   private async initDatabaseTable(): Promise<void> {
     if (!this.db) return;
     await this.db.execute(`
@@ -79,23 +87,26 @@ export class SubscriptionService {
       },
       {
         id: "plan-enterprise-imperia",
-        name: "Entreprise & Fédération",
-        description: "Gouvernance complète Imperia, topologie distribuée, audit log étendu et SLA garanti.",
+        name: "Entreprise & Collectivités",
+        description: "Gouvernance complète, audit multi-tenant, SLA dédié et intégration SI sur-mesure.",
         priceInCents: 9900,
         currency: "EUR",
         interval: "month",
-        features: ["Plan de contrôle Imperia", "Circuit breakers & DLQ replay", "Multi-tenancy illimité", "Audit log 365 jours"],
+        features: ["Multi-tenants", "Accès Sénat Imperia & Audit", "MFA/SSO obligatoire", "Cluster haute disponibilité"],
         capabilitiesAllowed: [
-          "imperia.governance.inspect",
-          "imperia.governance.audit",
-          "imperia.topology.query",
-          "spaces.space.manage",
+          "social.post.create",
+          "beam.message.send",
+          "commerce.order.create",
+          "portfolio.vendable.create",
+          "booking.slot.create",
+          "imperia.governance.manage",
+          "imperia.audit.view",
         ],
       },
     ];
 
-    for (const p of plans) {
-      this.plans.set(p.id, p);
+    for (const plan of plans) {
+      this.plans.set(plan.id, plan);
     }
   }
 
@@ -115,8 +126,9 @@ export class SubscriptionService {
 
   async getUserSubscriptionAsync(userId: string): Promise<UserSubscription | undefined> {
     if (this.db) {
+      const query = this.formatQuery(`SELECT * FROM user_subscriptions WHERE user_id = ? AND (status = 'active' OR status = 'trialing') LIMIT 1`);
       const rows = await this.db.query<Record<string, unknown>>(
-        `SELECT * FROM user_subscriptions WHERE user_id = ? AND (status = 'active' OR status = 'trialing') LIMIT 1`,
+        query,
         [userId]
       ).catch(() => []);
       if (rows.length > 0) {
@@ -167,15 +179,27 @@ export class SubscriptionService {
     this.subscriptions.set(sub.id, sub);
 
     if (this.db) {
+      const isPg = this.db.capabilities.dialect === "postgres";
+      const insertSql = isPg
+        ? `INSERT INTO user_subscriptions (id, user_id, plan_id, status, current_period_start, current_period_end, cancel_at_period_end, metered_usage_units, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           ON CONFLICT (id) DO UPDATE SET
+             status = EXCLUDED.status,
+             current_period_start = EXCLUDED.current_period_start,
+             current_period_end = EXCLUDED.current_period_end,
+             metered_usage_units = EXCLUDED.metered_usage_units,
+             updated_at = EXCLUDED.updated_at`
+        : `INSERT INTO user_subscriptions (id, user_id, plan_id, status, current_period_start, current_period_end, cancel_at_period_end, metered_usage_units, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT (id) DO UPDATE SET
+             status = excluded.status,
+             current_period_start = excluded.current_period_start,
+             current_period_end = excluded.current_period_end,
+             metered_usage_units = excluded.metered_usage_units,
+             updated_at = excluded.updated_at`;
+
       await this.db.query(
-        `INSERT INTO user_subscriptions (id, user_id, plan_id, status, current_period_start, current_period_end, cancel_at_period_end, metered_usage_units, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT (id) DO UPDATE SET
-           status = excluded.status,
-           current_period_start = excluded.current_period_start,
-           current_period_end = excluded.current_period_end,
-           metered_usage_units = excluded.metered_usage_units,
-           updated_at = excluded.updated_at`,
+        insertSql,
         [sub.id, sub.userId, sub.planId, sub.status, sub.currentPeriodStart, sub.currentPeriodEnd, sub.cancelAtPeriodEnd ? 1 : 0, sub.meteredUsageUnits, sub.createdAt, sub.updatedAt]
       );
     }
@@ -192,8 +216,9 @@ export class SubscriptionService {
     this.subscriptions.set(sub.id, sub);
 
     if (this.db) {
+      const updateSql = this.formatQuery(`UPDATE user_subscriptions SET metered_usage_units = ?, updated_at = ? WHERE id = ?`);
       await this.db.execute(
-        `UPDATE user_subscriptions SET metered_usage_units = ?, updated_at = ? WHERE id = ?`,
+        updateSql,
         [sub.meteredUsageUnits, sub.updatedAt, sub.id]
       );
     }

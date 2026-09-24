@@ -25,6 +25,9 @@ export class CitadellePostgresMigrationProvider implements MigrationProvider {
       table.json("metadata").nullable();
       table.timestamp("created_at");
       table.timestamp("updated_at");
+      table.unique("uniq_citadelle_email", ["email"]);
+      table.index("idx_identities_email", ["email"]);
+      table.index("idx_identities_tenant", ["tenant_id"]);
     });
 
     // 2. Credentials
@@ -35,6 +38,7 @@ export class CitadellePostgresMigrationProvider implements MigrationProvider {
       table.json("data");
       table.timestamp("created_at");
       table.foreignKey("identity_id", "citadelle_identities", "id");
+      table.index("idx_credentials_identity", ["identity_id"]);
     });
 
     // 3. Sessions
@@ -44,6 +48,8 @@ export class CitadellePostgresMigrationProvider implements MigrationProvider {
       table.timestamp("expires_at");
       table.json("data").nullable();
       table.foreignKey("identity_id", "citadelle_identities", "id");
+      table.index("idx_sessions_identity", ["identity_id"]);
+      table.index("idx_sessions_expires", ["expires_at"]);
     });
 
     const statements = builder.blueprints.flatMap((bp) => grammar.compile(bp));

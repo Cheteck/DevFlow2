@@ -117,6 +117,10 @@ export function initDatabase(): DatabaseBootstrapResult {
       dbAdapter.execute(`CREATE INDEX IF NOT EXISTS idx_shell_feed_timestamp ON shell_feed (timestamp DESC);`).catch(() => {});
       dbAdapter.execute(`CREATE INDEX IF NOT EXISTS idx_shell_feed_category ON shell_feed (category);`).catch(() => {});
       dbAdapter.execute(`CREATE INDEX IF NOT EXISTS idx_identities_email ON identities (email);`).catch(() => {});
+      dbAdapter.execute(`CREATE INDEX IF NOT EXISTS idx_identities_tenant ON identities (tenant_id);`).catch(() => {});
+      dbAdapter.execute(`CREATE INDEX IF NOT EXISTS idx_credentials_identity ON credentials (identity_id);`).catch(() => {});
+      dbAdapter.execute(`CREATE INDEX IF NOT EXISTS idx_sessions_identity ON sessions (identity_id);`).catch(() => {});
+      dbAdapter.execute(`CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions (expires_at);`).catch(() => {});
     }).catch(() => {});
   }).catch((err) => {
     console.error("[database-bootstrap] Schema init error:", err);

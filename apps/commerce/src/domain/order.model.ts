@@ -38,7 +38,7 @@ export interface OrderLineItem {
 
 
 export class OrderModel extends Model {
-  static override tableName = "orders";
+  static override tableName = "commerce_orders";
 
   userId!: string;
   vendableId!: string;

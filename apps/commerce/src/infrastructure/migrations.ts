@@ -17,12 +17,32 @@ export class CommercePostgresMigrationProvider implements MigrationProvider {
 
     builder.createTable("commerce_orders", (table) => {
       table.string("id").primary();
-      table.string("customerId");
-      table.json("items");
-      table.decimal("totalAmount");
-      table.string("status");
+      table.string("userId");
+      table.string("vendableId").nullable();
+      table.string("customerId").nullable();
+      table.enum("status", [
+        "Pending",
+        "Paid",
+        "Processing",
+        "Shipped",
+        "Delivered",
+        "Cancelled",
+        "Refunded",
+      ]);
+      table.string("currency").default("EUR");
+      table.decimal("totalAmount").default(0);
+      table.decimal("taxAmount").default(0);
+      table.string("discountCode").nullable();
+      table.json("shippingAddress").nullable();
+      table.json("billingAddress").nullable();
+      table.json("lineItems").nullable();
+      table.json("items").nullable();
       table.timestamp("createdAt");
       table.timestamp("updatedAt");
+      table.timestamp("deletedAt").nullable();
+      table.index("idx_orders_user", ["userId"]);
+      table.index("idx_orders_status", ["status"]);
+      table.index("idx_orders_vendable", ["vendableId"]);
     });
 
     const statements = builder.blueprints.flatMap((bp) => grammar.compile(bp));

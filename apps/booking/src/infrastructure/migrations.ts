@@ -18,36 +18,33 @@ export class BookingPostgresMigrationProvider implements MigrationProvider {
     builder.createTable("booking_slots", (table) => {
       table.string("id").primary();
       table.string("providerId");
-      table.string("serviceName");
-      table.timestamp("startTime");
-      table.timestamp("endTime");
-      table.string("timezone");
-      table.integer("capacity");
-      table.integer("reservedCount");
-      table.string("status");
-      table.string("location").nullable();
-      table.decimal("price").nullable();
-      table.string("currency").nullable();
-      table.timestamp("createdAt");
+      table.enum("status", ["Available", "Reserved", "Cancelled", "Completed"]);
+      table.json("data");
+      table.timestamp("createdAt").nullable();
+      table.timestamp("updatedAt").nullable();
+      table.index("idx_booking_slots_provider", ["providerId"]);
+      table.index("idx_booking_slots_status", ["status"]);
     });
 
-    builder.createTable("reservations", (table) => {
+    builder.createTable("booking_reservations", (table) => {
       table.string("id").primary();
       table.string("slotId");
       table.string("customerId");
-      table.string("customerName");
-      table.string("customerEmail");
-      table.string("status");
-      table.timestamp("holdExpiresAt").nullable();
-      table.timestamp("createdAt");
+      table.enum("status", ["Pending", "Confirmed", "Cancelled", "Expired"]);
+      table.json("data");
+      table.timestamp("createdAt").nullable();
+      table.timestamp("updatedAt").nullable();
       table.foreignKey("slotId", "booking_slots", "id");
+      table.index("idx_reservations_slot", ["slotId"]);
+      table.index("idx_reservations_customer", ["customerId"]);
+      table.index("idx_reservations_status", ["status"]);
     });
 
     const statements = builder.blueprints.flatMap((bp) => grammar.compile(bp));
     const sqlContent = statements.map((s) => s.sql).join("\n");
 
     const downStatements = [
-      { type: "dropTable" as const, table: "reservations" },
+      { type: "dropTable" as const, table: "booking_reservations" },
       { type: "dropTable" as const, table: "booking_slots" },
     ].flatMap((bp) => grammar.compile(bp));
     const downContent = downStatements.map((s) => s.sql).join("\n");
@@ -62,7 +59,7 @@ export class BookingPostgresMigrationProvider implements MigrationProvider {
         checksum: computeChecksum(sqlContent),
         resources: [
           "table:booking_slots",
-          "table:reservations",
+          "table:booking_reservations",
         ],
       },
     ];
