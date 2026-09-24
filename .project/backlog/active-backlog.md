@@ -1,7 +1,7 @@
 # MosaiX / IJIDeals Platform — Active Backlog
 
-- **Dernière mise à jour :** 2026-09-24 — Commerce source unique + COD Algérie + wallet + BAC Livraison (deliveryboy) + PRD-0011 MeshJS
-- **Statut global :** FEAT-01..13 archivés — 17 tâches : 12 livrées (ROLE, DATA-01/09, PRD-0010) / 8 restantes (DATA-07/08 + THEME UI + PRD-0011 19 pages + WALLET escrow + DELIVERY BAC) — voir §7-§8. Historique dans `.project/archive/completed-backlog-history.md`.
+- **Dernière mise à jour :** 2026-09-24 — CIB + Gestion-Commerciale (Next-base `eb156d00`/`85a7ec11`) + PRD-0011 MeshJS
+- **Statut global :** FEAT-01..13 archivés — 19 tâches : 12 livrées (ROLE, DATA-01/09, PRD-0010) / 7 restantes (DATA-07/08 + THEME UI + PRD-0011 19 pages + CIB-01 + GEST-01 + WALLET/DELIVERY) — voir §6-§8. Historique dans `.project/archive/completed-backlog-history.md`.
 
 ---
 
@@ -225,7 +225,10 @@ Gaps issus de l'analyse `apps/*/src/domain/*.ts` vs `infrastructure/migrations.t
 - **DATA-08 [CŒUR] Typer les `Record<string,unknown>`** — Remplacer 14 occurrences (`VendableCharacteristics.attributes` `vendable.ts:61`, `MediaItem.metadata`, `CommerceOffer.metadata`, `Post.metadata` `social.model.ts:89`, `AuditLog.metadata` etc.) par Zod `z.infer` + `JSON Schema` GIN indexé ; `SellerEntityType | string` → `z.enum([...])` ; `PublicationTypeRegistry.validateMetadata()` `social.model.ts:63` rendu bloquant (throw déjà `social.model.ts:206` mais `metadata?:` optionnel contourne). Fichiers : `packages/schemas/src/index.ts`, `apps/*/src/domain/*.ts`. Criticité 🟡
 - **DATA-09 [CŒUR] Portfolio Features à la CS-Cart — GSMArena Xiaomi 18 Pro Max** — Inspiré `CS-Cart 4.19 Features` `docs.cs-cart.com/4.19.x/developer_guide/api/entities/product_features.html` (`feature_type S/E/T/N/D`, `purpose filter|variation_separate|variation_one|brand|additional`, `Product Variations` `POST /product_variations/generate {product_id, feature_ids}`) : créer `portfolio_feature_groups(id,name,code)` (12 groupes GSMArena Network/Body/Display...), `portfolio_features(id, group_id FK, code, feature_type S/E/T/N/D, purpose, description, is_filterable)` (ex `chipset T/filter`, `ram S/variation_separate`, `brand E/brand`), `portfolio_feature_variants(id, feature_id FK, variant)` (12GB/16GB), `portfolio_vendable_features(vendable_id FK, feature_id FK, value_text, variant_id FK, PK vendable_id+feature_id)` + `portfolio_variation_groups(id, parent_vendable_id FK, code)` + `portfolio_variation_group_features(group_id, feature_id, purpose)`. Migrer `VendableCharacteristics.attributes` EAV flou → `portfolio_vendable_features` indexé ; génération variations Xiaomi `POST /product_variations/generate` 256/12/BK,512/12/WH,1T/16/BK → `variation_group_id` commun (cf. `portfolio/migrations/20260922162000_create_portfolio_tables.ts` à étendre). Criticité 🟠 — référence `https://www.gsmarena.com/xiaomi_18_pro_max_5g-14958.php` (8500mAh, 5G 30 bands, Snapdragon 8 Elite Extreme Gen6).
 
-> Ordre d'exécution recommandé : ROLE-01/02/04 + DATA-01/02/05 (P0) → ROLE-03 + DATA-03/04/07 (P1) → ROLE-05 + DATA-06/08/09 (P2).
+- **CIB-01 [CŒUR] Minage `Next-base: IJIDeals-CIB` `eb156d00`** — Extraire `PaymentPort SATIM` `CIB/Edahabia` `Money` recharge `wallet` `wallets/wallet_transactions escrow hold→release` vs `DemoPaymentPort` `checkout-order.workflow.ts:25` ; documenter `commissionRateBps` et `payoutDestination` `commerce-offer.model.ts:25`.
+- **GEST-01 [CŒUR] Minage `Next-base: Gestion-Commerciale` `85a7ec11`** — Comparer `portfolio_categories` arbre + `portfolio_vendable_features` `filter` vs `variation_separate` `ac99009` 14 tables vs `Gestion-Commerciale` `Vendable→Offer` `price/stock` source unique ; valider `FORBIDDEN_OPERATIONAL_KEYS` `portfolio-service.ts:61`.
+
+> Ordre d'exécution recommandé : ROLE-01/02/04 + DATA-01/02/05 (P0) → ROLE-03 + DATA-03/04/07 (P1) → ROLE-05 + DATA-06/08/09 + CIB-01/GEST-01 (P2).
 
 ---
 
