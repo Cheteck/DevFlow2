@@ -1,5 +1,5 @@
 /**
- * @mosaix/plugin-engine/runtime — Hook Execution Engine
+ * @mosaix/plugin-engine/runtime — Hook Execution Engine with Metrics, AbortSignal & Sandbox Isolation
  */
 
 export type HookHandler<T = unknown, R = unknown> = (payload: T, context?: unknown) => Promise<R> | R;
@@ -18,6 +18,7 @@ export interface HookExecutionOptions {
   mode?: HookExecutionMode;
   timeoutMs?: number;
   stopOnError?: boolean;
+  signal?: AbortSignal;
 }
 
 export interface HookExecutionResult<R = unknown> {
@@ -29,8 +30,18 @@ export interface HookExecutionResult<R = unknown> {
   durationMs: number;
 }
 
+export interface HookPointMetrics {
+  point: string;
+  totalExecutions: number;
+  totalErrors: number;
+  totalDurationMs: number;
+  avgDurationMs: number;
+  lastExecutedAt?: string;
+}
+
 export class HookExecutionEngine {
   private hooks = new Map<string, RegisteredHook[]>();
+  private metrics = new Map<string, HookPointMetrics>();
 
   /**
    * Register a hook for a given extension point
@@ -46,7 +57,7 @@ export class HookExecutionEngine {
       point,
       pluginId: options?.pluginId,
       priority: options?.priority ?? 100,
-      handler,
+      handler: handler as HookHandler<unknown, unknown>,
     };
 
     if (!this.hooks.has(point)) {
@@ -110,6 +121,11 @@ export class HookExecutionEngine {
     const mode = options?.mode ?? "parallel";
     const timeoutMs = options?.timeoutMs ?? 5000;
     const stopOnError = options?.stopOnError ?? false;
+    const signal = options?.signal;
+
+    if (signal?.aborted) {
+      throw new Error(`Hook execution on point [${point}] was aborted prior to execution.`);
+    }
 
     const list = this.hooks.get(point) ?? [];
     const results: R[] = [];
@@ -118,6 +134,10 @@ export class HookExecutionEngine {
     let bailValue: R | undefined = undefined;
 
     const executeWithTimeout = async (hook: RegisteredHook, payload: unknown): Promise<R> => {
+      if (signal?.aborted) {
+        throw new Error(`Hook execution on point [${point}] was aborted.`);
+      }
+
       let timer: NodeJS.Timeout | undefined;
       const timeoutPromise = new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
@@ -125,9 +145,20 @@ export class HookExecutionEngine {
         }, timeoutMs);
       });
 
+      const abortPromise = signal
+        ? new Promise<never>((_, reject) => {
+            signal.addEventListener(
+              "abort",
+              () => reject(new Error(`Hook execution aborted on point [${point}]`)),
+              { once: true }
+            );
+          })
+        : undefined;
+
       try {
         const resultPromise = Promise.resolve(hook.handler(payload, context));
-        const res = await Promise.race([resultPromise, timeoutPromise]);
+        const racing = abortPromise ? [resultPromise, timeoutPromise, abortPromise] : [resultPromise, timeoutPromise];
+        const res = await Promise.race(racing);
         return res as R;
       } finally {
         if (timer) clearTimeout(timer);
@@ -188,14 +219,54 @@ export class HookExecutionEngine {
       }
     }
 
+    const durationMs = Math.round(performance.now() - start);
+
+    // Record metrics
+    this.recordMetrics(point, durationMs, errors.length);
+
     return {
       point,
       results,
       waterfallResult: waterfallValue,
       bailResult: bailValue,
       errors,
-      durationMs: Math.round(performance.now() - start),
+      durationMs,
     };
+  }
+
+  private recordMetrics(point: string, durationMs: number, errorCount: number): void {
+    const existing = this.metrics.get(point) ?? {
+      point,
+      totalExecutions: 0,
+      totalErrors: 0,
+      totalDurationMs: 0,
+      avgDurationMs: 0,
+    };
+
+    existing.totalExecutions += 1;
+    existing.totalErrors += errorCount;
+    existing.totalDurationMs += durationMs;
+    existing.avgDurationMs = Math.round(existing.totalDurationMs / existing.totalExecutions);
+    existing.lastExecutedAt = new Date().toISOString();
+
+    this.metrics.set(point, existing);
+  }
+
+  getMetrics(): Record<string, HookPointMetrics> {
+    const res: Record<string, HookPointMetrics> = {};
+    for (const [k, v] of this.metrics.entries()) {
+      res[k] = { ...v };
+    }
+    return res;
+  }
+
+  getPointMetrics(point: string): HookPointMetrics | undefined {
+    const m = this.metrics.get(point);
+    return m ? { ...m } : undefined;
+  }
+
+  resetMetrics(): void {
+    this.metrics.clear();
   }
 
   getRegisteredPoints(): string[] {

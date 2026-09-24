@@ -66,6 +66,35 @@ describe("@mosaix/plugin-engine Comprehensive Suite (Priorities 1-8)", () => {
       const res = await hookEngine.runHook("auth.authenticate", {}, { mode: "bail" });
       expect(res.bailResult).toEqual({ userId: "usr_123" });
     });
+
+    it("respects AbortSignal cancellation during execution", async () => {
+      const hookEngine = new HookExecutionEngine();
+      const controller = new AbortController();
+
+      hookEngine.registerHook("heavy.task", async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        return "done";
+      });
+
+      controller.abort();
+      await expect(
+        hookEngine.runHook("heavy.task", {}, { signal: controller.signal })
+      ).rejects.toThrow("aborted");
+    });
+
+    it("tracks execution metrics and average duration per hook point", async () => {
+      const hookEngine = new HookExecutionEngine();
+      hookEngine.registerHook("billing.discount", () => 15);
+
+      await hookEngine.runHook("billing.discount", {});
+      await hookEngine.runHook("billing.discount", {});
+
+      const metrics = hookEngine.getPointMetrics("billing.discount");
+      expect(metrics).toBeDefined();
+      expect(metrics?.totalExecutions).toBe(2);
+      expect(metrics?.totalErrors).toBe(0);
+      expect(metrics?.lastExecutedAt).toBeDefined();
+    });
   });
 
   // 2. Dynamic Workspace Plugin Loader

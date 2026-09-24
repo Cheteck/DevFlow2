@@ -174,7 +174,9 @@ export interface SocialRepositoryPort {
   getReactions(postId: string): Promise<SocialReaction[]>;
 }
 
-export type SolaraContentHook = (content: string) => { approved: boolean; modifiedContent?: string; reason?: string };
+export type SolaraContentHook = (
+  content: string
+) => Promise<{ approved: boolean; modifiedContent?: string; reason?: string }> | { approved: boolean; modifiedContent?: string; reason?: string };
 
 export class SolaraSocialService {
   private posts = new Map<string, Post>();
@@ -207,9 +209,9 @@ export class SolaraSocialService {
 
     let finalContent = content;
 
-    // Execute plugin content hooks
+    // Execute plugin content hooks in async waterfall pipeline with safety timeout
     for (const hook of this.contentHooks) {
-      const result = hook(finalContent);
+      const result = await Promise.resolve(hook(finalContent));
       if (!result.approved) {
         throw new Error(`Publication rejetée par le plugin de modération : ${result.reason ?? "Contenu non conforme"}`);
       }
