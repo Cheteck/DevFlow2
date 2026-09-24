@@ -22,6 +22,7 @@
 - ✅ **ROLE-P2..P7 RBAC, Dynamique & Audit** : Migrations Postgres pour `permissions`, `roles`, `role_permissions`, `global_user_roles`, `space_members`, `permission_overrides`, `acting_as_audit_events` et `role_audit_events`.
 - ✅ **DATA-01..06 Modèles & Value Objects** : Complétion des migrations pour `portfolio_translations`, `portfolio_relations`, `portfolio_media_assets`, `solara_categories`, `solara_translations`, et intégration des helpers `Money` / `Timestamp` dans les services domaine (`CommerceOfferService`, etc.).
 - ✅ **DATA-09 Caractéristiques Extensibles CS-Cart (GSMArena Xiaomi 18 Pro Max)** : Ingestion et modélisation des caractéristiques complexes type CS-Cart (`portfolio_feature_groups`, `portfolio_features`, `portfolio_feature_variants`, `portfolio_vendable_features`, `portfolio_variation_groups`, `portfolio_variation_group_features`).
+- ✅ **PRD-0010 — Portfolio Propositions par les Spaces (v1.3)** : Implémentation du flux de proposition par les Spaces (`portfolio_proposals`, `ProposalService`, `ProposalRepository`, workflow `Draft → Submitted → InReview → Approved/ChangesRequested/Rejected`, et création atomique du `Vendable` publié).
 
 ## 3. Statut du Backlog Actif
 - **Statut Global** : All 17 tasks completed and verified in the test suite and build system.
