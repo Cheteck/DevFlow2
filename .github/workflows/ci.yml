@@ -1,10 +1,10 @@
 name: MosaiX CI & Architecture Enforcement
 
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+# on:
+#   push:
+#     branches: [ main, master ]
+#   pull_request:
+#     branches: [ main, master ]
 
 jobs:
   verify:

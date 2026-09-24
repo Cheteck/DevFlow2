@@ -241,4 +241,23 @@ export type {
 // Built-in Kernel Modules & Services
 export * from "./modules/index";
 
+// Effective Permission Resolver & Value Objects
+export {
+  EffectivePermissionResolver,
+  UserAuthorizationContext,
+  effectivePermissionResolver,
+  matchPermissionPattern,
+} from "./effective-permission-resolver";
+export type {
+  PermissionEffect,
+  PermissionSource,
+  PermissionDecision,
+  ResolverContext,
+  RolePermissionRule,
+  UserPermissionOverride,
+} from "./effective-permission-resolver";
+
+export { Money, Timestamp } from "./value-objects";
+
+
 

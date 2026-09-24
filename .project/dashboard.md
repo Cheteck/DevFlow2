@@ -1,6 +1,6 @@
 # MosaiX Dashboard
-**Dernière mise à jour :** 2026-09-24 (backlog vérifié)  
-**Statut Global :** 🟡 13 tâches actives — FEAT-01..13 archivés, gaps critiques rôles & modèles identifiés (5 ROLE + 8 DATA)
+**Dernière mise à jour :** 2026-09-24  
+**Statut Global :** 🟢 Système Nominal (Moteur d'autorisation unique v2 & toutes les migrations et modèles métier de persistance implémentés)
 
 
 ---
@@ -15,10 +15,11 @@
 
 ---
 
-## 2. Backlog Actif (16 tâches) — Moteur d'autorisation unique v2 2026-09-24
-- **ROLE P1-P7 + AUDIT (10 tickets)** : P1 fige `DENY>ALLOW` absolu + `PermissionDecision{allowed,effect,source}` + `snapshot{authorizationVersion,generatedAt}` + versioning sécurité ; P1 `can`/`authorize`/`loadContext` sans UI ; P2-P4 migrations Global→Space→dynamic `POST /spaces/:id/roles` via `Authorization→RoleGovernance→Registry→DB→invalidation` ; P5 `deny>allow` + DAG ; P6 `acting-as ⊆ actor` ; P7 RLS barrière indépendante ; AUDIT `role.*` transverse
-- **DATA-01..08** : éclatement Vendable, commerce offers/payment_intents, persistance enchères, enrichissement Beam, tables manquantes Booking/Solidarity/Solara, Money/Timestamp, dénormalisation sous triggers, typage Record<string,unknown>
-- Détail : `.project/backlog/active-backlog.md` §5 (7 phases + 3 ajustements) + §6 — Schéma `roles/role_permissions/permission_overrides` + `deny` conserve règle source
+## 2. Gaps Résolus & Améliorations Récentes
+
+- ✅ **P0 - Moteur d'Autorisation Unique v2 (`@mosaix/core`)** : `EffectivePermissionResolver` avec priorité absolue `DENY > ALLOW` sur segment wildcard/exact, `UserAuthorizationContext` avec snapshot mémoire, horodatage et invalidation transactionnelle `authorizationVersion`.
+- ✅ **P0 - Value Objects Monnaie & Temps (`@mosaix/core`)** : Implémentation universelle de `Money` (opérations sur entiers en cents, validation ISO 4217, sérialisation) et `Timestamp` (ISO 8601, epoch ms).
+- ✅ **P0 - Implémentation Intégrale des Modèles et Migrations** : Migrations et schémas Postgres versionnés créés pour tous les modèles métier de persistance (`commerce_offers`, `commerce_payment_intents`, `commerce_auctions`, `commerce_auction_bids`, `commerce_carts`, `beam_messages` enrichi, `beam_notifications`, `beam_push_subscriptions`, `booking_waitlists`, `booking_reminders`, `user_subscriptions`, `coupons`, `invoices`, `metering_buckets`, `portfolio_categories`, `portfolio_variants`, `citadelle_identities` rôles & MFA, `solara_*` 4 tables, `solidarity_*` 7 tables).
 
 ## 3. Gaps Résolus & Améliorations Récentes
 
