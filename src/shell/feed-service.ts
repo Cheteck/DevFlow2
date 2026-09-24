@@ -3,6 +3,7 @@
  */
 
 import type { SQLiteDatabaseAdapter } from "@mosaix/adapter-database-sqlite";
+import { initDatabase } from "./database-bootstrap.js";
 
 export interface ShellFeedItem {
   id: string;
@@ -149,3 +150,7 @@ export class FeedService {
     }
   }
 }
+
+const { dbAdapter } = initDatabase();
+export const feedService = new FeedService(dbAdapter);
+feedService.seedInitialFeedIfEmpty().catch(() => {});

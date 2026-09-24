@@ -108,3 +108,5 @@ export class DistributedEventBackplane {
     return this.sseClients.size;
   }
 }
+
+export const distributedEventBackplane = DistributedEventBackplane.getInstance();

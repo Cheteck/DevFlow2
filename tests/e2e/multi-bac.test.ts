@@ -11,6 +11,7 @@ describe("E2E Multi-BAC Integration", () => {
       manifest: {
         type: "application",
         id: "@apps/citadelle",
+        name: "Citadelle",
         version: "1.0.0",
         domain: { name: "citadelle" },
         runtime: { entrypoint: "./src/index.ts", isolation: "trusted" },
@@ -23,6 +24,7 @@ describe("E2E Multi-BAC Integration", () => {
       manifest: {
         type: "application",
         id: "@apps/booking",
+        name: "Booking",
         version: "1.0.0",
         domain: { name: "booking" },
         runtime: { entrypoint: "./src/index.ts", isolation: "trusted" },
@@ -31,8 +33,8 @@ describe("E2E Multi-BAC Integration", () => {
       tenant
     }, kernel);
 
-    expect(app1.getId()).toBe("@apps/citadelle");
-    expect(app2.getId()).toBe("@apps/booking");
+    expect(app1.manifest.id).toBe("@apps/citadelle");
+    expect(app2.manifest.id).toBe("@apps/booking");
     expect(kernel.listApps().length).toBe(2);
   });
 });

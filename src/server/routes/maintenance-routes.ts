@@ -4,7 +4,7 @@
 
 import type * as http from "node:http";
 import type { URL } from "node:url";
-import { maintenanceService } from "../../../apps/imperia/src/domain/maintenance.service.js";
+import { maintenanceService } from "@mosaix/core";
 import { sendProblemResponse } from "../../shell/http-errors.js";
 import type { UserProfile } from "../../shell/profiles.js";
 

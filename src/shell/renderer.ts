@@ -1054,6 +1054,65 @@ export function renderToastContainer(): string {
   `;
 }
 
+export function renderBacAdminSafely(appId: string, contributions: unknown[] = []): string {
+  const cleanId = (appId || "").replace(/^@apps\//, "");
+  const icon = APP_ICONS[cleanId] || APP_ICONS[appId] || "📦";
+  const title = cleanId.charAt(0).toUpperCase() + cleanId.slice(1);
+
+  return `
+    <div class="space-y-6">
+      <div class="flex items-center justify-between p-6 rounded-2xl bg-surface-container/40 border border-outline-variant/20">
+        <div class="flex items-center gap-4">
+          <div class="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-3xl shadow-inner">
+            ${icon}
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-bold text-on-surface">${escapeHtml(title)}</h2>
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Opérationnel
+              </span>
+            </div>
+            <p class="text-xs text-on-surface-variant font-mono mt-1">${escapeHtml(appId)} • Bounded Application Context</p>
+          </div>
+        </div>
+
+        <div class="text-right text-xs">
+          <span class="text-on-surface-variant block">Contributions actives</span>
+          <span class="font-bold text-primary text-sm">${contributions.length} points d'extension</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="p-4 rounded-xl bg-surface-container border border-outline-variant/20 space-y-2">
+          <div class="flex items-center gap-2 text-primary text-xs font-bold uppercase">
+            <span class="material-symbols-outlined text-base">domain</span>
+            <span>Domaine Métier</span>
+          </div>
+          <p class="text-xs text-on-surface-variant">Isolation hexagonale avec injection de dépendances et ports/adaptateurs dédiés.</p>
+        </div>
+
+        <div class="p-4 rounded-xl bg-surface-container border border-outline-variant/20 space-y-2">
+          <div class="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase">
+            <span class="material-symbols-outlined text-base">shield</span>
+            <span>Sécurité & RBAC</span>
+          </div>
+          <p class="text-xs text-on-surface-variant">Validation systématique des permissions par tenant et contextes d'exécution.</p>
+        </div>
+
+        <div class="p-4 rounded-xl bg-surface-container border border-outline-variant/20 space-y-2">
+          <div class="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase">
+            <span class="material-symbols-outlined text-base">hub</span>
+            <span>Événements & Backplane</span>
+          </div>
+          <p class="text-xs text-on-surface-variant">Connexion en temps réel au bus d'événements distribué MosaiX.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 export { renderShellToastContainer, renderShellConfirmModal } from "./client/shell-client-scripts.js";
 export { getActiveUserProfile } from "./profiles.js";
 

@@ -18,6 +18,7 @@ import { InMemorySessionStore } from "./infrastructure/in-memory-session-store.j
 import { InMemoryTokenStore } from "./infrastructure/in-memory-token-store.js";
 import { InMemoryCredentialStore } from "./infrastructure/in-memory-credential-store.js";
 import { InMemorySecretsAdapter } from "./infrastructure/in-memory-secrets-adapter.js";
+import { InMemoryGuard } from "@mosaix/support";
 import {
   identityEventPayloadSchemas,
   identityUserCreatedEvent,
@@ -86,6 +87,10 @@ export class CitadelleServiceProvider {
     const dbPort = this.adapters.databasePort;
     const useDatabase = !!dbPort;
     const isSqlite = useDatabase && dbPort!.capabilities.dialect === "sqlite";
+
+    if (!useDatabase && !this.adapters.identityStore) {
+      InMemoryGuard.reportFallback("InMemoryIdentityStore", "missing databasePort in CitadelleAdapters");
+    }
 
     const identityStore =
       this.adapters.identityStore ??

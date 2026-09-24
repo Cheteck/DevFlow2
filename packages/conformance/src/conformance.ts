@@ -125,8 +125,9 @@ export class AppConformanceValidator {
     }
 
     const frontendPath = path.join(appDir, "frontend", "src", "index.ts");
-    if (!fs.existsSync(frontendPath)) {
-      errors.push(`Frontend entrypoint [frontend/src/index.ts] missing in application [${appDir}].`);
+    const presentationPath = path.join(appDir, "src", "presentation", "index.ts");
+    if (!fs.existsSync(frontendPath) && !fs.existsSync(presentationPath) && !fs.existsSync(indexPath)) {
+      errors.push(`Frontend or presentation entrypoint missing in application [${appDir}].`);
     }
 
     return {

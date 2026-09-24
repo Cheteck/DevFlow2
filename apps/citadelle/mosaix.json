@@ -24,8 +24,8 @@
     }
   ],
   "permissions": [
-    "citadelle:user:create",
-    "citadelle:user:read"
+    "citadelle:user:create:tenant",
+    "citadelle:user:read:tenant"
   ],
   "events": [
     "identity.user.created",

@@ -35,7 +35,7 @@ import { dispatchApiRequest } from "./server/api-dispatcher.js";
 import { renderBacPage } from "./shell/pages/bac-page.js";
 import { renderHomePage } from "./shell/pages/home-page.js";
 
-const PORT = parseInt(process.env.PORT || "3000", 10);
+const PORT = parseInt(process.env.APP_PORT || "3000", 10);
 let activeMode: ThemeMode = "dark";
 
 // Composition Overrides Store initialization
@@ -138,8 +138,13 @@ const server = http.createServer(async (req, res) => {
   );
 
   if (matchedApp) {
+    const cleanAppId = matchedApp.id.replace(/^@apps\//, "");
     const isAllowed =
-      currentUser.allowedBacs.includes("*") || currentUser.allowedBacs.includes(matchedApp.id);
+      currentUser.allowedBacs.includes("*") ||
+      currentUser.allowedBacs.includes(matchedApp.id) ||
+      currentUser.allowedBacs.includes(cleanAppId) ||
+      (cleanAppId === "citadelle" && currentUser.allowedBacs.includes("identity")) ||
+      (cleanAppId === "identity" && currentUser.allowedBacs.includes("citadelle"));
 
     if (!isAllowed) {
       res.writeHead(403, { "Content-Type": "text/html; charset=utf-8" });

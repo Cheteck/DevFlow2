@@ -1,18 +1,12 @@
-import { identityContributions, IdentityLoginPageView, IdentityRegisterPageView, IdentityGdprPrivacyPageView } from "../../apps/citadelle/src/presentation/index.js";
-import { solaraContributions, SolaraSocialFeedPageView } from "../../apps/solara/src/presentation/index.js";
-import { solidarityContributions, SolidarityPageView } from "../../apps/solidarity/src/presentation/index.js";
-import { imperiaContributions, ImperiaGovernancePageView } from "../../apps/imperia/src/presentation/index.js";
-import { spacesContributions, SpaceDashboardPageView } from "../../apps/spaces/src/presentation/index.js";
-import { commerceContributions, CommerceCheckoutPageView } from "../../apps/commerce/src/presentation/index.js";
-import { beamContributions, BeamConversationPageView } from "../../apps/beam/src/presentation/index.js";
-import { portfolioContributions, PortfolioCatalogPageView } from "../../apps/portfolio/src/presentation/index.js";
-import { bookingContributions, BookingPageView } from "../../apps/booking/src/presentation/index.js";
-import { subscriptionContributions, SubscriptionPageView } from "../../apps/subscription/src/presentation/index.js";
+/**
+ * @mosaix/shell — Dynamic & Pluggable BAC Registry
+ * Manages runtime registration, dynamic loaders, and discovery for Bounded App Contexts.
+ */
 
 export interface BacPluginRegistration {
   id: string;
   contributions: unknown[];
-  pageViews: Array<[string, unknown]>;
+  pageViews?: Array<[string, unknown]>;
   dynamicLoader?: () => Promise<unknown>;
 }
 
@@ -29,60 +23,26 @@ export class DynamicBacRegistry {
 
   static {
     // Register canonical core modules
-    this.register({
-      id: "citadelle",
-      contributions: identityContributions || [],
-      pageViews: [
-        ["login", IdentityLoginPageView],
-        ["register", IdentityRegisterPageView],
-        ["privacy", IdentityGdprPrivacyPageView],
-      ],
-    });
-    this.register({
-      id: "solara",
-      contributions: solaraContributions || [],
-      pageViews: [["feed", SolaraSocialFeedPageView]],
-    });
-    this.register({
-      id: "solidarity",
-      contributions: solidarityContributions || [],
-      pageViews: [["solidarity", SolidarityPageView]],
-    });
-    this.register({
-      id: "imperia",
-      contributions: imperiaContributions || [],
-      pageViews: [["governance", ImperiaGovernancePageView]],
-    });
-    this.register({
-      id: "spaces",
-      contributions: spacesContributions || [],
-      pageViews: [["spaces", SpaceDashboardPageView]],
-    });
-    this.register({
-      id: "commerce",
-      contributions: commerceContributions || [],
-      pageViews: [["checkout", CommerceCheckoutPageView]],
-    });
-    this.register({
-      id: "beam",
-      contributions: beamContributions || [],
-      pageViews: [["chat", BeamConversationPageView]],
-    });
-    this.register({
-      id: "portfolio",
-      contributions: portfolioContributions || [],
-      pageViews: [["catalog", PortfolioCatalogPageView]],
-    });
-    this.register({
-      id: "booking",
-      contributions: bookingContributions || [],
-      pageViews: [["main", BookingPageView]],
-    });
-    this.register({
-      id: "subscription",
-      contributions: subscriptionContributions || [],
-      pageViews: [["main", SubscriptionPageView]],
-    });
+    const coreModules = [
+      "citadelle",
+      "solara",
+      "solidarity",
+      "imperia",
+      "spaces",
+      "commerce",
+      "beam",
+      "portfolio",
+      "booking",
+      "subscription",
+    ];
+
+    for (const mod of coreModules) {
+      this.register({
+        id: mod,
+        contributions: [],
+        pageViews: [],
+      });
+    }
   }
 
   static register(plugin: BacPluginRegistration): void {
@@ -108,10 +68,10 @@ export class DynamicBacRegistry {
   static async loadDynamicModule(id: string): Promise<BacPluginRegistration | undefined> {
     const cleanId = id.replace(/^@apps\//, "");
     const existing = this.get(cleanId);
-    if (existing) return existing;
+    if (existing && existing.contributions.length > 0) return existing;
 
     const loader = this.dynamicLoaders.get(cleanId);
-    if (!loader) return undefined;
+    if (!loader) return existing;
 
     try {
       const moduleExport = await loader();
@@ -124,7 +84,7 @@ export class DynamicBacRegistry {
       return registration;
     } catch (err) {
       console.error(`[DynamicBacRegistry] Failed to load dynamic module [${id}]:`, err);
-      return undefined;
+      return existing;
     }
   }
 

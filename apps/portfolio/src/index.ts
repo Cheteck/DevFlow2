@@ -13,6 +13,7 @@ import { PortfolioService } from "./domain/portfolio-service.js";
 import type { VendableRepository } from "./domain/vendable-repository.js";
 import { InMemoryVendableRepository } from "./infrastructure/in-memory-vendable-repository.js";
 import { PostgresVendableRepository } from "./infrastructure/postgres-vendable-repository.js";
+import { InMemoryGuard } from "@mosaix/support";
 import { VendableWorkflow } from "./vendable-workflow.js";
 import { mountPortfolioRoutes } from "./composition-root.js";
 
@@ -70,9 +71,7 @@ export class PortfolioServiceProvider {
     } else if (this.adapters.databasePort) {
       repository = new PostgresVendableRepository(this.adapters.databasePort);
     } else {
-      if (process.env.NODE_ENV === "production") {
-        throw new Error("[Portfolio] DatabasePort or VendableRepository is mandatory in production mode.");
-      }
+      InMemoryGuard.reportFallback("InMemoryVendableRepository", "missing DatabasePort in PortfolioAdapters");
       repository = new InMemoryVendableRepository();
     }
 

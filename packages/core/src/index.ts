@@ -235,6 +235,10 @@ export type {
   AdminPage,
   ContextualActionsContext,
   ShellContextualContribution,
+  NavigationItemContribution,
 } from "./shell-registry";
+
+// Built-in Kernel Modules & Services
+export * from "./modules/index";
 
 

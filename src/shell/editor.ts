@@ -62,6 +62,9 @@ export function loadCompositionOverridesFromFile(manager: CompositionOverrideMan
   }
 }
 
+export const loadSavedCompositionOverrides = loadCompositionOverridesFromFile;
+
+
 export function renderLiveEditorControlToolbar(slotId: string, blockId: string, currentSpan: number, currentWrapper: string, isLiveEditor: boolean): string {
   if (!isLiveEditor) return "";
 

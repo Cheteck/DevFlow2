@@ -4,7 +4,7 @@
  */
 
 import type * as http from "node:http";
-import { maintenanceService } from "../../../apps/imperia/src/domain/maintenance.service.js";
+import { maintenanceService } from "@mosaix/core";
 import { renderMaintenancePage } from "../../shell/renderer.js";
 import { renderHeadBlock } from "../../shell/ssr-engine.js";
 import { renderThemeStyleTag } from "../../shell/theme/theme-bridge.js";

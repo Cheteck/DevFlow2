@@ -1,4 +1,5 @@
 import type { Container, ServiceProvider, Router } from "@mosaix/sdk";
+import { InMemoryGuard } from "@mosaix/support";
 import { OrderRepository } from "./order.repository.js";
 import { PostgresOrderRepository } from "./postgres-order-repository.js";
 import { OrderService, type OrderRepositoryPort } from "../domain/order.service.js";
@@ -18,6 +19,7 @@ export class CommerceAppServiceProvider implements ServiceProvider {
     } else if (this.databasePort) {
       repository = new PostgresOrderRepository(this.databasePort);
     } else {
+      InMemoryGuard.reportFallback("InMemoryOrderRepository", "missing DatabasePort in CommerceAppServiceProvider");
       repository = new OrderRepository();
     }
     const orderService = new OrderService(repository);

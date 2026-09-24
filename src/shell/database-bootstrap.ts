@@ -8,7 +8,13 @@ export interface DatabaseBootstrapResult {
   identityStore: SQLiteIdentityStoreAdapter;
 }
 
+let cachedBootstrap: DatabaseBootstrapResult | null = null;
+
 export function initDatabase(): DatabaseBootstrapResult {
+  if (cachedBootstrap) {
+    return cachedBootstrap;
+  }
+
   const dataDir = path.join(process.cwd(), "data");
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
@@ -116,5 +122,6 @@ export function initDatabase(): DatabaseBootstrapResult {
     console.error("[database-bootstrap] Schema init error:", err);
   });
 
-  return { dbAdapter, identityStore };
+  cachedBootstrap = { dbAdapter, identityStore };
+  return cachedBootstrap;
 }
