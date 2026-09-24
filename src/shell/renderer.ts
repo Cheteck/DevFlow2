@@ -39,49 +39,69 @@ export function renderPrimarySidebar(user: UserProfile, activeRoute: string, act
   const displayRole = activeSpace ? `${activeSpace.badge} Space` : user.roleLabel;
 
   return `
-    <div class="hidden md:flex flex-col items-center w-[72px] shrink-0 bg-surface-container-lowest/80 backdrop-blur-2xl border-r border-outline-variant/20 py-6 z-[60] fixed left-0 top-0 h-full">
-      <!-- App Brand Logo -->
-      <a href="/" class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center mb-6 shadow-lg shadow-primary/20 hover:scale-105 transition-transform duration-300 relative group/brand">
-        <span class="material-symbols-outlined text-surface-container-lowest font-bold text-xl">temp_preferences_custom</span>
+    <div class="hidden md:flex flex-col items-center w-[76px] shrink-0 bg-surface-container-lowest/90 backdrop-blur-2xl border-r border-outline-variant/15 py-5 z-[60] fixed left-0 top-0 h-full shadow-2xl select-none">
+      <!-- App Brand Logo & Quick Command Trigger -->
+      <a href="/" class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-primary via-indigo-500 to-secondary flex items-center justify-center mb-4 shadow-lg shadow-primary/25 hover:scale-105 active:scale-95 transition-all duration-300 relative group/brand border border-primary/20">
+        <span class="material-symbols-outlined text-surface-container-lowest font-extrabold text-2xl group-hover:rotate-12 transition-transform">auto_awesome</span>
+        
         <!-- Premium Brand Tooltip -->
-        <div class="absolute left-[76px] px-2.5 py-1.5 rounded-lg bg-surface-container-highest border border-outline-variant/30 text-[11px] font-bold text-on-surface opacity-0 translate-x-2 pointer-events-none group-hover/brand:opacity-100 group-hover/brand:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-xl z-[70]">
-          MosaiX Platform
+        <div class="absolute left-[84px] px-3 py-2 rounded-xl bg-surface-container-highest/95 border border-outline-variant/30 text-xs font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover/brand:opacity-100 group-hover/brand:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-2xl z-[70] backdrop-blur-xl">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+            <span>MosaiX Platform</span>
+          </div>
+          <span class="block text-[10px] text-on-surface-variant/80 font-normal mt-0.5">Système Décentralisé</span>
         </div>
       </a>
 
+      <!-- Quick Command Trigger Button -->
+      <button onclick="if(typeof openCommandPalette==='function'){openCommandPalette();}else{const f=document.getElementById('secondary-sidebar-filter');if(f)f.focus();}" class="w-10 h-10 rounded-xl bg-surface-variant/30 hover:bg-surface-variant/60 text-on-surface-variant hover:text-on-surface flex items-center justify-center mb-3 transition-all duration-200 group/cmd relative cursor-pointer border border-outline-variant/10">
+        <span class="material-symbols-outlined text-lg group-hover/cmd:scale-110 transition-transform">search</span>
+        <div class="absolute left-[84px] px-2.5 py-1.5 rounded-lg bg-surface-container-highest border border-outline-variant/30 text-[11px] font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover/cmd:opacity-100 group-hover/cmd:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-xl z-[70]">
+          Recherche Rapide <span class="ml-1 text-[9px] font-mono px-1 py-0.5 rounded bg-surface-variant text-primary border border-primary/20">⌘K</span>
+        </div>
+      </button>
+
+      <div class="w-8 h-px bg-outline-variant/15 mb-3"></div>
+
       <!-- BAC Navigation Icons (RBAC Filtered) -->
-      <nav id="mosaix-slot-shell-sidebar-primary" data-mosaix-slot="shell.sidebar.primary" class="flex flex-col gap-4 w-full items-center overflow-y-auto no-scrollbar py-2 transition-all">
+      <nav id="mosaix-slot-shell-sidebar-primary" data-mosaix-slot="shell.sidebar.primary" class="flex flex-col gap-3 w-full items-center overflow-y-auto no-scrollbar py-1 transition-all">
         <!-- Home Navigation Item -->
-        <a class="w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 group relative ${activeRoute === '/' ? 'text-primary bg-primary/10' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50'}" href="/">
+        <a class="w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 group relative ${activeRoute === '/' ? 'text-primary bg-primary/15 font-bold shadow-md shadow-primary/10 border border-primary/30' : 'text-on-surface-variant/80 hover:text-on-surface hover:bg-surface-variant/40 border border-transparent'}" href="/">
           <span class="material-symbols-outlined text-xl group-hover:scale-110 transition-transform">home</span>
           
-          <!-- Discord-like active state indicator -->
+          <!-- Active Pill Indicator -->
           <div class="absolute left-0 w-1 bg-primary rounded-r-full transition-all duration-300 origin-left 
-                      ${activeRoute === '/' ? 'h-6 scale-y-100' : 'h-2 scale-y-0 group-hover:h-4 group-hover:scale-y-100'}"></div>
+                      ${activeRoute === '/' ? 'h-7 scale-y-100 shadow-sm shadow-primary/50' : 'h-2 scale-y-0 group-hover:h-4 group-hover:scale-y-100'}"></div>
                       
           <!-- Premium Floating Tooltip -->
-          <div class="absolute left-[76px] px-2.5 py-1.5 rounded-lg bg-surface-container-highest border border-outline-variant/30 text-[11px] font-bold text-on-surface opacity-0 translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-xl z-[70]">
-            Accueil Fil Social
+          <div class="absolute left-[84px] px-3 py-2 rounded-xl bg-surface-container-highest/95 border border-outline-variant/30 text-xs font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-2xl z-[70] backdrop-blur-xl">
+            <span>Accueil Fil Social</span>
+            <span class="block text-[10px] text-primary font-medium mt-0.5">Flux Général MosaiX</span>
           </div>
         </a>
 
-        <div class="w-8 h-px bg-outline-variant/20 my-1"></div>
+        <div class="w-8 h-px bg-outline-variant/15 my-0.5"></div>
 
         <!-- Authorized BAC List -->
         ${allowedApps.map(app => {
           const isActive = activeRoute === app.route || activeRoute.startsWith(app.route + '/');
+          const isBeam = app.id === "@apps/beam" || app.id === "beam";
           return `
-            <a class="w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 group relative ${isActive ? 'text-primary bg-primary/10 font-bold' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50'}" href="${app.route}">
+            <a class="w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 group relative ${isActive ? 'text-primary bg-primary/15 font-bold shadow-md shadow-primary/10 border border-primary/30' : 'text-on-surface-variant/80 hover:text-on-surface hover:bg-surface-variant/40 border border-transparent'}" href="${app.route}">
               <span class="text-xl group-hover:scale-110 transition-transform">${app.icon}</span>
               
-              <!-- Discord-like active state indicator -->
+              <!-- Badge notification indicator for Beam/Solara -->
+              ${isBeam ? `<span class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-surface animate-pulse"></span>` : ''}
+
+              <!-- Active Pill Indicator -->
               <div class="absolute left-0 w-1 bg-primary rounded-r-full transition-all duration-300 origin-left 
-                          ${isActive ? 'h-6 scale-y-100' : 'h-2 scale-y-0 group-hover:h-4 group-hover:scale-y-100'}"></div>
+                          ${isActive ? 'h-7 scale-y-100 shadow-sm shadow-primary/50' : 'h-2 scale-y-0 group-hover:h-4 group-hover:scale-y-100'}"></div>
                           
               <!-- Premium Floating Tooltip -->
-              <div class="absolute left-[76px] px-2.5 py-1.5 rounded-lg bg-surface-container-highest border border-outline-variant/30 text-[11px] font-bold text-on-surface opacity-0 translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-xl z-[70]">
-                ${escapeHtml(app.name)}
-                <span class="block text-[9px] text-on-surface-variant font-medium mt-0.5">${escapeHtml(app.category)}</span>
+              <div class="absolute left-[84px] px-3 py-2 rounded-xl bg-surface-container-highest/95 border border-outline-variant/30 text-xs font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-2xl z-[70] backdrop-blur-xl">
+                <span>${escapeHtml(app.name)}</span>
+                <span class="block text-[10px] text-on-surface-variant/80 font-medium mt-0.5">${escapeHtml(app.category)}</span>
               </div>
             </a>
           `;
@@ -89,25 +109,25 @@ export function renderPrimarySidebar(user: UserProfile, activeRoute: string, act
       </nav>
 
       <!-- Bottom User Profile Avatar & Mobile Drawer Toggle -->
-      <div class="mt-auto flex flex-col gap-4 w-full items-center pt-2">
-        <button onclick="toggleMobileDrawer()" class="lg:hidden w-10 h-10 rounded-xl bg-surface-variant/50 text-on-surface flex items-center justify-center relative group/mob" title="Menu Mobile">
+      <div class="mt-auto flex flex-col gap-3 w-full items-center pt-3 border-t border-outline-variant/15">
+        <button onclick="toggleMobileDrawer()" class="lg:hidden w-10 h-10 rounded-xl bg-surface-variant/40 text-on-surface flex items-center justify-center relative group/mob cursor-pointer hover:bg-surface-variant/70 transition-colors" title="Menu Mobile">
           <span class="material-symbols-outlined text-lg">menu</span>
-          <div class="absolute left-[76px] px-2.5 py-1.5 rounded-lg bg-surface-container-highest border border-outline-variant/30 text-[11px] font-bold text-on-surface opacity-0 translate-x-2 pointer-events-none group-hover/mob:opacity-100 group-hover/mob:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-xl z-[70]">
+          <div class="absolute left-[84px] px-3 py-2 rounded-xl bg-surface-container-highest border border-outline-variant/30 text-xs font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover/mob:opacity-100 group-hover/mob:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-xl z-[70]">
             Menu Mobile
           </div>
         </button>
 
         <!-- Synchronized Bottom Profile Avatar (Displays active Space if selected) -->
-        <div class="w-10 h-10 ${activeSpace ? 'rounded-xl' : 'rounded-full'} border-2 ${activeSpace ? 'border-emerald-500/50 hover:border-emerald-400' : 'border-outline-variant/30 hover:border-primary'} transition-all duration-300 cursor-pointer flex items-center justify-center ${activeSpace ? 'bg-emerald-600/20 text-emerald-400' : 'bg-indigo-600/30 text-primary'} font-bold text-base relative group/avatar">
+        <a href="/identity" class="w-11 h-11 ${activeSpace ? 'rounded-2xl' : 'rounded-full'} border-2 ${activeSpace ? 'border-emerald-500/60 hover:border-emerald-400 shadow-lg shadow-emerald-500/20' : 'border-outline-variant/30 hover:border-primary shadow-lg shadow-indigo-500/10'} transition-all duration-300 cursor-pointer flex items-center justify-center ${activeSpace ? 'bg-emerald-600/20 text-emerald-400' : 'bg-indigo-600/25 text-primary'} font-bold text-base relative group/avatar">
           <span>${displayAvatar}</span>
-          <span class="absolute -top-1 -right-1 w-3 h-3 rounded-full ${activeSpace ? 'bg-emerald-400' : 'bg-emerald-500'} border-2 border-surface"></span>
+          <span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full ${activeSpace ? 'bg-emerald-400' : 'bg-emerald-500'} border-2 border-surface flex items-center justify-center text-[7px] font-bold text-surface-container-lowest">✓</span>
           
           <!-- Premium Profile Tooltip -->
-          <div class="absolute left-[76px] bottom-0 px-2.5 py-1.5 rounded-lg bg-surface-container-highest border border-outline-variant/30 text-[11px] font-bold text-on-surface opacity-0 translate-x-2 pointer-events-none group-hover/avatar:opacity-100 group-hover/avatar:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-xl z-[70]">
-            ${escapeHtml(displayLabel)}
-            <span class="block text-[9px] ${activeSpace ? 'text-emerald-400' : 'text-primary'} font-medium mt-0.5">${escapeHtml(displayRole)}</span>
+          <div class="absolute left-[84px] bottom-0 px-3 py-2 rounded-xl bg-surface-container-highest/95 border border-outline-variant/30 text-xs font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover/avatar:opacity-100 group-hover/avatar:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-2xl z-[70] backdrop-blur-xl">
+            <span>${escapeHtml(displayLabel)}</span>
+            <span class="block text-[10px] ${activeSpace ? 'text-emerald-400' : 'text-primary'} font-medium mt-0.5">${escapeHtml(displayRole)}</span>
           </div>
-        </div>
+        </a>
       </div>
     </div>
   `;
@@ -322,14 +342,6 @@ export function renderSecondarySidebar(
     return userPerms.includes(action.permission);
   });
 
-  const userBacs = getUserAllowedBacs(user);
-  const allowedApps = apps.filter(a => {
-    const isAllowedByRole = userBacs.includes(a.id) || userBacs.includes(a.id.replace(/^@apps\//, ""));
-    if (!isAllowedByRole) return false;
-    const flagKey = a.featureFlag || `apps.${a.id.replace(/^@apps\//, "")}.enabled`;
-    return platformFeatureFlags.isEnabledSync(flagKey, true);
-  });
-
   return `
     <nav id="mosaix-secondary-sidebar" class="secondary-sidebar hidden lg:flex flex-col w-64 shrink-0 bg-surface-container-low/80 fixed left-[72px] top-0 h-full border-r border-outline-variant/20 backdrop-blur-2xl py-5 px-3.5 gap-4 z-40 transition-all duration-300 select-none shadow-2xl">
       <!-- Context Header -->
@@ -395,24 +407,6 @@ export function renderSecondarySidebar(
         }).join("") : `
           <p class="text-xs text-on-surface-variant/60 p-2 italic">Aucune action disponible pour votre niveau de permission.</p>
         `}
-
-        <div class="flex items-center justify-between px-2 pt-4 pb-1 mb-1 border-t border-outline-variant/10">
-          <span class="text-[10px] font-bold text-on-surface-variant/70 uppercase tracking-wider">Modules Autorisés</span>
-          <span class="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-surface-variant/40 text-on-surface-variant/80">${allowedApps.length}</span>
-        </div>
-
-        ${allowedApps.map(app => {
-          const isAppActive = app.id === activeBacId;
-          return `
-            <a class="sidebar-nav-item flex items-center justify-between px-3 py-1.5 rounded-xl transition-all duration-200 group text-xs ${isAppActive ? 'bg-primary/10 text-primary border border-primary/20 font-semibold shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 border border-transparent'}" href="${app.route}" data-search="${escapeHtml(app.name.toLowerCase())}">
-              <div class="flex items-center gap-2.5 truncate">
-                <span class="text-sm group-hover:scale-110 transition-transform">${app.icon}</span>
-                <span class="truncate">${escapeHtml(app.name)}</span>
-              </div>
-              ${isAppActive ? `<span class="px-1.5 py-0.2 text-[9px] font-bold rounded-full bg-primary/20 text-primary flex items-center gap-1"><span class="w-1 h-1 rounded-full bg-primary animate-pulse"></span>Actif</span>` : ''}
-            </a>
-          `;
-        }).join("")}
 
         <div id="secondary-sidebar-empty-state" class="hidden text-center py-6 text-xs text-on-surface-variant/60 italic">
           Aucun résultat pour cette recherche.

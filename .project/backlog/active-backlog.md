@@ -55,10 +55,28 @@ Vérification code-vs-backlog effectuée le 2026-09-24 (analyse `apps/*/src/doma
 **Action d'élagage** : FEAT-01..13 et BAC-TRV restent archivés dans `completed-backlog-history.md`. Seuls les **gaps de persistance & rôles** ci-dessous restent actifs. Doublons éliminés : `VariantModel` vs `VariantItem`, `VendableModel` vs `Vendable` (unifier en §6).
 
 ## 4. Prochaines Étapes Opérationnelles (Roadmap Horizon Futurs)
-Les actions suivantes représentent des chantiers d'infrastructure et d'industrialisation en environnement de production réel :
+Les actions suivantes représentent des chantiers d'infrastructure, d'industrialisation et d'extension sectorielle en environnement de production réel :
 
+### A. Infrastructure & Production
 - **INFRA-01** : Déploiement en cluster Kubernetes multi-régions avec connectivité managée Kafka et RabbitMQ live.
 - **INFRA-02** : Provisionnement des comptes de production partenaires (Stripe Connect live, APNs / FCM production credentials, instances Vault dédiées).
+
+### B. Extension Verticale : Écosystème Sports & Athlétisme (ex: CAJ Jijel)
+- **BAC-OLYMPIA (`@apps/olympia`) — Performance & Passeport Athlète** : Passeport médical, carnet de performance, records personnels (*PB/SB*), suivi des charges d'entraînement (VMA, récupération) et certificats médicaux.
+- **BAC-CHRONOS (`@apps/chronos`) — Chronométrage Live & Dossards** : Attribution atomique des dossards, puces RFID, checkpoints de course (km 2.5/5/7.5/arrivée) et leaderboards en direct.
+- **BAC-PATRONUS (`@apps/patronus`) — Sponsoring, Crowdfunding & Subventions** : Contrats de sponsoring, financement participatif pour déplacements et génération automatique des dossiers de subvention (DJS / Wilaya).
+- **BAC-ARENA (`@apps/arena`) — Infrastructures & Matériel** : Gestion des installations (stades, pistes, gymnases), réservations de terrains et prêts de matériel (témoins, haies, chrono).
+- **BAC-CURATOR (`@apps/curator`) — Héritage & Armoire à Trophées** : Musée digital du club, Hall of Fame des champions et archives historiques.
+
+### C. Extension Verticale : Écosystème Études, Campus & Emploi
+- **BAC-ACADEMY (`@apps/academy`) — LMS, Scolarité & Diplômes** : Cours & modules, devoirs horodatés, relevés de notes ECTS et émission de diplômes/certificats numériques certifiés.
+- **BAC-CAREER (`@apps/career`) — Job Board & Recrutement (ATS)** : Offres de stages/PFE/emplois, candidatures en 1-clic (*Easy Apply*), analyse des écarts de compétences (*Skill Gap Analysis*) et CVthèque recruteurs.
+- **BAC-MENTOR (`@apps/mentor`) — Réseau Alumni & Tutorat** : Annuaire des anciens élèves (Alumni), parrainage professionnel, tutorat entre étudiants et bilans d'orientation.
+- **Fonctionnalités Communautaires & Sociales (Inspiration Facebook & LinkedIn)** :
+  - *Sceau Diplôme Vérifié* & validation de compétences (*Endorsements*) par les professeurs sur profil Citadelle.
+  - *Groupes de Promo, TD & Clubs étudiants* sur Spaces/Solara.
+  - *Marketplace Étudiante* (livres, manuels, colocations) sur Commerce/Portfolio.
+  - *Événements Campus & Billetterie QR Code* (hackathons, remise de diplômes) sur Booking/Solara.
 
 ---
 

@@ -170,6 +170,25 @@ export function getShellClientScripts(): string {
           if (drawer) drawer.classList.toggle('hidden');
         };
 
+        // Theme Mode Toggle (Light/Dark)
+        window.toggleThemeMode = function() {
+          const html = document.documentElement;
+          const current = html.getAttribute('data-theme-mode') || 'dark';
+          const nextMode = current === 'dark' ? 'light' : 'dark';
+          
+          html.setAttribute('data-theme-mode', nextMode);
+          if (nextMode === 'dark') {
+            html.classList.add('dark');
+          } else {
+            html.classList.remove('dark');
+          }
+          
+          localStorage.setItem('mosaix_theme_mode', nextMode);
+          if (typeof window.showToast === 'function') {
+            window.showToast('Thème ' + (nextMode === 'dark' ? 'Sombre' : 'Clair') + ' activé', 'info', 2000);
+          }
+        };
+
         // Close dropdowns when clicking outside
         document.addEventListener('click', function(e) {
           const menu = document.getElementById('user-menu-dropdown');
@@ -179,10 +198,18 @@ export function getShellClientScripts(): string {
           }
         });
 
-        // Initialize active locale
+        // Initialize active locale and theme mode
         setTimeout(() => {
           const activeLocale = localStorage.getItem('mosaix_active_locale') || 'fr';
           window.setLocale(activeLocale);
+
+          const savedTheme = localStorage.getItem('mosaix_theme_mode') || 'dark';
+          document.documentElement.setAttribute('data-theme-mode', savedTheme);
+          if (savedTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
         }, 50);
       })();
     </script>

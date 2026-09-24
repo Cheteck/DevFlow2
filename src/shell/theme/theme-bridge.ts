@@ -108,14 +108,39 @@ export function renderThemeStyleTag(overrideMode?: ThemeMode): string {
     lines.push(`  ${key}: ${val};`);
   }
 
-  // DEPRECATED ABI fallback for 1 release: map old --bg-* / --mosaix-* variables to --mx-*
-  lines.push("  /* DEPRECATED ALIASES — Fallback for legacy BACs */");
-  lines.push("  --bg-primary: var(--mx-color-background, #f8fafc);");
-  lines.push("  --bg-surface: var(--mx-color-surface, #ffffff);");
-  lines.push("  --mosaix-primary: var(--mx-color-primary, #4f46e5);");
-  lines.push("  --mosaix-text: var(--mx-color-text, #0f172a);");
-  lines.push("  --mosaix-text-muted: var(--mx-color-text-muted, #64748b);");
-  lines.push("  --mosaix-border: var(--mx-color-border, #e2e8f0);");
+  // Unified Tailwind CSS & Material 3 Surface Tokens mapping
+  lines.push("  /* Tailwind CSS & Material Design 3 Surface Tokens Mapping */");
+  lines.push("  --color-primary: var(--mx-color-primary, #4f46e5);");
+  lines.push("  --color-primary-hover: var(--mx-color-primaryHover, #4338ca);");
+  lines.push("  --color-on-primary: #ffffff;");
+  lines.push("  --color-secondary: var(--mx-color-secondary, #06b6d4);");
+  lines.push("  --color-surface: var(--mx-color-surface, #ffffff);");
+  lines.push("  --color-on-surface: var(--mx-color-text, #0f172a);");
+  lines.push("  --color-on-surface-variant: var(--mx-color-textMuted, #64748b);");
+  lines.push("  --color-surface-variant: #f1f5f9;");
+  lines.push("  --color-surface-container-lowest: #ffffff;");
+  lines.push("  --color-surface-container-low: #f8fafc;");
+  lines.push("  --color-surface-container: #f1f5f9;");
+  lines.push("  --color-surface-container-high: #e2e8f0;");
+  lines.push("  --color-surface-container-highest: #cbd5e1;");
+  lines.push("  --color-outline-variant: var(--mx-color-border, #e2e8f0);");
+  lines.push("}");
+
+  lines.push("[data-theme-mode=\"dark\"], .dark, html.dark {");
+  lines.push("  --color-primary: var(--mx-color-primary, #6366f1);");
+  lines.push("  --color-primary-hover: var(--mx-color-primaryHover, #818cf8);");
+  lines.push("  --color-on-primary: #ffffff;");
+  lines.push("  --color-secondary: var(--mx-color-secondary, #22d3ee);");
+  lines.push("  --color-surface: var(--mx-color-surface, #0f172a);");
+  lines.push("  --color-on-surface: var(--mx-color-text, #f8fafc);");
+  lines.push("  --color-on-surface-variant: var(--mx-color-textMuted, #94a3b8);");
+  lines.push("  --color-surface-variant: #1e293b;");
+  lines.push("  --color-surface-container-lowest: #020617;");
+  lines.push("  --color-surface-container-low: #0f172a;");
+  lines.push("  --color-surface-container: #1e293b;");
+  lines.push("  --color-surface-container-high: #334155;");
+  lines.push("  --color-surface-container-highest: #475569;");
+  lines.push("  --color-outline-variant: var(--mx-color-border, #334155);");
   lines.push("}");
 
   // Accessibility media queries (Item 4)

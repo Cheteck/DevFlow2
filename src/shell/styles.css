@@ -2,6 +2,40 @@
 
 :root {
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+  /* Material 3 & Tailwind Surface Mapping Default (Light Mode) */
+  --color-primary: var(--mx-color-primary, #4f46e5);
+  --color-primary-hover: var(--mx-color-primaryHover, #4338ca);
+  --color-on-primary: #ffffff;
+  --color-secondary: var(--mx-color-secondary, #06b6d4);
+  --color-surface: var(--mx-color-surface, #ffffff);
+  --color-on-surface: var(--mx-color-text, #0f172a);
+  --color-on-surface-variant: var(--mx-color-textMuted, #64748b);
+  --color-surface-variant: #f1f5f9;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f8fafc;
+  --color-surface-container: #f1f5f9;
+  --color-surface-container-high: #e2e8f0;
+  --color-surface-container-highest: #cbd5e1;
+  --color-outline-variant: var(--mx-color-border, #cbd5e1);
+}
+
+/* Dark Mode Overrides */
+[data-theme-mode="dark"], .dark, html.dark {
+  --color-primary: var(--mx-color-primary, #6366f1);
+  --color-primary-hover: var(--mx-color-primaryHover, #818cf8);
+  --color-on-primary: #ffffff;
+  --color-secondary: var(--mx-color-secondary, #22d3ee);
+  --color-surface: var(--mx-color-surface, #0f172a);
+  --color-on-surface: var(--mx-color-text, #f8fafc);
+  --color-on-surface-variant: var(--mx-color-textMuted, #94a3b8);
+  --color-surface-variant: #1e293b;
+  --color-surface-container-lowest: #020617;
+  --color-surface-container-low: #0f172a;
+  --color-surface-container: #1e293b;
+  --color-surface-container-high: #334155;
+  --color-surface-container-highest: #475569;
+  --color-outline-variant: var(--mx-color-border, #334155);
 }
 
 body {
