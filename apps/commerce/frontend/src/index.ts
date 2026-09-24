@@ -356,6 +356,16 @@ export const CommerceCheckoutPageView = {
       </div>
 
       <script>
+        function escapeCommerceHtml(str) {
+          if (!str) return '';
+          return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+        }
+
         function startCheckout(productName, price) {
           const logEl = document.getElementById('saga-log-message');
           const barEl = document.getElementById('saga-bar');
@@ -367,7 +377,10 @@ export const CommerceCheckoutPageView = {
           }
           barEl.style.width = '0%';
 
-          logEl.innerHTML = '> [Saga Initiated] Checkout triggered for "' + productName + '" (' + price + ' €)...';
+          const safeName = escapeCommerceHtml(productName);
+          const safePrice = Number.isFinite(Number(price)) ? Number(price).toFixed(2) : '0.00';
+
+          logEl.innerHTML = '> [Saga Initiated] Checkout triggered for "' + safeName + '" (' + safePrice + ' €)...';
           document.getElementById('step-1').classList.add('active');
 
           setTimeout(() => {
@@ -375,7 +388,7 @@ export const CommerceCheckoutPageView = {
             document.getElementById('step-1').classList.remove('active');
             document.getElementById('step-2').classList.add('active');
             barEl.style.width = '33%';
-            logEl.innerHTML += '<br/>> [Payment Services] Authorising credit card transaction for ' + price + ' €... Success.';
+            logEl.innerHTML += '<br/>> [Payment Services] Authorising credit card transaction for ' + safePrice + ' €... Success.';
           }, 800);
 
           setTimeout(() => {

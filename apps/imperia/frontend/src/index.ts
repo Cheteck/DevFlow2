@@ -1,16 +1,6 @@
 import type { ContributionContract, AdminPageContribution } from "@mosaix/contracts";
 import { shellRegistry } from "@mosaix/core";
 
-// Dynamically import registration definitions from connected BACs (for side-effect registration)
-import "../../../citadelle/frontend/src/index.js";
-import "../../../solara/frontend/src/index.js";
-import "../../../beam/frontend/src/index.js";
-import "../../../commerce/frontend/src/index.js";
-import "../../../portfolio/frontend/src/index.js";
-import "../../../spaces/frontend/src/index.js";
-import "../../../booking/frontend/src/index.js";
-import "../../../solidarity/frontend/src/index.js";
-
 export const ImperiaStyles = `
   .imperia-container { 
     max-width: 1200px; 
@@ -1079,6 +1069,16 @@ export const ImperiaGovernancePageView = {
           window.alert(prefix + message);
         };
 
+        function escapeImperiaHtml(str) {
+          if (!str) return '';
+          return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+        }
+
         // Tab switcher linked with secondary platform sidebar
         function switchAdminTab(tabId) {
           // Hide all tab panes
@@ -1186,8 +1186,13 @@ export const ImperiaGovernancePageView = {
 
           tbody.innerHTML = filtered.map(flag => {
             const isEnabled = flag.value === true || flag.value === 'true';
+            const safeKey = escapeImperiaHtml(flag.key);
+            const safeCat = escapeImperiaHtml(flag.category || 'général');
+            const safeDesc = escapeImperiaHtml(flag.description || '—');
+            const safeType = escapeImperiaHtml(flag.variationType || 'boolean');
+
             const roles = (flag.rolesAllowlist && flag.rolesAllowlist.length > 0)
-              ? flag.rolesAllowlist.map(r => '<span class="px-1.5 py-0.5 rounded bg-surface-variant/40 border border-outline-variant/20 text-[10px]">' + r + '</span>').join(' ')
+              ? flag.rolesAllowlist.map(r => '<span class="px-1.5 py-0.5 rounded bg-surface-variant/40 border border-outline-variant/20 text-[10px]">' + escapeImperiaHtml(r) + '</span>').join(' ')
               : '<span class="text-on-surface-variant/50 text-[10px]">Tous</span>';
 
             const catBadgeClass = flag.category === 'apps' ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
@@ -1196,15 +1201,15 @@ export const ImperiaGovernancePageView = {
               : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
 
             return '<tr class="hover:bg-surface-variant/10 transition">' +
-              '<td class="p-3 font-mono text-[11px] font-semibold text-primary">' + flag.key + '</td>' +
-              '<td class="p-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ' + catBadgeClass + '">' + (flag.category || 'général') + '</span></td>' +
-              '<td class="p-3 text-on-surface-variant text-[11px] max-w-xs leading-snug">' + (flag.description || '—') + '</td>' +
-              '<td class="p-3 font-mono text-[10px] text-on-surface-variant">' + flag.variationType + '</td>' +
+              '<td class="p-3 font-mono text-[11px] font-semibold text-primary">' + safeKey + '</td>' +
+              '<td class="p-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ' + catBadgeClass + '">' + safeCat + '</span></td>' +
+              '<td class="p-3 text-on-surface-variant text-[11px] max-w-xs leading-snug">' + safeDesc + '</td>' +
+              '<td class="p-3 font-mono text-[10px] text-on-surface-variant">' + safeType + '</td>' +
               '<td class="p-3">' + roles + '</td>' +
               '<td class="p-3 text-right">' +
                 '<label class="inline-flex items-center gap-2 cursor-pointer">' +
                   '<span class="text-[10px] font-bold ' + (isEnabled ? 'text-emerald-400' : 'text-on-surface-variant') + '">' + (isEnabled ? 'ACTIF' : 'INACTIF') + '</span>' +
-                  '<input type="checkbox" ' + (isEnabled ? 'checked' : '') + ' data-flag-key="' + flag.key + '" onchange="toggleAdminFeatureFlag(this.dataset.flagKey, this)" class="w-4 h-4 accent-purple-600 cursor-pointer rounded">' +
+                  '<input type="checkbox" ' + (isEnabled ? 'checked' : '') + ' data-flag-key="' + safeKey + '" onchange="toggleAdminFeatureFlag(this.dataset.flagKey, this)" class="w-4 h-4 accent-purple-600 cursor-pointer rounded">' +
                 '</label>' +
               '</td>' +
             '</tr>';
@@ -1600,109 +1605,6 @@ export const ImperiaPlatformSettingsPageView = {
 
         ${renderImperiaSettingsView()}
       </div>
-      <script>
-        window.showImperiaNotice = window.showImperiaNotice || function(message, type) {
-          let prefix = "";
-          if (type === 'error') prefix = "Erreur: ";
-          if (type === 'success') prefix = "Succès: ";
-          window.alert(prefix + message);
-        };
-
-        function switchSettingsSubPage(subPageId) {
-          document.querySelectorAll('.settings-subpage-pane').forEach(el => el.classList.add('hidden'));
-          document.querySelectorAll('.settings-subtab-btn').forEach(btn => {
-            btn.classList.remove('active', 'bg-purple-600', 'text-white', 'shadow-sm');
-            btn.classList.add('text-on-surface-variant');
-          });
-          const target = document.getElementById('settings-subpage-' + subPageId);
-          if (target) target.classList.remove('hidden');
-          const btn = document.getElementById('settings-subtab-' + subPageId);
-          if (btn) {
-            btn.classList.add('active', 'bg-purple-600', 'text-white', 'shadow-sm');
-            btn.classList.remove('text-on-surface-variant');
-          }
-        }
-
-        async function saveSettingsCategory(category) {
-          const overrides = {};
-          const inputs = document.querySelectorAll('#settings-subpage-' + category + ' input, #settings-subpage-' + category + ' select');
-          inputs.forEach(input => {
-            if (!input.id || !input.id.startsWith('setting-')) return;
-            const key = input.id.replace('setting-', '');
-            if (input.type === 'checkbox') overrides[key] = input.checked;
-            else if (input.type === 'number') overrides[key] = Number(input.value);
-            else overrides[key] = input.value;
-          });
-
-          try {
-            const res = await fetch('/imperia/settings/batch', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ overrides })
-            });
-            if (res.ok) {
-              showImperiaNotice("Succès : Les paramètres pour la section '" + category + "' ont été enregistrés et appliqués au cluster !", "success");
-            } else {
-              showImperiaNotice("Paramètres '" + category + "' mis à jour localement avec succès.", "info");
-            }
-          } catch (e) {
-            console.warn('Backend call failed, applying locally:', e);
-            showImperiaNotice("Paramètres '" + category + "' appliqués localement.", "info");
-          }
-        }
-
-        function resetSettingsCategory(category) {
-          showImperiaNotice("Section '" + category + "' réinitialisée aux valeurs nominales.", "info");
-        }
-
-        function exportCurrentSettingsJSON() {
-          const config = {
-            clusterName: document.getElementById('setting-MOSAIX_CLUSTER_NAME')?.value || "MosaiX High-Availability Cluster",
-            environment: document.getElementById('setting-NODE_ENV')?.value || "production",
-            defaultBac: document.getElementById('setting-MOSAIX_DEFAULT_BAC')?.value || "@apps/imperia",
-            mfaEnforced: document.getElementById('setting-MOSAIX_MFA_ENFORCED')?.checked ?? true,
-            theme: document.getElementById('setting-MOSAIX_DEFAULT_THEME')?.value || "midnight-pulse",
-            rateLimitRpm: Number(document.getElementById('setting-MOSAIX_RATE_LIMIT_RPM')?.value) || 1200,
-            exportedAt: new Date().toISOString()
-          };
-          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config, null, 2));
-          const downloadAnchor = document.createElement('a');
-          downloadAnchor.setAttribute("href", dataStr);
-          downloadAnchor.setAttribute("download", "mosaix_platform_settings_" + new Date().toISOString().slice(0, 10) + ".json");
-          document.body.appendChild(downloadAnchor);
-          downloadAnchor.click();
-          downloadAnchor.remove();
-        }
-
-        function savePlatformDefaultBac(bacId) {
-          if (bacId) {
-            shellRegistry.setDefaultBacId(bacId);
-            const el = document.getElementById('current-landfall-status');
-            if (el) el.textContent = "BAC Actif : " + bacId;
-            showImperiaNotice("Landfall mis à jour : le BAC '" + bacId + "' est désormais prioritaire sur l'URL de base /.", "success");
-          }
-        }
-
-        function savePlatformTheme(theme) {
-          showImperiaNotice("Thème global appliqué : " + theme, "info");
-        }
-
-        function toggleMaintenanceMode(enabled) {
-          if (enabled) {
-            showImperiaNotice("AVERTISSEMENT : Mode maintenance activé sur la plateforme !", "error");
-          } else {
-            showImperiaNotice("Mode maintenance désactivé.", "info");
-          }
-        }
-
-        function purgePlatformCache() {
-          showImperiaNotice("Cache global purgé avec succès (0 Ko en mémoire tampon).", "success");
-        }
-
-        function reindexContracts() {
-          showImperiaNotice("Réindexation des 21 contrats d'expérience terminée sans erreur.", "success");
-        }
-      </script>
     `;
   },
 };

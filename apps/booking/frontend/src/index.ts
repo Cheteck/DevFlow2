@@ -367,6 +367,16 @@ export const BookingPageView = {
           });
         }
 
+        function escapeClientHtml(str) {
+          if (!str) return '';
+          return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+        }
+
         function submitNewSlot() {
           const serviceName = document.getElementById('slot-service-name').value.trim();
           const startTime = document.getElementById('slot-start-time').value;
@@ -382,18 +392,32 @@ export const BookingPageView = {
           const newCard = document.createElement('div');
           newCard.className = 'booking-slot-card';
           newCard.setAttribute('data-category', 'service');
+          
+          const safeTitle = escapeClientHtml(serviceName);
+          const safeDate = escapeClientHtml(new Date(startTime).toLocaleString());
+          const safeCap = Number.isFinite(capacity) ? capacity : 1;
+          const safePrice = Number.isFinite(price) ? price : 0;
+
           newCard.innerHTML = \`
             <div>
               <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                <span class="booking-badge booking-badge-available">Disponible (\${capacity} places)</span>
-                <span style="font-size: 0.75rem; color: #a78bfa; font-weight: 600;">\${price.toFixed(2)} €</span>
+                <span class="booking-badge booking-badge-available">Disponible (\${safeCap} places)</span>
+                <span style="font-size: 0.75rem; color: #a78bfa; font-weight: 600;">\${safePrice.toFixed(2)} €</span>
               </div>
-              <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0 0 6px 0; color: #f9fafb;">\${serviceName}</h3>
+              <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0 0 6px 0; color: #f9fafb;">\${safeTitle}</h3>
               <p style="font-size: 0.8rem; color: #9ca3af; margin: 0 0 4px 0;">📍 MosaiX Hub Central</p>
-              <p style="font-size: 0.75rem; color: #6b7280; margin: 0 0 16px 0;">🕒 \${new Date(startTime).toLocaleString()} (Europe/Paris)</p>
+              <p style="font-size: 0.75rem; color: #6b7280; margin: 0 0 16px 0;">🕒 \${safeDate} (Europe/Paris)</p>
             </div>
-            <button onclick="bookSlot('slot-custom', '\${serviceName}', \${price})" class="booking-btn">Réserver ce créneau</button>
+            <button class="booking-btn book-slot-custom-btn">Réserver ce créneau</button>
           \`;
+
+          const bookBtn = newCard.querySelector('.book-slot-custom-btn');
+          if (bookBtn) {
+            bookBtn.addEventListener('click', () => {
+              bookSlot('slot-custom', serviceName, safePrice);
+            });
+          }
+
           container.insertBefore(newCard, container.firstChild);
           toggleBookingForm();
 

@@ -29,7 +29,9 @@ export function handleCompositionRoutes(
 
     if (req.method === "POST") {
       let bodyStr = "";
-      req.on("data", (chunk) => { bodyStr += chunk; });
+      req.on("data", (chunk) => {
+        bodyStr += chunk;
+      });
       req.on("end", () => {
         try {
           const data = JSON.parse(bodyStr || "{}");
@@ -55,16 +57,28 @@ export function handleCompositionRoutes(
     if (req.method === "POST") {
       if (currentUserRole !== "admin") {
         res.writeHead(403, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: false, error: "Accès refusé. Privilèges d'administration requis." }));
+        res.end(
+          JSON.stringify({ success: false, error: "Accès refusé. Privilèges d'administration requis." })
+        );
         return true;
       }
 
       let bodyStr = "";
-      req.on("data", (chunk) => { bodyStr += chunk; });
+      req.on("data", (chunk) => {
+        bodyStr += chunk;
+      });
       req.on("end", () => {
         try {
           const data = JSON.parse(bodyStr || "{}");
-          const { surfaceId = "application-shell", slotId, contributionId, gridSpan, wrapper, order, enabled } = data;
+          const {
+            surfaceId = "application-shell",
+            slotId,
+            contributionId,
+            gridSpan,
+            wrapper,
+            order,
+            enabled,
+          } = data;
           if (slotId && contributionId) {
             const currentStore = compositionOverrideManager.getStore(surfaceId);
             const existingSlot = currentStore.slotOverrides[slotId];
@@ -82,18 +96,28 @@ export function handleCompositionRoutes(
             saveCompositionOverridesToFile(compositionOverrideManager, surfaceId);
 
             res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ success: true, message: "Block override updated and persisted to disk" }));
+            res.end(
+              JSON.stringify({
+                success: true,
+                store: compositionOverrideManager.getStore(surfaceId),
+              })
+            );
             return;
           }
-          res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ success: false, error: "slotId and contributionId required" }));
         } catch {
-          res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ success: false, error: "Invalid JSON body" }));
+          // ignore
         }
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: false, error: "Données de composition invalides" }));
       });
       return true;
     }
+
+    // GET /api/composition/override?surfaceId=...
+    const surfaceId = parsedUrl.searchParams.get("surfaceId") || "application-shell";
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ store: compositionOverrideManager.getStore(surfaceId) }));
+    return true;
   }
 
   return false;

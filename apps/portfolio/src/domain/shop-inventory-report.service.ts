@@ -4,7 +4,6 @@
  * FEAT-07: Intérêt produits en rupture [CŒUR] (portfolio + telemetry)
  */
 
-import type { Vendable } from "./vendable.js";
 import type { PortfolioService } from "./portfolio-service.js";
 
 export interface StockAlertItem {
