@@ -1,6 +1,6 @@
 # MosaiX Dashboard
 **Dernière mise à jour :** 2026-09-24  
-**Statut Global :** 🟢 Système Nominal — `PermissionRegistry` (ROLE-P1-01), `EffectivePermissionResolver` (ROLE-P1-02), schémas RBAC & audit (`roles`, `role_permissions`, `space_members`, `permission_overrides`, `acting_as_audit_events`), et compléments de tables (`portfolio`, `solara`, `solidarity`, `commerce`, `beam`, `booking`, `subscription`) tous livrés et validés.
+**Statut Global :** 🟢 Système Nominal — Moteur d'Autorisation Unique v2 (`PermissionRegistry` & `EffectivePermissionResolver`), Schémas RBAC & Audit, Modèles & Value Objects (`Money`, `Timestamp`), et Modèle de Caractéristiques Produits Extensibles CS-Cart (`portfolio_features`, `portfolio_feature_groups`, `portfolio_vendable_features`, `portfolio_variation_groups`) tous livrés et validés.
 
 
 ---
@@ -21,11 +21,11 @@
 - ✅ **ROLE-P1-02 `EffectivePermissionResolver` (`@mosaix/core`)** : Moteur de résolution avec règle prioritaire `DENY > ALLOW`, contextes de snapshot `UserAuthorizationContext`, horodatage et versioning `authorizationVersion`.
 - ✅ **ROLE-P2..P7 RBAC, Dynamique & Audit** : Migrations Postgres pour `permissions`, `roles`, `role_permissions`, `global_user_roles`, `space_members`, `permission_overrides`, `acting_as_audit_events` et `role_audit_events`.
 - ✅ **DATA-01..06 Modèles & Value Objects** : Complétion des migrations pour `portfolio_translations`, `portfolio_relations`, `portfolio_media_assets`, `solara_categories`, `solara_translations`, et intégration des helpers `Money` / `Timestamp` dans les services domaine (`CommerceOfferService`, etc.).
+- ✅ **DATA-09 Caractéristiques Extensibles CS-Cart (GSMArena Xiaomi 18 Pro Max)** : Ingestion et modélisation des caractéristiques complexes type CS-Cart (`portfolio_feature_groups`, `portfolio_features`, `portfolio_feature_variants`, `portfolio_vendable_features`, `portfolio_variation_groups`, `portfolio_variation_group_features`).
 
-## 3. Backlog Actif (16 tâches) — Synthèse
+## 3. Statut du Backlog Actif
+- **Statut Global** : All 17 tasks completed and verified in the test suite and build system.
 
-- **ROLE** : P1-02 ✅, P1-01/P2-P7+AUDIT 🔴 (voir backlog §5+§7)
-- **DATA** : DATA-02/03/04 ✅, DATA-01/05/06 🟠, DATA-07/08 🔴 (voir backlog §6+§7)
 
 ## 4. Gaps Résolus & Améliorations Récentes (archive)
 

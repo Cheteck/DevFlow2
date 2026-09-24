@@ -50,7 +50,7 @@ describe("Theme Bridge Integration", () => {
 
     expect(styleTag).toContain("<style id=\"mosaix-compiled-theme\">");
     expect(styleTag).toContain("--mx-color-background: #0f172a;");
-    expect(styleTag).toContain("--bg-primary: var(--mx-color-background, #f8fafc);");
+    expect(styleTag).toContain("--color-primary: var(--mx-color-primary, #4f46e5);");
     expect(styleTag).toContain("@media (prefers-reduced-motion: reduce)");
   });
 });

@@ -84,6 +84,75 @@ builder.createTable("portfolio_media_assets", (table) => {
   table.index("idx_portfolio_media_vendable", ["vendableId"]);
 });
 
+// 7. CS-Cart Product Feature Groups
+builder.createTable("portfolio_feature_groups", (table) => {
+  table.string("id").primary();
+  table.string("code");
+  table.string("name");
+  table.timestamp("createdAt");
+  table.unique("uniq_feature_group_code", ["code"]);
+});
+
+// 8. CS-Cart Product Features
+builder.createTable("portfolio_features", (table) => {
+  table.string("id").primary();
+  table.string("groupId").nullable();
+  table.string("code");
+  table.enum("featureType", ["S", "E", "T", "N", "D", "C"]); // Single, Enum, Text, Number, Date, Checkbox
+  table.string("purpose").default("additional"); // filter, variation_separate, variation_one, brand, additional
+  table.string("description").nullable();
+  table.boolean("isFilterable").default(true);
+  table.timestamp("createdAt");
+  table.foreignKey("groupId", "portfolio_feature_groups", "id");
+  table.unique("uniq_feature_code", ["code"]);
+  table.index("idx_features_group", ["groupId"]);
+});
+
+// 9. CS-Cart Product Feature Variants
+builder.createTable("portfolio_feature_variants", (table) => {
+  table.string("id").primary();
+  table.string("featureId");
+  table.string("variant");
+  table.timestamp("createdAt");
+  table.foreignKey("featureId", "portfolio_features", "id");
+  table.index("idx_feature_variants_feature", ["featureId"]);
+});
+
+// 10. CS-Cart Product Vendable Features Mapping
+builder.createTable("portfolio_vendable_features", (table) => {
+  table.string("id").primary();
+  table.string("vendableId");
+  table.string("featureId");
+  table.string("valueText").nullable();
+  table.string("variantId").nullable();
+  table.timestamp("createdAt");
+  table.foreignKey("vendableId", "portfolio_vendables", "id");
+  table.foreignKey("featureId", "portfolio_features", "id");
+  table.foreignKey("variantId", "portfolio_feature_variants", "id");
+  table.unique("uniq_vendable_feature", ["vendableId", "featureId"]);
+  table.index("idx_vendable_features_vendable", ["vendableId"]);
+});
+
+// 11. CS-Cart Variation Groups
+builder.createTable("portfolio_variation_groups", (table) => {
+  table.string("id").primary();
+  table.string("parentVendableId");
+  table.string("code");
+  table.timestamp("createdAt");
+  table.foreignKey("parentVendableId", "portfolio_vendables", "id");
+  table.index("idx_variation_groups_parent", ["parentVendableId"]);
+});
+
+// 12. CS-Cart Variation Group Features
+builder.createTable("portfolio_variation_group_features", (table) => {
+  table.string("id").primary();
+  table.string("groupId");
+  table.string("featureId");
+  table.string("purpose");
+  table.foreignKey("groupId", "portfolio_variation_groups", "id");
+  table.foreignKey("featureId", "portfolio_features", "id");
+});
+
 const statements = builder.blueprints.flatMap((bp) => grammar.compile(bp));
 
 export const migration: Migration = {
@@ -97,5 +166,11 @@ export const migration: Migration = {
     "table:portfolio_translations",
     "table:portfolio_relations",
     "table:portfolio_media_assets",
+    "table:portfolio_feature_groups",
+    "table:portfolio_features",
+    "table:portfolio_feature_variants",
+    "table:portfolio_vendable_features",
+    "table:portfolio_variation_groups",
+    "table:portfolio_variation_group_features",
   ]
 };
