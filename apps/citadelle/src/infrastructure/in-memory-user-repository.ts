@@ -1,8 +1,13 @@
 import type { User } from "../domain/user.js";
 import type { UserRepository } from "../domain/user-service.js";
+import { InMemoryGuard } from "@mosaix/support";
 
 export class InMemoryUserRepository implements UserRepository {
   private users = new Map<string, User>();
+
+  constructor() {
+    InMemoryGuard.reportFallback("InMemoryUserRepository");
+  }
 
   async findById(id: string): Promise<User | null> {
     return this.users.get(id) || null;

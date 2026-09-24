@@ -71,6 +71,23 @@ export function getThemeMode(): ThemeMode {
  * Renders the SSR <style> tag containing compiled --mx-* CSS variables,
  * backward-compatibility fallbacks, and accessibility media queries.
  */
+export function getResolvedTheme(mode: ThemeMode = "light"): CompiledTheme {
+  if (currentCompiledTheme && currentMode === mode) {
+    return currentCompiledTheme;
+  }
+  currentCompiledTheme = compile(MOSAIX_DEFAULT_THEME, mode);
+  currentMode = mode;
+  return currentCompiledTheme;
+}
+
+export function generateUnifiedThemeCssVariables(compiledTheme: CompiledTheme): string {
+  const lines: string[] = [];
+  for (const [key, val] of Object.entries(compiledTheme || {})) {
+    lines.push(`  ${key}: ${val};`);
+  }
+  return lines.join("\n");
+}
+
 export function renderThemeStyleTag(overrideMode?: ThemeMode): string {
   const mode = overrideMode ?? currentMode;
 

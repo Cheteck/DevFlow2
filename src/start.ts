@@ -42,31 +42,33 @@ let activeMode: ThemeMode = "dark";
 const compositionOverrideManager = new CompositionOverrideManager();
 loadSavedCompositionOverrides(compositionOverrideManager);
 
-// Global CSS styles
-const sharedStyles = `
-  :root {
-    ${generateUnifiedThemeCssVariables(getResolvedTheme(activeMode))}
-    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
-  }
-  body {
-    font-family: var(--font-sans);
-    background-color: var(--background);
-    color: var(--on-surface);
-  }
-  .glass-card {
-    background: rgba(26, 28, 44, 0.7);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-  }
-  .sidebar-collapsed .secondary-sidebar {
-    display: none !important;
-  }
-  .sidebar-collapsed .main-workspace {
-    margin-left: 72px !important;
-  }
-`;
+// Global CSS styles generator function
+function getSharedStyles(mode: ThemeMode): string {
+  return `
+    :root {
+      ${generateUnifiedThemeCssVariables(getResolvedTheme(mode))}
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--background);
+      color: var(--on-surface);
+    }
+    .glass-card {
+      background: rgba(26, 28, 44, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .sidebar-collapsed .secondary-sidebar {
+      display: none !important;
+    }
+    .sidebar-collapsed .main-workspace {
+      margin-left: 72px !important;
+    }
+  `;
+}
 
 function parseCookies(header?: string): Record<string, string> {
   if (!header) return {};
@@ -101,20 +103,22 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // 2. Resolve User & Active Space context
+  // 2. Resolve User, Active Space & Theme Mode context
   const cookies = parseCookies(req.headers.cookie);
   const activeRole = cookies["mosaix_role"] || "admin";
   const currentUser: UserProfile = USER_PROFILES[activeRole] || USER_PROFILES["admin"];
   const currentSpace = cookies["mosaix_active_space"] || null;
+  const currentThemeMode: ThemeMode = (cookies["mosaix_theme_mode"] as ThemeMode) || activeMode || "dark";
+  const sharedStyles = getSharedStyles(currentThemeMode);
 
   // 3. Platform Maintenance Gate Middleware (FEAT-01)
-  if (handleMaintenanceGate(req, res, pathname, currentUser.role, activeMode, sharedStyles)) {
+  if (handleMaintenanceGate(req, res, pathname, currentUser.role, currentThemeMode, sharedStyles)) {
     return;
   }
 
   // 4. API Request Dispatcher (Theme, User, Flags, Compositions, Auth, Feed, GDPR, SSE)
   const isApiHandled = await dispatchApiRequest(req, res, parsedUrl, {
-    activeMode,
+    activeMode: currentThemeMode,
     setActiveMode: (mode) => {
       activeMode = mode;
     },
@@ -164,9 +168,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     const html = renderBacPage({
-      activeMode,
+      activeMode: currentThemeMode,
       sharedStyles,
-      themeStyle: renderThemeStyleTag(activeMode),
+      themeStyle: renderThemeStyleTag(currentThemeMode),
       matchedApp,
       currentUser,
       currentSpace,
@@ -211,7 +215,7 @@ const server = http.createServer(async (req, res) => {
   `;
 
   const homeHtml = renderHomePage({
-    activeMode,
+    activeMode: currentThemeMode,
     sharedStyles,
     currentUser,
     currentSpace,

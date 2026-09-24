@@ -27,9 +27,15 @@ export async function handleThemeRoutes(
       const mode = requestedMode as ThemeMode;
       setActiveMode(mode);
       await applyThemeMode(mode);
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Set-Cookie": `mosaix_theme_mode=${mode}; Path=/; Max-Age=31536000; SameSite=Lax`,
+      });
+      res.end(JSON.stringify({ success: true, mode }));
+      return true;
     }
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ success: true, mode: requestedMode || activeMode }));
+    res.end(JSON.stringify({ success: true, mode: activeMode }));
     return true;
   }
 
