@@ -1,7 +1,7 @@
 # MosaiX / IJIDeals Platform — Active Backlog
 
-- **Dernière mise à jour :** 2026-09-24 — Pull `0ebe478`+`356422d` + PRD-0011 Portfolio complet + vérification MeshJS catalog
-- **Statut global :** FEAT-01..13 archivés — 17 tâches : 12 livrées (ROLE-P1/P2, DATA-01/02/03/04/05/06/09, PRD-0010 proposals) / 5 restantes (DATA-07/08 + THEME propagation UI + PRD-0011 pages 19 routes) — voir §7-§8. Historique dans `.project/archive/completed-backlog-history.md`.
+- **Dernière mise à jour :** 2026-09-24 — Commerce source unique + COD Algérie + wallet + BAC Livraison (deliveryboy) + PRD-0011 MeshJS
+- **Statut global :** FEAT-01..13 archivés — 17 tâches : 12 livrées (ROLE, DATA-01/09, PRD-0010) / 8 restantes (DATA-07/08 + THEME UI + PRD-0011 19 pages + WALLET escrow + DELIVERY BAC) — voir §7-§8. Historique dans `.project/archive/completed-backlog-history.md`.
 
 ---
 
@@ -252,4 +252,10 @@ Gaps issus de l'analyse `apps/*/src/domain/*.ts` vs `infrastructure/migrations.t
 | **DATA-06** Money/Timestamp | `Money` & `Timestamp` VOs + wiring domaine | **Livré** — VOs dans `value-objects.ts` + intégration `getMoney` & `calculatePayoutMoney` dans `CommerceOfferService` | ✅ Livré |
 | **PRD-0011 UI** Portfolio 19 routes | Dashboard + 8 onglets fiche + Categories/Features/Variation/Search/Import/Export + Proposals UI | **Reste** — DB done, **UI à implémenter** (THEME propagation BACs `2395e23` + `PostgresThemeAssignmentsStore` + `BAC_THEME_TARGETS` pose base) | 🟡 À faire |
 
-**Restant backlog actif** : `DATA-07` (`reservedCount` triggers), `DATA-08` (`Record<string,unknown>` typage), `THEME` UI `CompositionResolver.themeContext` → `Shell`, `PRD-0011` 19 pages. `PRD-0010` et `PRD-0011` DB clos, PRDs eux-mêmes créés `.project/prd/PRD-0010-portfolio-proposals.md` v1.3 + `PRD-0011-portfolio.md` v1.0+MeshJS.
+**Restant backlog actif** : `DATA-07` (`reservedCount` triggers), `DATA-08` (`Record<string,unknown>` typage), `THEME` UI `CompositionResolver.themeContext` → `Shell`, `PRD-0011` 19 pages, **COMMERCE source unique** (`portfolio_variants` sans `price/stock` validé), **paiements COD Algérie** (`cod_pending→delivered` par défaut) + **wallet** moyen terme (`wallets/wallet_transactions` escrow), **BAC Livraison** (`delivery_methods/cod|express/pickup`, `delivery_boys`, `deliveries` `assigned→delivered` `proofUrl`). `PRD-0010` et `PRD-0011` DB clos, PRDs eux-mêmes créés `.project/prd/PRD-0010-portfolio-proposals.md` v1.3 + `PRD-0011-portfolio.md` v1.0+MeshJS.
+
+### 8. Commerce, Paiements COD & Livraison — décisions 2026-09-24
+
+* **Commerce source unique offre/stock/prix** : `portfolio_variants` `20260922162000:43` `Abstract Catalog Variant without stock/price` + `FORBIDDEN_OPERATIONAL_KEYS` `portfolio-service.ts:61` `price/stock` bloqués ; `CommerceOffer` `commerce-offer.model.ts:20` `priceInCents/commissionRateBps/stockAllocation( undefined=illimité)` + `Money` VO `commerce-offer.model.ts:168` `Money.fromCents` seule vérité. Commerce ignore `portfolio_vendables` `Published` seul, jamais l'inverse.
+* **Paiements Algérie — COD par défaut** : `commerce_payment_intents` `migrations.ts:67` `status` `cod_pending→cod_out_for_delivery→cod_delivered→succeeded` (pas `requires_payment_method` card-first) ; `CheckoutOrderWorkflow` `checkout-order.workflow.ts:66` `AuthorizePayment` no-op pour COD, `InventoryPort.reserve` seul à `createOrder` ; `wallet` moyen terme `wallets(id, ownerId, ownerType, balanceInCents)` + `wallet_transactions(id, walletId, type escrow_hold/release/payout, amountInCents, orderId)` escrow `hold(buyer→platform)` → `release(platform→seller net)` `calculatePayoutMoney:172` `commission 500bps`, recharge `CIB/Edahabia SATIM` plus tard.
+* **BAC Livraison** `delivery` extrait de `delivery-partner.service.ts:132` `verifiedBy` → `apps/delivery` : `delivery_methods(cod|express|standard|pickup, priceInCents)`, `delivery_boys(userId FK citadelle, status available/busy/suspended, vehicle, zone, verifiedBy)`, `deliveries(orderId FK commerce_orders, methodId, boyId, status draft→assigned→picked→out_for_delivery→delivered|failed|returned, codAmountInCents Money, proofUrl)`, `delivery_assignments`. Permissions `delivery:delivery:create:space|manage:platform`, `delivery:boy:manage:platform` via `EffectivePermissionResolver` `DENY>ALLOW`. Commerce garde `stockAllocation`, Delivery ne décrémente jamais le stock.

@@ -22,6 +22,12 @@
     - [x] Value Objects universels `Money` & `Timestamp`.
     - [x] Tables RBAC & Audit (`permissions`, `roles`, `role_permissions`, `space_members`, `permission_overrides`, `acting_as_audit_events`, `role_audit_events`).
     - [x] Complete DB schema alignment across all 10 BACs.
+    - [x] Commerce source unique `offer/stock/price` (`portfolio_variants` sans `price/stock`, `CommerceOffer.priceInCents`) + Propsitions `portfolio_proposals` v1.3.
+
+- [ ] **Phase 3b : Commerce COD & Wallet + Livraison**
+    - [ ] COD Algérie par défaut : `commerce_payment_intents` `cod_pending→delivered`, `CheckoutOrderWorkflow` no-op `PaymentPort`, livraison confirme `cod_delivered`.
+    - [ ] Wallet plateforme moyen terme : `wallets/wallet_transactions` escrow `hold→release` (`Money` VO), `commerce_payouts` `commissionRateBps 500`, recharge `CIB/Edahabia` plus tard.
+    - [ ] BAC `@apps/delivery` : extraction `delivery-partner.service.ts` → `delivery_methods(cod|express|pickup)`, `delivery_boys`, `deliveries(orderId, boyId, status assigned→delivered, proofUrl, codAmount)`, `delivery_assignments`.
 
 - [ ] **Phase 4 (Horizon) : Extension Écosystème Sports & Athlétisme (ex: CAJ Jijel)**
     - [ ] `@apps/olympia` : Passeport Athlète, records personnels (*PB/SB*), suivi VMA/récupération.

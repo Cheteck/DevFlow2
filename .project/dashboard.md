@@ -23,6 +23,9 @@
 - ✅ **DATA-01 + DATA-09 Portfolio CS-Cart 14 tables** : `portfolio_vendables/categories/vendable_categories/variants/translations/relations/media_assets/feature_groups/features/feature_variants/vendable_features/variant_features/variation_groups` (`ac99009`/`0ebe478`, 198L) — Xiaomi 18 Pro Max `gsmarena.com/14958` modélisé en 3 SKU `variation_group_id`.
 - ✅ **PRD-0010 Proposals v1.3 simplifiée** : `portfolio_proposals` 1 table mutable (contenu courant écrasé, `platform_feedback`, `vendable_id NULL→V987`) + `ProposalService` 7 méthodes `createDraft→approve` (`356422d`, 197L) — sans `proposal_revisions`, audit externe.
 - ✅ **PRD-0011 Portfolio complet** : PRD `PRD-0011-portfolio.md` v1.0 + §10 MeshJS `G:\MeshJS-by-Jules\apps\catalog` (`CatalogEngine` 12 repos, `CategoryEngine.getParentChain`, `StickerEngine` 4 conditions) + `themeContract` 10 BACs (`2395e23`).
+- ✅ **Commerce source unique offre/stock/prix** : `portfolio_variants` abstrait sans `price/stock` (`FORBIDDEN_OPERATIONAL_KEYS` `portfolio-service.ts:61`), `CommerceOffer` `priceInCents/commissionRateBps/stockAllocation` + `Money` VO seule vérité (`commerce:offer:create`).
+- ✅ **Paiements COD Algérie + Wallet** : `commerce_payment_intents` `cod_pending→cod_delivered→succeeded` par défaut, `CheckoutOrderWorkflow` `AuthorizePayment` no-op pour COD, wallet escrow `wallets/wallet_transactions` prévu moyen terme (`escrow_hold→release`).
+- ✅ **BAC Livraison** : extraction `delivery-partner.service.ts` → `@apps/delivery` `delivery_methods(cod|express|pickup) + delivery_boys + deliveries + assignments` (`out_for_delivery→delivered` + `proofUrl` + `codAmountInCents`).
 
 ## 3. Statut du Backlog Actif
 - **Statut Global** : 12/17 livrées (ROLE, DATA-01..06/09, PRD-0010 DB) — restent `DATA-07` triggers, `DATA-08` `Record<string,unknown>`, `THEME` UI `CompositionResolver.themeContext`, `PRD-0011` 19 pages (DB done, UI à faire).
