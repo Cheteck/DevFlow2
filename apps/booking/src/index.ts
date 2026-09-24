@@ -117,5 +117,7 @@ export async function createBookingApp(
 export * from "./domain/booking.model.js";
 export * from "./domain/booking-calendar-sync.js";
 export * from "./domain/booking-portal-resources.js";
+export * from "./presentation/booking-provider-dashboard.view.js";
+
 
 

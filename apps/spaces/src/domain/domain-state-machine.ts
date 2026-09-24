@@ -52,4 +52,19 @@ export class SpaceCustomDomainEngine {
       sslExpiresAt: expiresAt.toISOString(),
     };
   }
+
+  static generateHstsHeader(maxAgeSeconds: number = 31536000, includeSubDomains: boolean = true, preload: boolean = true): string {
+    const parts = [`max-age=${maxAgeSeconds}`];
+    if (includeSubDomains) parts.push("includeSubDomains");
+    if (preload) parts.push("preload");
+    return parts.join("; ");
+  }
+
+  static generateAcmeHttp01Challenge(domain: string, token: string, keyAuthorization: string): { path: string; response: string } {
+    return {
+      path: `/.well-known/acme-challenge/${token}`,
+      response: keyAuthorization,
+    };
+  }
 }
+

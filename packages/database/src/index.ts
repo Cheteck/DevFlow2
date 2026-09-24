@@ -53,3 +53,8 @@ export class AppDatabaseResolver {
     return new SchemaAwareDatabasePort(conn, appId);
   }
 }
+
+export * from "./postgres-schema-grammar.js";
+export * from "./postgres-rls-manager.js";
+export * from "./postgres-bac-schema-migrator.js";
+

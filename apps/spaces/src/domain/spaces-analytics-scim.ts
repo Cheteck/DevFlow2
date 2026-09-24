@@ -57,3 +57,30 @@ export class SamlSsoConfigManager {
     return this.configs.get(spaceId);
   }
 }
+
+export class ScimSyncEngine {
+  private provisionedUsers = new Map<string, Map<string, ScimUserResource>>(); // spaceId -> (userId -> user)
+
+  provisionUser(spaceId: string, scimUser: ScimUserResource): { success: boolean; membershipCreated: boolean } {
+    if (!this.provisionedUsers.has(spaceId)) {
+      this.provisionedUsers.set(spaceId, new Map());
+    }
+    const spaceMap = this.provisionedUsers.get(spaceId)!;
+    const exists = spaceMap.has(scimUser.id);
+    spaceMap.set(scimUser.id, scimUser);
+    return { success: true, membershipCreated: !exists };
+  }
+
+  deprovisionUser(spaceId: string, userId: string): boolean {
+    const spaceMap = this.provisionedUsers.get(spaceId);
+    if (!spaceMap || !spaceMap.has(userId)) return false;
+    const user = spaceMap.get(userId)!;
+    user.active = false;
+    return true;
+  }
+
+  getProvisionedUser(spaceId: string, userId: string): ScimUserResource | undefined {
+    return this.provisionedUsers.get(spaceId)?.get(userId);
+  }
+}
+

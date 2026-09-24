@@ -64,10 +64,46 @@ export class BeamMessageSearchEngine {
   }
 }
 
+export interface AntivirusScanResult {
+  clean: boolean;
+  threatName?: string;
+}
+
+export class BeamAntivirusScanner {
+  static async scanBuffer(buffer: Buffer): Promise<AntivirusScanResult> {
+    // EICAR standard test signature detection
+    const eicarSig = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
+    if (buffer.toString("utf8").includes(eicarSig)) {
+      return { clean: false, threatName: "EICAR-Test-Signature" };
+    }
+    return { clean: true };
+  }
+}
+
 export class BeamDataRetentionManager {
+  private static legalHolds = new Set<string>(); // set of channelIds with legal hold active
+
+  static setLegalHold(channelId: string, hold: boolean): void {
+    if (hold) {
+      this.legalHolds.add(channelId);
+    } else {
+      this.legalHolds.delete(channelId);
+    }
+  }
+
+  static isUnderLegalHold(channelId: string): boolean {
+    return this.legalHolds.has(channelId);
+  }
+
   static purgeExpired(messages: MessageModel[], retentionDays: number): MessageModel[] {
     const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
-    return messages.filter((m) => m.createdAt.getTime() >= cutoff);
+    return messages.filter((m) => {
+      // Do not purge if under active legal hold
+      if (this.isUnderLegalHold(m.channelId)) {
+        return true;
+      }
+      return m.createdAt.getTime() >= cutoff;
+    });
   }
 
   static exportGdprData(messages: MessageModel[], userId: string): string {
@@ -75,3 +111,4 @@ export class BeamDataRetentionManager {
     return JSON.stringify(userMessages, null, 2);
   }
 }
+

@@ -57,6 +57,28 @@ export interface SolaraGroup {
   memberIds: Set<string>;
 }
 
+export class SolaraGroupManager {
+  private groups = new Map<string, SolaraGroup>();
+
+  createGroup(group: SolaraGroup): void {
+    this.groups.set(group.id, group);
+  }
+
+  canView(userId: string, groupId: string): boolean {
+    const group = this.groups.get(groupId);
+    if (!group) return false;
+    if (group.privacy === "public") return true;
+    return group.memberIds.has(userId);
+  }
+
+  canDiscover(userId: string, groupId: string): boolean {
+    const group = this.groups.get(groupId);
+    if (!group) return false;
+    if (group.privacy === "secret") return group.memberIds.has(userId);
+    return true;
+  }
+}
+
 export class SolaraRealtimeNotifier {
   private listeners = new Set<(event: { type: string; payload: unknown }) => void>();
 
@@ -74,7 +96,12 @@ export class SolaraRealtimeNotifier {
       }
     }
   }
+
+  formatSseMessage(type: string, payload: unknown): string {
+    return `event: ${type}\ndata: ${JSON.stringify(payload)}\n\n`;
+  }
 }
+
 
 export class SolaraAnalyticsTracker {
   private events: Array<{ type: string; actorId: string; targetId: string; timestamp: string }> = [];

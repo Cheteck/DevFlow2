@@ -15,8 +15,18 @@ export interface MemoryFeatureFlagRecord {
   tenantAllowlist?: string[];
 }
 
+export interface FeatureFlagAuditRecord {
+  timestamp: string;
+  flagKey: string;
+  action: "set" | "override";
+  oldValue?: string | boolean;
+  newValue: string | boolean;
+}
+
 export class MemoryFeatureFlagsAdapter implements FeatureFlagsPort {
   private readonly flags = new Map<string, MemoryFeatureFlagRecord>();
+  private readonly auditLogs: FeatureFlagAuditRecord[] = [];
+
 
   constructor(initialFlags?: Record<string, string | boolean | Partial<MemoryFeatureFlagRecord>>) {
     // 1. Seed from central FEATURE_FLAG_CATALOG
@@ -101,6 +111,13 @@ export class MemoryFeatureFlagsAdapter implements FeatureFlagsPort {
     options?: { category?: string; rolesAllowlist?: string[]; tenantAllowlist?: string[] },
   ): void {
     const existing = this.flags.get(flagKey);
+    this.auditLogs.push({
+      timestamp: new Date().toISOString(),
+      flagKey,
+      action: existing ? "override" : "set",
+      oldValue: existing?.value,
+      newValue: value,
+    });
     this.flags.set(flagKey, {
       key: flagKey,
       value,
@@ -111,6 +128,11 @@ export class MemoryFeatureFlagsAdapter implements FeatureFlagsPort {
       tenantAllowlist: options?.tenantAllowlist ?? existing?.tenantAllowlist,
     });
   }
+
+  getAuditLogs(): readonly FeatureFlagAuditRecord[] {
+    return this.auditLogs;
+  }
+
 
   async listFlags(): Promise<FeatureFlagDefinition[]> {
     return Array.from(this.flags.values()).map((f) => ({

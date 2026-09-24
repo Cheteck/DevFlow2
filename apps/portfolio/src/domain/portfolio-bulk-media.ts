@@ -49,7 +49,46 @@ export class PortfolioBulkImporter {
       return { valid: [], errors: [`JSON Parse error: ${String(err)}`] };
     }
   }
+
+  static fromCsv(csvStr: string): { valid: Partial<Vendable>[]; errors: string[] } {
+    const lines = csvStr.trim().split("\n");
+    if (lines.length < 2) {
+      return { valid: [], errors: ["CSV file is empty or missing data rows."] };
+    }
+    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+    const valid: Partial<Vendable>[] = [];
+    const errors: string[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const values = line.split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
+      const row: Record<string, string> = {};
+      headers.forEach((h, idx) => {
+        row[h] = values[idx] ?? "";
+      });
+
+      if (!row.id || !row.title) {
+        errors.push(`Line ${i + 1}: Required fields 'id' or 'title' missing.`);
+      } else {
+        valid.push({
+          id: row.id,
+          title: row.title,
+          category: row.category || undefined,
+          status: (row.status as Vendable["status"]) || "Draft",
+          pricing: {
+            basePrice: row.price ? parseFloat(row.price) : 0,
+            currency: row.currency || "EUR",
+            isFree: row.price === "0",
+          },
+        });
+      }
+    }
+
+    return { valid, errors };
+  }
 }
+
 
 export interface CdnSignedUrlOptions {
   width?: number;

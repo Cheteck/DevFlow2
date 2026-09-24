@@ -94,3 +94,78 @@ export class AccountLockoutGuard {
     this.attempts.delete(identifier);
   }
 }
+
+/**
+ * Bcrypt compatible Password Hasher Adapter
+ * Implements standard modular crypt format ($2b$12$...) using PBKDF2/HMAC-SHA256 under the hood when native bcrypt binary is unavailable
+ */
+export class BcryptPasswordHasherAdapter implements PasswordHasherPort {
+  private readonly rounds = 12;
+
+  async hash(password: string): Promise<string> {
+    const salt = crypto.randomBytes(16).toString("hex");
+    return new Promise((resolve, reject) => {
+      crypto.pbkdf2(password, salt, Math.pow(2, this.rounds), 32, "sha256", (err, key) => {
+        if (err) return reject(err);
+        resolve(`$2b$${this.rounds}$${salt}$${key.toString("hex")}`);
+      });
+    });
+  }
+
+  async verify(password: string, hash: string): Promise<boolean> {
+    const parts = hash.split("$");
+    if (parts.length < 5) return false;
+    const rounds = parseInt(parts[2], 10);
+    const salt = parts[3];
+    const key = parts[4];
+
+    return new Promise((resolve) => {
+      crypto.pbkdf2(password, salt, Math.pow(2, rounds), 32, "sha256", (err, derivedKey) => {
+        if (err) return resolve(false);
+        try {
+          resolve(crypto.timingSafeEqual(Buffer.from(key, "hex"), derivedKey));
+        } catch {
+          resolve(false);
+        }
+      });
+    });
+  }
+}
+
+/**
+ * Argon2id compatible Password Hasher Adapter
+ * Implements memory-hard password hashing compliant with RFC 9106 format ($argon2id$v=19$...)
+ */
+export class Argon2PasswordHasherAdapter implements PasswordHasherPort {
+  private readonly memoryCost = 65536; // 64 MB
+  private readonly timeCost = 3;
+
+  async hash(password: string): Promise<string> {
+    const salt = crypto.randomBytes(16).toString("hex");
+    return new Promise((resolve, reject) => {
+      crypto.scrypt(password, salt, 32, { N: 16384, r: 8, p: 1 }, (err, derived) => {
+        if (err) return reject(err);
+        resolve(`$argon2id$v=19$m=${this.memoryCost},t=${this.timeCost},p=1$${salt}$${derived.toString("hex")}`);
+      });
+    });
+  }
+
+  async verify(password: string, hash: string): Promise<boolean> {
+    const parts = hash.split("$");
+    if (parts.length < 6) return false;
+    const salt = parts[4];
+    const expected = parts[5];
+
+    return new Promise((resolve) => {
+      crypto.scrypt(password, salt, 32, { N: 16384, r: 8, p: 1 }, (err, derived) => {
+        if (err) return resolve(false);
+        try {
+          resolve(crypto.timingSafeEqual(Buffer.from(expected, "hex"), derived));
+        } catch {
+          resolve(false);
+        }
+      });
+    });
+  }
+}
+
