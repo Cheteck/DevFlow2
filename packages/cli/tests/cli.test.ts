@@ -77,7 +77,9 @@ describe("MosaiX CLI PRD Specification Suite", () => {
       const manager = new MosaixFolderManager(tmpDir);
       expect(manager.inspect().status).toBe("not_built");
 
-      manager.synthesizeManifests({ applications: { portfolio: { id: "portfolio" } } });
+      manager.synthesizeManifests({
+        applications: { portfolio: { id: "portfolio" } },
+      });
       const info = manager.inspect();
       expect(info.status).toBe("built");
       expect(info.mosaixFolderExists).toBe(true);
@@ -120,7 +122,12 @@ describe("MosaiX CLI PRD Specification Suite", () => {
     it("should compile production bundle and output standalone files", () => {
       const compiler = new ProductionBuildCompiler(tmpDir);
       const manifest = compiler.compile([
-        { id: "identity", name: "Identity BAC", version: "1.0.0", entryPoint: "src/index.ts" },
+        {
+          id: "identity",
+          name: "Identity BAC",
+          version: "1.0.0",
+          entryPoint: "src/index.ts",
+        },
       ]);
 
       expect(manifest.platformVersion).toBe("1.0.0");
@@ -177,6 +184,96 @@ describe("MosaiX CLI PRD Specification Suite", () => {
       const router = new MosaixCommandRouter(tmpDir);
       const res = await router.execute("non_existent_cmd", { json: true });
       expect(res.exitCode).toBe(EXIT_CODES.GENERIC_ERROR);
+    });
+  });
+
+  describe("key:generate / key:check (Laravel-style secrets)", () => {
+    it("shows generated keys without writing (--show)", async () => {
+      const router = new MosaixCommandRouter(tmpDir);
+      const res = await router.execute("key:generate", {
+        json: true,
+        args: ["--show"],
+      });
+      expect(res.exitCode).toBe(EXIT_CODES.SUCCESS);
+      const data = res.data as Record<string, string>;
+      expect(String(data.MOSAIX_APP_KEY)).toMatch(/^base64:/);
+      expect(fs.existsSync(path.join(tmpDir, ".env"))).toBe(false);
+    });
+
+    it("writes missing keys once, preserves them on re-run", async () => {
+      const router = new MosaixCommandRouter(tmpDir);
+      const first = await router.execute("key:generate", { json: true });
+      expect(first.exitCode).toBe(EXIT_CODES.SUCCESS);
+      const written = fs.readFileSync(path.join(tmpDir, ".env"), "utf-8");
+      expect(written).toContain("MOSAIX_AUTH_JWT_SECRET=");
+
+      const second = await router.execute("key:generate", { json: true });
+      expect(second.exitCode).toBe(EXIT_CODES.SUCCESS);
+      expect(second.data).toMatchObject({ updated: [] });
+      expect(fs.readFileSync(path.join(tmpDir, ".env"), "utf-8")).toBe(written);
+    });
+
+    it("key:check passes on a generated env, fails on empty dir", async () => {
+      const router = new MosaixCommandRouter(tmpDir);
+      const before = await router.execute("key:check", { json: true });
+      expect(before.exitCode).not.toBe(EXIT_CODES.SUCCESS);
+
+      await router.execute("key:generate", { json: true });
+      const after = await router.execute("key:check", { json: true });
+      expect(after.exitCode).toBe(EXIT_CODES.SUCCESS);
+    });
+  });
+
+  describe("install (first-time server setup)", () => {
+    it("requires .env.example (repo root guard)", async () => {
+      const router = new MosaixCommandRouter(tmpDir);
+      const res = await router.execute("install", {
+        json: true,
+        args: ["--dry-run"],
+      });
+      expect(res.exitCode).not.toBe(EXIT_CODES.SUCCESS);
+    });
+
+    it("plans the full setup with --dry-run without writing", async () => {
+      fs.writeFileSync(
+        path.join(tmpDir, ".env.example"),
+        "MOSAIX_PORT=3000\n",
+        "utf-8",
+      );
+      const router = new MosaixCommandRouter(tmpDir);
+      const res = await router.execute("install", {
+        json: true,
+        args: ["--dry-run", "--skip-deps", "--skip-db", "--skip-admin"],
+      });
+      expect(res.exitCode).toBe(EXIT_CODES.SUCCESS);
+      const data = res.data as {
+        dryRun: boolean;
+        steps: Array<{ step: string }>;
+      };
+      expect(data.dryRun).toBe(true);
+      expect(data.steps.map((s) => s.step)).toEqual([
+        "preflight",
+        "env",
+        "folders",
+        "deps",
+        "db",
+        "admin",
+      ]);
+      expect(fs.existsSync(path.join(tmpDir, ".env"))).toBe(false);
+    });
+
+    it("is reachable via the setup alias", async () => {
+      fs.writeFileSync(
+        path.join(tmpDir, ".env.example"),
+        "MOSAIX_PORT=3000\n",
+        "utf-8",
+      );
+      const router = new MosaixCommandRouter(tmpDir);
+      const res = await router.execute("setup", {
+        json: true,
+        args: ["--dry-run", "--skip-deps", "--skip-db", "--skip-admin"],
+      });
+      expect(res.exitCode).toBe(EXIT_CODES.SUCCESS);
     });
   });
 });

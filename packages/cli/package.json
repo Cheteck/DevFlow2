@@ -17,6 +17,7 @@
   "dependencies": {
     "@mosaix/adapter-database-sqlite": "workspace:*",
     "@mosaix/conformance": "workspace:*",
+    "@mosaix/config": "workspace:*",
     "@mosaix/contracts": "workspace:*",
     "@mosaix/core": "workspace:*",
     "@mosaix/mcp": "workspace:*",

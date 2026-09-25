@@ -4,6 +4,8 @@ import { lifecycleCommands } from "./commands/lifecycle-commands.js";
 import { discoveryCommands } from "./commands/discovery-commands.js";
 import { diagnosticCommands } from "./commands/diagnostic-commands.js";
 import { migrationCommands } from "./commands/migration-commands.js";
+import { keyCommands } from "./commands/key-commands.js";
+import { installCommands } from "./commands/install-commands.js";
 
 export interface CommandOptions {
   rootDir?: string;
@@ -23,6 +25,8 @@ export class MosaixCommandRouter {
       ...discoveryCommands,
       ...diagnosticCommands,
       ...migrationCommands,
+      ...keyCommands,
+      ...installCommands,
     ]);
   }
 
@@ -37,14 +41,19 @@ export class MosaixCommandRouter {
     }
   }
 
-  async execute(command: string, options: CommandOptions = {}): Promise<CLIResult> {
+  async execute(
+    command: string,
+    options: CommandOptions = {},
+  ): Promise<CLIResult> {
     const isJson = options.json ?? false;
     const isCi = options.ci ?? false;
     const args = options.args ?? [];
 
     const respond = (msg: string, data: unknown): CLIResult => {
       if (isJson) {
-        console.log(JSON.stringify({ status: "success", message: msg, data }, null, 2));
+        console.log(
+          JSON.stringify({ status: "success", message: msg, data }, null, 2),
+        );
       } else {
         console.log(`[mosaix] ${msg}`);
         if (typeof data === "object" && data !== null) {
@@ -54,9 +63,14 @@ export class MosaixCommandRouter {
       return { exitCode: EXIT_CODES.SUCCESS, message: msg, data };
     };
 
-    const error = (msg: string, exitCode: number = EXIT_CODES.GENERIC_ERROR): CLIResult => {
+    const error = (
+      msg: string,
+      exitCode: number = EXIT_CODES.GENERIC_ERROR,
+    ): CLIResult => {
       if (isJson) {
-        console.error(JSON.stringify({ status: "error", exitCode, error: msg }, null, 2));
+        console.error(
+          JSON.stringify({ status: "error", exitCode, error: msg }, null, 2),
+        );
       } else {
         console.error(`[mosaix error] ${msg}`);
       }
@@ -68,7 +82,7 @@ export class MosaixCommandRouter {
       if (!cmd) {
         return error(
           `Unknown command: ${command}. Run 'mosaix list' or 'mosaix help'.`,
-          EXIT_CODES.GENERIC_ERROR
+          EXIT_CODES.GENERIC_ERROR,
         );
       }
 
@@ -84,7 +98,10 @@ export class MosaixCommandRouter {
       return await cmd.execute(ctx);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      return error(`Command execution failed: ${msg}`, EXIT_CODES.GENERIC_ERROR);
+      return error(
+        `Command execution failed: ${msg}`,
+        EXIT_CODES.GENERIC_ERROR,
+      );
     }
   }
 }
