@@ -13,7 +13,8 @@ export type GuestDestination =
 
 export type ShellEntry =
   | { kind: "guest"; destination: GuestDestination }
-  | { kind: "authenticated"; bacId: string; isFallback: boolean };
+  | { kind: "authenticated"; bacId: string; isFallback: boolean }
+  | { kind: "admin"; bacId: string; isFallback: boolean };
 
 export interface ShellEntryPolicyContext {
   userState: ShellUserState;

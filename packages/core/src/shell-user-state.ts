@@ -32,3 +32,23 @@ export function isGuest(state: ShellUserState): state is Extract<ShellUserState,
 export function isAuthenticated(state: ShellUserState): state is Extract<ShellUserState, { kind: "authenticated" }> {
   return state.kind === "authenticated";
 }
+
+export const PLATFORM_ADMIN_ROLES = ["admin", "superadmin", "platform-admin", "platform_admin"] as const;
+
+export function isPlatformAdmin(state: ShellUserState): boolean {
+  if (state.kind !== "authenticated") return false;
+  return state.roles.some((r) => (PLATFORM_ADMIN_ROLES as readonly string[]).includes(r));
+}
+
+/** Transfère le contexte Guest vers la session authentifiée : ne garde que locale/timezone. */
+export function transferGuestContextToAuth(
+  guest: Extract<ShellUserState, { kind: "guest" }>,
+  auth: Extract<ShellUserState, { kind: "authenticated" }>
+): Extract<ShellUserState, { kind: "authenticated" }> & { transferredFromGuest?: string; locale?: string; timezone?: string } {
+  return {
+    ...auth,
+    transferredFromGuest: guest.guestSessionId,
+    ...(guest.locale ? { locale: guest.locale } : {}),
+    ...(guest.timezone ? { timezone: guest.timezone } : {}),
+  };
+}

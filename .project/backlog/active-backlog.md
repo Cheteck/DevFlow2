@@ -1,7 +1,7 @@
 # MosaiX / IJIDeals Platform — Active Backlog
 
-- **Dernière mise à jour :** 2026-09-24 — CIB + Gestion-Commerciale (Next-base `eb156d00`/`85a7ec11`) + PRD-0011 MeshJS
-- **Statut global :** FEAT-01..13 archivés — 19 tâches : 12 livrées (ROLE, DATA-01/09, PRD-0010) / 7 restantes (DATA-07/08 + THEME UI + PRD-0011 19 pages + CIB-01 + GEST-01 + WALLET/DELIVERY) — voir §6-§8. Historique dans `.project/archive/completed-backlog-history.md`.
+- **Dernière mise à jour :** 2026-09-24 — Vues BAC réelles (§9 : 8 tâches VIEW-*) + CIB/Gestion-Commerciale + PRD-0011 MeshJS
+- **Statut global :** FEAT-01..13 archivés — 27 tâches : 12 livrées (ROLE, DATA-01/09, PRD-0010) / 15 restantes (DATA-07/08 + THEME UI + PRD-0011 19 pages + CIB-01 + GEST-01 + WALLET/DELIVERY + VIEW ×8) — voir §6-§9. Historique dans `.project/archive/completed-backlog-history.md`.
 
 ---
 
@@ -263,3 +263,20 @@ Gaps issus de l'analyse `apps/*/src/domain/*.ts` vs `infrastructure/migrations.t
 * **Commerce source unique offre/stock/prix** : `portfolio_variants` `20260922162000:43` `Abstract Catalog Variant without stock/price` + `FORBIDDEN_OPERATIONAL_KEYS` `portfolio-service.ts:61` `price/stock` bloqués ; `CommerceOffer` `commerce-offer.model.ts:20` `priceInCents/commissionRateBps/stockAllocation( undefined=illimité)` + `Money` VO `commerce-offer.model.ts:168` `Money.fromCents` seule vérité. Commerce ignore `portfolio_vendables` `Published` seul, jamais l'inverse.
 * **Paiements Algérie — COD par défaut** : `commerce_payment_intents` `migrations.ts:67` `status` `cod_pending→cod_out_for_delivery→cod_delivered→succeeded` (pas `requires_payment_method` card-first) ; `CheckoutOrderWorkflow` `checkout-order.workflow.ts:66` `AuthorizePayment` no-op pour COD, `InventoryPort.reserve` seul à `createOrder` ; `wallet` moyen terme `wallets(id, ownerId, ownerType, balanceInCents)` + `wallet_transactions(id, walletId, type escrow_hold/release/payout, amountInCents, orderId)` escrow `hold(buyer→platform)` → `release(platform→seller net)` `calculatePayoutMoney:172` `commission 500bps`, recharge `CIB/Edahabia SATIM` plus tard.
 * **BAC Livraison** `delivery` extrait de `delivery-partner.service.ts:132` `verifiedBy` → `apps/delivery` : `delivery_methods(cod|express|standard|pickup, priceInCents)`, `delivery_boys(userId FK citadelle, status available/busy/suspended, vehicle, zone, verifiedBy)`, `deliveries(orderId FK commerce_orders, methodId, boyId, status draft→assigned→picked→out_for_delivery→delivered|failed|returned, codAmountInCents Money, proofUrl)`, `delivery_assignments`. Permissions `delivery:delivery:create:space|manage:platform`, `delivery:boy:manage:platform` via `EffectivePermissionResolver` `DENY>ALLOW`. Commerce garde `stockAllocation`, Delivery ne décrémente jamais le stock.
+
+---
+
+## 9. Vues BAC réelles — remplacer les placeholders `/[bacid]` (constat 2026-09-24)
+
+Constat : `solara-view.ts:10` branché (`/`) via `bac-orchestrator.ts:35`, `booking-view.ts:9` désormais branché (loader + rendu `renderBac()` `start.ts:218`), les 8 autres BAC n'ont aucune vue (`DynamicBacRegistry pageViews: []`, fallback `discovery.ts:53`). Pattern imposé pour chaque tâche : `apps/<bac>/src/presentation/<bac>-view.ts` `createXDescriptor()` + loader `bac-orchestrator.ts:33` + rendu via `renderBac()` (plus de `matchedApp.render()` placeholder). Référence : Solara ✅, Booking ✅.
+
+- **VIEW-BEAM [SHELL]** — Messagerie (`BeamMessagingService`, `messaging.model.ts`) : conversations + messages + salons (`?view=channels`). Fichiers : `apps/beam/src/presentation/beam-view.ts` + loader. Critère : `/beam` affiche conversations, plus de carte `Prêt & Découvert`.
+- **VIEW-COMMERCE [SHELL]** — Marketplace (`CommerceOfferService`, `OrderService`) : listing offres + panier (`?view=cart`) + commandes. Fichiers : `apps/commerce/src/presentation/commerce-view.ts` + loader. Critère : `/commerce` liste les offres `ACTIVE`.
+- **VIEW-PORTFOLIO [SHELL]** — Catalogue (`PortfolioService`, `Vendable`) : grille + fiche (PRD-0011 §4, admin plateforme). Fichiers : `apps/portfolio/src/presentation/portfolio-view.ts` + loader. Critère : `/portfolio` affiche le catalogue, pas le placeholder.
+- **VIEW-CITADELLE [SHELL]** — Identité (`UserService`) : profil/sessions/MFA + admin utilisateurs (`?tab=users`). Fichiers : `apps/citadelle/src/presentation/citadelle-view.ts` + loader. Critère : `/citadelle` et alias `/identity` rendent la même vue.
+- **VIEW-SPACES [SHELL]** — Espaces (`SpaceService`) : mes espaces + création + membres/rôles. Fichiers : `apps/spaces/src/presentation/spaces-view.ts` + loader. Critère : `/spaces` liste les espaces accessibles.
+- **VIEW-SOLIDARITY [SHELL]** — Crises (`SolidarityService`) : campagnes + besoins, rendu conditionné `contribute` vs `admin:manage` (un seul BAC, pas deux). Fichiers : `apps/solidarity/src/presentation/solidarity-view.ts` + loader. Critère : `/solidarity` s'adapte au rôle.
+- **VIEW-IMPERIA [SHELL]** — Gouvernance (`GovernancePolicyRegistry`) : état global, policies, audit, flags. Fichiers : `apps/imperia/src/presentation/imperia-view.ts` + loader (admin plateforme uniquement). Critère : `/imperia` non autorisé → `403`.
+- **VIEW-SUBSCRIPTION [ENGINE]** — Moteur sans homepage autonome : retirer de la nav (`discovery.ts:81` `featureFlag` off / filtre `kind==="engine"`), exposer plans/factures via Imperia en capability. Fichiers : `apps/subscription/src/presentation/` (pages admin) + suppression nav. Critère : `/subscription` absent de la sidebar, accessible via Imperia.
+
+> Ordre recommandé : VIEW-BEAM + VIEW-COMMERCE (P0, usage quotidien) → VIEW-PORTFOLIO + VIEW-SPACES (P1) → VIEW-CITADELLE + VIEW-SOLIDARITY (P1) → VIEW-IMPERIA + VIEW-SUBSCRIPTION (P2).

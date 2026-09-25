@@ -214,7 +214,27 @@ const server = http.createServer(async (req, res) => {
     const appContributions = bacEntry ? bacEntry.contributions : [];
 
     let renderedContent: string;
-    if (matchedApp.render) {
+    // 1. Vraie vue BAC via l'orchestrateur (Solara, Booking, ...) — fallback placeholder sinon
+    const descriptor =
+      bacOrchestrator.getDescriptor(matchedApp.id) || (await bacOrchestrator.loadDescriptor(matchedApp.id));
+    if (descriptor) {
+      const bacResult = await bacOrchestrator.renderBac(matchedApp.id, {
+        tenantId: "default",
+        spaceId: currentSpace,
+        user: {
+          id: currentUser.id,
+          roles: [currentUser.role],
+          permissions: currentUser.permissions,
+        },
+        theme: { mode: currentThemeMode },
+        request: {
+          path: pathname,
+          query: Object.fromEntries(parsedUrl.searchParams.entries()),
+          headers: (req.headers as Record<string, string>) || {},
+        },
+      });
+      renderedContent = bacResult.contentHtml;
+    } else if (matchedApp.render) {
       try {
         renderedContent = matchedApp.render();
       } catch (err) {
