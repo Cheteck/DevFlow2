@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-25 — Feed Engine unifié (branche stateful + couche ranking main)
+
+### Added
+- **`packages/feed-engine` unifié** (merge `feature-feed-engine-enhancements-…`) :
+  - Châssis branche : `FeedEngine` stateful (instances isolables, `unregister`/`clear`), registre proxy statique, cartes structurées, intercepteurs null-filtrants + batch, `ActivityGrouper`, `FeedScorer`, `FeedPaginator` (curseurs), ports `FeedEventPublisher` / `FeedCachePort`, modèle étendu (threads, polls, visibilité).
+  - Couche main conservée : traits `Feedable`/`Engageable`, reactions/comments, `aggregatePaginated` (contrat Solara), `ActivityStreamsConverter`, posts sponsorisés, `FeedRanker`/`ForYou`/`Trending`/`Safety`/`Telemetry`, `FeedGeneratorRegistry`.
+  - Dédupliqué : un seul `FeedAggregator` (aggregate superset + `aggregatePaginated`), un seul `PaginatedFeedResult` (superset), un seul registre.
+- **Tests** : `packages/feed-engine/src/index.test.ts` converti `node:test` → vitest, 27 tests (21 portés + 6 verrous d'unification ranking/safety/fédération).
+
 ## 2026-09-25 — Gestion des secrets façon Laravel & commande d'installation
 
 ### Added
