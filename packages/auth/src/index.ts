@@ -29,7 +29,12 @@ export type { ChallengeManagerOptions, Challenge } from "./challenge-manager";
 export { TokenManager } from "./token-manager";
 export type { TokenManagerOptions } from "./token-manager";
 
-export { JwtService, resolveJwtSecret } from "./jwt-service";
+export {
+  JwtService,
+  resolveJwtSecret,
+  resolveJwtPreviousSecrets,
+  resolveJwtSecrets,
+} from "./jwt-service";
 export type { PlatformJwtPayload, JwtServiceOptions } from "./jwt-service";
 
 export * from "./oidc-bridge";
@@ -41,4 +46,3 @@ export * from "./oauth/providers/apple-provider";
 export * from "./oauth/providers/microsoft-provider";
 export * from "./oauth/providers/github-provider";
 export * from "./oauth/providers/facebook-provider";
-

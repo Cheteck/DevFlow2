@@ -211,11 +211,16 @@ export * from "./application-runtime";
 export { ApplicationDiscovery } from "./app-discovery";
 
 export { resolveSlot, SHELL_ROUTES, isShellRoute } from "./theme/resolve-slot";
-export type { SlotResolutionContext, SlotResolutionResult } from "./theme/resolve-slot";
+export type {
+  SlotResolutionContext,
+  SlotResolutionResult,
+} from "./theme/resolve-slot";
 export { deepMergeTokens } from "./theme/resolve-tokens";
 
 // Env module (AdonisJS-inspired)
 export { Env, EnvManager } from "./env/env";
+export { baseEnvSchema, validateEnv, resolvePort } from "./env/env.schema";
+export type { BaseEnv, NormalizedEnv } from "./env/env.schema";
 
 // Service Providers (AdonisJS-inspired) & IoC Container
 export { BaseServiceProvider } from "./providers/base-service-provider";
@@ -245,7 +250,10 @@ export * from "./modules/index";
 // Theme persistence + BAC targets
 export { PostgresThemeAssignmentsStore } from "./theme/postgres-theme-assignments-store";
 export { ThemeAssignmentsMigrationProvider } from "./theme/theme-assignments-migration";
-export { BAC_THEME_TARGETS, registerBacThemeTargets } from "./theme/bac-theme-targets";
+export {
+  BAC_THEME_TARGETS,
+  registerBacThemeTargets,
+} from "./theme/bac-theme-targets";
 
 // Effective Permission Resolver & Value Objects
 export {
@@ -270,6 +278,3 @@ export * from "./platform-settings.js";
 export * from "./shell-user-state.js";
 export * from "./shell-entry-policy.js";
 export * from "./request-diagnostics-store.js";
-
-
-

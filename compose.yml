@@ -18,15 +18,25 @@ services:
     image: mosaix-platform:local
     command: ["pnpm", "start"]
     ports:
-      - "${PORT:-3000}:3000"
+      - "${MOSAIX_PORT:-${PORT:-3000}}:3000"
+    env_file:
+      - path: .env
+        required: false
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-development}
+      MOSAIX_ENV: ${MOSAIX_ENV:-development}
       CI: "true"
-      PORT: "3000"
+      # Canonical first, legacy kept for compat (MOSAIX_PORT wins at runtime)
+      MOSAIX_PORT: "${MOSAIX_PORT:-${PORT:-3000}}"
+      PORT: "${MOSAIX_PORT:-${PORT:-3000}}"
+      APP_PORT: "${MOSAIX_PORT:-${PORT:-3000}}"
       HOST: "0.0.0.0"
-      DATABASE_URL: "postgresql://mosaix:mosaix@db:5432/mosaix"
-      REDIS_URL: "redis://cache:6379"
-      SESSION_TTL: "3600"
+      MOSAIX_DATABASE_URL: "${MOSAIX_DATABASE_URL:-postgresql://mosaix:mosaix@db:5432/mosaix}"
+      DATABASE_URL: "${MOSAIX_DATABASE_URL:-postgresql://mosaix:mosaix@db:5432/mosaix}"
+      MOSAIX_REDIS_URL: "${MOSAIX_REDIS_URL:-redis://cache:6379}"
+      REDIS_URL: "${MOSAIX_REDIS_URL:-redis://cache:6379}"
+      MOSAIX_AUTH_TOKEN_TTL: "${MOSAIX_AUTH_TOKEN_TTL:-3600}"
+      SESSION_TTL: "${MOSAIX_AUTH_TOKEN_TTL:-3600}"
     volumes:
       - .:/app
       - /app/node_modules

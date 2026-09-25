@@ -13,7 +13,15 @@ export class PortfolioBulkExporter {
   }
 
   static toCsv(vendables: Vendable[]): string {
-    const headers = ["id", "title", "category", "price", "currency", "status", "slug"];
+    const headers = [
+      "id",
+      "title",
+      "category",
+      "price",
+      "currency",
+      "status",
+      "slug",
+    ];
     const rows = vendables.map((v) => [
       v.id,
       `"${(v.title ?? "").replace(/"/g, '""')}"`,
@@ -32,7 +40,10 @@ export class PortfolioBulkImporter {
     try {
       const parsed = JSON.parse(jsonStr);
       if (!Array.isArray(parsed)) {
-        return { valid: [], errors: ["JSON payload must be an array of vendables."] };
+        return {
+          valid: [],
+          errors: ["JSON payload must be an array of vendables."],
+        };
       }
       const valid: Vendable[] = [];
       const errors: string[] = [];
@@ -50,7 +61,10 @@ export class PortfolioBulkImporter {
     }
   }
 
-  static fromCsv(csvStr: string): { valid: Partial<Vendable>[]; errors: string[] } {
+  static fromCsv(csvStr: string): {
+    valid: Partial<Vendable>[];
+    errors: string[];
+  } {
     const lines = csvStr.trim().split("\n");
     if (lines.length < 2) {
       return { valid: [], errors: ["CSV file is empty or missing data rows."] };
@@ -89,7 +103,6 @@ export class PortfolioBulkImporter {
   }
 }
 
-
 export interface CdnSignedUrlOptions {
   width?: number;
   height?: number;
@@ -97,17 +110,63 @@ export interface CdnSignedUrlOptions {
   expiresInSeconds?: number;
 }
 
-export class PortfolioMediaManager {
-  constructor(private readonly cdnBaseUrl: string = "https://cdn.mosaix.local", private readonly secretKey: string = "mosaix-cdn-secret") {}
+export interface PortfolioMediaManagerOptions {
+  cdnBaseUrl?: string;
+  secretKey?: string;
+}
 
-  generateSignedUrl(mediaPath: string, options: CdnSignedUrlOptions = {}): string {
+function resolveEnv(key: string): string | undefined {
+  const v = typeof process !== "undefined" ? process.env?.[key] : undefined;
+  return v && v.length > 0 ? v : undefined;
+}
+
+export class PortfolioMediaManager {
+  private readonly cdnBaseUrl: string;
+  private readonly secretKey: string;
+
+  constructor(
+    cdnBaseUrl?: string | PortfolioMediaManagerOptions,
+    secretKey?: string,
+  ) {
+    const opts: PortfolioMediaManagerOptions =
+      typeof cdnBaseUrl === "object" && cdnBaseUrl !== null
+        ? cdnBaseUrl
+        : { cdnBaseUrl: cdnBaseUrl as string | undefined, secretKey };
+    this.cdnBaseUrl =
+      opts.cdnBaseUrl ??
+      resolveEnv("MOSAIX_CDN_BASE_URL") ??
+      "https://cdn.mosaix.local";
+    this.secretKey =
+      opts.secretKey ??
+      resolveEnv("MOSAIX_CDN_SECRET") ??
+      "mosaix-cdn-secret-dev-only";
+    if (
+      typeof process !== "undefined" &&
+      process.env?.NODE_ENV === "production" &&
+      this.secretKey.includes("dev-only")
+    ) {
+      throw new Error(
+        "MOSAIX_CDN_SECRET must be set in production (no dev fallback).",
+      );
+    }
+  }
+
+  generateSignedUrl(
+    mediaPath: string,
+    options: CdnSignedUrlOptions = {},
+  ): string {
     const format = options.format ?? "webp";
     const width = options.width ? `&w=${options.width}` : "";
     const height = options.height ? `&h=${options.height}` : "";
-    const expires = Math.floor(Date.now() / 1000) + (options.expiresInSeconds ?? 3600);
+    const expires =
+      Math.floor(Date.now() / 1000) + (options.expiresInSeconds ?? 3600);
 
     const payload = `${mediaPath}?fmt=${format}${width}${height}&exp=${expires}`;
-    const signature = crypto.createHmac("sha256", this.secretKey).update(payload).digest("hex").slice(0, 16);
+    const signature = crypto
+      .createHmac("sha256", this.secretKey)
+      .update(payload)
+      .digest("hex")
+      .slice(0, 16);
 
     return `${this.cdnBaseUrl}/${payload}&sig=${signature}`;
   }

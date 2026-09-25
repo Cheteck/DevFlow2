@@ -6,14 +6,21 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "${MOSAIX_PORT:-3000}:3000"
+    env_file:
+      - path: .env.staging
+        required: false
     environment:
       - MOSAIX_ENV=staging
-      - MOSAIX_PORT=3000
-      - MOSAIX_AUTH_JWT_SECRET=staging-secret-key-mosaix-2026
-      - MOSAIX_DATABASE_URL=postgres://mosaix:mosaix_pass@mosaix-postgres:5432/mosaix_staging
-      - MOSAIX_REDIS_URL=redis://mosaix-redis:6379
-      - MOSAIX_TELEMETRY_OTLP_ENDPOINT=http://mosaix-jaeger:4318/v1/traces
+      - NODE_ENV=staging
+      - MOSAIX_PORT=${MOSAIX_PORT:-3000}
+      # Secrets MUST come from shell env or .env.staging (never hardcoded).
+      # Generate with: openssl rand -base64 48
+      - MOSAIX_AUTH_JWT_SECRET=${MOSAIX_AUTH_JWT_SECRET:?Set MOSAIX_AUTH_JWT_SECRET in env or .env.staging}
+      - MOSAIX_SESSION_SECRET=${MOSAIX_SESSION_SECRET:-}
+      - MOSAIX_DATABASE_URL=${MOSAIX_DATABASE_URL:-postgres://mosaix:mosaix_pass@mosaix-postgres:5432/mosaix_staging}
+      - MOSAIX_REDIS_URL=${MOSAIX_REDIS_URL:-redis://mosaix-redis:6379}
+      - MOSAIX_TELEMETRY_OTLP_ENDPOINT=${MOSAIX_TELEMETRY_OTLP_ENDPOINT:-http://mosaix-jaeger:4318/v1/traces}
     depends_on:
       mosaix-postgres:
         condition: service_healthy

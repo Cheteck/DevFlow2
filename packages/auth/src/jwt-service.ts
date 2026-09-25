@@ -22,6 +22,12 @@ export interface PlatformJwtPayload {
 export interface JwtServiceOptions {
   secret: string;
   defaultTtlSeconds?: number;
+  /**
+   * Previous secrets accepted at verification during rotation
+   * (Laravel `APP_PREVIOUS_KEYS` semantics). New tokens are always
+   * signed with `secret`; each candidate is tried in order.
+   */
+  previousSecrets?: string[];
 }
 
 function base64urlEncode(input: string): string {
@@ -34,24 +40,35 @@ function base64urlDecode(input: string): string {
 
 export class JwtService {
   private readonly secret: string;
+  private readonly previousSecrets: string[];
   private readonly defaultTtlSeconds: number;
 
   constructor(options: JwtServiceOptions) {
     if (!options.secret) {
-      throw new Error("JwtService requires a secret. Provide MOSAIX_AUTH_JWT_SECRET.");
+      throw new Error(
+        "JwtService requires a secret. Provide MOSAIX_AUTH_JWT_SECRET.",
+      );
     }
     if (options.secret.length < 16) {
-      console.warn("[Security] JwtService secret is shorter than 16 characters — use a longer secret in production.");
+      console.warn(
+        "[Security] JwtService secret is shorter than 16 characters — use a longer secret in production.",
+      );
     }
     this.secret = options.secret;
+    this.previousSecrets = [
+      ...new Set((options.previousSecrets ?? []).filter((s) => s.length > 0)),
+    ];
     this.defaultTtlSeconds = options.defaultTtlSeconds ?? 3600;
   }
 
   sign(payload: Omit<PlatformJwtPayload, "exp"> & { exp?: number }): string {
-    const header = base64urlEncode(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+    const header = base64urlEncode(
+      JSON.stringify({ alg: "HS256", typ: "JWT" }),
+    );
     const fullPayload: PlatformJwtPayload = {
       ...payload,
-      exp: payload.exp ?? Math.floor(Date.now() / 1000) + this.defaultTtlSeconds,
+      exp:
+        payload.exp ?? Math.floor(Date.now() / 1000) + this.defaultTtlSeconds,
     };
     const payloadB64 = base64urlEncode(JSON.stringify(fullPayload));
     const signature = crypto
@@ -67,19 +84,31 @@ export class JwtService {
     if (!raw) return null;
     const parts = raw.split(".");
     if (parts.length !== 3) return null;
-    const [headerB64, payloadB64, signatureB64] = parts as [string, string, string];
+    const [headerB64, payloadB64, signatureB64] = parts as [
+      string,
+      string,
+      string,
+    ];
 
     try {
-      const expected = crypto
-        .createHmac("sha256", this.secret)
-        .update(`${headerB64}.${payloadB64}`)
-        .digest("base64url");
+      const signingInput = `${headerB64}.${payloadB64}`;
       const sigBuf = Buffer.from(signatureB64, "base64url");
-      const expBuf = Buffer.from(expected, "base64url");
-      if (sigBuf.length !== expBuf.length) return null;
-      if (!crypto.timingSafeEqual(sigBuf, expBuf)) return null;
+      const matched = [this.secret, ...this.previousSecrets].some(
+        (candidate) => {
+          const expected = crypto
+            .createHmac("sha256", candidate)
+            .update(signingInput)
+            .digest("base64url");
+          const expBuf = Buffer.from(expected, "base64url");
+          if (sigBuf.length !== expBuf.length) return false;
+          return crypto.timingSafeEqual(sigBuf, expBuf);
+        },
+      );
+      if (!matched) return null;
 
-      const payload = JSON.parse(base64urlDecode(payloadB64)) as PlatformJwtPayload;
+      const payload = JSON.parse(
+        base64urlDecode(payloadB64),
+      ) as PlatformJwtPayload;
       if (!payload.sub || !payload.tenantId) return null;
       if (payload.exp && Date.now() / 1000 > payload.exp) return null;
       return payload;
@@ -98,8 +127,39 @@ export function resolveJwtSecret(env: NodeJS.ProcessEnv = process.env): string {
   const secret = env.MOSAIX_AUTH_JWT_SECRET;
   if (secret && secret.length >= 16) return secret;
   if (env.NODE_ENV === "production") {
-    throw new Error("MOSAIX_AUTH_JWT_SECRET must be set with at least 16 characters in production");
+    throw new Error(
+      "MOSAIX_AUTH_JWT_SECRET must be set with at least 16 characters in production",
+    );
   }
-  console.warn("[Security] MOSAIX_AUTH_JWT_SECRET not set — using insecure development default. Set MOSAIX_AUTH_JWT_SECRET for production.");
+  console.warn(
+    "[Security] MOSAIX_AUTH_JWT_SECRET not set — using insecure development default. Set MOSAIX_AUTH_JWT_SECRET for production.",
+  );
   return "mosaix-jwt-secret-key-for-development-only";
+}
+
+/** Previous JWT secrets (comma-separated) accepted during rotation. */
+export function resolveJwtPreviousSecrets(
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
+  const raw = env.MOSAIX_AUTH_PREVIOUS_SECRETS;
+  if (!raw) return [];
+  return [
+    ...new Set(
+      raw
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0),
+    ),
+  ];
+}
+
+/** Current + previous secrets, ordered for verification (current first). */
+export function resolveJwtSecrets(env: NodeJS.ProcessEnv = process.env): {
+  current: string;
+  previous: string[];
+} {
+  return {
+    current: resolveJwtSecret(env),
+    previous: resolveJwtPreviousSecrets(env),
+  };
 }
