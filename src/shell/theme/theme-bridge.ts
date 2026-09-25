@@ -176,6 +176,75 @@ export function renderThemeStyleTag(overrideMode?: ThemeMode): string {
   return `<style id="mosaix-compiled-theme">\n${lines.join("\n")}\n</style>`;
 }
 
+export function getTailwindThemeColors(
+  mode: ThemeMode = "dark",
+): Record<string, string> {
+  if (mode === "light") {
+    return {
+      surface: "#ffffff",
+      "surface-container-lowest": "#ffffff",
+      "surface-container-low": "#f8fafc",
+      "surface-container": "#f1f5f9",
+      "surface-container-high": "#e2e8f0",
+      "surface-container-highest": "#cbd5e1",
+      "surface-variant": "#f1f5f9",
+      "on-surface": "#0f172a",
+      "on-surface-variant": "#64748b",
+      primary: "#4f46e5",
+      "on-primary": "#ffffff",
+      "primary-container": "#e0e7ff",
+      secondary: "#06b6d4",
+      tertiary: "#8b5cf6",
+      outline: "#cbd5e1",
+      "outline-variant": "#e2e8f0",
+      background: "#f8fafc",
+    };
+  }
+
+  if (mode === "high-contrast") {
+    return {
+      surface: "#000000",
+      "surface-container-lowest": "#000000",
+      "surface-container-low": "#000000",
+      "surface-container": "#000000",
+      "surface-container-high": "#1a1a1a",
+      "surface-container-highest": "#2a2a2a",
+      "surface-variant": "#1a1a1a",
+      "on-surface": "#ffffff",
+      "on-surface-variant": "#ffff80",
+      primary: "#ffff00",
+      "on-primary": "#000000",
+      "primary-container": "#ffff00",
+      secondary: "#00ffff",
+      tertiary: "#ff00ff",
+      outline: "#ffffff",
+      "outline-variant": "#ffffff",
+      background: "#000000",
+    };
+  }
+
+  // Dark mode (default)
+  return {
+    surface: "#0b1326",
+    "surface-container-lowest": "#060e20",
+    "surface-container-low": "#131b2e",
+    "surface-container": "#171f33",
+    "surface-container-high": "#222a3d",
+    "surface-container-highest": "#2d3449",
+    "surface-variant": "#2d3449",
+    "on-surface": "#dae2fd",
+    "on-surface-variant": "#cbc3d7",
+    primary: "#d0bcff",
+    "on-primary": "#3c0091",
+    "primary-container": "#a078ff",
+    secondary: "#cebdff",
+    tertiary: "#c4c1fb",
+    outline: "#958ea0",
+    "outline-variant": "#494454",
+    background: "#0b1326",
+  };
+}
+
 export class ShellThemeProvider {
   static async setThemeMode(mode: ThemeMode): Promise<CompiledTheme> {
     return applyThemeMode(mode);
@@ -188,4 +257,9 @@ export class ShellThemeProvider {
   static renderThemeStyleTag(mode?: ThemeMode): string {
     return renderThemeStyleTag(mode);
   }
+
+  static getTailwindThemeColors(mode?: ThemeMode): Record<string, string> {
+    return getTailwindThemeColors(mode);
+  }
 }
+

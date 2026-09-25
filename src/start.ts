@@ -13,6 +13,7 @@ import { escapeHtml } from "@mosaix/support";
 import {
   CompositionOverrideManager,
   platformSettingsService,
+  loadEnvFile,
   validateEnv,
 } from "@mosaix/core";
 
@@ -46,6 +47,11 @@ import { handleMaintenanceGate } from "./server/middleware/maintenance-gate.js";
 import { dispatchApiRequest } from "./server/api-dispatcher.js";
 import { renderBacPage } from "./shell/pages/bac-page.js";
 import { renderHomePage } from "./shell/pages/home-page.js";
+
+// Load `.env` files first (zero-dep): without this, file-only secrets such
+// as MOSAIX_AUTH_JWT_SECRET are invisible and dev falls back to the
+// insecure default (`DEV_NOTICE`). Shell/docker env always wins.
+loadEnvFile();
 
 // Enforce production security constraints (VULN-08)
 SecurityGuard.enforceProductionConstraints();

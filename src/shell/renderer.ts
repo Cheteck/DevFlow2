@@ -543,11 +543,11 @@ export function renderUserSwitcherWidget(
       <!-- Pre-Production Rich User & Space Menu Dropdown / Mobile Bottom Sheet -->
       <div 
         id="user-menu-dropdown" 
-        class="fixed sm:absolute inset-0 sm:inset-auto sm:right-0 sm:top-full sm:mt-2.5 z-[150] sm:z-50 hidden bg-black/60 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none items-end sm:block justify-center animate-fade-in"
+        class="fixed sm:absolute inset-0 sm:inset-auto sm:right-0 sm:top-full sm:mt-2.5 z-[150] sm:z-50 hidden bg-black/60 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none items-end justify-center animate-fade-in"
         onclick="toggleUserDropdown(event)"
       >
         <div 
-          class="w-full sm:w-84 max-w-lg sm:max-w-none bg-surface-container-high/98 border-t sm:border border-outline-variant/25 rounded-t-3xl sm:rounded-2xl shadow-2xl p-4 sm:p-3.5 backdrop-blur-2xl space-y-3.5 select-none max-h-[88vh] sm:max-h-none overflow-y-auto no-scrollbar animate-slide-up-mobile pb-8 sm:pb-3.5"
+          class="w-full sm:w-84 max-w-lg sm:max-w-none bg-surface-container-high border-t sm:border border-outline-variant/25 rounded-t-3xl sm:rounded-2xl shadow-2xl p-4 sm:p-3.5 backdrop-blur-2xl space-y-3.5 select-none max-h-[88vh] sm:max-h-none overflow-y-auto no-scrollbar animate-slide-up-mobile pb-8 sm:pb-3.5"
           onclick="event.stopPropagation()"
         >
           <!-- Mobile Drag Handle -->

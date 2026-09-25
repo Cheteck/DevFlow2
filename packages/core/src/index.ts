@@ -219,7 +219,7 @@ export { deepMergeTokens } from "./theme/resolve-tokens";
 
 // Env module (AdonisJS-inspired)
 export { Env, EnvManager } from "./env/env";
-export { baseEnvSchema, validateEnv, resolvePort } from "./env/env.schema";
+export { baseEnvSchema, validateEnv, resolvePort, loadEnvFile } from "./env/env.schema";
 export type { BaseEnv, NormalizedEnv } from "./env/env.schema";
 
 // Service Providers (AdonisJS-inspired) & IoC Container

@@ -4,6 +4,7 @@
 
 import { ssrFragmentCache } from "./ssr-cache.js";
 import { escapeHtml } from "@mosaix/support";
+import { getTailwindThemeColors } from "./theme/theme-bridge.js";
 
 // Single canonical escapeHtml lives in @mosaix/support (A-03).
 // This module re-exports it so existing deep imports keep working.
@@ -52,25 +53,7 @@ export function renderHeadBlock(
           darkMode: "class",
           theme: {
             extend: {
-              colors: {
-                "surface": "#0b1326",
-                "surface-container-lowest": "#060e20",
-                "surface-container-low": "#131b2e",
-                "surface-container": "#171f33",
-                "surface-container-high": "#222a3d",
-                "surface-container-highest": "#2d3449",
-                "surface-variant": "#2d3449",
-                "on-surface": "#dae2fd",
-                "on-surface-variant": "#cbc3d7",
-                "primary": "#d0bcff",
-                "on-primary": "#3c0091",
-                "primary-container": "#a078ff",
-                "secondary": "#cebdff",
-                "tertiary": "#c4c1fb",
-                "outline": "#958ea0",
-                "outline-variant": "#494454",
-                "background": "#0b1326"
-              }
+              colors: ${JSON.stringify(getTailwindThemeColors(activeThemeMode as any), null, 14)}
             }
           }
         }
@@ -78,11 +61,11 @@ export function renderHeadBlock(
       <style>
         ${sharedStylesHtml}
         .glass-card {
-          background-color: rgba(30, 41, 59, 0.4);
+          background-color: ${activeThemeMode === "light" ? "rgba(255, 255, 255, 0.7)" : "rgba(30, 41, 59, 0.4)"};
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
-          border: 1px solid rgba(71, 85, 105, 0.2);
-          box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+          border: 1px solid ${activeThemeMode === "light" ? "rgba(15, 23, 42, 0.08)" : "rgba(71, 85, 105, 0.2)"};
+          box-shadow: 0 4px 30px rgba(0, 0, 0, ${activeThemeMode === "light" ? "0.05" : "0.1"});
         }
         .glass-hover-glow:hover {
           box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);

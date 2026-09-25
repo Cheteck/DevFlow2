@@ -1,4 +1,6 @@
 import { z } from "zod";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 /**
  * @mosaix/core — Canonical environment schema (extensible).
@@ -17,6 +19,14 @@ const portLike = z
   .transform((v) => Number.parseInt(String(v), 10))
   .pipe(z.number().int().min(1).max(65535));
 
+/**
+ * dotenv semantics: `KEY=` (empty) means unset. Without this, an empty
+ * placeholder from `.env` fails `min()`/`email()`/`url()` refinements and
+ * crashes the boot — while the same missing key would be valid.
+ */
+const emptyAsUnset = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((v) => (v === "" ? undefined : v), schema);
+
 export const baseEnvSchema = z
   .object({
     // ── Runtime ──
@@ -26,7 +36,7 @@ export const baseEnvSchema = z
     NODE_ENV: z
       .enum(["development", "staging", "production", "test"])
       .optional(),
-    MOSAIX_PORT: portLike.optional(),
+    MOSAIX_PORT: emptyAsUnset(portLike.optional()),
     MOSAIX_COMPOSITION: z.string().min(1).default("community-platform"),
     MOSAIX_DEFAULT_BAC: z.string().min(1).default("solara"),
     MOSAIX_MAINTENANCE_MODE: z
@@ -35,38 +45,42 @@ export const baseEnvSchema = z
       .optional(),
 
     // ── Legacy port aliases (kept for compat, canonical = MOSAIX_PORT) ──
-    APP_PORT: portLike.optional(),
-    PORT: portLike.optional(),
+    APP_PORT: emptyAsUnset(portLike.optional()),
+    PORT: emptyAsUnset(portLike.optional()),
 
     // ── Demo session (usermenu switcher, ?role=, /api/user/switch) ──
     // Empty = auto (enabled everywhere except production).
-    MOSAIX_DEMO_USERS: z.union([z.string(), z.boolean()]).optional(),
+    MOSAIX_DEMO_USERS: emptyAsUnset(z.union([z.string(), z.boolean()]).optional()),
 
     // ── Auth / secrets ──
     // Master encryption key (Laravel-style `base64:`). Managed with:
     // `pnpm key:generate` / `pnpm key:check`.
-    MOSAIX_APP_KEY: z.string().min(1).optional(),
-    MOSAIX_APP_CIPHER: z.enum(["AES-256-CBC", "AES-128-CBC"]).optional(),
+    MOSAIX_APP_KEY: emptyAsUnset(z.string().min(1).optional()),
+    MOSAIX_APP_CIPHER: emptyAsUnset(
+      z.enum(["AES-256-CBC", "AES-128-CBC"]).optional(),
+    ),
     // Previous keys keep verifying during rotation (comma-separated).
-    MOSAIX_APP_PREVIOUS_KEYS: z.string().optional(),
-    MOSAIX_AUTH_JWT_SECRET: z.string().min(16).optional(),
-    JWT_SECRET: z.string().min(16).optional(),
+    MOSAIX_APP_PREVIOUS_KEYS: emptyAsUnset(z.string().optional()),
+    MOSAIX_AUTH_JWT_SECRET: emptyAsUnset(z.string().min(16).optional()),
+    JWT_SECRET: emptyAsUnset(z.string().min(16).optional()),
     // Previous JWT secrets accepted at verification during rotation.
-    MOSAIX_AUTH_PREVIOUS_SECRETS: z.string().optional(),
-    MOSAIX_SESSION_SECRET: z.string().min(16).optional(),
-    MOSAIX_AUTH_TOKEN_TTL: z.coerce.number().int().positive().default(3600),
-    MOSAIX_ADMIN_API_KEY: z.string().optional(),
-    ADMIN_EMAIL: z.string().email().optional(),
-    ADMIN_PASSWORD: z.string().min(12).optional(),
+    MOSAIX_AUTH_PREVIOUS_SECRETS: emptyAsUnset(z.string().optional()),
+    MOSAIX_SESSION_SECRET: emptyAsUnset(z.string().min(16).optional()),
+    MOSAIX_AUTH_TOKEN_TTL: emptyAsUnset(
+      z.coerce.number().int().positive().default(3600),
+    ),
+    MOSAIX_ADMIN_API_KEY: emptyAsUnset(z.string().optional()),
+    ADMIN_EMAIL: emptyAsUnset(z.string().email().optional()),
+    ADMIN_PASSWORD: emptyAsUnset(z.string().min(12).optional()),
 
     // ── Data ──
-    MOSAIX_DATABASE_URL: z.string().min(1).optional(),
-    DATABASE_URL: z.string().min(1).optional(),
-    MOSAIX_REDIS_URL: z.string().min(1).optional(),
-    REDIS_URL: z.string().min(1).optional(),
+    MOSAIX_DATABASE_URL: emptyAsUnset(z.string().min(1).optional()),
+    DATABASE_URL: emptyAsUnset(z.string().min(1).optional()),
+    MOSAIX_REDIS_URL: emptyAsUnset(z.string().min(1).optional()),
+    REDIS_URL: emptyAsUnset(z.string().min(1).optional()),
 
     // ── HTTP ──
-    CORS_ALLOWED_ORIGINS: z.string().optional(),
+    CORS_ALLOWED_ORIGINS: emptyAsUnset(z.string().optional()),
     TRUST_PROXY: z
       .union([z.string(), z.boolean()])
       .transform((v) => v === true || String(v).toLowerCase() === "true")
@@ -82,30 +96,32 @@ export const baseEnvSchema = z
       .optional(),
 
     // ── Payments / CDN ──
-    PSP_WEBHOOK_SECRET: z.string().min(16).optional(),
-    MOSAIX_CDN_SECRET: z.string().min(8).optional(),
-    MOSAIX_CDN_BASE_URL: z.string().url().optional(),
+    PSP_WEBHOOK_SECRET: emptyAsUnset(z.string().min(16).optional()),
+    MOSAIX_CDN_SECRET: emptyAsUnset(z.string().min(8).optional()),
+    MOSAIX_CDN_BASE_URL: emptyAsUnset(z.string().url().optional()),
 
     // ── OAuth (all optional — empty = disabled) ──
-    GOOGLE_CLIENT_ID: z.string().optional(),
-    GOOGLE_CLIENT_SECRET: z.string().optional(),
-    GITHUB_CLIENT_ID: z.string().optional(),
-    GITHUB_CLIENT_SECRET: z.string().optional(),
-    MICROSOFT_CLIENT_ID: z.string().optional(),
-    MICROSOFT_CLIENT_SECRET: z.string().optional(),
-    MICROSOFT_TENANT: z.string().optional(),
-    APPLE_CLIENT_ID: z.string().optional(),
-    APPLE_CLIENT_SECRET: z.string().optional(),
-    APPLE_TEAM_ID: z.string().optional(),
-    APPLE_KEY_ID: z.string().optional(),
-    APPLE_PRIVATE_KEY: z.string().optional(),
+    GOOGLE_CLIENT_ID: emptyAsUnset(z.string().optional()),
+    GOOGLE_CLIENT_SECRET: emptyAsUnset(z.string().optional()),
+    GITHUB_CLIENT_ID: emptyAsUnset(z.string().optional()),
+    GITHUB_CLIENT_SECRET: emptyAsUnset(z.string().optional()),
+    MICROSOFT_CLIENT_ID: emptyAsUnset(z.string().optional()),
+    MICROSOFT_CLIENT_SECRET: emptyAsUnset(z.string().optional()),
+    MICROSOFT_TENANT: emptyAsUnset(z.string().optional()),
+    APPLE_CLIENT_ID: emptyAsUnset(z.string().optional()),
+    APPLE_CLIENT_SECRET: emptyAsUnset(z.string().optional()),
+    APPLE_TEAM_ID: emptyAsUnset(z.string().optional()),
+    APPLE_KEY_ID: emptyAsUnset(z.string().optional()),
+    APPLE_PRIVATE_KEY: emptyAsUnset(z.string().optional()),
 
     // ── Telemetry ──
-    MOSAIX_TELEMETRY_OTLP_ENDPOINT: z
-      .string()
-      .url()
-      .optional()
-      .or(z.literal("")),
+    MOSAIX_TELEMETRY_OTLP_ENDPOINT: emptyAsUnset(
+      z
+        .string()
+        .url()
+        .optional()
+        .or(z.literal("")),
+    ),
   })
   .passthrough();
 
@@ -225,4 +241,58 @@ export function resolvePort(
   >,
 ): number {
   return validateEnv(source).resolvedPort;
+}
+
+/**
+ * Zero-dependency `.env` loader (no `dotenv` package).
+ *
+ * Reads dotenv files and injects missing keys into `process.env` — never
+ * overwrites variables already set (shell / docker / CI always win).
+ * Files load in order, so later files override earlier ones
+ * (`.env` base, `.env.local` overrides), missing files are skipped silently.
+ *
+ * Must be called before `validateEnv()` / `SecurityGuard` at every
+ * executable entrypoint (see `src/start.ts`), otherwise file-only secrets
+ * (e.g. `MOSAIX_AUTH_JWT_SECRET`) are invisible and dev falls back to the
+ * insecure default with a `DEV_NOTICE` warning.
+ */
+export function loadEnvFile(
+  files: string[] = [".env", ".env.local"],
+  rootDir: string = process.cwd(),
+): string[] {
+  const loaded: string[] = [];
+  // Keys injected by this call: later files may refine them, but pre-existing
+  // process.env entries (shell / docker / CI) are never touched.
+  const owned = new Set<string>();
+  for (const file of files) {
+    const filePath = path.isAbsolute(file) ? file : path.join(rootDir, file);
+    if (!fs.existsSync(filePath)) continue;
+    let raw: string;
+    try {
+      raw = fs.readFileSync(filePath, "utf-8");
+    } catch {
+      continue;
+    }
+    for (const rawLine of raw.split("\n")) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#")) continue;
+      const body = line.startsWith("export ") ? line.slice(7).trim() : line;
+      const eq = body.indexOf("=");
+      if (eq <= 0) continue;
+      const key = body.slice(0, eq).trim();
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+      if (process.env[key] !== undefined && !owned.has(key)) continue;
+      let value = body.slice(eq + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"') && value.length >= 2) ||
+        (value.startsWith("'") && value.endsWith("'") && value.length >= 2)
+      ) {
+        value = value.slice(1, -1);
+      }
+      process.env[key] = value;
+      owned.add(key);
+      loaded.push(key);
+    }
+  }
+  return loaded;
 }

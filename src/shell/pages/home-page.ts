@@ -402,6 +402,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
       try {
         await fetch('/api/theme?mode=' + mode, { method: 'POST' });
       } catch (e) {}
+      window.location.reload();
     }
 
     function toggleSecondarySidebar() {

@@ -16,6 +16,7 @@ import {
   renderShellConfirmModal,
 } from "../renderer.js";
 import { getShellClientScripts } from "../client/shell-client-scripts.js";
+import { getTailwindThemeColors } from "../theme/theme-bridge.js";
 
 export interface BacPageOptions {
   activeMode: ThemeMode;
@@ -59,25 +60,7 @@ export function renderBacPage(opts: BacPageOptions): string {
       darkMode: "class",
       theme: {
         extend: {
-          colors: {
-            "surface": "#0b1326",
-            "surface-container-lowest": "#060e20",
-            "surface-container-low": "#131b2e",
-            "surface-container": "#171f33",
-            "surface-container-high": "#222a3d",
-            "surface-container-highest": "#2d3449",
-            "surface-variant": "#2d3449",
-            "on-surface": "#dae2fd",
-            "on-surface-variant": "#cbc3d7",
-            "primary": "#d0bcff",
-            "on-primary": "#3c0091",
-            "primary-container": "#a078ff",
-            "secondary": "#cebdff",
-            "tertiary": "#c4c1fb",
-            "outline": "#958ea0",
-            "outline-variant": "#494454",
-            "background": "#0b1326"
-          }
+          colors: ${JSON.stringify(getTailwindThemeColors(activeMode), null, 10)}
         }
       }
     };
@@ -87,8 +70,8 @@ export function renderBacPage(opts: BacPageOptions): string {
   
   <style>
     ${sharedStyles}
-    ${themeStyle}
   </style>
+  ${themeStyle}
 
   ${getShellClientScripts()}
 </head>
@@ -187,6 +170,7 @@ export function renderBacPage(opts: BacPageOptions): string {
       try {
         await fetch('/api/theme?mode=' + mode, { method: 'POST' });
       } catch (e) {}
+      window.location.reload();
     }
 
     function toggleSecondarySidebar() {

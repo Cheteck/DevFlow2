@@ -18,7 +18,7 @@
     "key:generate": "tsx scripts/key-generate.ts",
     "key:check": "tsx scripts/key-check.ts",
     "setup": "tsx scripts/install.ts",
-    "dev": "tsx src/start.ts",
+    "dev": "tsx scripts/dev.ts",
     "db:setup": "tsx scripts/setup-sqlite.ts",
     "build": "tsx scripts/build.ts",
     "build:watch": "tsx scripts/build.ts --watch",
