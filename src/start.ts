@@ -41,12 +41,7 @@ import { renderHomePage } from "./shell/pages/home-page.js";
 // Enforce production security constraints (VULN-08)
 SecurityGuard.enforceProductionConstraints();
 
-// Canonical env validation (fail-fast, extensible — see @mosaix/core env.schema).
-// Legacy aliases (APP_PORT/PORT, DATABASE_URL...) still accepted with a warning.
-import { validateEnv } from "@mosaix/core";
-const bootEnv = validateEnv(process.env as Record<string, string | undefined>);
-
-const PORT = bootEnv.resolvedPort;
+const PORT = parseInt(process.env.APP_PORT || "3000", 10);
 let activeMode: ThemeMode = "dark";
 
 // Composition Overrides Store initialization
@@ -87,7 +82,7 @@ function parseCookies(header?: string): Record<string, string> {
     header.split(";").map((c) => {
       const [k, ...v] = c.trim().split("=");
       return [k, decodeURIComponent(v.join("="))];
-    }),
+    })
   );
 }
 
@@ -99,181 +94,96 @@ const server = http.createServer(async (req, res) => {
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("X-XSS-Protection", "1; mode=block");
 
-    const parsedUrl = new URL(
-      req.url || "/",
-      `http://${req.headers.host || "localhost"}`,
-    );
+    const parsedUrl = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
     const pathname = parsedUrl.pathname;
 
-    // 1. Static Assets Delivery (/public/)
-    if (pathname.startsWith("/public/")) {
-      const publicDir = path.resolve(process.cwd(), "public");
-      const safePath = path.resolve(process.cwd(), "." + pathname);
-      if (!safePath.startsWith(publicDir)) {
-        res.writeHead(403, { "Content-Type": "text/plain" });
-        res.end("Forbidden");
-        return;
-      }
-      if (fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
-        const ext = path.extname(safePath).toLowerCase();
-        const mimeMap: Record<string, string> = {
-          ".png": "image/png",
-          ".jpg": "image/jpeg",
-          ".svg": "image/svg+xml",
-          ".css": "text/css",
-          ".js": "application/javascript",
-          ".json": "application/json",
-        };
-        res.writeHead(200, {
-          "Content-Type": mimeMap[ext] || "application/octet-stream",
-        });
-        fs.createReadStream(safePath).pipe(res);
-        return;
-      }
-    }
-
-    // 2. Resolve User, Active Space & Theme Mode context (VULN-01: default unauthenticated role is member)
-    const cookies = parseCookies(req.headers.cookie);
-    const activeRole = cookies["mosaix_role"] || "member";
-    const currentUser: UserProfile =
-      USER_PROFILES[activeRole] || USER_PROFILES["member"];
-    const currentSpace = cookies["mosaix_active_space"] || null;
-    const currentThemeMode: ThemeMode =
-      (cookies["mosaix_theme_mode"] as ThemeMode) || activeMode || "dark";
-    const sharedStyles = getSharedStyles(currentThemeMode);
-
-    // 3. Platform Maintenance Gate Middleware (FEAT-01)
-    if (
-      handleMaintenanceGate(
-        req,
-        res,
-        pathname,
-        currentUser.role,
-        currentThemeMode,
-        sharedStyles,
-      )
-    ) {
+  // 1. Static Assets Delivery (/public/)
+  if (pathname.startsWith("/public/")) {
+    const publicDir = path.resolve(process.cwd(), "public");
+    const safePath = path.resolve(process.cwd(), "." + pathname);
+    if (!safePath.startsWith(publicDir)) {
+      res.writeHead(403, { "Content-Type": "text/plain" });
+      res.end("Forbidden");
       return;
     }
-
-    // 4. API Request Dispatcher (Theme, User, Flags, Compositions, Auth, Feed, GDPR, SSE)
-    const isApiHandled = await dispatchApiRequest(req, res, parsedUrl, {
-      activeMode: currentThemeMode,
-      setActiveMode: (mode) => {
-        activeMode = mode;
-      },
-      currentUser,
-      compositionOverrideManager,
-      feedService,
-      eventBackplane: distributedEventBackplane,
-      anonymizationOrchestrator,
-    });
-    if (isApiHandled) {
+    if (fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
+      const ext = path.extname(safePath).toLowerCase();
+      const mimeMap: Record<string, string> = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".svg": "image/svg+xml",
+        ".css": "text/css",
+        ".js": "application/javascript",
+        ".json": "application/json",
+      };
+      res.writeHead(200, { "Content-Type": mimeMap[ext] || "application/octet-stream" });
+      fs.createReadStream(safePath).pipe(res);
       return;
     }
+  }
 
-    // 5. BAC Workspace Views Routing
-    const matchedApp = apps.find(
-      (app) => pathname === app.route || pathname.startsWith(app.route + "/"),
-    );
+  // 2. Resolve User, Active Space & Theme Mode context (VULN-01: default unauthenticated role is member)
+  const cookies = parseCookies(req.headers.cookie);
+  const activeRole = cookies["mosaix_role"] || "member";
+  const currentUser: UserProfile = USER_PROFILES[activeRole] || USER_PROFILES["member"];
+  const currentSpace = cookies["mosaix_active_space"] || null;
+  const currentThemeMode: ThemeMode = (cookies["mosaix_theme_mode"] as ThemeMode) || activeMode || "dark";
+  const sharedStyles = getSharedStyles(currentThemeMode);
 
-    if (matchedApp) {
-      const cleanAppId = matchedApp.id.replace(/^@apps\//, "");
-      const isAllowed =
-        currentUser.allowedBacs.includes("*") ||
-        currentUser.allowedBacs.includes(matchedApp.id) ||
-        currentUser.allowedBacs.includes(cleanAppId) ||
-        (cleanAppId === "citadelle" &&
-          currentUser.allowedBacs.includes("identity")) ||
-        (cleanAppId === "identity" &&
-          currentUser.allowedBacs.includes("citadelle"));
+  // 3. Platform Maintenance Gate Middleware (FEAT-01)
+  if (handleMaintenanceGate(req, res, pathname, currentUser.role, currentThemeMode, sharedStyles)) {
+    return;
+  }
 
-      if (!isAllowed) {
-        res.writeHead(403, { "Content-Type": "text/html; charset=utf-8" });
-        res.end(`
+  // 4. API Request Dispatcher (Theme, User, Flags, Compositions, Auth, Feed, GDPR, SSE)
+  const isApiHandled = await dispatchApiRequest(req, res, parsedUrl, {
+    activeMode: currentThemeMode,
+    setActiveMode: (mode) => {
+      activeMode = mode;
+    },
+    currentUser,
+    compositionOverrideManager,
+    feedService,
+    eventBackplane: distributedEventBackplane,
+    anonymizationOrchestrator,
+  });
+  if (isApiHandled) {
+    return;
+  }
+
+  // 5. BAC Workspace Views Routing
+  const matchedApp = apps.find(
+    (app) => pathname === app.route || pathname.startsWith(app.route + "/")
+  );
+
+  if (matchedApp) {
+    const cleanAppId = matchedApp.id.replace(/^@apps\//, "");
+    const isAllowed =
+      currentUser.allowedBacs.includes("*") ||
+      currentUser.allowedBacs.includes(matchedApp.id) ||
+      currentUser.allowedBacs.includes(cleanAppId) ||
+      (cleanAppId === "citadelle" && currentUser.allowedBacs.includes("identity")) ||
+      (cleanAppId === "identity" && currentUser.allowedBacs.includes("citadelle"));
+
+    if (!isAllowed) {
+      res.writeHead(403, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(`
         <div style="font-family:sans-serif; text-align:center; padding:50px;">
           <h2 style="color:#ef4444;">Accès non autorisé</h2>
           <p>Votre profil (${escapeHtml(currentUser.roleLabel)}) n'a pas accès au module <strong>${escapeHtml(matchedApp.name)}</strong>.</p>
           <a href="/" style="color:#6366f1;">&larr; Retour à l'accueil</a>
         </div>
       `);
-        return;
-      }
-
-      const bacEntry = bacRegistry.find((b) => b.id === matchedApp.id);
-      const appContributions = bacEntry ? bacEntry.contributions : [];
-
-      let renderedContent: string;
-      const descriptor =
-        (await bacOrchestrator.loadDescriptor(matchedApp.id)) ||
-        bacOrchestrator.getDescriptor(matchedApp.id);
-
-      if (descriptor) {
-        const executionContext: BacExecutionContext = {
-          tenantId: "default",
-          spaceId: currentSpace,
-          user: {
-            id: currentUser.id,
-            roles: [currentUser.role],
-            permissions: currentUser.permissions,
-          },
-          theme: {
-            mode: currentThemeMode,
-          },
-          request: {
-            path: pathname,
-            query: Object.fromEntries(parsedUrl.searchParams.entries()),
-            headers: (req.headers as Record<string, string>) || {},
-          },
-        };
-        try {
-          const renderResult = await descriptor.render(executionContext);
-          renderedContent = renderResult.contentHtml;
-        } catch (err) {
-          renderedContent = `<div class="p-6 text-rose-400">Erreur d'exécution du descripteur: ${escapeHtml(String(err))}</div>`;
-        }
-      } else if (matchedApp.render) {
-        try {
-          renderedContent = matchedApp.render();
-        } catch (err) {
-          renderedContent = `<div class="p-6 text-rose-400">Erreur d'exécution: ${escapeHtml(String(err))}</div>`;
-        }
-      } else {
-        renderedContent = renderBacAdminSafely(matchedApp.id, appContributions);
-      }
-
-      const html = renderBacPage({
-        activeMode: currentThemeMode,
-        sharedStyles,
-        themeStyle: renderThemeStyleTag(currentThemeMode),
-        matchedApp,
-        currentUser,
-        currentSpace,
-        renderedContent,
-        contributionsCount: appContributions.length,
-        requestUrl: req.url,
-      });
-
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(html);
       return;
     }
 
-    // 6. Dynamic Default BAC Resolution & Workspace Root Routing
-    const platformSettings = await platformSettingsService.getSettings();
-    const defaultBacResolution = await bacOrchestrator.resolveDefaultBac(
-      platformSettings,
-      currentUser.allowedBacs,
-    );
+    const bacEntry = bacRegistry.find((b) => b.id === matchedApp.id);
+    const appContributions = bacEntry ? bacEntry.contributions : [];
 
-    if (defaultBacResolution) {
-      const { descriptor } = defaultBacResolution;
-      const cleanAppId = descriptor.id.replace(/^@apps\//, "");
-      const bacEntry = bacRegistry.find(
-        (b) => b.id === descriptor.id || b.id === cleanAppId,
-      );
-      const appContributions = bacEntry ? bacEntry.contributions : [];
-
+    let renderedContent: string;
+    const descriptor = (await bacOrchestrator.loadDescriptor(matchedApp.id)) || bacOrchestrator.getDescriptor(matchedApp.id);
+    
+    if (descriptor) {
       const executionContext: BacExecutionContext = {
         tenantId: "default",
         spaceId: currentSpace,
@@ -286,40 +196,103 @@ const server = http.createServer(async (req, res) => {
           mode: currentThemeMode,
         },
         request: {
-          path: "/",
+          path: pathname,
           query: Object.fromEntries(parsedUrl.searchParams.entries()),
           headers: (req.headers as Record<string, string>) || {},
         },
       };
-
-      const renderResult = await descriptor.render(executionContext);
-
-      const matchedApp = {
-        id: descriptor.id,
-        name: descriptor.name,
-        route: descriptor.routePrefix,
-        category: "Application Principale",
-      };
-
-      const html = renderBacPage({
-        activeMode: currentThemeMode,
-        sharedStyles,
-        themeStyle: renderThemeStyleTag(currentThemeMode),
-        matchedApp,
-        currentUser,
-        currentSpace,
-        renderedContent: renderResult.contentHtml,
-        contributionsCount: appContributions.length,
-        requestUrl: req.url,
-      });
-
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(html);
-      return;
+      try {
+        const renderResult = await descriptor.render(executionContext);
+        renderedContent = renderResult.contentHtml;
+      } catch (err) {
+        renderedContent = `<div class="p-6 text-rose-400">Erreur d'exécution du descripteur: ${escapeHtml(String(err))}</div>`;
+      }
+    } else if (matchedApp.render) {
+      try {
+        renderedContent = matchedApp.render();
+      } catch (err) {
+        renderedContent = `<div class="p-6 text-rose-400">Erreur d'exécution: ${escapeHtml(String(err))}</div>`;
+      }
+    } else {
+      renderedContent = renderBacAdminSafely(matchedApp.id, appContributions);
     }
 
-    // Fallback: If no default or fallback BAC is available, render Platform Hub
-    const widgetsHtml = `
+    const html = renderBacPage({
+      activeMode: currentThemeMode,
+      sharedStyles,
+      themeStyle: renderThemeStyleTag(currentThemeMode),
+      matchedApp,
+      currentUser,
+      currentSpace,
+      renderedContent,
+      contributionsCount: appContributions.length,
+      requestUrl: req.url,
+    });
+
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(html);
+    return;
+  }
+
+  // 6. Dynamic Default BAC Resolution & Workspace Root Routing
+  const platformSettings = await platformSettingsService.getSettings();
+  const defaultBacResolution = await bacOrchestrator.resolveDefaultBac(
+    platformSettings,
+    currentUser.allowedBacs
+  );
+
+  if (defaultBacResolution) {
+    const { descriptor } = defaultBacResolution;
+    const cleanAppId = descriptor.id.replace(/^@apps\//, "");
+    const bacEntry = bacRegistry.find((b) => b.id === descriptor.id || b.id === cleanAppId);
+    const appContributions = bacEntry ? bacEntry.contributions : [];
+
+    const executionContext: BacExecutionContext = {
+      tenantId: "default",
+      spaceId: currentSpace,
+      user: {
+        id: currentUser.id,
+        roles: [currentUser.role],
+        permissions: currentUser.permissions,
+      },
+      theme: {
+        mode: currentThemeMode,
+      },
+      request: {
+        path: "/",
+        query: Object.fromEntries(parsedUrl.searchParams.entries()),
+        headers: (req.headers as Record<string, string>) || {},
+      },
+    };
+
+    const renderResult = await descriptor.render(executionContext);
+
+    const matchedApp = {
+      id: descriptor.id,
+      name: descriptor.name,
+      route: descriptor.routePrefix,
+      category: "Application Principale",
+    };
+
+    const html = renderBacPage({
+      activeMode: currentThemeMode,
+      sharedStyles,
+      themeStyle: renderThemeStyleTag(currentThemeMode),
+      matchedApp,
+      currentUser,
+      currentSpace,
+      renderedContent: renderResult.contentHtml,
+      contributionsCount: appContributions.length,
+      requestUrl: req.url,
+    });
+
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(html);
+    return;
+  }
+
+  // Fallback: If no default or fallback BAC is available, render Platform Hub
+  const widgetsHtml = `
     <div class="glass-card p-4 rounded-xl space-y-2 border border-outline-variant/20">
       <div class="flex items-center justify-between">
         <span class="text-xs font-bold text-primary">Plateforme MosaiX</span>
@@ -329,18 +302,18 @@ const server = http.createServer(async (req, res) => {
     </div>
   `;
 
-    const homeHtml = renderHomePage({
-      activeMode: currentThemeMode,
-      sharedStyles,
-      currentUser,
-      currentSpace,
-      feedPosts: [],
-      widgetsHtml,
-      requestUrl: req.url,
-    });
+  const homeHtml = renderHomePage({
+    activeMode: currentThemeMode,
+    sharedStyles,
+    currentUser,
+    currentSpace,
+    feedPosts: [],
+    widgetsHtml,
+    requestUrl: req.url,
+  });
 
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(homeHtml);
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+  res.end(homeHtml);
   } catch (err: any) {
     console.error("[ServerError]", err);
     if (!res.headersSent) {
@@ -349,57 +322,6 @@ const server = http.createServer(async (req, res) => {
     }
   }
 });
-
-// Track open sockets: SSE keep-alive connections would otherwise block
-// server.close() forever, leaving the process hanging in background.
-const openSockets = new Set<import("node:net").Socket>();
-server.on("connection", (socket) => {
-  openSockets.add(socket);
-  socket.on("close", () => openSockets.delete(socket));
-});
-
-// Fail fast with an actionable message instead of an unhandled 'error' crash
-// (a lingering background instance is the usual cause of EADDRINUSE).
-server.on("error", (err: NodeJS.ErrnoException) => {
-  if (err.code === "EADDRINUSE") {
-    console.error(
-      `[dev-server] Port ${PORT} already in use — an old instance is still running in background.\n` +
-        `  Find it with: netstat -ano | findstr :${PORT}\n` +
-        `  Kill it with: taskkill /PID <pid> /F`,
-    );
-    process.exit(1);
-  }
-  throw err;
-});
-
-let shuttingDown = false;
-function gracefulShutdown(signal: string): void {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  console.log(`[dev-server] Received ${signal}, shutting down...`);
-  server.close(() => {
-    console.log("[dev-server] HTTP server closed");
-    process.exit(0);
-  });
-  // Destroy lingering sockets (SSE streams) so server.close() can complete.
-  for (const socket of openSockets) {
-    try {
-      socket.destroy();
-    } catch {
-      // ignore
-    }
-  }
-  // Safety net (NOT unref'd — it must keep the loop alive until exit).
-  setTimeout(() => {
-    console.warn("[dev-server] Force exit after timeout");
-    process.exit(1);
-  }, 5000);
-}
-
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-// Windows Ctrl+Break
-process.on("SIGBREAK", () => gracefulShutdown("SIGBREAK"));
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`MosaiX platform host listening on http://0.0.0.0:${PORT}`);

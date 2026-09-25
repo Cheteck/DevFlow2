@@ -1,7 +1,7 @@
 {
   "name": "@mosaix/adapter-clock-fake",
   "version": "1.0.0",
-  "description": "Controllable fake clock adapter implementing ClockPort for MosaiX testing",
+  "description": "Fake/Mock clock adapter implementing ClockPort for testing MosaiX",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

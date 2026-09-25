@@ -3,25 +3,19 @@ import type { ClockPort } from "@mosaix/ports-clock";
 export class FakeClockAdapter implements ClockPort {
   private currentTime: Date;
 
-  constructor(initialTime: Date = new Date("2026-01-01T00:00:00.000Z")) {
-    this.currentTime = initialTime;
+  constructor(initialTime: Date | string = new Date()) {
+    this.currentTime = typeof initialTime === "string" ? new Date(initialTime) : initialTime;
   }
 
   now(): Date {
-    return new Date(this.currentTime);
+    return this.currentTime;
   }
 
-  nowISO(): string {
-    return this.now().toISOString();
+  set(time: Date | string): void {
+    this.currentTime = typeof time === "string" ? new Date(time) : time;
   }
 
-  /** Advances the clock by a given number of milliseconds. */
-  tick(ms: number): void {
+  advanceByMs(ms: number): void {
     this.currentTime = new Date(this.currentTime.getTime() + ms);
-  }
-
-  /** Sets the clock to a specific Date. */
-  setTime(time: Date): void {
-    this.currentTime = new Date(time);
   }
 }

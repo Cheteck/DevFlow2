@@ -1,117 +1,46 @@
+import type { CachePort } from "@mosaix/ports-cache";
 import Redis from "ioredis";
-import type { RedisOptions } from "ioredis";
-import type { CachePort, CacheOptions } from "@mosaix/ports-cache";
-
-export interface RedisCacheAdapterOptions {
-  /** Explicitly opt into the in-memory mock client (no Redis connection). */
-  mock?: boolean;
-  /** Redis server host. */
-  host?: string;
-  /** Redis server port. */
-  port?: number;
-  /** Unix socket path (when connecting over a local socket). */
-  path?: string;
-  /** Additional ioredis connection options forwarded to `new Redis(...)`. */
-  [key: string]: unknown;
-}
-
-/** Minimal in-memory stand-in for the redis client surface the adapter uses. */
-export class InMemoryRedisClient {
-  private readonly store = new Map<string, string>();
-
-  async get(key: string): Promise<string | null> {
-    return this.store.get(key) ?? null;
-  }
-
-  async set(
-    key: string,
-    value: string,
-    mode?: string,
-    ttl?: number,
-  ): Promise<"OK"> {
-    this.store.set(key, value);
-    if (mode === "EX" && ttl !== undefined) {
-      // TTL is not enforced by the in-memory mock; entries live until deleted.
-    }
-    return "OK";
-  }
-
-  async del(key: string): Promise<number> {
-    return this.store.delete(key) ? 1 : 0;
-  }
-
-  async flushdb(): Promise<void> {
-    this.store.clear();
-  }
-
-  async quit(): Promise<void> {}
-}
 
 export class RedisCacheAdapter implements CachePort {
-  private readonly client: Redis | InMemoryRedisClient;
+  private readonly redis: Redis;
 
-  constructor(clientOrOptions?: Redis | string | RedisCacheAdapterOptions) {
-    if (
-      clientOrOptions &&
-      typeof clientOrOptions === "object" &&
-      typeof clientOrOptions.get === "function"
-    ) {
-      this.client = clientOrOptions as Redis;
-      return;
-    }
-
-    if (typeof clientOrOptions === "string") {
-      this.client = new Redis(clientOrOptions);
-      return;
-    }
-
-    const options: RedisCacheAdapterOptions =
-      (clientOrOptions as RedisCacheAdapterOptions | undefined) ?? {};
-
-    if (options.mock === true) {
-      this.client = new InMemoryRedisClient();
-      return;
-    }
-
-    const { mock: _mock, ...connection } = options;
-    if (Object.keys(connection).length === 0) {
-      throw new Error(
-        "RedisCacheAdapter: missing Redis connection configuration. Provide a Redis instance, a connection URL/options (e.g. `host`, `port`), or `{ mock: true }` to explicitly opt into the in-memory mock client.",
-      );
-    }
-
-    this.client = new Redis(connection as RedisOptions);
-  }
-
-  async get<T>(key: string): Promise<T | undefined> {
-    const raw = await this.client.get(key);
-    if (raw === null) return undefined;
-    try {
-      return JSON.parse(raw) as T;
-    } catch {
-      return raw as unknown as T;
-    }
-  }
-
-  async set<T>(key: string, value: T, options?: CacheOptions): Promise<void> {
-    const serialized =
-      typeof value === "string" ? value : JSON.stringify(value);
-    if (options?.ttl !== undefined) {
-      await this.client.set(key, serialized, "EX", options.ttl);
+  constructor(redisOrUrl: Redis | string) {
+    if (typeof redisOrUrl === "string") {
+      this.redis = new Redis(redisOrUrl);
     } else {
-      await this.client.set(key, serialized);
+      this.redis = redisOrUrl;
+    }
+  }
+
+  async get<T = unknown>(key: string): Promise<T | null | undefined> {
+    const data = await this.redis.get(key);
+    if (data === null) return null;
+    try {
+      return JSON.parse(data) as T;
+    } catch {
+      return data as unknown as T;
+    }
+  }
+
+  async set<T = unknown>(key: string, value: T, options?: { ttl?: number }): Promise<void> {
+    const data = typeof value === "string" ? value : JSON.stringify(value);
+    const ttl = options?.ttl;
+    if (ttl !== undefined && ttl > 0) {
+      await this.redis.set(key, data, "EX", ttl);
+    } else {
+      await this.redis.set(key, data);
     }
   }
 
   async delete(key: string): Promise<void> {
-    await this.client.del(key);
+    await this.redis.del(key);
   }
 
   async clear(): Promise<void> {
-    await this.client.flushdb();
+    await this.redis.flushdb();
   }
 
   async disconnect(): Promise<void> {
-    await this.client.quit();
+    await this.redis.quit();
   }
 }

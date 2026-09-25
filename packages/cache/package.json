@@ -1,7 +1,7 @@
 {
   "name": "@mosaix/cache",
-  "version": "0.1.0",
-  "description": "High-level developer ergonomic cache manager for MosaiX",
+  "version": "1.0.0",
+  "description": "High-level Cache facade for MosaiX",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -9,22 +9,19 @@
   "scripts": {
     "dev": "tsc --build --watch",
     "build": "tsc --build",
-    "clean": "rimraf dist",
-    "test": "vitest run"
+    "clean": "rimraf dist"
   },
   "files": [
     "dist"
   ],
   "eslintBoundaries": {
-    "type": "ports"
+    "type": "packages"
   },
   "dependencies": {
     "@mosaix/ports-cache": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^22.20.1",
-    "typescript": "^5.9.3",
-    "vitest": "^3.2.7"
+    "typescript": "^5.7.0"
   },
   "exports": {
     ".": {
