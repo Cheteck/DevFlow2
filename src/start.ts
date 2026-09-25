@@ -8,10 +8,11 @@ import { URL } from "node:url";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import type { ThemeMode } from "@mosaix/contracts";
+import type { ThemeMode, BacExecutionContext } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
 import {
   CompositionOverrideManager,
+  platformSettingsService,
 } from "@mosaix/core";
 
 // Shell services & state
@@ -22,6 +23,7 @@ import { feedService } from "./shell/feed-service.js";
 import { distributedEventBackplane } from "./shell/event-backplane.js";
 import { anonymizationOrchestrator } from "./shell/anonymization-orchestrator.js";
 import { loadSavedCompositionOverrides } from "./shell/editor.js";
+import { bacOrchestrator } from "./shell/orchestrator/bac-orchestrator.js";
 import {
   renderThemeStyleTag,
   generateUnifiedThemeCssVariables,
@@ -189,33 +191,71 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 6. Social & Workspace Home Page SSR
-  const paginatedFeed = await feedService.getFeed({ limit: 15 }).catch(() => null);
-  const feedPosts = paginatedFeed?.items.map((i) => ({
-    id: i.id,
-    author: i.author,
-    authorRole: "Membre Actif",
-    authorAvatar: "👤",
-    bacSource: i.category || "solara",
-    content: i.content,
-    timestamp: new Date(i.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    likes: i.likes,
-  })) || [];
+  // 6. Dynamic Default BAC Resolution & Workspace Root Routing
+  const platformSettings = await platformSettingsService.getSettings();
+  const defaultBacResolution = await bacOrchestrator.resolveDefaultBac(
+    platformSettings,
+    currentUser.allowedBacs
+  );
 
+  if (defaultBacResolution) {
+    const { descriptor } = defaultBacResolution;
+    const cleanAppId = descriptor.id.replace(/^@apps\//, "");
+    const bacEntry = bacRegistry.find((b) => b.id === descriptor.id || b.id === cleanAppId);
+    const appContributions = bacEntry ? bacEntry.contributions : [];
+
+    const executionContext: BacExecutionContext = {
+      tenantId: "default",
+      spaceId: currentSpace,
+      user: {
+        id: currentUser.id,
+        roles: [currentUser.role],
+        permissions: currentUser.permissions,
+      },
+      theme: {
+        mode: currentThemeMode,
+      },
+      request: {
+        path: "/",
+        query: Object.fromEntries(parsedUrl.searchParams.entries()),
+        headers: (req.headers as Record<string, string>) || {},
+      },
+    };
+
+    const renderResult = await descriptor.render(executionContext);
+
+    const matchedApp = {
+      id: descriptor.id,
+      name: descriptor.name,
+      route: descriptor.routePrefix,
+      category: "Application Principale",
+    };
+
+    const html = renderBacPage({
+      activeMode: currentThemeMode,
+      sharedStyles,
+      themeStyle: renderThemeStyleTag(currentThemeMode),
+      matchedApp,
+      currentUser,
+      currentSpace,
+      renderedContent: renderResult.contentHtml,
+      contributionsCount: appContributions.length,
+      requestUrl: req.url,
+    });
+
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(html);
+    return;
+  }
+
+  // Fallback: If no default or fallback BAC is available, render Platform Hub
   const widgetsHtml = `
     <div class="glass-card p-4 rounded-xl space-y-2 border border-outline-variant/20">
       <div class="flex items-center justify-between">
-        <span class="text-xs font-bold text-primary">Solara Community</span>
+        <span class="text-xs font-bold text-primary">Plateforme MosaiX</span>
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
       </div>
-      <p class="text-[11px] text-on-surface-variant">Rejoignez les discussions citoyennes décentralisées en temps réel.</p>
-    </div>
-    <div class="glass-card p-4 rounded-xl space-y-2 border border-outline-variant/20">
-      <div class="flex items-center justify-between">
-        <span class="text-xs font-bold text-indigo-400">Imperia Governance</span>
-        <span class="text-[10px] text-on-surface-variant font-mono">v1.0</span>
-      </div>
-      <p class="text-[11px] text-on-surface-variant">Participez aux scrutins et configurez les politiques de sécurité du cluster.</p>
+      <p class="text-[11px] text-on-surface-variant">Hub décentralisé d'applications et d'espaces de travail.</p>
     </div>
   `;
 
@@ -224,7 +264,7 @@ const server = http.createServer(async (req, res) => {
     sharedStyles,
     currentUser,
     currentSpace,
-    feedPosts,
+    feedPosts: [],
     widgetsHtml,
     requestUrl: req.url,
   });

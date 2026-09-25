@@ -265,5 +265,8 @@ export type {
 
 export { Money, Timestamp } from "./value-objects";
 
+// Platform Settings & BAC Orchestration
+export * from "./platform-settings";
+
 
 

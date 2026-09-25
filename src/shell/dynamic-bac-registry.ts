@@ -3,11 +3,14 @@
  * Manages runtime registration, dynamic loaders, and discovery for Bounded App Contexts.
  */
 
+import type { BacDescriptor } from "@mosaix/contracts";
+
 export interface BacPluginRegistration {
   id: string;
   contributions: unknown[];
   pageViews?: Array<[string, unknown]>;
   dynamicLoader?: () => Promise<unknown>;
+  descriptor?: BacDescriptor;
 }
 
 export type DynamicModuleLoader = () => Promise<{
