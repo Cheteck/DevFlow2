@@ -22,7 +22,15 @@ export const USER_PROFILES: Record<string, UserProfile> = {
     roleLabel: "Membre Standard",
     badgeClass: "bg-blue-500/20 text-blue-300 border-blue-500/30",
     avatar: "👤",
-    allowedBacs: ["identity", "solara", "spaces", "portfolio", "booking", "beam", "subscription"],
+    allowedBacs: [
+      "identity",
+      "solara",
+      "spaces",
+      "portfolio",
+      "booking",
+      "beam",
+      "subscription",
+    ],
     permissions: [
       "identity:view:profile",
       "solara:read:feed",
@@ -31,8 +39,8 @@ export const USER_PROFILES: Record<string, UserProfile> = {
       "portfolio:view:catalog",
       "booking:reservation:create:tenant",
       "booking:slot:read:tenant",
-      "beam:send:message"
-    ]
+      "beam:send:message",
+    ],
   },
   moderator: {
     id: "user-2",
@@ -42,7 +50,17 @@ export const USER_PROFILES: Record<string, UserProfile> = {
     roleLabel: "Modérateur",
     badgeClass: "bg-amber-500/20 text-amber-300 border-amber-500/30",
     avatar: "🛡️",
-    allowedBacs: ["identity", "solara", "solidarity", "commerce", "spaces", "portfolio", "booking", "beam", "subscription"],
+    allowedBacs: [
+      "identity",
+      "solara",
+      "solidarity",
+      "commerce",
+      "spaces",
+      "portfolio",
+      "booking",
+      "beam",
+      "subscription",
+    ],
     permissions: [
       "identity:view:profile",
       "solara:read:feed",
@@ -55,8 +73,8 @@ export const USER_PROFILES: Record<string, UserProfile> = {
       "portfolio:view:catalog",
       "booking:reservation:create:tenant",
       "booking:slot:read:tenant",
-      "beam:send:message"
-    ]
+      "beam:send:message",
+    ],
   },
   admin: {
     id: "user-3",
@@ -66,7 +84,18 @@ export const USER_PROFILES: Record<string, UserProfile> = {
     roleLabel: "Administrateur",
     badgeClass: "bg-purple-500/20 text-purple-300 border-purple-500/30",
     avatar: "👑",
-    allowedBacs: ["identity", "solara", "solidarity", "imperia", "spaces", "commerce", "beam", "portfolio", "booking", "subscription"],
+    allowedBacs: [
+      "identity",
+      "solara",
+      "solidarity",
+      "imperia",
+      "spaces",
+      "commerce",
+      "beam",
+      "portfolio",
+      "booking",
+      "subscription",
+    ],
     permissions: [
       "identity:view:profile",
       "identity:admin:users",
@@ -90,9 +119,9 @@ export const USER_PROFILES: Record<string, UserProfile> = {
       "booking:slot:read:tenant",
       "booking:reservation:create:tenant",
       "booking:slot:admin:tenant",
-      "beam:send:message"
-    ]
-  }
+      "beam:send:message",
+    ],
+  },
 };
 
 export interface SpaceProfile {
@@ -105,32 +134,63 @@ export interface SpaceProfile {
 }
 
 export const SPACES_LIST: SpaceProfile[] = [
-  { id: "space-bijoux-amel", name: "Bijoux Amel", handle: "@bijoux-amel", avatar: "💍", ownerUserRole: "member", badge: "Business" },
-  { id: "space-solara-lab", name: "Solara Lab", handle: "@solara-lab", avatar: "🧪", ownerUserRole: "moderator", badge: "Non-profit" },
-  { id: "space-imperia-council", name: "Imperia Council", handle: "@imperia-council", avatar: "📜", ownerUserRole: "admin", badge: "Government" }
+  {
+    id: "space-bijoux-amel",
+    name: "Bijoux Amel",
+    handle: "@bijoux-amel",
+    avatar: "💍",
+    ownerUserRole: "member",
+    badge: "Business",
+  },
+  {
+    id: "space-solara-lab",
+    name: "Solara Lab",
+    handle: "@solara-lab",
+    avatar: "🧪",
+    ownerUserRole: "moderator",
+    badge: "Non-profit",
+  },
+  {
+    id: "space-imperia-council",
+    name: "Imperia Council",
+    handle: "@imperia-council",
+    avatar: "📜",
+    ownerUserRole: "admin",
+    badge: "Government",
+  },
 ];
 
-export function getActiveSpaceProfile(req: http.IncomingMessage, parsedUrl: URL): SpaceProfile | null {
+export function getActiveSpaceProfile(
+  req: http.IncomingMessage,
+  parsedUrl: URL,
+): SpaceProfile | null {
   const spaceQuery = parsedUrl.searchParams.get("spaceId");
   if (spaceQuery) {
-    const space = SPACES_LIST.find(s => s.id === spaceQuery);
+    const space = SPACES_LIST.find((s) => s.id === spaceQuery);
     if (space) return space;
   }
 
   const cookieHeader = req.headers.cookie || "";
   const match = cookieHeader.match(/mosaix_active_space=([a-zA-Z0-9_-]+)/);
   if (match) {
-    const space = SPACES_LIST.find(s => s.id === match[1]);
+    const space = SPACES_LIST.find((s) => s.id === match[1]);
     if (space) return space;
   }
 
   return null;
 }
 
-export function getActiveUserProfile(req: http.IncomingMessage, parsedUrl: URL): UserProfile {
-  const roleQuery = parsedUrl.searchParams.get("role") || parsedUrl.searchParams.get("user");
-  if (roleQuery && USER_PROFILES[roleQuery]) {
-    return USER_PROFILES[roleQuery];
+export function getActiveUserProfile(
+  req: http.IncomingMessage,
+  parsedUrl: URL,
+): UserProfile {
+  // Query-param override is a demo convenience — never in production.
+  if (isDemoMode()) {
+    const roleQuery =
+      parsedUrl.searchParams.get("role") || parsedUrl.searchParams.get("user");
+    if (roleQuery && USER_PROFILES[roleQuery]) {
+      return USER_PROFILES[roleQuery];
+    }
   }
 
   const cookieHeader = req.headers.cookie || "";
@@ -140,4 +200,23 @@ export function getActiveUserProfile(req: http.IncomingMessage, parsedUrl: URL):
   }
 
   return USER_PROFILES.member;
+}
+
+/**
+ * Demo session switcher flag (usermenu "Aperçu Démo", `?role=`,
+ * `/api/user/switch`). Explicit `MOSAIX_DEMO_USERS` wins; otherwise the
+ * switcher is enabled everywhere except production.
+ */
+export function isDemoMode(
+  source: Record<string, string | undefined> = typeof process !== "undefined"
+    ? (process.env as Record<string, string | undefined>)
+    : {},
+): boolean {
+  const raw = source.MOSAIX_DEMO_USERS;
+  if (raw !== undefined && raw !== "") {
+    const v = raw.toLowerCase().trim();
+    return v === "true" || v === "1" || v === "yes" || v === "on";
+  }
+  const env = source.MOSAIX_ENV ?? source.NODE_ENV ?? "development";
+  return env !== "production";
 }

@@ -38,6 +38,10 @@ export const baseEnvSchema = z
     APP_PORT: portLike.optional(),
     PORT: portLike.optional(),
 
+    // ── Demo session (usermenu switcher, ?role=, /api/user/switch) ──
+    // Empty = auto (enabled everywhere except production).
+    MOSAIX_DEMO_USERS: z.union([z.string(), z.boolean()]).optional(),
+
     // ── Auth / secrets ──
     // Master encryption key (Laravel-style `base64:`). Managed with:
     // `pnpm key:generate` / `pnpm key:check`.

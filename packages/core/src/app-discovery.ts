@@ -22,7 +22,10 @@ export class ApplicationDiscovery {
    * Registre in-memory des manifests découverts (Phase 2.3) : valide,
    * rejette les doublons et les manifests invalides.
    */
-  registerDiscovered(sourcePath: string, manifest: ApplicationManifest): DiscoveredAppEntry {
+  registerDiscovered(
+    sourcePath: string,
+    manifest: ApplicationManifest,
+  ): DiscoveredAppEntry {
     try {
       Invariants.manifest(manifest);
     } catch (error) {
@@ -33,7 +36,10 @@ export class ApplicationDiscovery {
     }
     const id = manifest.id;
     if (this.discovered.has(id)) {
-      throw new RegistrationError(`Duplicate application ID: ${id}`, { appId: id, sourcePath });
+      throw new RegistrationError(`Duplicate application ID: ${id}`, {
+        appId: id,
+        sourcePath,
+      });
     }
     const entry: DiscoveredAppEntry = { manifest, sourcePath };
     this.discovered.set(id, entry);
@@ -71,8 +77,13 @@ export class ApplicationDiscovery {
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        const manifest = this.discoverAppManifest(path.join(appsRootDir, entry.name));
-        if (manifest) {
+        // Never expose scaffolding: apps/_template ships a placeholder
+        // manifest (`__APP_ID__`) that would render as a generic page.
+        if (entry.name === "_template" || entry.name.startsWith("_")) continue;
+        const manifest = this.discoverAppManifest(
+          path.join(appsRootDir, entry.name),
+        );
+        if (manifest && !manifest.id.startsWith("__")) {
           manifests.push(manifest);
         }
       }

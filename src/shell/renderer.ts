@@ -1,8 +1,17 @@
 import { escapeHtml } from "@mosaix/support";
-import { UserProfile, USER_PROFILES, SpaceProfile, SPACES_LIST } from "./profiles.js";
+import {
+  UserProfile,
+  USER_PROFILES,
+  SpaceProfile,
+  SPACES_LIST,
+  isDemoMode,
+} from "./profiles.js";
 import { shellRegistry } from "@mosaix/core";
 import { apps, APP_ICONS } from "./discovery.js";
-import { platformFeatureFlags, DEFAULT_PLATFORM_FLAGS } from "./feature-flags.js";
+import {
+  platformFeatureFlags,
+  DEFAULT_PLATFORM_FLAGS,
+} from "./feature-flags.js";
 import { IMPERIA_NAV_SECTIONS } from "./imperia-nav.js";
 import "./contextual-actions";
 
@@ -10,7 +19,17 @@ function getUserAllowedBacs(user?: UserProfile): string[] {
   if (user && Array.isArray(user.allowedBacs)) {
     return user.allowedBacs;
   }
-  return ["identity", "solara", "solidarity", "commerce", "spaces", "portfolio", "booking", "beam", "subscription"];
+  return [
+    "identity",
+    "solara",
+    "solidarity",
+    "commerce",
+    "spaces",
+    "portfolio",
+    "booking",
+    "beam",
+    "subscription",
+  ];
 }
 
 function getUserPermissions(user?: UserProfile): string[] {
@@ -23,20 +42,29 @@ function getUserPermissions(user?: UserProfile): string[] {
 // -----------------------------------------------------------------------------
 // PRIMARY SIDEBAR RENDERER (FILTERED BY BAC AUTHORIZATION & FEATURE FLAGS)
 // -----------------------------------------------------------------------------
-export function renderPrimarySidebar(user: UserProfile, activeRoute: string, activeSpace?: SpaceProfile | null): string {
+export function renderPrimarySidebar(
+  user: UserProfile,
+  activeRoute: string,
+  activeSpace?: SpaceProfile | null,
+): string {
   // Filter visible BACs based on user's allowedBacs permission AND dynamic feature flags
   const userBacs = getUserAllowedBacs(user);
-  const allowedApps = apps.filter(app => {
-    const isAllowedByRole = userBacs.includes(app.id) || userBacs.includes(app.id.replace(/^@apps\//, ""));
+  const allowedApps = apps.filter((app) => {
+    const isAllowedByRole =
+      userBacs.includes(app.id) ||
+      userBacs.includes(app.id.replace(/^@apps\//, ""));
     if (!isAllowedByRole) return false;
-    const flagKey = app.featureFlag || `apps.${app.id.replace(/^@apps\//, "")}.enabled`;
+    const flagKey =
+      app.featureFlag || `apps.${app.id.replace(/^@apps\//, "")}.enabled`;
     return platformFeatureFlags.isEnabledSync(flagKey, true);
   });
 
   // Determine synchronized identity details for bottom avatar
   const displayAvatar = activeSpace ? activeSpace.avatar : user.avatar;
   const displayLabel = activeSpace ? activeSpace.name : user.name;
-  const displayRole = activeSpace ? `${activeSpace.badge} Space` : user.roleLabel;
+  const displayRole = activeSpace
+    ? `${activeSpace.badge} Space`
+    : user.roleLabel;
 
   return `
     <div class="hidden md:flex flex-col items-center w-[76px] shrink-0 bg-surface-container-lowest/90 backdrop-blur-2xl border-r border-outline-variant/15 py-5 z-[60] fixed left-0 top-0 h-full shadow-2xl select-none">
@@ -67,12 +95,12 @@ export function renderPrimarySidebar(user: UserProfile, activeRoute: string, act
       <!-- BAC Navigation Icons (RBAC Filtered) -->
       <nav id="mosaix-slot-shell-sidebar-primary" data-mosaix-slot="shell.sidebar.primary" class="flex flex-col gap-3 w-full items-center overflow-y-auto no-scrollbar py-1 transition-all">
         <!-- Home Navigation Item -->
-        <a class="w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 group relative ${activeRoute === '/' ? 'text-primary bg-primary/15 font-bold shadow-md shadow-primary/10 border border-primary/30' : 'text-on-surface-variant/80 hover:text-on-surface hover:bg-surface-variant/40 border border-transparent'}" href="/">
+        <a class="w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 group relative ${activeRoute === "/" ? "text-primary bg-primary/15 font-bold shadow-md shadow-primary/10 border border-primary/30" : "text-on-surface-variant/80 hover:text-on-surface hover:bg-surface-variant/40 border border-transparent"}" href="/">
           <span class="material-symbols-outlined text-xl group-hover:scale-110 transition-transform">home</span>
           
           <!-- Active Pill Indicator -->
           <div class="absolute left-0 w-1 bg-primary rounded-r-full transition-all duration-300 origin-left 
-                      ${activeRoute === '/' ? 'h-7 scale-y-100 shadow-sm shadow-primary/50' : 'h-2 scale-y-0 group-hover:h-4 group-hover:scale-y-100'}"></div>
+                      ${activeRoute === "/" ? "h-7 scale-y-100 shadow-sm shadow-primary/50" : "h-2 scale-y-0 group-hover:h-4 group-hover:scale-y-100"}"></div>
                       
           <!-- Premium Floating Tooltip -->
           <div class="absolute left-[84px] px-3 py-2 rounded-xl bg-surface-container-highest/95 border border-outline-variant/30 text-xs font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-2xl z-[70] backdrop-blur-xl">
@@ -84,19 +112,22 @@ export function renderPrimarySidebar(user: UserProfile, activeRoute: string, act
         <div class="w-8 h-px bg-outline-variant/15 my-0.5"></div>
 
         <!-- Authorized BAC List -->
-        ${allowedApps.map(app => {
-          const isActive = activeRoute === app.route || activeRoute.startsWith(app.route + '/');
-          const isBeam = app.id === "@apps/beam" || app.id === "beam";
-          return `
-            <a class="w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 group relative ${isActive ? 'text-primary bg-primary/15 font-bold shadow-md shadow-primary/10 border border-primary/30' : 'text-on-surface-variant/80 hover:text-on-surface hover:bg-surface-variant/40 border border-transparent'}" href="${app.route}">
+        ${allowedApps
+          .map((app) => {
+            const isActive =
+              activeRoute === app.route ||
+              activeRoute.startsWith(app.route + "/");
+            const isBeam = app.id === "@apps/beam" || app.id === "beam";
+            return `
+            <a class="w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 group relative ${isActive ? "text-primary bg-primary/15 font-bold shadow-md shadow-primary/10 border border-primary/30" : "text-on-surface-variant/80 hover:text-on-surface hover:bg-surface-variant/40 border border-transparent"}" href="${app.route}">
               <span class="text-xl group-hover:scale-110 transition-transform">${app.icon}</span>
               
               <!-- Badge notification indicator for Beam/Solara -->
-              ${isBeam ? `<span class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-surface animate-pulse"></span>` : ''}
+              ${isBeam ? `<span class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-surface animate-pulse"></span>` : ""}
 
               <!-- Active Pill Indicator -->
               <div class="absolute left-0 w-1 bg-primary rounded-r-full transition-all duration-300 origin-left 
-                          ${isActive ? 'h-7 scale-y-100 shadow-sm shadow-primary/50' : 'h-2 scale-y-0 group-hover:h-4 group-hover:scale-y-100'}"></div>
+                          ${isActive ? "h-7 scale-y-100 shadow-sm shadow-primary/50" : "h-2 scale-y-0 group-hover:h-4 group-hover:scale-y-100"}"></div>
                           
               <!-- Premium Floating Tooltip -->
               <div class="absolute left-[84px] px-3 py-2 rounded-xl bg-surface-container-highest/95 border border-outline-variant/30 text-xs font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-2xl z-[70] backdrop-blur-xl">
@@ -105,7 +136,8 @@ export function renderPrimarySidebar(user: UserProfile, activeRoute: string, act
               </div>
             </a>
           `;
-        }).join("")}
+          })
+          .join("")}
       </nav>
 
       <!-- Bottom User Profile Avatar & Mobile Drawer Toggle -->
@@ -118,14 +150,14 @@ export function renderPrimarySidebar(user: UserProfile, activeRoute: string, act
         </button>
 
         <!-- Synchronized Bottom Profile Avatar (Displays active Space if selected) -->
-        <a href="/identity" class="w-11 h-11 ${activeSpace ? 'rounded-2xl' : 'rounded-full'} border-2 ${activeSpace ? 'border-emerald-500/60 hover:border-emerald-400 shadow-lg shadow-emerald-500/20' : 'border-outline-variant/30 hover:border-primary shadow-lg shadow-indigo-500/10'} transition-all duration-300 cursor-pointer flex items-center justify-center ${activeSpace ? 'bg-emerald-600/20 text-emerald-400' : 'bg-indigo-600/25 text-primary'} font-bold text-base relative group/avatar">
+        <a href="/identity" class="w-11 h-11 ${activeSpace ? "rounded-2xl" : "rounded-full"} border-2 ${activeSpace ? "border-emerald-500/60 hover:border-emerald-400 shadow-lg shadow-emerald-500/20" : "border-outline-variant/30 hover:border-primary shadow-lg shadow-indigo-500/10"} transition-all duration-300 cursor-pointer flex items-center justify-center ${activeSpace ? "bg-emerald-600/20 text-emerald-400" : "bg-indigo-600/25 text-primary"} font-bold text-base relative group/avatar">
           <span>${displayAvatar}</span>
-          <span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full ${activeSpace ? 'bg-emerald-400' : 'bg-emerald-500'} border-2 border-surface flex items-center justify-center text-[7px] font-bold text-surface-container-lowest">✓</span>
+          <span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full ${activeSpace ? "bg-emerald-400" : "bg-emerald-500"} border-2 border-surface flex items-center justify-center text-[7px] font-bold text-surface-container-lowest">✓</span>
           
           <!-- Premium Profile Tooltip -->
           <div class="absolute left-[84px] bottom-0 px-3 py-2 rounded-xl bg-surface-container-highest/95 border border-outline-variant/30 text-xs font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover/avatar:opacity-100 group-hover/avatar:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-2xl z-[70] backdrop-blur-xl">
             <span>${escapeHtml(displayLabel)}</span>
-            <span class="block text-[10px] ${activeSpace ? 'text-emerald-400' : 'text-primary'} font-medium mt-0.5">${escapeHtml(displayRole)}</span>
+            <span class="block text-[10px] ${activeSpace ? "text-emerald-400" : "text-primary"} font-medium mt-0.5">${escapeHtml(displayRole)}</span>
           </div>
         </a>
       </div>
@@ -138,7 +170,7 @@ function isRouteActive(actionRoute: string, currentUrl: string): boolean {
   if (actionRoute === currentUrl) return true;
   const [actionPath, actionQuery] = actionRoute.split("?");
   const [currentPath, currentQuery] = currentUrl.split("?");
-  
+
   if (actionQuery) {
     if (currentPath !== actionPath) return false;
     const actionParams = new URLSearchParams(actionQuery);
@@ -148,7 +180,7 @@ function isRouteActive(actionRoute: string, currentUrl: string): boolean {
     }
     return true;
   }
-  
+
   if (currentPath === actionPath) {
     return !currentQuery || currentQuery === "filter=all";
   }
@@ -161,61 +193,63 @@ function getCtaConfig(bacId: string, customLabel?: string) {
       return {
         label: customLabel || "Nouveau Pulse",
         icon: "edit_square",
-        action: "const c = document.getElementById('composer-text'); if(c){ c.focus(); window.scrollTo({top: 0, behavior: 'smooth'}); }"
+        action:
+          "const c = document.getElementById('composer-text'); if(c){ c.focus(); window.scrollTo({top: 0, behavior: 'smooth'}); }",
       };
     case "imperia":
       return {
         label: customLabel || "Créer Proposition",
         icon: "how_to_vote",
-        action: "window.location.href='/imperia?action=new';"
+        action: "window.location.href='/imperia?action=new';",
       };
     case "commerce":
       return {
         label: customLabel || "Voir Panier",
         icon: "shopping_cart",
-        action: "window.location.href='/commerce?view=cart';"
+        action: "window.location.href='/commerce?view=cart';",
       };
     case "spaces":
       return {
         label: customLabel || "Nouveau Space",
         icon: "create_new_folder",
-        action: "window.location.href='/spaces?action=create';"
+        action: "window.location.href='/spaces?action=create';",
       };
     case "solidarity":
       return {
         label: customLabel || "Participer à l'Aide",
         icon: "handshake",
-        action: "window.location.href='/solidarity?view=help';"
+        action: "window.location.href='/solidarity?view=help';",
       };
     case "beam":
       return {
         label: customLabel || "Nouveau Salon",
         icon: "add_comment",
-        action: "window.location.href='/beam?view=channels';"
+        action: "window.location.href='/beam?view=channels';",
       };
     case "portfolio":
       return {
         label: customLabel || "Publier Œuvre",
         icon: "upload_file",
-        action: "window.location.href='/portfolio?admin=new';"
+        action: "window.location.href='/portfolio?admin=new';",
       };
     case "booking":
       return {
         label: customLabel || "Prendre RDV",
         icon: "calendar_month",
-        action: "window.location.href='/booking';"
+        action: "window.location.href='/booking';",
       };
     case "identity":
       return {
         label: customLabel || "Gérer Profil SSO",
         icon: "manage_accounts",
-        action: "window.location.href='/identity';"
+        action: "window.location.href='/identity';",
       };
     default:
       return {
         label: customLabel || "Action Rapide",
         icon: "bolt",
-        action: "const c = document.getElementById('composer-text'); if(c){ c.focus(); }"
+        action:
+          "const c = document.getElementById('composer-text'); if(c){ c.focus(); }",
       };
   }
 }
@@ -224,14 +258,16 @@ function getCtaConfig(bacId: string, customLabel?: string) {
 // SECONDARY SIDEBAR RENDERER (CONTEXTUAL ACTIONS FILTERED BY PERMISSION)
 // -----------------------------------------------------------------------------
 export function renderSecondarySidebar(
-  user: UserProfile, 
-  activeBacId: string, 
+  user: UserProfile,
+  activeBacId: string,
   currentUrl: string = "/",
-  activeSpace?: SpaceProfile | null
+  activeSpace?: SpaceProfile | null,
 ): string {
   const cleanBacId = (activeBacId || "").replace(/^@apps\//, "");
   const isImperia = cleanBacId === "imperia";
-  const spaceLabel = activeSpace ? `${activeSpace.badge} ${activeSpace.name}` : "Réseau Principal";
+  const spaceLabel = activeSpace
+    ? `${activeSpace.badge} ${activeSpace.name}`
+    : "Réseau Principal";
 
   if (isImperia) {
     return `
@@ -279,27 +315,37 @@ export function renderSecondarySidebar(
 
         <!-- Scrollable Menu of Integrated BAC Admin Pages -->
         <div id="mosaix-slot-shell-sidebar-secondary" data-mosaix-slot="shell.sidebar.secondary" class="flex flex-col gap-1 flex-grow overflow-y-auto pr-1 secondary-sidebar-scroll transition-all">
-          ${IMPERIA_NAV_SECTIONS.map((section, sIdx) => `
-            <div class="flex items-center justify-between px-2 pb-1 mb-1 ${sIdx === 0 ? 'pt-1' : 'pt-4 border-t border-outline-variant/10'}">
+          ${IMPERIA_NAV_SECTIONS.map(
+            (section, sIdx) => `
+            <div class="flex items-center justify-between px-2 pb-1 mb-1 ${sIdx === 0 ? "pt-1" : "pt-4 border-t border-outline-variant/10"}">
               <span class="text-[10px] font-bold text-on-surface-variant/70 uppercase tracking-wider">${escapeHtml(section.title)}</span>
               <span class="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-surface-variant/40 text-on-surface-variant/80">${section.items.length}</span>
             </div>
 
-            ${section.items.map(item => `
+            ${section.items
+              .map(
+                (item) => `
               <button onclick="switchAdminTab('${item.id}')" id="sidebar-tab-${item.id}" data-search="${escapeHtml(item.searchKeywords)}" class="admin-tab-btn sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 transition-all duration-200 group text-xs font-medium w-full text-left cursor-pointer border border-transparent">
                 <div class="flex items-center gap-2.5 truncate">
                   <span class="material-symbols-outlined text-base text-primary/80 group-hover:scale-110 transition-transform">${escapeHtml(item.icon)}</span>
                   <span class="truncate">${escapeHtml(item.label)}</span>
                 </div>
-                ${item.badgeText ? `
-                  <span class="px-1.5 py-0.2 text-[9px] font-bold rounded ${item.badgeClass || 'bg-primary/20 text-primary'} ${item.isLive ? 'flex items-center gap-1' : ''}">
-                    ${item.isLive ? '<span class="w-1 h-1 rounded-full bg-emerald-400 animate-ping"></span>' : ''}
+                ${
+                  item.badgeText
+                    ? `
+                  <span class="px-1.5 py-0.2 text-[9px] font-bold rounded ${item.badgeClass || "bg-primary/20 text-primary"} ${item.isLive ? "flex items-center gap-1" : ""}">
+                    ${item.isLive ? '<span class="w-1 h-1 rounded-full bg-emerald-400 animate-ping"></span>' : ""}
                     ${escapeHtml(item.badgeText)}
                   </span>
-                ` : ''}
+                `
+                    : ""
+                }
               </button>
-            `).join("")}
-          `).join("")}
+            `,
+              )
+              .join("")}
+          `,
+          ).join("")}
 
           <div id="secondary-sidebar-empty-state" class="hidden text-center py-6 text-xs text-on-surface-variant/60 italic">
             Aucun outil trouvé.
@@ -325,19 +371,26 @@ export function renderSecondarySidebar(
     `;
   }
 
-  const contextContribution = shellRegistry.getForBac(activeBacId) || shellRegistry.getForBac(cleanBacId) || shellRegistry.getForBac(`@apps/${cleanBacId}`) || shellRegistry.getForBac("shell_home");
-  
+  const contextContribution =
+    shellRegistry.getForBac(activeBacId) ||
+    shellRegistry.getForBac(cleanBacId) ||
+    shellRegistry.getForBac(`@apps/${cleanBacId}`) ||
+    shellRegistry.getForBac("shell_home");
+
   if (!contextContribution) {
     return `<div class="p-6 text-center text-on-surface-variant text-xs italic">Contexte introuvable.</div>`;
   }
 
   const { context, actions } = contextContribution;
-  const contextIcon = APP_ICONS[cleanBacId] || APP_ICONS[activeBacId] || (cleanBacId === "shell_home" ? "🌐" : "⚡");
+  const contextIcon =
+    APP_ICONS[cleanBacId] ||
+    APP_ICONS[activeBacId] ||
+    (cleanBacId === "shell_home" ? "🌐" : "⚡");
   const cta = getCtaConfig(cleanBacId, context.ctaLabel);
-  
+
   // Filter actions based on specific user permission requirements
   const userPerms = getUserPermissions(user);
-  const permittedActions = actions.filter(action => {
+  const permittedActions = actions.filter((action) => {
     if (!action.permission) return true;
     return userPerms.includes(action.permission);
   });
@@ -392,21 +445,27 @@ export function renderSecondarySidebar(
           <span class="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-surface-variant/40 text-on-surface-variant/80">${permittedActions.length}</span>
         </div>
         
-        ${permittedActions.length > 0 ? permittedActions.map(action => {
-          const isActive = isRouteActive(action.route, currentUrl);
-          return `
-            <a class="sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-200 group text-xs font-medium ${isActive ? 'bg-primary/15 text-primary font-semibold border border-primary/25 shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 border border-transparent'}" href="${action.route}" data-search="${escapeHtml(action.label.toLowerCase())}">
+        ${
+          permittedActions.length > 0
+            ? permittedActions
+                .map((action) => {
+                  const isActive = isRouteActive(action.route, currentUrl);
+                  return `
+            <a class="sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-200 group text-xs font-medium ${isActive ? "bg-primary/15 text-primary font-semibold border border-primary/25 shadow-sm" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 border border-transparent"}" href="${action.route}" data-search="${escapeHtml(action.label.toLowerCase())}">
               <div class="flex items-center gap-2.5 truncate">
-                ${isActive ? `<span class="w-1 h-3.5 rounded-full bg-primary shrink-0"></span>` : ''}
-                <span class="material-symbols-outlined text-base ${isActive ? 'text-primary' : 'text-primary/80'} group-hover:scale-110 transition-transform">${action.icon}</span>
+                ${isActive ? `<span class="w-1 h-3.5 rounded-full bg-primary shrink-0"></span>` : ""}
+                <span class="material-symbols-outlined text-base ${isActive ? "text-primary" : "text-primary/80"} group-hover:scale-110 transition-transform">${action.icon}</span>
                 <span class="truncate">${escapeHtml(action.label)}</span>
               </div>
-              ${action.badge ? `<span class="px-1.5 py-0.2 text-[9px] font-bold rounded ${action.badgeClass || 'bg-primary/20 text-primary'}">${escapeHtml(action.badge)}</span>` : ''}
+              ${action.badge ? `<span class="px-1.5 py-0.2 text-[9px] font-bold rounded ${action.badgeClass || "bg-primary/20 text-primary"}">${escapeHtml(action.badge)}</span>` : ""}
             </a>
           `;
-        }).join("") : `
+                })
+                .join("")
+            : `
           <p class="text-xs text-on-surface-variant/60 p-2 italic">Aucune action disponible pour votre niveau d'accès.</p>
-        `}
+        `
+        }
 
         <div id="secondary-sidebar-empty-state" class="hidden text-center py-6 text-xs text-on-surface-variant/60 italic">
           Aucun résultat pour cette recherche.
@@ -435,16 +494,24 @@ export function renderSecondarySidebar(
 // -----------------------------------------------------------------------------
 // USER SWITCHER & CONTEXT DROPDOWN HEADER COMPONENT (PRE-PRODUCTION GRADE)
 // -----------------------------------------------------------------------------
-export function renderUserSwitcherWidget(user: UserProfile, activeSpace?: SpaceProfile | null): string {
-  const userSpaces = SPACES_LIST.filter(space => {
+export function renderUserSwitcherWidget(
+  user: UserProfile,
+  activeSpace?: SpaceProfile | null,
+): string {
+  const userSpaces = SPACES_LIST.filter((space) => {
     if (user.role === "admin") return true;
     return space.ownerUserRole === user.role;
   });
 
   const displayAvatar = activeSpace ? activeSpace.avatar : user.avatar;
   const displayName = activeSpace ? activeSpace.name : user.name;
-  const displayLabel = activeSpace ? `${activeSpace.badge} Space` : user.roleLabel;
-  const userEmail = (user.role === "admin") ? "lord.cheteck@gmail.com" : `${user.role}@mosaix.network`;
+  const displayLabel = activeSpace
+    ? `${activeSpace.badge} Space`
+    : user.roleLabel;
+  const userEmail =
+    user.role === "admin"
+      ? "lord.cheteck@gmail.com"
+      : `${user.role}@mosaix.network`;
 
   return `
     <div class="relative" id="user-menu-container">
@@ -458,7 +525,7 @@ export function renderUserSwitcherWidget(user: UserProfile, activeSpace?: SpaceP
         title="Menu utilisateur et contexte (${escapeHtml(displayName)})"
       >
         <div class="relative shrink-0">
-          <div class="w-8 h-8 rounded-xl ${activeSpace ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30' : 'bg-primary/20 text-primary border border-primary/30'} flex items-center justify-center font-bold text-sm shadow-inner">
+          <div class="w-8 h-8 rounded-xl ${activeSpace ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-primary/20 text-primary border border-primary/30"} flex items-center justify-center font-bold text-sm shadow-inner">
             ${displayAvatar}
           </div>
           <!-- Real-time Presence Status Dot -->
@@ -491,7 +558,7 @@ export function renderUserSwitcherWidget(user: UserProfile, activeSpace?: SpaceP
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3 min-w-0">
               <div class="relative shrink-0">
-                <div class="w-11 h-11 rounded-xl ${activeSpace ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-400/30' : 'bg-primary/20 text-primary border border-primary/30'} flex items-center justify-center font-bold text-lg shadow-inner">
+                <div class="w-11 h-11 rounded-xl ${activeSpace ? "bg-emerald-600/20 text-emerald-400 border border-emerald-400/30" : "bg-primary/20 text-primary border border-primary/30"} flex items-center justify-center font-bold text-lg shadow-inner">
                   ${displayAvatar}
                 </div>
                 <span class="user-presence-dot absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-surface-container-high animate-pulse"></span>
@@ -499,14 +566,16 @@ export function renderUserSwitcherWidget(user: UserProfile, activeSpace?: SpaceP
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-1.5">
                   <h4 class="font-bold text-xs text-on-surface truncate">${escapeHtml(displayName)}</h4>
-                  <span class="px-1.5 py-0.2 rounded text-[9px] font-bold ${activeSpace ? 'bg-emerald-500/20 text-emerald-300' : 'bg-primary/20 text-primary'} shrink-0">${displayLabel}</span>
+                  <span class="px-1.5 py-0.2 rounded text-[9px] font-bold ${activeSpace ? "bg-emerald-500/20 text-emerald-300" : "bg-primary/20 text-primary"} shrink-0">${displayLabel}</span>
                 </div>
                 <p class="text-[10px] text-on-surface-variant/70 font-mono truncate mt-0.5">${escapeHtml(userEmail)}</p>
               </div>
             </div>
 
             <!-- Quick Spaces Switcher Toggle Button -->
-            ${userSpaces.length > 0 ? `
+            ${
+              userSpaces.length > 0
+                ? `
               <button 
                 onclick="const d = document.getElementById('usermenu-spaces-dropdown'); if(d) d.classList.toggle('hidden');" 
                 title="Changer d'espace ou compte"
@@ -514,7 +583,9 @@ export function renderUserSwitcherWidget(user: UserProfile, activeSpace?: SpaceP
               >
                 <span class="material-symbols-outlined text-base">swap_horiz</span>
               </button>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
 
           <!-- Presence Selector Bar -->
@@ -532,12 +603,14 @@ export function renderUserSwitcherWidget(user: UserProfile, activeSpace?: SpaceP
           </div>
 
           <!-- Drawer for Spaces Switching -->
-          ${userSpaces.length > 0 ? `
+          ${
+            userSpaces.length > 0
+              ? `
             <div id="usermenu-spaces-dropdown" class="border-t border-outline-variant/15 pt-2 hidden animate-fade-in space-y-1.5">
               <p class="text-[9px] font-bold text-on-surface-variant/70 uppercase tracking-wider px-1">Espaces & Organisations</p>
               
               <!-- Personal Account -->
-              <button onclick="switchActiveSpace('none')" class="w-full flex items-center justify-between p-1.5 rounded-lg hover:bg-surface-variant/40 transition text-left cursor-pointer ${!activeSpace ? 'bg-primary/10 border border-primary/20' : ''}">
+              <button onclick="switchActiveSpace('none')" class="w-full flex items-center justify-between p-1.5 rounded-lg hover:bg-surface-variant/40 transition text-left cursor-pointer ${!activeSpace ? "bg-primary/10 border border-primary/20" : ""}">
                 <div class="flex items-center gap-2 min-w-0">
                   <span class="text-xs">${user.avatar}</span>
                   <div class="min-w-0">
@@ -545,14 +618,15 @@ export function renderUserSwitcherWidget(user: UserProfile, activeSpace?: SpaceP
                     <p class="text-[9px] text-on-surface-variant truncate">Compte Principal</p>
                   </div>
                 </div>
-                ${!activeSpace ? '<span class="material-symbols-outlined text-primary text-xs font-bold">check</span>' : ''}
+                ${!activeSpace ? '<span class="material-symbols-outlined text-primary text-xs font-bold">check</span>' : ""}
               </button>
 
               <!-- Available Spaces -->
-              ${userSpaces.map(space => {
-                const isCurrent = activeSpace && activeSpace.id === space.id;
-                return `
-                  <button onclick="switchActiveSpace('${space.id}')" class="w-full flex items-center justify-between p-1.5 rounded-lg hover:bg-surface-variant/40 transition text-left cursor-pointer ${isCurrent ? 'bg-emerald-500/10 border border-emerald-500/20' : ''}">
+              ${userSpaces
+                .map((space) => {
+                  const isCurrent = activeSpace && activeSpace.id === space.id;
+                  return `
+                  <button onclick="switchActiveSpace('${space.id}')" class="w-full flex items-center justify-between p-1.5 rounded-lg hover:bg-surface-variant/40 transition text-left cursor-pointer ${isCurrent ? "bg-emerald-500/10 border border-emerald-500/20" : ""}">
                     <div class="flex items-center gap-2 min-w-0">
                       <span class="text-xs">${space.avatar}</span>
                       <div class="min-w-0">
@@ -560,12 +634,15 @@ export function renderUserSwitcherWidget(user: UserProfile, activeSpace?: SpaceP
                         <p class="text-[9px] text-on-surface-variant truncate">${space.handle} • ${space.badge}</p>
                       </div>
                     </div>
-                    ${isCurrent ? '<span class="material-symbols-outlined text-emerald-400 text-xs font-bold">check</span>' : ''}
+                    ${isCurrent ? '<span class="material-symbols-outlined text-emerald-400 text-xs font-bold">check</span>' : ""}
                   </button>
                 `;
-              }).join("")}
+                })
+                .join("")}
             </div>
-          ` : ''}
+          `
+              : ""
+          }
         </div>
 
         <!-- SECTION 2: Core Workspace Navigation -->
@@ -593,7 +670,10 @@ export function renderUserSwitcherWidget(user: UserProfile, activeSpace?: SpaceP
 
         <div class="h-px bg-outline-variant/15"></div>
 
-        <!-- SECTION 3: Demo Role Switcher (Pre-Production Preview) -->
+        <!-- SECTION 3: Demo Role Switcher (dev only, hidden when demo mode is off) -->
+        ${
+          isDemoMode()
+            ? `
         <details class="group/rbac rounded-xl border border-outline-variant/15 bg-surface-variant/10 p-1">
           <summary class="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-surface-variant/30 transition text-xs font-semibold text-on-surface cursor-pointer list-none">
             <div class="flex items-center gap-2">
@@ -604,10 +684,11 @@ export function renderUserSwitcherWidget(user: UserProfile, activeSpace?: SpaceP
           </summary>
           <div class="pt-2 px-1 pb-1 space-y-1">
             <p class="text-[10px] text-on-surface-variant/80 px-2 pb-1">Testez l'interface avec différents niveaux de permissions :</p>
-            ${Object.values(USER_PROFILES).map(profile => {
-              const isSelected = profile.role === user.role && !activeSpace;
-              return `
-                <button onclick="switchUserRole('${profile.role}')" class="w-full flex items-center justify-between p-2 rounded-xl hover:bg-surface-variant/40 transition text-left cursor-pointer ${isSelected ? 'bg-primary/10 border border-primary/20' : ''}">
+            ${Object.values(USER_PROFILES)
+              .map((profile) => {
+                const isSelected = profile.role === user.role && !activeSpace;
+                return `
+                <button onclick="switchUserRole('${profile.role}')" class="w-full flex items-center justify-between p-2 rounded-xl hover:bg-surface-variant/40 transition text-left cursor-pointer ${isSelected ? "bg-primary/10 border border-primary/20" : ""}">
                   <div class="flex items-center gap-2.5 min-w-0">
                     <span class="text-sm shrink-0">${profile.avatar}</span>
                     <div class="min-w-0">
@@ -615,12 +696,16 @@ export function renderUserSwitcherWidget(user: UserProfile, activeSpace?: SpaceP
                       <p class="text-[9px] text-on-surface-variant/70 truncate">${profile.roleLabel}</p>
                     </div>
                   </div>
-                  ${isSelected ? '<span class="material-symbols-outlined text-primary text-xs font-bold">check</span>' : ''}
+                  ${isSelected ? '<span class="material-symbols-outlined text-primary text-xs font-bold">check</span>' : ""}
                 </button>
               `;
-            }).join("")}
+              })
+              .join("")}
           </div>
         </details>
+        `
+            : ""
+        }
 
         <!-- SECTION 4: Developer Tools Shortcut -->
         <div class="p-2 rounded-xl bg-surface-container/40 border border-outline-variant/10 flex items-center justify-between text-xs">
@@ -653,7 +738,11 @@ export function renderUserSwitcherWidget(user: UserProfile, activeSpace?: SpaceP
 // -----------------------------------------------------------------------------
 // MOBILE DRAWER COMPONENT (SHARED ACROSS TEMPLATES)
 // -----------------------------------------------------------------------------
-export function renderMobileDrawer(userOrHtml: UserProfile | string, activeRoute = "/", activeMode = "light"): string {
+export function renderMobileDrawer(
+  userOrHtml: UserProfile | string,
+  activeRoute = "/",
+  activeMode = "light",
+): string {
   if (typeof userOrHtml === "string") {
     return `
     <div id="mobile-drawer" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center transition-opacity duration-300 animate-fade-in" onclick="toggleMobileDrawer()">
@@ -680,13 +769,16 @@ export function renderMobileDrawer(userOrHtml: UserProfile | string, activeRoute
 
   const user = userOrHtml;
   const userBacs = getUserAllowedBacs(user);
-  const allowedApps = apps.filter(app => {
-    const isAllowedByRole = userBacs.includes(app.id) || userBacs.includes(app.id.replace(/^@apps\//, ""));
+  const allowedApps = apps.filter((app) => {
+    const isAllowedByRole =
+      userBacs.includes(app.id) ||
+      userBacs.includes(app.id.replace(/^@apps\//, ""));
     if (!isAllowedByRole) return false;
-    const flagKey = app.featureFlag || `apps.${app.id.replace(/^@apps\//, "")}.enabled`;
+    const flagKey =
+      app.featureFlag || `apps.${app.id.replace(/^@apps\//, "")}.enabled`;
     return platformFeatureFlags.isEnabledSync(flagKey, true);
   });
-  
+
   return `
     <div id="mobile-drawer" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center transition-opacity duration-300 animate-fade-in" onclick="toggleMobileDrawer()">
       <div class="w-full max-w-lg sm:max-w-md bg-surface-container-high rounded-t-3xl sm:rounded-2xl p-5 border-t sm:border border-outline-variant/25 shadow-2xl max-h-[85vh] flex flex-col justify-between overflow-hidden animate-slide-up-mobile pb-8 sm:pb-5" onclick="event.stopPropagation()">
@@ -709,11 +801,11 @@ export function renderMobileDrawer(userOrHtml: UserProfile | string, activeRoute
             <div>
               <p class="text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-wider mb-2 px-1">Navigation Générale</p>
               <div class="grid grid-cols-2 gap-2">
-                <a href="/" class="flex items-center gap-2.5 p-2.5 rounded-xl text-on-surface hover:bg-surface-variant/40 font-semibold text-xs transition ${activeRoute === '/' ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-surface-container/60 border border-outline-variant/15'}">
+                <a href="/" class="flex items-center gap-2.5 p-2.5 rounded-xl text-on-surface hover:bg-surface-variant/40 font-semibold text-xs transition ${activeRoute === "/" ? "bg-primary/10 text-primary border border-primary/20" : "bg-surface-container/60 border border-outline-variant/15"}">
                   <span class="material-symbols-outlined text-primary text-base">home</span>
                   <span class="truncate">Accueil</span>
                 </a>
-                <a href="/spaces" class="flex items-center gap-2.5 p-2.5 rounded-xl text-on-surface hover:bg-surface-variant/40 font-semibold text-xs transition ${activeRoute === '/spaces' ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-surface-container/60 border border-outline-variant/15'}">
+                <a href="/spaces" class="flex items-center gap-2.5 p-2.5 rounded-xl text-on-surface hover:bg-surface-variant/40 font-semibold text-xs transition ${activeRoute === "/spaces" ? "bg-primary/10 text-primary border border-primary/20" : "bg-surface-container/60 border border-outline-variant/15"}">
                   <span class="material-symbols-outlined text-emerald-400 text-base">workspaces</span>
                   <span class="truncate">Espaces</span>
                 </a>
@@ -723,10 +815,13 @@ export function renderMobileDrawer(userOrHtml: UserProfile | string, activeRoute
             <div>
               <p class="text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-wider mb-2 px-1">Toutes vos applications (${allowedApps.length})</p>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                ${allowedApps.map(app => {
-                  const isActive = activeRoute === app.route || activeRoute.startsWith(app.route + '/');
-                  return `
-                    <a href="${app.route}" class="flex items-center gap-3 p-2.5 rounded-xl text-on-surface hover:bg-surface-variant/40 font-semibold text-xs transition ${isActive ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-surface-container/40 border border-outline-variant/10'}">
+                ${allowedApps
+                  .map((app) => {
+                    const isActive =
+                      activeRoute === app.route ||
+                      activeRoute.startsWith(app.route + "/");
+                    return `
+                    <a href="${app.route}" class="flex items-center gap-3 p-2.5 rounded-xl text-on-surface hover:bg-surface-variant/40 font-semibold text-xs transition ${isActive ? "bg-primary/10 text-primary border border-primary/20" : "bg-surface-container/40 border border-outline-variant/10"}">
                       <span class="text-base shrink-0">${app.icon}</span>
                       <div class="min-w-0 flex-1">
                         <p class="truncate leading-tight">${escapeHtml(app.name)}</p>
@@ -734,7 +829,8 @@ export function renderMobileDrawer(userOrHtml: UserProfile | string, activeRoute
                       </div>
                     </a>
                   `;
-                }).join("")}
+                  })
+                  .join("")}
               </div>
             </div>
           </div>
@@ -744,9 +840,9 @@ export function renderMobileDrawer(userOrHtml: UserProfile | string, activeRoute
         <div class="border-t border-outline-variant/20 pt-3 mt-auto space-y-2 bg-surface-container-high">
           <p class="text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-wider px-1">Mode d'affichage</p>
           <div class="grid grid-cols-3 gap-1 bg-surface-container-low border border-outline-variant/20 p-1 rounded-xl text-xs">
-            <button onclick="setTheme('light'); toggleMobileDrawer();" class="py-1.5 rounded-lg transition text-center cursor-pointer ${activeMode === 'light' ? 'bg-primary text-on-primary font-bold shadow' : 'text-on-surface-variant hover:text-on-surface'}">Light</button>
-            <button onclick="setTheme('dark'); toggleMobileDrawer();" class="py-1.5 rounded-lg transition text-center cursor-pointer ${activeMode === 'dark' ? 'bg-primary text-on-primary font-bold shadow' : 'text-on-surface-variant hover:text-on-surface'}">Dark</button>
-            <button onclick="setTheme('high-contrast'); toggleMobileDrawer();" class="py-1.5 rounded-lg transition text-center cursor-pointer ${activeMode === 'high-contrast' ? 'bg-primary text-on-primary font-bold shadow' : 'text-on-surface-variant hover:text-on-surface'}">Contrast</button>
+            <button onclick="setTheme('light'); toggleMobileDrawer();" class="py-1.5 rounded-lg transition text-center cursor-pointer ${activeMode === "light" ? "bg-primary text-on-primary font-bold shadow" : "text-on-surface-variant hover:text-on-surface"}">Light</button>
+            <button onclick="setTheme('dark'); toggleMobileDrawer();" class="py-1.5 rounded-lg transition text-center cursor-pointer ${activeMode === "dark" ? "bg-primary text-on-primary font-bold shadow" : "text-on-surface-variant hover:text-on-surface"}">Dark</button>
+            <button onclick="setTheme('high-contrast'); toggleMobileDrawer();" class="py-1.5 rounded-lg transition text-center cursor-pointer ${activeMode === "high-contrast" ? "bg-primary text-on-primary font-bold shadow" : "text-on-surface-variant hover:text-on-surface"}">Contrast</button>
           </div>
         </div>
 
@@ -952,15 +1048,20 @@ export function renderMobileNotificationsSheet(): string {
 export function renderMobileBottomNav(
   activeRoute: string = "/",
   user?: UserProfile,
-  activeSpace?: SpaceProfile | string | null
+  activeSpace?: SpaceProfile | string | null,
 ): string {
   const isHome = activeRoute === "/" || activeRoute === "";
-  const isSpaces = activeRoute === "/spaces" || activeRoute.startsWith("/spaces");
-  const isImperia = activeRoute === "/imperia" || activeRoute.startsWith("/imperia");
+  const isSpaces =
+    activeRoute === "/spaces" || activeRoute.startsWith("/spaces");
+  const isImperia =
+    activeRoute === "/imperia" || activeRoute.startsWith("/imperia");
   const isBac = !isHome && !isSpaces && !isImperia;
 
-  const spaceObj = typeof activeSpace === "string" ? SPACES_LIST.find((s) => s.id === activeSpace) : activeSpace;
-  const displayAvatar = spaceObj ? spaceObj.avatar : (user ? user.avatar : "👤");
+  const spaceObj =
+    typeof activeSpace === "string"
+      ? SPACES_LIST.find((s) => s.id === activeSpace)
+      : activeSpace;
+  const displayAvatar = spaceObj ? spaceObj.avatar : user ? user.avatar : "👤";
 
   return `
     <!-- Extra Mobile Sheets -->
@@ -977,12 +1078,12 @@ export function renderMobileBottomNav(
         <!-- 1. Accueil (Home) -->
         <a 
           href="/" 
-          class="min-h-[48px] min-w-[56px] flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-200 active:scale-95 ${isHome ? 'text-primary font-bold' : 'text-on-surface-variant/75 hover:text-on-surface'}"
+          class="min-h-[48px] min-w-[56px] flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-200 active:scale-95 ${isHome ? "text-primary font-bold" : "text-on-surface-variant/75 hover:text-on-surface"}"
           title="Accueil"
         >
-          <div class="relative p-1 rounded-xl ${isHome ? 'bg-primary/15 text-primary' : ''}">
-            <span class="material-symbols-outlined text-2xl ${isHome ? 'scale-105' : ''}">home</span>
-            ${isHome ? '<span class="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>' : ''}
+          <div class="relative p-1 rounded-xl ${isHome ? "bg-primary/15 text-primary" : ""}">
+            <span class="material-symbols-outlined text-2xl ${isHome ? "scale-105" : ""}">home</span>
+            ${isHome ? '<span class="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>' : ""}
           </div>
           <span class="text-[10px] leading-none font-medium">Accueil</span>
         </a>
@@ -990,11 +1091,11 @@ export function renderMobileBottomNav(
         <!-- 2. Modules (Applications) -->
         <button 
           onclick="toggleMobileDrawer()" 
-          class="min-h-[48px] min-w-[56px] flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-200 active:scale-95 ${isBac ? 'text-primary font-bold' : 'text-on-surface-variant/75 hover:text-on-surface'} cursor-pointer"
+          class="min-h-[48px] min-w-[56px] flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-200 active:scale-95 ${isBac ? "text-primary font-bold" : "text-on-surface-variant/75 hover:text-on-surface"} cursor-pointer"
           title="Ouvrir les Modules"
         >
-          <div class="relative p-1 rounded-xl ${isBac ? 'bg-primary/15 text-primary' : ''}">
-            <span class="material-symbols-outlined text-2xl ${isBac ? 'scale-105' : ''}">grid_view</span>
+          <div class="relative p-1 rounded-xl ${isBac ? "bg-primary/15 text-primary" : ""}">
+            <span class="material-symbols-outlined text-2xl ${isBac ? "scale-105" : ""}">grid_view</span>
           </div>
           <span class="text-[10px] leading-none font-medium">Modules</span>
         </button>
@@ -1030,7 +1131,7 @@ export function renderMobileBottomNav(
           class="min-h-[48px] min-w-[56px] flex flex-col items-center justify-center gap-1 rounded-xl text-on-surface-variant/75 hover:text-on-surface transition-all duration-200 active:scale-95 cursor-pointer"
           title="Profil & Compte"
         >
-          <div class="relative w-7 h-7 rounded-xl ${spaceObj ? 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-400' : 'bg-surface-container border border-outline-variant/30 text-on-surface'} flex items-center justify-center text-xs font-bold shadow-sm">
+          <div class="relative w-7 h-7 rounded-xl ${spaceObj ? "bg-emerald-600/20 border border-emerald-500/40 text-emerald-400" : "bg-surface-container border border-outline-variant/30 text-on-surface"} flex items-center justify-center text-xs font-bold shadow-sm">
             ${displayAvatar}
             <span class="user-presence-dot absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-surface"></span>
           </div>
@@ -1092,7 +1193,9 @@ export function renderCommandPaletteModal(): string {
           <!-- Category 1: Applications BAC -->
           <div class="space-y-1 pt-1">
             <p class="text-[10px] font-bold text-primary uppercase tracking-wider px-2 mb-1">Vos Applications & Outils</p>
-            ${apps.map(app => `
+            ${apps
+              .map(
+                (app) => `
               <a href="${app.route}" class="cmd-item flex items-center justify-between p-2.5 rounded-xl hover:bg-primary/10 transition group text-xs font-semibold text-on-surface">
                 <div class="flex items-center gap-3">
                   <span class="text-lg p-1.5 rounded-lg bg-surface-container border border-outline-variant/20">${app.icon}</span>
@@ -1103,13 +1206,20 @@ export function renderCommandPaletteModal(): string {
                 </div>
                 <span class="text-[10px] text-on-surface-variant font-medium group-hover:text-primary">Ouvrir &rarr;</span>
               </a>
-            `).join("")}
+            `,
+              )
+              .join("")}
           </div>
 
-          <!-- Category 2: Rôles & Profils Test -->
+          <!-- Category 2: Rôles & Profils Test (demo only) -->
+          ${
+            isDemoMode()
+              ? `
           <div class="space-y-1 pt-3">
             <p class="text-[10px] font-bold text-primary uppercase tracking-wider px-2 mb-1">Changer de rôle (Aperçu Démo)</p>
-            ${Object.values(USER_PROFILES).map(profile => `
+            ${Object.values(USER_PROFILES)
+              .map(
+                (profile) => `
               <button onclick="switchUserRole('${profile.role}'); closeCommandPalette();" class="cmd-item w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-primary/10 transition group text-xs font-semibold text-on-surface text-left">
                 <div class="flex items-center gap-3">
                   <span class="text-base">${profile.avatar}</span>
@@ -1120,8 +1230,13 @@ export function renderCommandPaletteModal(): string {
                 </div>
                 <span class="px-2 py-0.5 rounded text-[10px] bg-surface-variant/40 border border-outline-variant/20 font-medium">Tester ce profil</span>
               </button>
-            `).join("")}
+            `,
+              )
+              .join("")}
           </div>
+          `
+              : ""
+          }
 
           <!-- Category 3: Actions Système & Dev Tools -->
           <div class="space-y-1 pt-3">
@@ -1202,7 +1317,9 @@ export function renderDevInspectorDrawer(): string {
         <div id="dev-tab-content-bacs" class="p-4 overflow-y-auto flex-1 space-y-3">
           <p class="text-[11px] text-on-surface-variant">Statut d'exécution et contrats d'interface des Bounded Contexts (BACs) :</p>
           <div class="space-y-2">
-            ${apps.map(app => `
+            ${apps
+              .map(
+                (app) => `
               <div class="p-3 rounded-xl bg-surface-container border border-outline-variant/20 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                   <span class="text-xl p-1.5 rounded-lg bg-surface-container-highest">${app.icon}</span>
@@ -1216,7 +1333,9 @@ export function renderDevInspectorDrawer(): string {
                   <a href="${app.route}" class="p-1 rounded hover:bg-surface-variant/40 text-primary text-xs" title="Ouvrir application">&rarr;</a>
                 </div>
               </div>
-            `).join("")}
+            `,
+              )
+              .join("")}
           </div>
         </div>
 
@@ -1224,7 +1343,9 @@ export function renderDevInspectorDrawer(): string {
         <div id="dev-tab-content-flags" class="p-4 overflow-y-auto flex-1 space-y-3 hidden">
           <p class="text-[11px] text-on-surface-variant">Basculez les fonctionnalités en direct sans redémarrer le serveur :</p>
           <div class="space-y-2">
-            ${flagsList.map(([key, flag]) => `
+            ${flagsList
+              .map(
+                ([key, flag]) => `
               <div class="p-3 rounded-xl bg-surface-container border border-outline-variant/20 flex items-center justify-between gap-3">
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-2">
@@ -1234,11 +1355,13 @@ export function renderDevInspectorDrawer(): string {
                   <p class="text-[10px] text-on-surface-variant mt-0.5">${escapeHtml(flag.description)}</p>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input type="checkbox" ${flag.value ? 'checked' : ''} onchange="toggleFeatureFlag('${key}', this.checked)" class="sr-only peer">
+                  <input type="checkbox" ${flag.value ? "checked" : ""} onchange="toggleFeatureFlag('${key}', this.checked)" class="sr-only peer">
                   <div class="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                 </label>
               </div>
-            `).join("")}
+            `,
+              )
+              .join("")}
           </div>
         </div>
 
@@ -1296,8 +1419,14 @@ export function renderDevInspectorDrawer(): string {
 // -----------------------------------------------------------------------------
 // MAINTENANCE MODE PAGE (FEAT-01)
 // -----------------------------------------------------------------------------
-export function renderMaintenancePage(reason?: string, estimatedDurationMinutes?: number): string {
-  const safeReason = escapeHtml(reason || "Maintenance programmée de la plateforme MosaiX pour optimisation et mise à niveau des services.");
+export function renderMaintenancePage(
+  reason?: string,
+  estimatedDurationMinutes?: number,
+): string {
+  const safeReason = escapeHtml(
+    reason ||
+      "Maintenance programmée de la plateforme MosaiX pour optimisation et mise à niveau des services.",
+  );
   const duration = estimatedDurationMinutes ?? 30;
 
   return `
@@ -1352,7 +1481,10 @@ export function renderToastContainer(): string {
   `;
 }
 
-export function renderBacAdminSafely(appId: string, contributions: unknown[] = []): string {
+export function renderBacAdminSafely(
+  appId: string,
+  contributions: unknown[] = [],
+): string {
   const cleanId = (appId || "").replace(/^@apps\//, "");
   const icon = APP_ICONS[cleanId] || APP_ICONS[appId] || "📦";
   const title = cleanId.charAt(0).toUpperCase() + cleanId.slice(1);
@@ -1412,6 +1544,8 @@ export function renderBacAdminSafely(appId: string, contributions: unknown[] = [
   `;
 }
 
-export { renderShellToastContainer, renderShellConfirmModal } from "./client/shell-client-scripts.js";
+export {
+  renderShellToastContainer,
+  renderShellConfirmModal,
+} from "./client/shell-client-scripts.js";
 export { getActiveUserProfile } from "./profiles.js";
-
