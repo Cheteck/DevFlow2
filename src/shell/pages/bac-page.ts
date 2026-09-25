@@ -47,7 +47,7 @@ export function renderBacPage(opts: BacPageOptions): string {
   } = opts;
 
   return `<!DOCTYPE html>
-<html lang="fr" data-theme-mode="${activeMode}">
+<html class="${activeMode === 'dark' ? 'dark' : activeMode === 'high-contrast' ? 'high-contrast' : ''}" lang="fr" data-theme-mode="${activeMode}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">

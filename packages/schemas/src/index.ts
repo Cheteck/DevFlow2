@@ -98,6 +98,37 @@ export const MosaixEventEnvelopeSchema = z.object({
   security: z.record(z.unknown()).optional(),
 });
 
+export const VendableCharacteristicsSchema = z.object({
+  attributes: z.record(z.union([z.string(), z.number(), z.boolean(), z.array(z.string())])).optional(),
+  specifications: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+}).passthrough();
+
+export const MediaItemMetadataSchema = z.object({
+  alt: z.string().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  format: z.string().optional(),
+}).passthrough();
+
+export const CommerceOfferMetadataSchema = z.object({
+  sku: z.string().optional(),
+  notes: z.string().optional(),
+  taxCode: z.string().optional(),
+}).passthrough();
+
+export const PostMetadataSchema = z.object({
+  options: z.array(z.string()).optional(),
+  vendableId: z.string().optional(),
+  pollType: z.string().optional(),
+}).passthrough();
+
+export const AuditLogMetadataSchema = z.object({
+  ip: z.string().optional(),
+  userAgent: z.string().optional(),
+  action: z.string().optional(),
+}).passthrough();
+
+
 export const ThemeTargetSchema = z.object({
   type: z.string().min(1),
   id: z.string().min(1),

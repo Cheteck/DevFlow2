@@ -41,7 +41,7 @@ export function renderHomePage(opts: HomePageOptions): string {
   } = opts;
 
   return `<!DOCTYPE html>
-<html class="dark" lang="fr" data-theme-mode="${activeMode}">
+<html class="${activeMode === 'dark' ? 'dark' : activeMode === 'high-contrast' ? 'high-contrast' : ''}" lang="fr" data-theme-mode="${activeMode}">
 ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode), sharedStyles)}
   ${getShellClientScripts()}
 </head>

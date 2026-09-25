@@ -99,4 +99,36 @@ describe('CommerceBAC End-to-End & Unit Tests', () => {
     expect(getRes.statusCode).toBe(404);
     expect(getRes.body.code).toBe('ORDER_NOT_FOUND');
   });
+
+  it('should process SATIM CIB/Edahabia authorization hold and void correctly', async () => {
+    const { SatimPaymentPort } = await import('./domain/satim-payment-port.js');
+    const port = new SatimPaymentPort();
+    await expect(port.authorize('ord-1', 5000, 'idemp-1')).resolves.not.toThrow();
+    await expect(port.void('ord-1', 'idemp-1')).resolves.not.toThrow();
+  });
+
+  it('should process escrow holds, releases and calculate commissions in the wallet system', async () => {
+    const { WalletEscrowManager } = await import('./domain/satim-payment-port.js');
+    const { Money } = await import('@mosaix/core');
+    const manager = new WalletEscrowManager();
+
+    const dzdMoney = Money.fromCents(10000, 'DZD'); // 100.00 DZD
+    manager.rechargeWallet('buyer-1', 'user', dzdMoney);
+
+    const buyerWallet = manager.getWallet('buyer-1', 'user');
+    expect(buyerWallet.balanceInCents).toBe(10000);
+
+    // Hold escrow
+    manager.holdEscrow('buyer-1', 'ord-99', dzdMoney);
+    expect(buyerWallet.balanceInCents).toBe(0);
+
+    // Release escrow to space with 5% commission
+    manager.releaseEscrow('space-seller-1', 'space', 'ord-99', dzdMoney, 500);
+    const sellerWallet = manager.getWallet('space-seller-1', 'space');
+    expect(sellerWallet.balanceInCents).toBe(9500); // 10000 - 500 (5% of 10000)
+
+    const txs = manager.listTransactions();
+    expect(txs.length).toBe(4); // recharge, escrow_hold, escrow_release, payout
+  });
 });
+
