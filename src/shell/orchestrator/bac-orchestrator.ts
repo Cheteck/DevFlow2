@@ -19,8 +19,10 @@ export class BacOrchestrator {
   private dynamicLoaders = new Map<string, () => Promise<BacDescriptor>>();
 
   constructor() {
-    this.registerDiscoveredWorkspaceApps();
+    // Les loaders dynamiques (vraies vues BAC) sont enregistrés d'abord pour que
+    // registerDiscoveredWorkspaceApps() ne les masque pas avec un placeholder.
     this.registerBuiltinDynamicLoaders();
+    this.registerDiscoveredWorkspaceApps();
   }
 
   registerDynamicLoader(id: string, loader: () => Promise<BacDescriptor>): void {
@@ -260,6 +262,11 @@ export class BacOrchestrator {
   private registerDiscoveredWorkspaceApps(): void {
     for (const app of apps) {
       const cleanId = app.id.replace(/^@apps\//, "");
+      // Pas de placeholder si une vraie vue BAC existe via un loader dynamique
+      // — le loader sera résolu à la demande par loadDescriptor().
+      if (this.dynamicLoaders.has(cleanId) || this.dynamicLoaders.has(app.id)) {
+        continue;
+      }
       const descriptor: BacDescriptor = {
         id: app.id,
         name: app.name,

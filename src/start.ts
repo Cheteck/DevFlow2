@@ -13,6 +13,7 @@ import { escapeHtml } from "@mosaix/support";
 import {
   CompositionOverrideManager,
   platformSettingsService,
+  validateEnv,
 } from "@mosaix/core";
 
 // Shell services & state
@@ -41,7 +42,11 @@ import { renderHomePage } from "./shell/pages/home-page.js";
 // Enforce production security constraints (VULN-08)
 SecurityGuard.enforceProductionConstraints();
 
-const PORT = parseInt(process.env.APP_PORT || "3000", 10);
+// Canonical env validation (fail-fast, extensible — see @mosaix/core env.schema).
+// Legacy aliases (APP_PORT/PORT, DATABASE_URL...) still accepted with a warning.
+const bootEnv = validateEnv(process.env as Record<string, string | undefined>);
+
+const PORT = bootEnv.resolvedPort;
 let activeMode: ThemeMode = "dark";
 
 // Composition Overrides Store initialization
