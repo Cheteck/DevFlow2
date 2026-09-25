@@ -309,7 +309,7 @@ export function renderSecondarySidebar(
           <button 
             id="secondary-sidebar-filter-clear" 
             onclick="clearSecondarySidebarFilter()" 
-            class="hidden absolute right-2.5 top-2 text-on-surface-variant/60 hover:text-on-surface text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center cursor-pointer"
+            class="hidden absolute right-2.5 top-2 text-on-surface-variant/60 hover:text-on-surface text-xs font-bold w-4 h-4 rounded-full items-center justify-center cursor-pointer"
           >&times;</button>
         </div>
 
@@ -543,7 +543,7 @@ export function renderUserSwitcherWidget(
       <!-- Pre-Production Rich User & Space Menu Dropdown / Mobile Bottom Sheet -->
       <div 
         id="user-menu-dropdown" 
-        class="fixed sm:absolute inset-0 sm:inset-auto sm:right-0 sm:top-full sm:mt-2.5 z-[150] sm:z-50 hidden bg-black/60 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none flex items-end sm:block justify-center animate-fade-in"
+        class="fixed sm:absolute inset-0 sm:inset-auto sm:right-0 sm:top-full sm:mt-2.5 z-[150] sm:z-50 hidden bg-black/60 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none items-end sm:block justify-center animate-fade-in"
         onclick="toggleUserDropdown(event)"
       >
         <div 
@@ -745,7 +745,7 @@ export function renderMobileDrawer(
 ): string {
   if (typeof userOrHtml === "string") {
     return `
-    <div id="mobile-drawer" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center transition-opacity duration-300 animate-fade-in" onclick="toggleMobileDrawer()">
+    <div id="mobile-drawer" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm items-end sm:items-center justify-center transition-opacity duration-300 animate-fade-in" onclick="toggleMobileDrawer()">
       <div class="w-full max-w-lg sm:max-w-md bg-surface-container-high rounded-t-3xl sm:rounded-2xl p-5 border-t sm:border border-outline-variant/25 shadow-2xl max-h-[85vh] flex flex-col justify-between overflow-hidden animate-slide-up-mobile pb-8 sm:pb-5" onclick="event.stopPropagation()">
         <!-- Mobile Bottom Sheet Handle -->
         <div class="bottom-sheet-handle sm:hidden"></div>
@@ -780,7 +780,7 @@ export function renderMobileDrawer(
   });
 
   return `
-    <div id="mobile-drawer" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center transition-opacity duration-300 animate-fade-in" onclick="toggleMobileDrawer()">
+    <div id="mobile-drawer" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm items-end sm:items-center justify-center transition-opacity duration-300 animate-fade-in" onclick="toggleMobileDrawer()">
       <div class="w-full max-w-lg sm:max-w-md bg-surface-container-high rounded-t-3xl sm:rounded-2xl p-5 border-t sm:border border-outline-variant/25 shadow-2xl max-h-[85vh] flex flex-col justify-between overflow-hidden animate-slide-up-mobile pb-8 sm:pb-5" onclick="event.stopPropagation()">
         
         <!-- Mobile Bottom Sheet Handle -->
@@ -859,7 +859,7 @@ export function renderMobileDrawer(
 // -----------------------------------------------------------------------------
 export function renderMobileCreateSheet(): string {
   return `
-    <div id="mobile-create-sheet" class="fixed inset-0 z-[110] hidden bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center transition-opacity duration-300 animate-fade-in" onclick="toggleMobileCreateSheet()">
+    <div id="mobile-create-sheet" class="fixed inset-0 z-[110] hidden bg-black/60 backdrop-blur-sm items-end sm:items-center justify-center transition-opacity duration-300 animate-fade-in" onclick="toggleMobileCreateSheet()">
       <div class="w-full max-w-lg sm:max-w-md bg-surface-container-high rounded-t-3xl sm:rounded-2xl p-5 border-t sm:border border-outline-variant/25 shadow-2xl max-h-[85vh] flex flex-col justify-between overflow-hidden animate-slide-up-mobile pb-8 sm:pb-5" onclick="event.stopPropagation()">
         <!-- Bottom Sheet Handle -->
         <div class="bottom-sheet-handle sm:hidden"></div>
@@ -953,7 +953,7 @@ export function renderMobileCreateSheet(): string {
 
 export function renderMobileNotificationsSheet(): string {
   return `
-    <div id="mobile-notifications-sheet" class="fixed inset-0 z-[110] hidden bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center transition-opacity duration-300 animate-fade-in" onclick="toggleMobileNotificationsSheet()">
+    <div id="mobile-notifications-sheet" class="fixed inset-0 z-[110] hidden bg-black/60 backdrop-blur-sm items-end sm:items-center justify-center transition-opacity duration-300 animate-fade-in" onclick="toggleMobileNotificationsSheet()">
       <div class="w-full max-w-lg sm:max-w-md bg-surface-container-high rounded-t-3xl sm:rounded-2xl p-5 border-t sm:border border-outline-variant/25 shadow-2xl max-h-[85vh] flex flex-col justify-between overflow-hidden animate-slide-up-mobile pb-8 sm:pb-5" onclick="event.stopPropagation()">
         <!-- Bottom Sheet Handle -->
         <div class="bottom-sheet-handle sm:hidden"></div>
@@ -1167,7 +1167,7 @@ export function renderHeaderSearchAndDevControls(): string {
 export function renderCommandPaletteModal(): string {
   return `
     <!-- Command Palette Overlay -->
-    <div id="mosaix-cmd-palette" class="fixed inset-0 z-[200] hidden bg-black/60 backdrop-blur-md flex items-end sm:items-start justify-center p-0 sm:p-6 md:p-20 animate-fade-in" onclick="closeCommandPalette()">
+    <div id="mosaix-cmd-palette" class="fixed inset-0 z-[200] hidden bg-black/60 backdrop-blur-md items-end sm:items-start justify-center p-0 sm:p-6 md:p-20 animate-fade-in" onclick="closeCommandPalette()">
       <div class="w-full max-w-2xl bg-surface-container-high border-t sm:border border-outline-variant/30 rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[80vh] transition-all duration-200 animate-slide-up-mobile pb-6 sm:pb-0" onclick="event.stopPropagation()">
         <!-- Mobile Bottom Sheet Handle -->
         <div class="bottom-sheet-handle sm:hidden mt-3 mb-1"></div>
@@ -1283,7 +1283,7 @@ export function renderDevInspectorDrawer(): string {
 
   return `
     <!-- Dev Inspector Drawer Overlay -->
-    <div id="mosaix-dev-inspector" class="fixed inset-0 z-[200] hidden bg-black/60 backdrop-blur-sm flex items-end sm:justify-end animate-fade-in" onclick="closeDevInspector()">
+    <div id="mosaix-dev-inspector" class="fixed inset-0 z-[200] hidden bg-black/60 backdrop-blur-sm items-end sm:justify-end animate-fade-in" onclick="closeDevInspector()">
       <div class="w-full sm:max-w-xl bg-surface-container-high border-t sm:border-l border-outline-variant/30 max-h-[90vh] sm:max-h-none sm:h-full rounded-t-3xl sm:rounded-none shadow-2xl flex flex-col justify-between overflow-hidden animate-slide-up-mobile pb-6 sm:pb-0" onclick="event.stopPropagation()">
         <!-- Mobile Bottom Sheet Handle -->
         <div class="bottom-sheet-handle sm:hidden mt-3 mb-1"></div>

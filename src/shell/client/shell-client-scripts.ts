@@ -9,7 +9,7 @@ export function renderShellToastContainer(): string {
 
 export function renderShellConfirmModal(): string {
   return `
-    <div id="shell-confirm-modal" class="fixed inset-0 z-[350] bg-black/60 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+    <div id="shell-confirm-modal" class="fixed inset-0 z-[350] bg-black/60 backdrop-blur-sm hidden items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
       <div class="w-full sm:max-w-md bg-surface-container-high rounded-t-3xl sm:rounded-2xl p-6 border-t sm:border border-outline-variant/30 shadow-2xl space-y-4 animate-slide-up-mobile pb-8 sm:pb-6" onclick="event.stopPropagation()">
         <!-- Mobile Bottom Sheet Handle -->
         <div class="bottom-sheet-handle sm:hidden"></div>
@@ -96,6 +96,7 @@ export function getShellClientScripts(): string {
             titleEl.textContent = title;
             msgEl.textContent = message;
             modal.classList.remove('hidden');
+            modal.classList.add('flex');
             
             const handleOk = () => {
               cleanup();
@@ -109,6 +110,7 @@ export function getShellClientScripts(): string {
             
             const cleanup = () => {
               modal.classList.add('hidden');
+              modal.classList.remove('flex');
               okBtn.removeEventListener('click', handleOk);
               cancelBtn.removeEventListener('click', handleCancel);
             };
@@ -200,36 +202,43 @@ export function getShellClientScripts(): string {
           window.showToast('Organisation active : ' + (names[tenantId] || tenantId), 'info');
         };
 
+        // Overlay visibility helper: 'hidden' and 'flex' must never
+        // coexist (same-breakpoint display conflict). JS owns both.
+        window.setOverlayOpen = function(menu, btn, open) {
+          if (!menu) return;
+          if (open) {
+            menu.classList.remove('hidden');
+            menu.classList.add('flex');
+          } else {
+            menu.classList.add('hidden');
+            menu.classList.remove('flex');
+          }
+          if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+
         // Safe User Dropdown Toggle
         window.toggleUserDropdown = function(e) {
           if (e) e.stopPropagation();
           const menu = document.getElementById('user-menu-dropdown');
           const btn = document.getElementById('user-menu-button');
           if (menu) {
-            const isHidden = menu.classList.contains('hidden');
-            if (isHidden) {
-              menu.classList.remove('hidden');
-              if (btn) btn.setAttribute('aria-expanded', 'true');
-            } else {
-              menu.classList.add('hidden');
-              if (btn) btn.setAttribute('aria-expanded', 'false');
-            }
+            window.setOverlayOpen(menu, btn, menu.classList.contains('hidden'));
           }
         };
 
         window.toggleMobileDrawer = function() {
           const drawer = document.getElementById('mobile-drawer');
-          if (drawer) drawer.classList.toggle('hidden');
+          if (drawer) window.setOverlayOpen(drawer, null, drawer.classList.contains('hidden'));
         };
 
         window.toggleMobileCreateSheet = function() {
           const sheet = document.getElementById('mobile-create-sheet');
-          if (sheet) sheet.classList.toggle('hidden');
+          if (sheet) window.setOverlayOpen(sheet, null, sheet.classList.contains('hidden'));
         };
 
         window.toggleMobileNotificationsSheet = function() {
           const sheet = document.getElementById('mobile-notifications-sheet');
-          if (sheet) sheet.classList.toggle('hidden');
+          if (sheet) window.setOverlayOpen(sheet, null, sheet.classList.contains('hidden'));
         };
 
         window.markNotificationsAsRead = function() {
@@ -301,8 +310,7 @@ export function getShellClientScripts(): string {
           const btn = document.getElementById('user-menu-button');
           if (menu && !menu.classList.contains('hidden')) {
             if (!menu.contains(e.target) && (!btn || !btn.contains(e.target))) {
-              menu.classList.add('hidden');
-              if (btn) btn.setAttribute('aria-expanded', 'false');
+              window.setOverlayOpen(menu, btn, false);
             }
           }
         });
@@ -312,11 +320,56 @@ export function getShellClientScripts(): string {
             const menu = document.getElementById('user-menu-dropdown');
             const btn = document.getElementById('user-menu-button');
             if (menu && !menu.classList.contains('hidden')) {
-              menu.classList.add('hidden');
-              if (btn) btn.setAttribute('aria-expanded', 'false');
+              window.setOverlayOpen(menu, btn, false);
             }
           }
         });
+
+        // Secondary sidebar live filter (shared: markup lives in the
+        // shell renderer, used by every page).
+        window.filterSecondarySidebar = function(query) {
+          const q = (query || '').toLowerCase().trim();
+          const clearBtns = document.querySelectorAll('#secondary-sidebar-filter-clear');
+          clearBtns.forEach((clearBtn) => {
+            if (q) {
+              clearBtn.classList.remove('hidden');
+              clearBtn.classList.add('flex');
+            } else {
+              clearBtn.classList.add('hidden');
+              clearBtn.classList.remove('flex');
+            }
+          });
+          const container = document.getElementById('mosaix-slot-shell-sidebar-secondary');
+          if (!container) return;
+          const items = container.querySelectorAll('.sidebar-nav-item');
+          let visibleCount = 0;
+          items.forEach(item => {
+            const text = (item.getAttribute('data-search') || item.textContent || '').toLowerCase();
+            if (!q || text.includes(q)) {
+              item.classList.remove('hidden');
+              visibleCount++;
+            } else {
+              item.classList.add('hidden');
+            }
+          });
+          const emptyMsg = document.getElementById('secondary-sidebar-empty-state');
+          if (emptyMsg) {
+            if (visibleCount === 0 && q) {
+              emptyMsg.classList.remove('hidden');
+            } else {
+              emptyMsg.classList.add('hidden');
+            }
+          }
+        };
+
+        window.clearSecondarySidebarFilter = function() {
+          const input = document.getElementById('secondary-sidebar-filter');
+          if (input) {
+            input.value = '';
+            window.filterSecondarySidebar('');
+            input.focus();
+          }
+        };
 
         // Initialize active locale, presence status, and theme mode
         setTimeout(() => {

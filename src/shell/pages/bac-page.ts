@@ -48,7 +48,7 @@ export function renderBacPage(opts: BacPageOptions): string {
   } = opts;
 
   return `<!DOCTYPE html>
-<html class="${activeMode === 'dark' ? 'dark' : activeMode === 'high-contrast' ? 'high-contrast' : ''}" lang="fr" data-theme-mode="${activeMode}">
+<html class="${activeMode === "dark" ? "dark" : activeMode === "high-contrast" ? "high-contrast" : ""}" lang="fr" data-theme-mode="${activeMode}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -148,9 +148,9 @@ export function renderBacPage(opts: BacPageOptions): string {
 
           <!-- Dynamic Theme Toggle -->
           <div class="hidden lg:flex items-center gap-0.5 bg-surface-container-low border border-outline-variant/20 p-0.5 rounded-xl text-xs">
-            <button onclick="setTheme('light')" class="px-2 py-1 rounded-lg transition ${activeMode === 'light' ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-variant/30'}" title="Thème Clair">Light</button>
-            <button onclick="setTheme('dark')" class="px-2 py-1 rounded-lg transition ${activeMode === 'dark' ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-variant/30'}" title="Thème Sombre">Dark</button>
-            <button onclick="setTheme('high-contrast')" class="px-2 py-1 rounded-lg transition ${activeMode === 'high-contrast' ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-variant/30'}" title="Contraste Élevé">Contrast</button>
+            <button onclick="setTheme('light')" class="px-2 py-1 rounded-lg transition ${activeMode === "light" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Clair">Light</button>
+            <button onclick="setTheme('dark')" class="px-2 py-1 rounded-lg transition ${activeMode === "dark" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Sombre">Dark</button>
+            <button onclick="setTheme('high-contrast')" class="px-2 py-1 rounded-lg transition ${activeMode === "high-contrast" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Contraste Élevé">Contrast</button>
           </div>
 
           <div class="hidden lg:block h-5 w-px bg-outline-variant/20"></div>
@@ -192,45 +192,6 @@ export function renderBacPage(opts: BacPageOptions): string {
     function toggleSecondarySidebar() {
       const isCollapsed = document.documentElement.classList.toggle('sidebar-collapsed');
       localStorage.setItem('mosaix_secondary_sidebar_collapsed', isCollapsed ? 'true' : 'false');
-    }
-
-    function filterSecondarySidebar(query) {
-      const q = (query || '').toLowerCase().trim();
-      const clearBtn = document.getElementById('secondary-sidebar-filter-clear');
-      if (clearBtn) {
-        if (q) clearBtn.classList.remove('hidden');
-        else clearBtn.classList.add('hidden');
-      }
-      const container = document.getElementById('mosaix-slot-shell-sidebar-secondary');
-      if (!container) return;
-      const items = container.querySelectorAll('.sidebar-nav-item');
-      let visibleCount = 0;
-      items.forEach(item => {
-        const text = (item.getAttribute('data-search') || item.textContent || '').toLowerCase();
-        if (!q || text.includes(q)) {
-          item.classList.remove('hidden');
-          visibleCount++;
-        } else {
-          item.classList.add('hidden');
-        }
-      });
-      const emptyMsg = document.getElementById('secondary-sidebar-empty-state');
-      if (emptyMsg) {
-        if (visibleCount === 0 && q) {
-          emptyMsg.classList.remove('hidden');
-        } else {
-          emptyMsg.classList.add('hidden');
-        }
-      }
-    }
-
-    function clearSecondarySidebarFilter() {
-      const input = document.getElementById('secondary-sidebar-filter');
-      if (input) {
-        input.value = '';
-        filterSecondarySidebar('');
-        input.focus();
-      }
     }
   </script>
 </body>
