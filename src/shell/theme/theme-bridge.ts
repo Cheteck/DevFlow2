@@ -12,9 +12,7 @@ import {
   InMemoryThemeAssignmentsStore,
   ThemeRuntime,
   ThemeTargetRegistry,
-  PostgresThemeAssignmentsStore,
   registerBacThemeTargets,
-  container,
 } from "@mosaix/core";
 import { MOSAIX_DEFAULT_THEME } from "./mosaix-default-theme.js";
 
@@ -33,19 +31,7 @@ export function initThemeBridge(options: ThemeBridgeOptions = {}): ThemeRuntime 
   } else {
     const registry = new ThemeTargetRegistry();
     registerBacThemeTargets(registry);
-
-    let store;
-    const hasContainer = typeof container !== "undefined" && container && typeof container.isBound === "function";
-    if (hasContainer && container.isBound("database")) {
-      const db = container.resolve<any>("database");
-      store = new PostgresThemeAssignmentsStore(db);
-    } else if (hasContainer && container.isBound("databasePort")) {
-      const db = container.resolve<any>("databasePort");
-      store = new PostgresThemeAssignmentsStore(db);
-    } else {
-      store = new InMemoryThemeAssignmentsStore();
-    }
-
+    const store = new InMemoryThemeAssignmentsStore();
     activeRuntime = createThemeRuntime({ registry, store });
   }
 
