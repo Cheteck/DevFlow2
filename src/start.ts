@@ -86,10 +86,17 @@ const server = http.createServer(async (req, res) => {
   const parsedUrl = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
   const pathname = parsedUrl.pathname;
 
-  // 1. Static Assets Delivery (/public/)
+  // 1. Static Assets Delivery (/public/) — ETag + gzip
   if (pathname.startsWith("/public/")) {
     const filePath = path.join(process.cwd(), pathname);
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      const stat = fs.statSync(filePath);
+      const etag = `"${stat.mtimeMs.toString(36)}-${stat.size.toString(36)}"`;
+      if (req.headers["if-none-match"] === etag) {
+        res.writeHead(304);
+        res.end();
+        return;
+      }
       const ext = path.extname(filePath).toLowerCase();
       const mimeMap: Record<string, string> = {
         ".png": "image/png",
@@ -99,10 +106,44 @@ const server = http.createServer(async (req, res) => {
         ".js": "application/javascript",
         ".json": "application/json",
       };
-      res.writeHead(200, { "Content-Type": mimeMap[ext] || "application/octet-stream" });
-      fs.createReadStream(filePath).pipe(res);
+      const acceptEncoding = req.headers["accept-encoding"] || "";
+      const shouldGzip = typeof acceptEncoding === "string" && acceptEncoding.includes("gzip") && [".js", ".css", ".svg", ".json"].includes(ext);
+      const headers: Record<string, string> = {
+        "Content-Type": mimeMap[ext] || "application/octet-stream",
+        ETag: etag,
+        "Cache-Control": "public, max-age=3600",
+      };
+      if (shouldGzip) headers["Content-Encoding"] = "gzip";
+      res.writeHead(200, headers);
+      const stream = fs.createReadStream(filePath);
+      if (shouldGzip) {
+        const { createGzip } = await import("node:zlib");
+        stream.pipe(createGzip()).pipe(res);
+      } else {
+        stream.pipe(res);
+      }
       return;
     }
+  }
+
+  const startHr = process.hrtime.bigint();
+  const reqMethod = req.method || "GET";
+  res.on("finish", () => {
+    const dur = Number(process.hrtime.bigint() - startHr) / 1e6;
+    console.log(`[http] ${reqMethod} ${pathname} ${res.statusCode} ${dur.toFixed(1)}ms`);
+  });
+  // 0. Health / Ready probes (k8s) — avant tout
+  if (pathname === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "ok", bacCount: apps.length, themeMode: activeMode, uptime: process.uptime() }));
+    return;
+  }
+  if (pathname === "/ready") {
+    const bacStates = bacOrchestrator.listDescriptors().map((d) => ({ id: d.id, enabled: d.isEnabled }));
+    const allReady = bacStates.every((b) => b.enabled);
+    res.writeHead(allReady ? 200 : 503, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ready: allReady, bacs: bacStates }));
+    return;
   }
 
   // 2. Resolve User, Active Space & Theme Mode context
@@ -273,6 +314,68 @@ const server = http.createServer(async (req, res) => {
   res.end(homeHtml);
 });
 
-server.listen(PORT, () => {
-  console.log(`MosaiX platform host listening on http://localhost:${PORT}`);
-});
+function startServer(port: number = PORT, retries = 3): void {
+  server.listen(port, () => {
+    console.log(`MosaiX platform host listening on http://localhost:${port}`);
+  });
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE" && retries > 0) {
+      console.warn(`[dev-server] Port ${port} in use, retrying ${port + 1} (${retries} left)...`);
+      setTimeout(() => {
+        server.close(() => startServer(port + 1, retries - 1));
+      }, 500);
+    } else {
+      console.error(`[dev-server] Failed to bind port ${port}:`, err.message);
+      process.exit(1);
+    }
+  });
+}
+
+function gracefulShutdown(signal: string): void {
+  console.log(`[dev-server] Received ${signal}, closing...`);
+  server.close(() => {
+    console.log("[dev-server] HTTP server closed");
+    process.exit(0);
+  });
+  // Force close after 5s
+  setTimeout(() => {
+    console.warn("[dev-server] Force closing after timeout");
+    process.exit(1);
+  }, 5000).unref();
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
+startServer();
+
+// HMR — watch BAC manifests + theme (no full reboot)
+if (process.env.NODE_ENV !== "production") {
+  (async () => {
+    try {
+      const chokidar = await import("chokidar");
+      const watcher = chokidar.watch(["apps/*/mosaix.json", "src/shell/theme/**/*", "themes/**/*"], {
+        ignoreInitial: true,
+      });
+      watcher.on("change", async (path: string) => {
+        console.log(`[hmr] File changed: ${path}`);
+        if (path.includes("mosaix.json")) {
+          const bacId = path.split("/")[1] ? `@apps/${path.split("/")[1]}` : path;
+          try {
+            await bacOrchestrator.loadDescriptor(bacId);
+            console.log(`[hmr] BAC reloaded: ${bacId}`);
+          } catch (e) {
+            console.warn(`[hmr] Failed to reload BAC ${bacId}`, e);
+          }
+        }
+        if (path.includes("theme")) {
+          // Theme change — next request will compile fresh (getResolvedTheme)
+          console.log(`[hmr] Theme file changed, next SSR will recompile`);
+        }
+      });
+      console.log("[hmr] Watching BAC manifests & theme for HMR");
+    } catch {
+      // chokidar not available — skip HMR
+    }
+  })();
+}
