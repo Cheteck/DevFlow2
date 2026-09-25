@@ -6,6 +6,13 @@
 import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
 import { SolaraSocialService } from "../domain/social.model.js";
+import {
+  ForYouRecommendationEngine,
+  TrendingVelocityRanker,
+  SponsoredPostInjector,
+  ContentSafetyFilter,
+  isSponsoredPost
+} from "@mosaix/feed-engine";
 
 export function createSolaraDescriptor(socialService?: SolaraSocialService): BacDescriptor {
   const service = socialService || new SolaraSocialService();
@@ -192,49 +199,148 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
         `;
       } else {
         // --- STANDARD SOLARA SOCIAL NEWS FEED VIEW ---
-        const posts = await service.listFeedAsync();
+        const feedMode = context.request.query.mode || "for_you";
+        let rawPosts = await service.listFeedAsync();
 
-        const postsHtml = posts.length > 0 ? posts.map(p => `
-          <article class="glass-card rounded-2xl p-5 space-y-3 border border-outline-variant/20 hover:border-primary/30 transition-all duration-200">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-surface-variant flex items-center justify-center text-lg font-bold text-primary">
-                  👤
+        // 1. Safety Filter (Auto-spam and toxic content elimination)
+        rawPosts = ContentSafetyFilter.filterUnsafe(rawPosts);
+
+        // 2. Algorithm Dispatcher
+        let rankedPosts: typeof rawPosts;
+        if (feedMode === "trending") {
+          rankedPosts = TrendingVelocityRanker.rankByTrending(rawPosts);
+        } else if (feedMode === "media") {
+          rankedPosts = rawPosts.filter(p => p.mediaUrls && p.mediaUrls.length > 0);
+        } else if (feedMode === "chronological") {
+          rankedPosts = [...rawPosts].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        } else {
+          // Default: "for_you" personalized AI recommendation
+          rankedPosts = ForYouRecommendationEngine.generateForYouFeed(rawPosts, {
+            userId: user.id || "Lord Cheteck",
+            followedSpaceIds: ["space-commerce", "space-events"],
+            interestTags: ["artisanat", "booking", "musique", "tech"]
+          });
+        }
+
+        // 3. Native Non-Intrusive Sponsored Insertion
+        const displayPosts = SponsoredPostInjector.inject(rankedPosts, service.getSponsoredPool(), {
+          interval: 3,
+          maxSponsoredPosts: 2
+        });
+
+        const postsHtml = displayPosts.length > 0 ? displayPosts.map(p => {
+          const isSponsored = isSponsoredPost(p);
+
+          if (isSponsored) {
+            return `
+              <article class="glass-card rounded-2xl p-5 space-y-4 border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-surface-container-high/30 to-purple-500/5 shadow-lg relative overflow-hidden transition-all duration-200 hover:border-amber-500/50">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center text-lg font-bold shadow-md shadow-amber-500/20">
+                      ⚡
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-1.5">
+                        <h3 class="text-xs font-bold text-on-surface">${escapeHtml(p.sponsorName || "Sponsor MosaiX")}</h3>
+                        <span class="material-symbols-outlined text-[13px] text-amber-400" title="Partenaire certifié">verified</span>
+                      </div>
+                      <p class="text-[10px] text-amber-500 font-semibold flex items-center gap-1">
+                        <span class="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] uppercase tracking-wider">${escapeHtml(p.sponsorBadge || "Sponsorisé")}</span>
+                        <span>· Campagne ${escapeHtml(p.campaignId)}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <button onclick="fetch('/api/solara/telemetry/ad', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({campaignId:'${p.campaignId}', postId:'${p.id}', eventType:'click'})}); const t=document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-amber-500 text-white font-bold text-xs shadow-lg z-50'; t.textContent='Annonce transparente certifiee par le protocole MosaiX'; document.body.appendChild(t); setTimeout(()=>t.remove(),2500);" class="text-[10px] text-on-surface-variant hover:text-amber-400 transition flex items-center gap-1 cursor-pointer">
+                    <span class="material-symbols-outlined text-xs">info</span>
+                    <span>Transparence</span>
+                  </button>
                 </div>
-                <div>
-                  <h3 class="text-xs font-bold text-on-surface">${escapeHtml(p.actorId || "Membre Solara")}</h3>
-                  <p class="text-[10px] text-on-surface-variant">
-                    <span>${new Date(p.createdAt).toLocaleDateString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
-                    <span aria-hidden="true" class="text-outline-variant/40"> · </span>
-                    <span class="capitalize text-primary/80">${escapeHtml(p.publicationType)}</span>
-                  </p>
+
+                <p class="text-xs text-on-surface leading-relaxed whitespace-pre-line font-medium">${escapeHtml(p.content)}</p>
+
+                ${p.mediaUrls && p.mediaUrls.length > 0 ? `
+                  <div class="rounded-xl overflow-hidden border border-outline-variant/20 shadow-md">
+                    <img src="${escapeHtml(p.mediaUrls[0])}" alt="Média sponsorisé" class="w-full h-48 md:h-56 object-cover hover:scale-[1.01] transition-transform duration-300" />
+                  </div>
+                ` : ""}
+
+                <div class="pt-2 flex items-center justify-between text-xs text-on-surface-variant border-t border-outline-variant/10">
+                  <div class="flex items-center gap-3">
+                    <button onclick="const count = this.querySelector('.like-count'); count.textContent = String(parseInt(count.textContent) + 1);" class="flex items-center gap-1.5 hover:text-rose-400 transition cursor-pointer">
+                      <span class="material-symbols-outlined text-sm">favorite</span>
+                      <span class="like-count font-mono tabular-nums">${p.likeCount || 0}</span>
+                    </button>
+                    <button class="flex items-center gap-1.5 hover:text-primary transition cursor-pointer">
+                      <span class="material-symbols-outlined text-sm">chat_bubble</span>
+                      <span class="font-mono tabular-nums">${p.commentsCount || 0}</span>
+                    </button>
+                  </div>
+
+                  ${p.ctaText ? `
+                    <a href="${escapeHtml(p.ctaUrl || '#')}" onclick="fetch('/api/solara/telemetry/ad', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({campaignId:'${p.campaignId}', postId:'${p.id}', eventType:'cta_conversion'})});" class="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer">
+                      <span>${escapeHtml(p.ctaText)}</span>
+                      <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                    </a>
+                  ` : ""}
+                </div>
+              </article>
+            `;
+          }
+
+          return `
+            <article class="glass-card rounded-2xl p-5 space-y-3 border border-outline-variant/20 hover:border-primary/30 transition-all duration-200">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-surface-variant flex items-center justify-center text-lg font-bold text-primary">
+                    👤
+                  </div>
+                  <div>
+                    <h3 class="text-xs font-bold text-on-surface">${escapeHtml(p.actorId || "Membre Solara")}</h3>
+                    <p class="text-[10px] text-on-surface-variant">
+                      <span>${new Date(p.createdAt).toLocaleDateString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+                      <span aria-hidden="true" class="text-outline-variant/40"> · </span>
+                      <span class="capitalize text-primary/80">${escapeHtml(p.publicationType)}</span>
+                    </p>
+                  </div>
+                </div>
+                <div class="text-[10px] font-semibold text-primary px-2 py-0.5 rounded-full bg-primary/10">
+                  ${escapeHtml(p.targetType)}
                 </div>
               </div>
-              <div class="text-[10px] font-semibold text-primary">
-                ${escapeHtml(p.targetType)}
-              </div>
-            </div>
-            <p class="text-xs text-on-surface leading-relaxed whitespace-pre-line">${escapeHtml(p.content)}</p>
-            <div class="pt-2 flex items-center justify-between text-xs text-on-surface-variant border-t border-outline-variant/10">
-              <div class="flex items-center gap-4">
-                <button onclick="const count = this.querySelector('.like-count'); count.textContent = String(parseInt(count.textContent) + 1); const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Publication aimee !'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="flex items-center gap-1.5 hover:text-rose-400 transition cursor-pointer">
-                  <span class="material-symbols-outlined text-sm">favorite</span>
-                  <span class="like-count font-mono tabular-nums">${p.likeCount || 0}</span>
+
+              <p class="text-xs text-on-surface leading-relaxed whitespace-pre-line">${escapeHtml(p.content)}</p>
+
+              ${p.mediaUrls && p.mediaUrls.length > 0 ? `
+                <div class="rounded-xl overflow-hidden border border-outline-variant/20 shadow-md">
+                  <img src="${escapeHtml(p.mediaUrls[0])}" alt="Média publication" class="w-full h-48 md:h-56 object-cover" />
+                </div>
+              ` : ""}
+
+              <div class="pt-2 flex items-center justify-between text-xs text-on-surface-variant border-t border-outline-variant/10">
+                <div class="flex items-center gap-3">
+                  <button onclick="const count = this.querySelector('.like-count'); count.textContent = String(parseInt(count.textContent) + 1); const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Publication aimée !'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="flex items-center gap-1.5 hover:text-rose-400 transition cursor-pointer">
+                    <span class="material-symbols-outlined text-sm">favorite</span>
+                    <span class="like-count font-mono tabular-nums">${p.likeCount || 0}</span>
+                  </button>
+                  <button onclick="const count = this.querySelector('.fire-count'); count.textContent = String(parseInt(count.textContent) + 1);" class="flex items-center gap-1.5 hover:text-amber-400 transition cursor-pointer" title="Inspiration">
+                    <span class="text-xs">💡</span>
+                    <span class="fire-count font-mono tabular-nums">3</span>
+                  </button>
+                  <button class="flex items-center gap-1.5 hover:text-primary transition cursor-pointer">
+                    <span class="material-symbols-outlined text-sm">chat_bubble</span>
+                    <span class="font-mono tabular-nums">${p.commentsCount || 0}</span>
+                  </button>
+                </div>
+                <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-primary text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Lien copié dans le presse-papier !'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="hover:text-on-surface transition cursor-pointer" title="Partager">
+                  <span class="material-symbols-outlined text-sm">share</span>
                 </button>
-                <button class="flex items-center gap-1.5 hover:text-primary transition cursor-pointer">
-                  <span class="material-symbols-outlined text-sm">chat_bubble</span>
-                  <span class="font-mono tabular-nums">${p.commentsCount || 0}</span>
-                </button>
               </div>
-              <button class="hover:text-on-surface transition cursor-pointer">
-                <span class="material-symbols-outlined text-sm">share</span>
-              </button>
-            </div>
-          </article>
-        `).join("") : `
+            </article>
+          `;
+        }).join("") : `
           <div class="glass-card rounded-2xl p-10 text-center space-y-3 border border-outline-variant/20">
-            <h3 class="font-bold text-sm text-on-surface">Aucune publication pour l'instant</h3>
-            <p class="text-xs text-on-surface-variant max-w-sm mx-auto">Soyez le premier à partager une idée ou une annonce avec la communauté Solara.</p>
+            <h3 class="font-bold text-sm text-on-surface">Aucune publication dans ce flux</h3>
+            <p class="text-xs text-on-surface-variant max-w-sm mx-auto">Changez d'onglet d'algorithme ou soyez le premier à publier.</p>
           </div>
         `;
 
@@ -252,6 +358,26 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
                 </div>
               </div>
             ` : ""}
+
+            <!-- Feed Algorithm Selector (Bluesky / Phoenix Style) -->
+            <div class="flex items-center gap-2 p-1.5 rounded-2xl bg-surface-container-low/70 border border-outline-variant/20 overflow-x-auto">
+              <a href="/solara?view=feed&mode=for_you" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === 'for_you' ? 'bg-primary text-on-primary shadow-sm shadow-primary/20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}">
+                <span class="text-sm">✨</span>
+                <span>Pour Toi</span>
+              </a>
+              <a href="/solara?view=feed&mode=trending" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === 'trending' ? 'bg-primary text-on-primary shadow-sm shadow-primary/20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}">
+                <span class="text-sm">🔥</span>
+                <span>Tendances</span>
+              </a>
+              <a href="/solara?view=feed&mode=chronological" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === 'chronological' ? 'bg-primary text-on-primary shadow-sm shadow-primary/20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}">
+                <span class="text-sm">⏱️</span>
+                <span>Chronologique</span>
+              </a>
+              <a href="/solara?view=feed&mode=media" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === 'media' ? 'bg-primary text-on-primary shadow-sm shadow-primary/20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}">
+                <span class="text-sm">🖼️</span>
+                <span>Médias</span>
+              </a>
+            </div>
 
             <!-- Solara Social News Feed Composer -->
             <div class="glass-card rounded-2xl p-5 space-y-4 border border-outline-variant/20 shadow-xl bg-surface-container-high/30">
@@ -284,7 +410,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
                   </button>
                 </div>
 
-                <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Publication Solara envoyee avec succes'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-5 py-2 rounded-xl bg-gradient-to-r from-primary to-indigo-500 hover:from-primary/90 hover:to-indigo-500/90 text-on-primary text-xs font-bold shadow-md shadow-primary/20 transition-all flex items-center gap-2 cursor-pointer">
+                <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Publication Solara envoyée avec succès'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-5 py-2 rounded-xl bg-gradient-to-r from-primary to-indigo-500 hover:from-primary/90 hover:to-indigo-500/90 text-on-primary text-xs font-bold shadow-md shadow-primary/20 transition-all flex items-center gap-2 cursor-pointer">
                   <span class="material-symbols-outlined text-sm">send</span>
                   <span>Publier</span>
                 </button>

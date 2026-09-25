@@ -108,6 +108,14 @@ export type {
 } from "./events/event-contract";
 export type { CommandContract } from "./events/command-contract";
 export type { QueryContract } from "./events/query-contract";
+export type {
+  FeedPostCreatedPayload,
+  FeedReactionToggledPayload,
+  FeedCommentAddedPayload,
+  FeedPostCreatedEvent,
+  FeedReactionToggledEvent,
+  FeedCommentAddedEvent,
+} from "./events/feed-events";
 
 // ─── Security ──────────────────────────────────────────────────
 export type {

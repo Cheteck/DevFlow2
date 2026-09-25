@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-09-25 — Passerelle Mobile Native Android & iOS (`@mosaix/mobile-bridge`)
+
+### Added
+- **Nouveau Package `@mosaix/mobile-bridge`** :
+  - `PkceValidator` : Validation cryptographique OAuth 2.1 PKCE (S256 / RFC 7636).
+  - `RefreshTokenRotator` : Rotation de jetons d'accès avec détection et révocation atomique de famille de jetons en cas de rejeu.
+  - `DeviceRegistry` : Registre des terminaux mobiles Android/iOS et abonnements aux topics.
+  - `FcmPushAdapter` : Adaptateur pour Firebase Cloud Messaging (FCM v1) supportant les *data messages* pour réveil en arrière-plan.
+  - `AssetLinksService` : Service Google Digital Asset Links (`/.well-known/assetlinks.json`) pour vérification de domaine sans friction.
+  - `DeltaSyncEngine` : Moteur de synchronisation delta (`ETag`, `304 Not Modified`, `since`) pour base locale Android Room SQLite.
+  - `MobileOpenApiExporter` : Exportateur de contrats OpenAPI 3.1 optimisé pour générateurs Kotlin / Retrofit / Ktor.
+  - Suite de tests unitaires dédiée : `packages/mobile-bridge/src/index.test.ts`.
+- **Intégration Plateforme (`src/server/routes/mobile-routes.ts`)** :
+  - `GET /.well-known/assetlinks.json`
+  - `GET /api/mobile/openapi.json`
+  - `POST /api/mobile/devices`
+  - `POST /api/mobile/auth/authorize` & `POST /api/mobile/auth/token`
+  - `POST /api/mobile/push/test`
+  - `GET /api/mobile/sync/feed`
+- **Documentation d'Architecture** :
+  - `ADR-0015-mobile-bridge-and-android-integration.md`.
+
 ## 2026-09-24 — Remédiation des God Objects & Architecture Découplée
 
 ### Refactored & Decoupled

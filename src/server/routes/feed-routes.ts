@@ -9,6 +9,7 @@ import { feedStore, type FeedPost } from "../../shell/feed-store.js";
 import type { FeedService } from "../../shell/feed-service.js";
 import type { DistributedEventBackplane } from "../../shell/event-backplane.js";
 import type { UserProfile } from "../../shell/profiles.js";
+import { readLimitedJson } from "../utils/safe-body-parser.js";
 
 export async function handleFeedRoutes(
   req: http.IncomingMessage,
@@ -22,13 +23,8 @@ export async function handleFeedRoutes(
 
   if (pathname === "/api/feed") {
     if (req.method === "POST") {
-      let bodyStr = "";
-      for await (const chunk of req) {
-        bodyStr += chunk;
-      }
-
       try {
-        const data = JSON.parse(bodyStr || "{}");
+        const data = await readLimitedJson<{ content?: string }>(req);
         if (data.content && typeof data.content === "string" && data.content.trim()) {
           const newPost: FeedPost = {
             id: `post-${Date.now()}`,

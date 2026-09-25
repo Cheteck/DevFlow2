@@ -128,3 +128,63 @@ body {
   background: rgba(148, 163, 184, 0.4);
 }
 
+/* Mobile Bottom Navigation & Safe Area Insets */
+.mobile-bottom-nav {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+  box-shadow: 0 -8px 24px -6px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+@supports (-webkit-touch-callout: none) {
+  /* iOS smooth scrolling and touch targets */
+  .no-scrollbar {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Responsive workspace bottom padding to prevent content obstruction on mobile */
+@media (max-width: 767px) {
+  .main-workspace, main {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* Mobile Bottom Sheets Animation & Drag Handle */
+@keyframes slideUpBottomSheet {
+  from {
+    transform: translateY(100%);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up-mobile {
+  animation: slideUpBottomSheet 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (min-width: 640px) {
+  .animate-slide-up-mobile {
+    animation: fadeIn 0.2s ease-out forwards;
+  }
+}
+
+.bottom-sheet-handle {
+  width: 44px;
+  height: 5px;
+  border-radius: 9999px;
+  background-color: var(--color-outline-variant, #cbd5e1);
+  opacity: 0.6;
+  margin: 0 auto 12px auto;
+  cursor: grab;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.bottom-sheet-handle:hover, .bottom-sheet-handle:active {
+  opacity: 1;
+  transform: scaleX(1.1);
+}
+

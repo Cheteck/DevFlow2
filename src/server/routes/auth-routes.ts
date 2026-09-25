@@ -5,6 +5,7 @@
 import type * as http from "node:http";
 import type { URL } from "node:url";
 import { registrationWizardService } from "../../../apps/citadelle/src/domain/registration-wizard.service.js";
+import { readLimitedJson } from "../utils/safe-body-parser.js";
 
 export async function handleAuthRoutes(
   req: http.IncomingMessage,
@@ -42,30 +43,32 @@ export async function handleAuthRoutes(
     const draftId = stepMatch[1];
     const stepNum = parseInt(stepMatch[2], 10);
 
-    let bodyStr = "";
-    for await (const chunk of req) {
-      bodyStr += chunk;
-    }
-    const data = JSON.parse(bodyStr || "{}");
+    try {
+      const data = await readLimitedJson<Record<string, unknown>>(req);
 
-    let result;
-    if (stepNum === 1) {
-      result = registrationWizardService.saveStep1(draftId, data);
-    } else if (stepNum === 2) {
-      result = registrationWizardService.saveStep2(draftId, data);
-    } else {
-      result = registrationWizardService.saveStep3(draftId, data);
-    }
+      let result;
+      if (stepNum === 1) {
+        result = registrationWizardService.saveStep1(draftId, data as any);
+      } else if (stepNum === 2) {
+        result = registrationWizardService.saveStep2(draftId, data as any);
+      } else {
+        result = registrationWizardService.saveStep3(draftId, data as any);
+      }
 
-    if (!result.valid) {
+      if (!result.valid) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: false, errors: result.errors }));
+        return true;
+      }
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, draft: result.draft }));
+      return true;
+    } catch (err) {
       res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ success: false, errors: result.errors }));
+      res.end(JSON.stringify({ success: false, error: String(err) }));
       return true;
     }
-
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ success: true, draft: result.draft }));
-    return true;
   }
 
   return false;

@@ -7,14 +7,15 @@ import type { URL } from "node:url";
 import { CompositionManager } from "../../shell/composition-loader.js";
 import type { CompositionOverrideManager } from "@mosaix/core";
 import { saveCompositionOverridesToFile } from "../../shell/editor.js";
+import { readLimitedJson } from "../utils/safe-body-parser.js";
 
-export function handleCompositionRoutes(
+export async function handleCompositionRoutes(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   parsedUrl: URL,
   currentUserRole: string,
   compositionOverrideManager: CompositionOverrideManager
-): boolean {
+): Promise<boolean> {
   const pathname = parsedUrl.pathname;
 
   // List or switch active composition
@@ -28,27 +29,22 @@ export function handleCompositionRoutes(
     }
 
     if (req.method === "POST") {
-      let bodyStr = "";
-      req.on("data", (chunk) => {
-        bodyStr += chunk;
-      });
-      req.on("end", () => {
-        try {
-          const data = JSON.parse(bodyStr || "{}");
-          const { compositionId } = data;
-          if (compositionId && CompositionManager.setActiveComposition(compositionId)) {
-            res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ success: true, activeComposition: compositionId }));
-            return;
-          }
-          res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ success: false, error: "Composition invalide ou introuvable." }));
-        } catch {
-          res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ success: false, error: "JSON invalide." }));
+      try {
+        const data = await readLimitedJson<{ compositionId?: string }>(req);
+        const { compositionId } = data;
+        if (compositionId && CompositionManager.setActiveComposition(compositionId)) {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ success: true, activeComposition: compositionId }));
+          return true;
         }
-      });
-      return true;
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: false, error: "Composition invalide ou introuvable." }));
+        return true;
+      } catch {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: false, error: "JSON invalide ou payload trop volumineux." }));
+        return true;
+      }
     }
   }
 
@@ -63,53 +59,55 @@ export function handleCompositionRoutes(
         return true;
       }
 
-      let bodyStr = "";
-      req.on("data", (chunk) => {
-        bodyStr += chunk;
-      });
-      req.on("end", () => {
-        try {
-          const data = JSON.parse(bodyStr || "{}");
-          const {
-            surfaceId = "application-shell",
-            slotId,
+      try {
+        const data = await readLimitedJson<{
+          surfaceId?: string;
+          slotId?: string;
+          contributionId?: string;
+          gridSpan?: number;
+          wrapper?: "card" | "plain" | "hero";
+          order?: number;
+          enabled?: boolean;
+        }>(req);
+        const {
+          surfaceId = "application-shell",
+          slotId,
+          contributionId,
+          gridSpan,
+          wrapper,
+          order,
+          enabled,
+        } = data;
+        if (slotId && contributionId) {
+          const currentStore = compositionOverrideManager.getStore(surfaceId);
+          const existingSlot = currentStore.slotOverrides[slotId];
+          const existingBlock = existingSlot?.blocks.find((b) => b.contributionId === contributionId);
+
+          compositionOverrideManager.setBlockOverride(surfaceId, slotId, {
             contributionId,
-            gridSpan,
-            wrapper,
-            order,
-            enabled,
-          } = data;
-          if (slotId && contributionId) {
-            const currentStore = compositionOverrideManager.getStore(surfaceId);
-            const existingSlot = currentStore.slotOverrides[slotId];
-            const existingBlock = existingSlot?.blocks.find((b) => b.contributionId === contributionId);
+            placementId: existingBlock?.placementId || `p-${contributionId}`,
+            order: typeof order === "number" ? order : (existingBlock?.order ?? 1),
+            gridSpan: typeof gridSpan === "number" ? gridSpan : (existingBlock?.gridSpan ?? 6),
+            wrapper: wrapper || existingBlock?.wrapper || "card",
+            enabled: typeof enabled === "boolean" ? enabled : (existingBlock?.enabled ?? true),
+          });
 
-            compositionOverrideManager.setBlockOverride(surfaceId, slotId, {
-              contributionId,
-              placementId: existingBlock?.placementId || `p-${contributionId}`,
-              order: typeof order === "number" ? order : (existingBlock?.order ?? 1),
-              gridSpan: typeof gridSpan === "number" ? gridSpan : (existingBlock?.gridSpan ?? 6),
-              wrapper: wrapper || existingBlock?.wrapper || "card",
-              enabled: typeof enabled === "boolean" ? enabled : (existingBlock?.enabled ?? true),
-            });
+          saveCompositionOverridesToFile(compositionOverrideManager, surfaceId);
 
-            saveCompositionOverridesToFile(compositionOverrideManager, surfaceId);
-
-            res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(
-              JSON.stringify({
-                success: true,
-                store: compositionOverrideManager.getStore(surfaceId),
-              })
-            );
-            return;
-          }
-        } catch {
-          // ignore
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: true,
+              store: compositionOverrideManager.getStore(surfaceId),
+            })
+          );
+          return true;
         }
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: false, error: "Données de composition invalides" }));
-      });
+      } catch {
+        // ignore
+      }
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: false, error: "Données de composition invalides" }));
       return true;
     }
 

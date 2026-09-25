@@ -1,0 +1,22 @@
+{
+  "name": "@mosaix/mobile-bridge",
+  "version": "0.1.0",
+  "description": "MosaiX Mobile Bridge — Android/iOS connectivity, PKCE Auth, FCM push notifications, App Links, and delta-sync",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}

@@ -11,6 +11,7 @@ import type { UserProfile } from "../../shell/profiles.js";
 import { feedStore } from "../../shell/feed-store.js";
 import { apps } from "../../shell/discovery.js";
 import { bacRegistry } from "../../generated-bac-registry.js";
+import { readLimitedJson } from "../utils/safe-body-parser.js";
 
 export async function handleComplianceAndSystemRoutes(
   req: http.IncomingMessage,
@@ -30,14 +31,32 @@ export async function handleComplianceAndSystemRoutes(
 
   // 2. GDPR Right to be Forgotten / Cascading Anonymization (P0 Compliance)
   if (pathname === "/api/user/gdpr-anonymize" && req.method === "POST") {
-    let bodyStr = "";
-    for await (const chunk of req) {
-      bodyStr += chunk;
-    }
-
     try {
-      const data = JSON.parse(bodyStr || "{}");
-      const targetUserId = data.userId || currentUser.id;
+      const data = await readLimitedJson<{ userId?: string }>(req);
+      const requestedUserId = data.userId;
+
+      // VULN-02: BOLA / IDOR protection
+      // Users can only anonymize their own account unless they hold administrative compliance permissions.
+      const hasComplianceAdminPermission =
+        currentUser?.role === "admin" &&
+        (currentUser?.permissions?.includes("compliance:admin:manage") ||
+         currentUser?.permissions?.includes("user:gdpr:anonymize:all") ||
+         currentUser?.permissions?.includes("identity:user:delete"));
+
+      if (requestedUserId && requestedUserId !== currentUser.id && !hasComplianceAdminPermission) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            success: false,
+            error: "Forbidden: You are not authorized to anonymize another user account.",
+          })
+        );
+        return true;
+      }
+
+      const targetUserId =
+        hasComplianceAdminPermission && requestedUserId ? requestedUserId : currentUser.id;
+
       const result = await anonymizationOrchestrator.anonymizeUser(targetUserId);
       eventBackplane.publish("identity.user.anonymized", {
         userId: targetUserId,

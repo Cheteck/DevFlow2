@@ -7,6 +7,7 @@ import type { URL } from "node:url";
 import { maintenanceService } from "@mosaix/core";
 import { sendProblemResponse } from "../../shell/http-errors.js";
 import type { UserProfile } from "../../shell/profiles.js";
+import { readLimitedJson } from "../utils/safe-body-parser.js";
 
 export async function handleMaintenanceRoutes(
   req: http.IncomingMessage,
@@ -24,9 +25,9 @@ export async function handleMaintenanceRoutes(
     }
 
     if (req.method === "POST") {
+      // VULN-03: Only verified roles and permissions, no unauthenticated HTTP header spoofing
       const isAllowed =
         maintenanceService.isUserBypassed(currentUser?.role, currentUser?.permissions) ||
-        req.headers["x-mosaix-role"] === "platform-admin" ||
         currentUser?.role === "admin";
 
       if (!isAllowed) {
@@ -40,11 +41,11 @@ export async function handleMaintenanceRoutes(
       }
 
       try {
-        let bodyStr = "";
-        for await (const chunk of req) {
-          bodyStr += chunk;
-        }
-        const body = JSON.parse(bodyStr || "{}");
+        const body = await readLimitedJson<{
+          enabled?: boolean;
+          reason?: string;
+          estimatedDurationMinutes?: number;
+        }>(req);
         const updated = maintenanceService.setMaintenanceMode(
           Boolean(body.enabled),
           body.reason,

@@ -15,7 +15,8 @@
   ],
   "scripts": {
     "mosaix": "tsx packages/cli/src/index.ts",
-    "dev": "tsx --watch src/start.ts",
+    "dev": "tsx src/start.ts",
+    "db:setup": "tsx scripts/setup-sqlite.ts",
     "build": "tsx scripts/build.ts",
     "build:watch": "tsx scripts/build.ts --watch",
     "build:force": "tsx scripts/build.ts --force",

@@ -15,6 +15,18 @@ export function handleUserAndSpaceRoutes(
 
   // Switch User Role
   if (pathname === "/api/user/switch") {
+    // VULN-01: In production environments, arbitrary role switching without authentication is disabled
+    if (process.env.NODE_ENV === "production") {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          success: false,
+          error: "Forbidden: Le basculement arbitraire de rôle est désactivé en environnement de production.",
+        })
+      );
+      return true;
+    }
+
     const requestedRole = parsedUrl.searchParams.get("role");
     if (requestedRole && USER_PROFILES[requestedRole]) {
       res.setHeader(

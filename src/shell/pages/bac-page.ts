@@ -9,6 +9,7 @@ import {
   renderPrimarySidebar,
   renderSecondarySidebar,
   renderMobileDrawer,
+  renderMobileBottomNav,
   renderUserSwitcherWidget,
   renderHeaderSearchAndDevControls,
   renderShellToastContainer,
@@ -107,45 +108,52 @@ export function renderBacPage(opts: BacPageOptions): string {
     <!-- MAIN WORKSPACE AREA -->
     <div class="main-workspace flex-1 flex flex-col min-w-0 md:ml-[72px] lg:ml-[336px]">
       
-      <!-- TOP BAR WITH USER SWITCHER -->
-      <header class="h-[72px] sticky top-0 z-40 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/20 px-4 sm:px-6 flex items-center justify-between gap-4">
-        <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+      <!-- TOP BAR WITH USER SWITCHER (PRE-PRODUCTION GRADE) -->
+      <header class="h-[68px] sticky top-0 z-40 bg-surface/85 backdrop-blur-2xl border-b border-outline-variant/15 px-4 sm:px-6 flex items-center justify-between gap-4 select-none">
+        <div class="flex items-center gap-3 min-w-0">
           <!-- Mobile Menu Trigger -->
           <button onclick="toggleMobileDrawer()" class="md:hidden p-2 rounded-xl hover:bg-surface-variant/40 transition text-on-surface-variant hover:text-on-surface cursor-pointer shrink-0" title="Menu Principal">
-            <span class="material-symbols-outlined text-base">menu</span>
+            <span class="material-symbols-outlined text-lg">menu</span>
           </button>
 
           <!-- Toggle sidebar button -->
-          <button onclick="toggleSecondarySidebar()" class="hidden lg:flex p-2 rounded-xl hover:bg-surface-variant/40 transition text-on-surface-variant hover:text-on-surface cursor-pointer shrink-0" title="Masquer/Afficher le panneau latéral">
-            <span class="material-symbols-outlined text-base">menu_open</span>
+          <button onclick="toggleSecondarySidebar()" class="hidden lg:flex p-2 rounded-xl hover:bg-surface-variant/40 transition text-on-surface-variant hover:text-on-surface cursor-pointer shrink-0" title="Masquer / Afficher le panneau latéral">
+            <span class="material-symbols-outlined text-lg">menu_open</span>
           </button>
-          <a href="/" class="p-2 rounded-xl border border-outline-variant/20 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 transition-all text-xs font-semibold shrink-0">
-            &larr; <span class="hidden sm:inline">Accueil</span>
-          </a>
-          <h1 class="font-bold text-sm sm:text-base text-on-surface truncate">${escapeHtml(matchedApp.name)}</h1>
-          <span class="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20 shrink-0">${matchedApp.category}</span>
+          
+          <!-- Hierarchical Breadcrumb (Anti-Slop Clean Typography) -->
+          <nav aria-label="Fil d'Ariane" class="flex items-center gap-2 text-xs text-on-surface-variant/70 min-w-0">
+            <a href="/" class="hover:text-on-surface transition font-semibold flex items-center gap-1 shrink-0">
+              <span class="material-symbols-outlined text-sm text-primary">home</span>
+              <span class="hidden sm:inline">Accueil</span>
+            </a>
+            <span class="text-outline-variant/40">/</span>
+            <span class="truncate hidden md:inline font-medium">${escapeHtml(matchedApp.category)}</span>
+            <span class="text-outline-variant/40 hidden md:inline">/</span>
+            <h1 class="font-bold text-sm text-on-surface truncate">${escapeHtml(matchedApp.name)}</h1>
+          </nav>
         </div>
 
-        <div class="flex items-center gap-3 shrink-0">
+        <div class="flex items-center gap-2 sm:gap-3 shrink-0">
           ${renderHeaderSearchAndDevControls()}
 
           <!-- Dynamic Language Selector -->
-          <div class="hidden lg:flex items-center gap-1 bg-surface-container-low border border-outline-variant/20 p-1 rounded-xl text-xs" id="mosaix-lang-selector">
-            <button onclick="setLocale('fr')" id="lang-btn-fr" class="px-2.5 py-1 rounded-lg transition text-on-surface-variant hover:bg-surface-variant/30 font-semibold cursor-pointer">FR</button>
-            <button onclick="setLocale('en')" id="lang-btn-en" class="px-2.5 py-1 rounded-lg transition text-on-surface-variant hover:bg-surface-variant/30 font-semibold cursor-pointer">EN</button>
-            <button onclick="setLocale('ar')" id="lang-btn-ar" class="px-2.5 py-1 rounded-lg transition text-on-surface-variant hover:bg-surface-variant/30 font-semibold cursor-pointer">AR</button>
+          <div class="hidden lg:flex items-center gap-0.5 bg-surface-container-low border border-outline-variant/20 p-0.5 rounded-xl text-xs" id="mosaix-lang-selector">
+            <button onclick="setLocale('fr')" id="lang-btn-fr" class="px-2 py-1 rounded-lg transition text-on-surface-variant hover:bg-surface-variant/30 font-semibold cursor-pointer">FR</button>
+            <button onclick="setLocale('en')" id="lang-btn-en" class="px-2 py-1 rounded-lg transition text-on-surface-variant hover:bg-surface-variant/30 font-semibold cursor-pointer">EN</button>
+            <button onclick="setLocale('ar')" id="lang-btn-ar" class="px-2 py-1 rounded-lg transition text-on-surface-variant hover:bg-surface-variant/30 font-semibold cursor-pointer">AR</button>
           </div>
 
-          <div class="hidden lg:block h-6 w-px bg-outline-variant/30"></div>
+          <div class="hidden lg:block h-5 w-px bg-outline-variant/20"></div>
 
           <!-- Dynamic Theme Toggle -->
-          <div class="hidden lg:flex items-center gap-1 bg-surface-container-low border border-outline-variant/20 p-1 rounded-xl text-xs">
-            <button onclick="setTheme('light')" class="px-2.5 py-1 rounded-lg transition ${activeMode === 'light' ? 'bg-primary text-on-primary font-bold' : 'text-on-surface-variant'}">Light</button>
-            <button onclick="setTheme('dark')" class="px-2.5 py-1 rounded-lg transition ${activeMode === 'dark' ? 'bg-primary text-on-primary font-bold' : 'text-on-surface-variant'}">Dark</button>
-            <button onclick="setTheme('high-contrast')" class="px-2.5 py-1 rounded-lg transition ${activeMode === 'high-contrast' ? 'bg-primary text-on-primary font-bold' : 'text-on-surface-variant'}">Contrast</button>
+          <div class="hidden lg:flex items-center gap-0.5 bg-surface-container-low border border-outline-variant/20 p-0.5 rounded-xl text-xs">
+            <button onclick="setTheme('light')" class="px-2 py-1 rounded-lg transition ${activeMode === 'light' ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-variant/30'}" title="Thème Clair">Light</button>
+            <button onclick="setTheme('dark')" class="px-2 py-1 rounded-lg transition ${activeMode === 'dark' ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-variant/30'}" title="Thème Sombre">Dark</button>
+            <button onclick="setTheme('high-contrast')" class="px-2 py-1 rounded-lg transition ${activeMode === 'high-contrast' ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-variant/30'}" title="Contraste Élevé">Contrast</button>
           </div>
 
-          <div class="hidden lg:block h-6 w-px bg-outline-variant/30"></div>
+          <div class="hidden lg:block h-5 w-px bg-outline-variant/20"></div>
 
           <!-- USER SWITCHER WIDGET -->
           ${renderUserSwitcherWidget(currentUser, currentSpace)}
@@ -169,6 +177,7 @@ export function renderBacPage(opts: BacPageOptions): string {
     </div>
   </div>
 
+  ${renderMobileBottomNav(matchedApp.route, currentUser, currentSpace)}
   ${renderShellToastContainer()}
   ${renderShellConfirmModal()}
 

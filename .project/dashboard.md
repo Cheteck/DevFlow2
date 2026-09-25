@@ -1,6 +1,6 @@
 # MosaiX Dashboard
-**Dernière mise à jour :** 2026-09-24 — Pull `ac99009`/`0ebe478`/`356422d` + PRD-0011 complet + PRDs v1.3  
-**Statut Global :** 🟢 Système Nominal — Moteur d'Autorisation v2, 14 tables Portfolio CS-Cart, `portfolio_proposals` + `ProposalService` (`PRD-0010` v1.3), `Money`/`Timestamp` livrés ; reste `DATA-07/08` + `THEME` UI + `PRD-0011` 19 pages
+**Dernière mise à jour :** 2026-09-25 — Remédiation d'Audit de Sécurité SEC-01 (VULN-01 à VULN-08 traitées) + Pull `ac99009`/`0ebe478`/`356422d`  
+**Statut Global :** 🟢 Système Nominal & Sécurisé — Moteur d'Autorisation v2, 14 tables Portfolio CS-Cart, `portfolio_proposals` + `ProposalService` (`PRD-0010` v1.3), `Money`/`Timestamp`, 8 Vulnérabilités de Sécurité résolues ; reste `DATA-07` + `PRD-0011` 19 pages UI
 
 
 ---
@@ -11,12 +11,22 @@
 - **Contrats de Contributions UI :** 26 enregistrés et isolés
 - **Validation Manifestes & Graphe Topologique :** 10/10 validés
 - **Thèmes Validés :** 2 (`midnight-ocean`, `mosaix-default`)
+- **Audit de Sécurité :** 8/8 vulnérabilités résolues (SEC-01)
 - **Compilation & Linters :** 0 erreur, 0 warning
 
 ---
 
-## 2. Synthèse des Livraisons Rôles & Modèles (2026-09-24)
+## 2. Synthèse des Livraisons Rôles & Modèles (2026-09-24 / 2026-09-25)
 
+- ✅ **SEC-01 Remédiation Complète de Sécurité (Audit 25/09)** :
+  - VULN-01 : Rôle par défaut non authentifié rétrogradé à `member` ; `/api/user/switch` verrouillé en production.
+  - VULN-02 : Protection BOLA/IDOR sur `/api/user/gdpr-anonymize` (seul l'utilisateur courant ou un admin conformité peut anonymiser).
+  - VULN-03 : Suppression du contournement par usurpation d'en-tête `X-Mosaix-Role` sur `/api/maintenance`.
+  - VULN-04 : Signature cryptographique obligatoire pour les webhooks PSP (`/api/psp/webhook`).
+  - VULN-05 : Codes d'autorisation PKCE à haute entropie (256 bits via `crypto.randomBytes`) et bannissement strict de la méthode `plain` (S256 obligatoire).
+  - VULN-06 : Protection anti-spoofing d'IP sur le Rate Limiter de la Gateway (`trustProxy` paramétrable).
+  - VULN-07 : Protection anti-DoS par parsing de flux de requêtes HTTP borné (`safe-body-parser`).
+  - VULN-08 : Exécution de `SecurityGuard.enforceProductionConstraints()` au démarrage serveur et Path Traversal Guard sur `/public/`.
 - ✅ **ROLE-P1-01 `PermissionRegistry` (`@mosaix/core`)** : Support de `registerPermission({ key, description, scopes, assignableBy })`, `isRegistered`, `getRegistered`, et validation stricte des permissions atomiques.
 - ✅ **ROLE-P1-02 `EffectivePermissionResolver` (`@mosaix/core`)** : Moteur de résolution avec règle prioritaire `DENY > ALLOW`, contextes de snapshot `UserAuthorizationContext`, horodatage et versioning `authorizationVersion`.
 - ✅ **ROLE-P2..P7 RBAC, Dynamique & Audit** : Migrations Postgres pour `permissions`, `roles`, `role_permissions`, `global_user_roles`, `space_members`, `permission_overrides`, `acting_as_audit_events` et `role_audit_events`.
@@ -30,7 +40,7 @@
 - ✅ **BAC Livraison** : extraction `delivery-partner.service.ts` → `@apps/delivery` `delivery_methods(cod|express|pickup) + delivery_boys + deliveries + assignments` (`out_for_delivery→delivered` + `proofUrl` + `codAmountInCents`).
 
 ## 3. Statut du Backlog Actif
-- **Statut Global** : 12/17 livrées (ROLE, DATA-01..06/09, PRD-0010 DB) — restent `DATA-07` triggers, `DATA-08` `Record<string,unknown>`, `THEME` UI `CompositionResolver.themeContext`, `PRD-0011` 19 pages (DB done, UI à faire).
+- **Statut Global** : 13/17 livrées (SEC-01, ROLE, DATA-01..06/09, PRD-0010 DB) — restent `DATA-07` triggers, `PRD-0011` 19 pages (DB done, UI à faire).
 
 
 ## 4. Gaps Résolus & Améliorations Récentes (archive)

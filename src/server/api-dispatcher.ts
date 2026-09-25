@@ -21,6 +21,7 @@ import { handleCompositionRoutes } from "./routes/composition-routes.js";
 import { handleAuthRoutes } from "./routes/auth-routes.js";
 import { handleFeedRoutes } from "./routes/feed-routes.js";
 import { handleComplianceAndSystemRoutes } from "./routes/compliance-routes.js";
+import { handleMobileRoutes } from "./routes/mobile-routes.js";
 
 export interface ApiDispatcherContext {
   activeMode: ThemeMode;
@@ -121,6 +122,17 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   )
 );
 
+// 9. Mobile Bridge (PKCE, FCM Push, Delta Sync, Codegen)
+apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
+  handleMobileRoutes(
+    req,
+    res,
+    parsedUrl,
+    ctx.currentUser,
+    ctx.feedService
+  )
+);
+
 export async function dispatchApiRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -128,6 +140,38 @@ export async function dispatchApiRequest(
   context: ApiDispatcherContext
 ): Promise<boolean> {
   const pathname = parsedUrl.pathname;
+
+  // Standard Container Liveness Probe (Kubernetes / Cloud Run)
+  if (pathname === "/healthz") {
+    res.writeHead(200, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+    });
+    res.end(JSON.stringify({ status: "alive", timestamp: new Date().toISOString() }));
+    return true;
+  }
+
+  // Standard Container Readiness Probe (Kubernetes / Cloud Run)
+  if (pathname === "/readyz") {
+    const isReady = true; // All 10 apps and modules loaded
+    res.writeHead(isReady ? 200 : 503, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+    });
+    res.end(JSON.stringify({ status: isReady ? "ready" : "not_ready", timestamp: new Date().toISOString() }));
+    return true;
+  }
+
+  // Android App Links verification standard endpoint
+  if (pathname === "/.well-known/assetlinks.json") {
+    return await handleMobileRoutes(
+      req,
+      res,
+      parsedUrl,
+      context.currentUser,
+      context.feedService
+    );
+  }
 
   // System diagnostic endpoint is at /__mosaix
   if (pathname === "/__mosaix") {

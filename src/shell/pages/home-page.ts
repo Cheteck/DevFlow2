@@ -10,6 +10,7 @@ import {
   renderPrimarySidebar,
   renderSecondarySidebar,
   renderMobileDrawer,
+  renderMobileBottomNav,
   renderUserSwitcherWidget,
   renderHeaderSearchAndDevControls,
   renderShellToastContainer,
@@ -61,55 +62,57 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
     <!-- 3. MAIN CONTENT CONTAINER -->
     <div class="main-workspace flex-1 flex flex-col min-w-0 md:ml-[72px] lg:ml-[336px]">
       
-      <!-- TOP NAVIGATION BAR WITH USER SWITCHER -->
-      <header class="h-[72px] sticky top-0 z-40 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/20 px-4 sm:px-6 flex items-center justify-between gap-4">
+      <!-- TOP NAVIGATION BAR WITH USER SWITCHER (PRE-PRODUCTION GRADE) -->
+      <header class="h-[68px] sticky top-0 z-40 bg-surface/85 backdrop-blur-2xl border-b border-outline-variant/15 px-4 sm:px-6 flex items-center justify-between gap-4 select-none">
         
-        <!-- Left Title / Context -->
-        <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+        <!-- Left Title / Context / Breadcrumb -->
+        <div class="flex items-center gap-3 min-w-0">
           <button onclick="toggleMobileDrawer()" class="md:hidden p-2 rounded-xl hover:bg-surface-variant/40 transition text-on-surface-variant hover:text-on-surface cursor-pointer shrink-0" title="Menu Principal">
-            <span class="material-symbols-outlined text-base">menu</span>
+            <span class="material-symbols-outlined text-lg">menu</span>
           </button>
 
-          <button onclick="toggleSecondarySidebar()" class="hidden lg:flex p-2 rounded-xl hover:bg-surface-variant/40 transition text-on-surface-variant hover:text-on-surface cursor-pointer shrink-0" title="Masquer/Afficher le panneau latéral">
-            <span class="material-symbols-outlined text-base">menu_open</span>
+          <button onclick="toggleSecondarySidebar()" class="hidden lg:flex p-2 rounded-xl hover:bg-surface-variant/40 transition text-on-surface-variant hover:text-on-surface cursor-pointer shrink-0" title="Masquer / Afficher le panneau latéral">
+            <span class="material-symbols-outlined text-lg">menu_open</span>
           </button>
 
-          <div class="flex flex-col">
-            <div class="flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span class="text-[10px] font-bold tracking-wider text-emerald-400 uppercase">Réseau Décentralisé Actif</span>
+          <div class="flex flex-col min-w-0">
+            <div class="flex items-center gap-2 text-[10px] text-on-surface-variant/70 font-medium">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="font-bold text-emerald-400 uppercase tracking-wider">Cluster Pré-Production</span>
+              <span class="text-outline-variant/40">·</span>
+              <span class="truncate">Fédération MosaiX</span>
             </div>
-            <h1 class="font-bold text-sm sm:text-base text-on-surface truncate">Flux & Activités MosaiX</h1>
+            <h1 class="font-bold text-sm sm:text-base text-on-surface truncate">Flux Social & Espaces de Travail</h1>
           </div>
         </div>
 
         <!-- Right Controls & User Profile -->
-        <div class="flex items-center gap-3 shrink-0">
+        <div class="flex items-center gap-2 sm:gap-3 shrink-0">
           ${renderHeaderSearchAndDevControls()}
 
           <!-- Live Theme Customizer Trigger Button -->
-          <button onclick="toggleThemeCustomizerDrawer()" class="p-2 rounded-xl bg-surface-container-low border border-primary/30 hover:border-primary/60 transition text-primary hover:bg-surface-variant/40 flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ouvrir l'Éditeur de Thème & Layout Live">
+          <button onclick="toggleThemeCustomizerDrawer()" class="p-2 rounded-xl bg-surface-container-low hover:bg-surface-container border border-primary/20 hover:border-primary/40 transition text-primary flex items-center gap-1.5 cursor-pointer shadow-sm select-none" title="Ouvrir l'Éditeur Visuel Live">
             <span class="material-symbols-outlined text-base animate-spin-slow">palette</span>
-            <span class="text-xs font-bold hidden sm:inline" id="live-editor-btn-label">Éditeur Visuel</span>
+            <span class="text-xs font-bold hidden xl:inline" id="live-editor-btn-label">Éditeur Visuel</span>
           </button>
 
           <!-- Dynamic Language Selector -->
-          <div class="hidden lg:flex items-center gap-1 bg-surface-container-low border border-outline-variant/20 p-1 rounded-xl text-xs" id="mosaix-lang-selector">
-            <button onclick="setLocale('fr')" id="lang-btn-fr" class="px-2.5 py-1 rounded-lg transition text-on-surface-variant hover:bg-surface-variant/30 font-semibold cursor-pointer">FR</button>
-            <button onclick="setLocale('en')" id="lang-btn-en" class="px-2.5 py-1 rounded-lg transition text-on-surface-variant hover:bg-surface-variant/30 font-semibold cursor-pointer">EN</button>
-            <button onclick="setLocale('ar')" id="lang-btn-ar" class="px-2.5 py-1 rounded-lg transition text-on-surface-variant hover:bg-surface-variant/30 font-semibold cursor-pointer">AR</button>
+          <div class="hidden lg:flex items-center gap-0.5 bg-surface-container-low border border-outline-variant/20 p-0.5 rounded-xl text-xs" id="mosaix-lang-selector">
+            <button onclick="setLocale('fr')" id="lang-btn-fr" class="px-2 py-1 rounded-lg transition text-on-surface-variant hover:bg-surface-variant/30 font-semibold cursor-pointer">FR</button>
+            <button onclick="setLocale('en')" id="lang-btn-en" class="px-2 py-1 rounded-lg transition text-on-surface-variant hover:bg-surface-variant/30 font-semibold cursor-pointer">EN</button>
+            <button onclick="setLocale('ar')" id="lang-btn-ar" class="px-2 py-1 rounded-lg transition text-on-surface-variant hover:bg-surface-variant/30 font-semibold cursor-pointer">AR</button>
           </div>
 
-          <div class="hidden lg:block h-6 w-px bg-outline-variant/30"></div>
+          <div class="hidden lg:block h-5 w-px bg-outline-variant/20"></div>
 
           <!-- Dynamic Theme Toggle -->
-          <div class="hidden lg:flex items-center gap-1 bg-surface-container-low border border-outline-variant/20 p-1 rounded-xl text-xs">
-            <button onclick="setTheme('light')" class="px-2.5 py-1 rounded-lg transition ${activeMode === 'light' ? 'bg-primary text-on-primary font-bold' : 'text-on-surface-variant hover:bg-surface-variant/30'}">Light</button>
-            <button onclick="setTheme('dark')" class="px-2.5 py-1 rounded-lg transition ${activeMode === 'dark' ? 'bg-primary text-on-primary font-bold' : 'text-on-surface-variant hover:bg-surface-variant/30'}">Dark</button>
-            <button onclick="setTheme('high-contrast')" class="px-2.5 py-1 rounded-lg transition ${activeMode === 'high-contrast' ? 'bg-primary text-on-primary font-bold' : 'text-on-surface-variant hover:bg-surface-variant/30'}">Contrast</button>
+          <div class="hidden lg:flex items-center gap-0.5 bg-surface-container-low border border-outline-variant/20 p-0.5 rounded-xl text-xs">
+            <button onclick="setTheme('light')" class="px-2 py-1 rounded-lg transition ${activeMode === 'light' ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-variant/30'}" title="Thème Clair">Light</button>
+            <button onclick="setTheme('dark')" class="px-2 py-1 rounded-lg transition ${activeMode === 'dark' ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-variant/30'}" title="Thème Sombre">Dark</button>
+            <button onclick="setTheme('high-contrast')" class="px-2 py-1 rounded-lg transition ${activeMode === 'high-contrast' ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-variant/30'}" title="Contraste Élevé">Contrast</button>
           </div>
 
-          <div class="hidden lg:block h-6 w-px bg-outline-variant/30"></div>
+          <div class="hidden lg:block h-5 w-px bg-outline-variant/20"></div>
 
           <!-- USER SWITCHER WIDGET -->
           ${renderUserSwitcherWidget(currentUser, currentSpace)}
@@ -143,6 +146,64 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
               : ""
           }
 
+          <!-- WELCOME ACTION-ORIENTED HERO BANNER -->
+          <div class="glass-card rounded-3xl p-6 border border-primary/20 bg-gradient-to-br from-primary/10 via-surface-container-high/60 to-surface-container-high/30 shadow-xl space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/15 border border-primary/25 text-[11px] font-semibold text-primary mb-2">
+                  <span>✨ Espace de Travail Unifié</span>
+                </div>
+                <h2 class="text-xl sm:text-2xl font-black text-on-surface tracking-tight">
+                  Bonjour, <span class="text-primary">${escapeHtml(currentUser.name)}</span> 👋
+                </h2>
+                <p class="text-xs text-on-surface-variant/90 mt-1 max-w-xl">
+                  Accédez instantanément à vos applications, échangez avec vos collègues et gérez vos espaces de travail partagés.
+                </p>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <button onclick="openCommandPalette()" class="px-4 py-2.5 rounded-2xl bg-surface-container hover:bg-surface-variant border border-outline-variant/30 text-xs font-bold text-on-surface flex items-center gap-2 transition cursor-pointer shadow-sm">
+                  <span class="material-symbols-outlined text-sm text-primary">search</span>
+                  <span>Recherche Rapide</span>
+                  <kbd class="text-[9px] px-1.5 py-0.5 rounded bg-surface-container-highest font-mono text-on-surface-variant">⌘K</kbd>
+                </button>
+              </div>
+            </div>
+
+            <!-- Quick Action Shortcut Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+              <a href="/spaces" class="p-3.5 rounded-2xl bg-surface-container/50 hover:bg-surface-container border border-outline-variant/15 hover:border-emerald-500/40 transition group cursor-pointer flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
+                  <span class="material-symbols-outlined text-xl">workspaces</span>
+                </div>
+                <div class="min-w-0">
+                  <h4 class="text-xs font-bold text-on-surface group-hover:text-emerald-400 transition-colors">Espaces & Équipes</h4>
+                  <p class="text-[10px] text-on-surface-variant/80 truncate">Gérer vos contextes</p>
+                </div>
+              </a>
+
+              <a href="/portfolio" class="p-3.5 rounded-2xl bg-surface-container/50 hover:bg-surface-container border border-outline-variant/15 hover:border-primary/40 transition group cursor-pointer flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
+                  <span class="material-symbols-outlined text-xl">grid_view</span>
+                </div>
+                <div class="min-w-0">
+                  <h4 class="text-xs font-bold text-on-surface group-hover:text-primary transition-colors">Vos Applications</h4>
+                  <p class="text-[10px] text-on-surface-variant/80 truncate">Boutique, Galerie, Agenda</p>
+                </div>
+              </a>
+
+              <button onclick="const c = document.getElementById('composer-text'); if(c){ c.focus(); window.scrollTo({top: 250, behavior: 'smooth'}); }" class="p-3.5 rounded-2xl bg-surface-container/50 hover:bg-surface-container border border-outline-variant/15 hover:border-indigo-500/40 transition group cursor-pointer flex items-center gap-3 text-left">
+                <div class="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition-transform">
+                  <span class="material-symbols-outlined text-xl">edit_square</span>
+                </div>
+                <div class="min-w-0">
+                  <h4 class="text-xs font-bold text-on-surface group-hover:text-indigo-400 transition-colors">Publier un message</h4>
+                  <p class="text-[10px] text-on-surface-variant/80 truncate">Échanger avec le réseau</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <!-- REAL-TIME SOLARA FEED COMPOSER -->
           <div class="glass-card rounded-2xl p-5 space-y-4 border border-outline-variant/20 shadow-xl bg-surface-container-high/30">
             <div class="flex items-center gap-3">
@@ -151,15 +212,14 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
               </div>
               <div class="flex-1">
                 <h2 class="font-bold text-sm text-on-surface flex items-center gap-2" id="shell-composer-title">
-                  <span>Partager avec la communauté</span>
-                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-surface-variant/50 text-on-surface-variant font-medium">Solara Feed v2.4</span>
+                  <span>Partager une mise à jour ou annonce</span>
                 </h2>
-                <p class="text-[11px] text-on-surface-variant">Publiez des idées, propositions citoyennes ou annonces d'événements</p>
+                <p class="text-[11px] text-on-surface-variant">Publiez une information visible par l'ensemble de votre communauté</p>
               </div>
             </div>
 
             <div class="relative">
-              <textarea id="composer-text" rows="3" placeholder="Quoi de neuf sur la fédération MosaiX aujourd'hui ?" class="w-full bg-surface-container-low/60 border border-outline-variant/30 rounded-xl p-3 text-xs text-on-surface focus:outline-none focus:border-primary transition resize-none placeholder:text-on-surface-variant/50"></textarea>
+              <textarea id="composer-text" rows="3" placeholder="Exprimez-vous ou partagez une ressource..." class="w-full bg-surface-container-low/60 border border-outline-variant/30 rounded-xl p-3 text-xs text-on-surface focus:outline-none focus:border-primary transition resize-none placeholder:text-on-surface-variant/50"></textarea>
             </div>
 
             <div class="flex items-center justify-between pt-1">
@@ -168,11 +228,11 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
                   <span class="material-symbols-outlined text-base">image</span>
                   <span class="text-[11px] hidden sm:inline">Média</span>
                 </button>
-                <button class="p-2 rounded-lg hover:bg-surface-variant/40 transition flex items-center gap-1.5 cursor-pointer" title="Créer un scrutin Imperia">
+                <button class="p-2 rounded-lg hover:bg-surface-variant/40 transition flex items-center gap-1.5 cursor-pointer" title="Créer un sondage">
                   <span class="material-symbols-outlined text-base text-indigo-400">how_to_vote</span>
-                  <span class="text-[11px] hidden sm:inline">Scrutin</span>
+                  <span class="text-[11px] hidden sm:inline">Sondage</span>
                 </button>
-                <button class="p-2 rounded-lg hover:bg-surface-variant/40 transition flex items-center gap-1.5 cursor-pointer" title="Publier un article Beam">
+                <button class="p-2 rounded-lg hover:bg-surface-variant/40 transition flex items-center gap-1.5 cursor-pointer" title="Rédiger un article">
                   <span class="material-symbols-outlined text-base text-emerald-400">chat_bubble</span>
                   <span class="text-[11px] hidden sm:inline">Message</span>
                 </button>
@@ -180,7 +240,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
 
               <button onclick="publishPost()" class="px-5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-on-primary font-bold text-xs flex items-center gap-2 transition shadow-lg shadow-primary/20 cursor-pointer">
                 <span class="material-symbols-outlined text-sm">send</span>
-                <span id="publish-btn-text">Publier sur Solara</span>
+                <span id="publish-btn-text">Publier</span>
               </button>
             </div>
           </div>
@@ -190,9 +250,9 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-primary text-base">dashboard_customize</span>
-                <h3 class="text-xs font-extrabold uppercase tracking-wider text-on-surface-variant">Widgets & Blocs d'Expérience</h3>
+                <h3 class="text-xs font-extrabold uppercase tracking-wider text-on-surface-variant">Widgets & Blocs Pratiques</h3>
               </div>
-              <span class="text-[10px] text-on-surface-variant font-medium">Slot: shell.home.widgets</span>
+              <span class="text-[10px] text-on-surface-variant font-medium">Accès rapide</span>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -253,39 +313,43 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
 
         </div>
 
-        <!-- RIGHT SIDEBAR (TRENDS, QUICK ACTIONS, METRICS) -->
+        <!-- RIGHT SIDEBAR (TRENDS, QUICK APPS, RECENT UPDATES) -->
         <aside class="space-y-6">
 
-          <!-- FEDERATION HEALTH METRICS -->
+          <!-- QUICK APPS LAUNCHPAD -->
           <div class="glass-card rounded-2xl p-5 space-y-4 border border-outline-variant/20 bg-surface-container-high/30">
             <div class="flex items-center justify-between">
               <h3 class="font-bold text-xs text-on-surface flex items-center gap-2">
-                <span class="material-symbols-outlined text-emerald-400 text-base">query_stats</span>
-                Santé du Cluster MosaiX
+                <span class="material-symbols-outlined text-primary text-base">apps</span>
+                Vos Outils Principaux
               </h3>
-              <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">99.98%</span>
+              <a href="/spaces" class="text-[10px] font-bold text-primary hover:underline">Voir tout</a>
             </div>
 
-            <div class="space-y-3 text-xs">
-              <div>
-                <div class="flex justify-between text-[11px] mb-1">
-                  <span class="text-on-surface-variant">Modules BAC Actifs</span>
-                  <span class="font-bold text-on-surface">8 / 8 En Ligne</span>
-                </div>
-                <div class="w-full h-1.5 bg-surface-variant/40 rounded-full overflow-hidden">
-                  <div class="h-full bg-emerald-500 rounded-full w-full"></div>
-                </div>
-              </div>
+            <div class="grid grid-cols-2 gap-2">
+              <a href="/commerce" class="p-2.5 rounded-xl bg-surface-container/60 hover:bg-surface-container border border-outline-variant/15 transition flex flex-col gap-1 text-left group">
+                <span class="text-lg">🛍️</span>
+                <span class="font-bold text-xs text-on-surface group-hover:text-primary transition-colors">Boutique</span>
+                <span class="text-[9px] text-on-surface-variant/70">Produits & Vente</span>
+              </a>
 
-              <div>
-                <div class="flex justify-between text-[11px] mb-1">
-                  <span class="text-on-surface-variant">Latence Inter-Modules</span>
-                  <span class="font-bold text-on-surface">1.2 ms (In-Memory)</span>
-                </div>
-                <div class="w-full h-1.5 bg-surface-variant/40 rounded-full overflow-hidden">
-                  <div class="h-full bg-indigo-500 rounded-full w-1/4"></div>
-                </div>
-              </div>
+              <a href="/portfolio" class="p-2.5 rounded-xl bg-surface-container/60 hover:bg-surface-container border border-outline-variant/15 transition flex flex-col gap-1 text-left group">
+                <span class="text-lg">🎨</span>
+                <span class="font-bold text-xs text-on-surface group-hover:text-primary transition-colors">Portfolio</span>
+                <span class="text-[9px] text-on-surface-variant/70">Galerie & Vitrine</span>
+              </a>
+
+              <a href="/beam" class="p-2.5 rounded-xl bg-surface-container/60 hover:bg-surface-container border border-outline-variant/15 transition flex flex-col gap-1 text-left group">
+                <span class="text-lg">💬</span>
+                <span class="font-bold text-xs text-on-surface group-hover:text-primary transition-colors">Messagerie</span>
+                <span class="text-[9px] text-on-surface-variant/70">Salons & Direct</span>
+              </a>
+
+              <a href="/booking" class="p-2.5 rounded-xl bg-surface-container/60 hover:bg-surface-container border border-outline-variant/15 transition flex flex-col gap-1 text-left group">
+                <span class="text-lg">📅</span>
+                <span class="font-bold text-xs text-on-surface group-hover:text-primary transition-colors">Agenda</span>
+                <span class="text-[9px] text-on-surface-variant/70">Prise de RDV</span>
+              </a>
             </div>
           </div>
 
@@ -293,7 +357,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
           <div class="glass-card rounded-2xl p-5 space-y-3 border border-outline-variant/20 bg-surface-container-high/30">
             <h3 class="font-bold text-xs text-on-surface flex items-center gap-2">
               <span class="material-symbols-outlined text-primary text-base">trending_up</span>
-              Tendances & Débats
+              Actualités & Débats
             </h3>
 
             <div class="space-y-2.5">
@@ -328,6 +392,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
     </div>
   </div>
 
+  ${renderMobileBottomNav("/", currentUser, currentSpace)}
   ${renderShellToastContainer()}
   ${renderShellConfirmModal()}
 

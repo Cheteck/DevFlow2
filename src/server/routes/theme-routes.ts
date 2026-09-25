@@ -8,6 +8,7 @@ import type { ThemeMode } from "@mosaix/contracts";
 import type { CompositionOverrideManager } from "@mosaix/core";
 import { applyThemeMode } from "../../shell/theme/theme-bridge.js";
 import { saveCompositionOverridesToFile, type SavedBlockOverride } from "../../shell/editor.js";
+import { readLimitedJson } from "../utils/safe-body-parser.js";
 
 export async function handleThemeRoutes(
   req: http.IncomingMessage,
@@ -50,21 +51,19 @@ export async function handleThemeRoutes(
         return true;
       }
 
-      let bodyStr = "";
-      for await (const chunk of req) {
-        bodyStr += chunk;
-      }
-
       try {
-        const data = JSON.parse(bodyStr || "{}");
+        const data = await readLimitedJson<{
+          mode?: string;
+          compositionStore?: {
+            slotOverrides?: Record<string, { blocks?: SavedBlockOverride[] }>;
+          };
+        }>(req);
         if (data.mode) {
           setActiveMode(data.mode as ThemeMode);
           await applyThemeMode(data.mode as ThemeMode);
         }
         if (data.compositionStore && compositionOverrideManager) {
-          const store = data.compositionStore as {
-            slotOverrides?: Record<string, { blocks?: SavedBlockOverride[] }>;
-          };
+          const store = data.compositionStore;
           for (const [slotId, slotOverride] of Object.entries(store.slotOverrides || {})) {
             if (slotOverride && Array.isArray(slotOverride.blocks)) {
               for (const block of slotOverride.blocks) {
@@ -83,7 +82,7 @@ export async function handleThemeRoutes(
         return true;
       } catch {
         res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: false, error: "Fichier preset JSON invalide" }));
+        res.end(JSON.stringify({ success: false, error: "Fichier preset JSON invalide ou payload trop volumineux" }));
         return true;
       }
     }

@@ -30,6 +30,7 @@ export interface GatewayConfig {
   title?: string;
   version?: string;
   host?: string;
+  trustProxy?: boolean;
   rateLimiterOptions?: RateLimiterOptions;
   authRateLimiterOptions?: AuthRateLimiterOptions;
   authOptions?: GatewayAuthOptions;
@@ -102,12 +103,25 @@ export class Gateway {
     }
     this.corsOptions = CorsMiddleware.resolveOptions(config.corsOptions ?? {});
 
+    const trustProxy = Boolean(config.trustProxy ?? (process.env.TRUST_PROXY === "true"));
+    const resolveClientIp = (req: http.IncomingMessage): string => {
+      if (trustProxy) {
+        const forwarded = req.headers["x-forwarded-for"];
+        if (typeof forwarded === "string") {
+          const parts = forwarded.split(",").map((s) => s.trim()).filter(Boolean);
+          if (parts.length > 0) return parts[0];
+        }
+      }
+      return req.socket.remoteAddress ?? "127.0.0.1";
+    };
+
     // Attach default onion-style pipeline middleware
     this.pipeline.pipe(async (ctx, next) => {
+      const clientIp = resolveClientIp(ctx.req);
+
       // Check general rate limiter if configured
       if (this.rateLimiter) {
-        const ip = ctx.req.socket.remoteAddress ?? "127.0.0.1";
-        const rateResult = await this.rateLimiter.consume(ip);
+        const rateResult = await this.rateLimiter.consume(clientIp);
         if (!rateResult.allowed) {
           ctx.res.statusCode = 429;
           ctx.res.setHeader("content-type", "application/json");
@@ -124,7 +138,6 @@ export class Gateway {
         for (const [k, v] of Object.entries(ctx.req.headers)) {
           if (typeof v === "string") reqHeaders[k] = v;
         }
-        const ip = (ctx.req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? ctx.req.socket.remoteAddress ?? "127.0.0.1";
 
         const authResult = await this.authRateLimiter.handle(
           {
@@ -133,7 +146,7 @@ export class Gateway {
             headers: reqHeaders,
           },
           async () => ({ statusCode: 200 }),
-          ip
+          clientIp
         );
 
         if (authResult.statusCode === 429) {

@@ -51,17 +51,37 @@ export class PspWebhookHandler {
 
   async handleWebhookRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     let bodyStr = "";
-    req.on("data", chunk => { bodyStr += chunk; });
+    let receivedBytes = 0;
+    const maxBytes = 512 * 1024; // 512 KB ceiling for webhooks
+
+    req.on("data", chunk => {
+      receivedBytes += chunk.length;
+      if (receivedBytes > maxBytes) {
+        req.destroy();
+        sendProblemResponse(res, 413, "Payload Too Large", "Taille du webhook supérieure à la limite autorisée.");
+        return;
+      }
+      bodyStr += chunk;
+    });
+
     req.on("end", async () => {
       try {
-        const signatureHeader = req.headers["x-psp-signature"] as string || req.headers["stripe-signature"] as string;
+        const signatureHeader = (req.headers["x-psp-signature"] as string) || (req.headers["stripe-signature"] as string);
         const webhookSecret = process.env.PSP_WEBHOOK_SECRET || "mosaix_psp_webhook_secret_dev_key_2026";
 
-        // Validate signature strictly when header is provided or in production / configured environment
-        const requireStrictSignature = Boolean(process.env.PSP_WEBHOOK_SECRET) || process.env.NODE_ENV === "production" || Boolean(signatureHeader);
-        const isValid = this.verifySignature(bodyStr, signatureHeader, webhookSecret);
+        // VULN-04: Mandatory signature verification — do not allow bypass if header is omitted
+        if (!signatureHeader) {
+          sendProblemResponse(
+            res,
+            401,
+            "Missing Signature",
+            "L'en-tête de signature cryptographique (x-psp-signature ou stripe-signature) est obligatoire."
+          );
+          return;
+        }
 
-        if (requireStrictSignature && !isValid) {
+        const isValid = this.verifySignature(bodyStr, signatureHeader, webhookSecret);
+        if (!isValid) {
           sendProblemResponse(res, 401, "Invalid Signature", "La signature cryptographique du webhook est invalide.");
           return;
         }

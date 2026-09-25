@@ -30,12 +30,16 @@ import {
   getResolvedTheme,
 } from "./shell/theme/theme-bridge.js";
 import { renderBacAdminSafely } from "./shell/renderer.js";
+import { SecurityGuard } from "./shell/security-guard.js";
 
 // Server decoupling modules
 import { handleMaintenanceGate } from "./server/middleware/maintenance-gate.js";
 import { dispatchApiRequest } from "./server/api-dispatcher.js";
 import { renderBacPage } from "./shell/pages/bac-page.js";
 import { renderHomePage } from "./shell/pages/home-page.js";
+
+// Enforce production security constraints (VULN-08)
+SecurityGuard.enforceProductionConstraints();
 
 const PORT = parseInt(process.env.APP_PORT || "3000", 10);
 let activeMode: ThemeMode = "dark";
@@ -83,14 +87,27 @@ function parseCookies(header?: string): Record<string, string> {
 }
 
 const server = http.createServer(async (req, res) => {
-  const parsedUrl = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
-  const pathname = parsedUrl.pathname;
+  try {
+    // Inject standard OWASP security headers
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+
+    const parsedUrl = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+    const pathname = parsedUrl.pathname;
 
   // 1. Static Assets Delivery (/public/)
   if (pathname.startsWith("/public/")) {
-    const filePath = path.join(process.cwd(), pathname);
-    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-      const ext = path.extname(filePath).toLowerCase();
+    const publicDir = path.resolve(process.cwd(), "public");
+    const safePath = path.resolve(process.cwd(), "." + pathname);
+    if (!safePath.startsWith(publicDir)) {
+      res.writeHead(403, { "Content-Type": "text/plain" });
+      res.end("Forbidden");
+      return;
+    }
+    if (fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
+      const ext = path.extname(safePath).toLowerCase();
       const mimeMap: Record<string, string> = {
         ".png": "image/png",
         ".jpg": "image/jpeg",
@@ -100,15 +117,15 @@ const server = http.createServer(async (req, res) => {
         ".json": "application/json",
       };
       res.writeHead(200, { "Content-Type": mimeMap[ext] || "application/octet-stream" });
-      fs.createReadStream(filePath).pipe(res);
+      fs.createReadStream(safePath).pipe(res);
       return;
     }
   }
 
-  // 2. Resolve User, Active Space & Theme Mode context
+  // 2. Resolve User, Active Space & Theme Mode context (VULN-01: default unauthenticated role is member)
   const cookies = parseCookies(req.headers.cookie);
-  const activeRole = cookies["mosaix_role"] || "admin";
-  const currentUser: UserProfile = USER_PROFILES[activeRole] || USER_PROFILES["admin"];
+  const activeRole = cookies["mosaix_role"] || "member";
+  const currentUser: UserProfile = USER_PROFILES[activeRole] || USER_PROFILES["member"];
   const currentSpace = cookies["mosaix_active_space"] || null;
   const currentThemeMode: ThemeMode = (cookies["mosaix_theme_mode"] as ThemeMode) || activeMode || "dark";
   const sharedStyles = getSharedStyles(currentThemeMode);
@@ -297,8 +314,15 @@ const server = http.createServer(async (req, res) => {
 
   res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
   res.end(homeHtml);
+  } catch (err: any) {
+    console.error("[ServerError]", err);
+    if (!res.headersSent) {
+      res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end(`Internal Server Error: ${err?.message || "Unknown error"}`);
+    }
+  }
 });
 
-server.listen(PORT, () => {
-  console.log(`MosaiX platform host listening on http://localhost:${PORT}`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`MosaiX platform host listening on http://0.0.0.0:${PORT}`);
 });

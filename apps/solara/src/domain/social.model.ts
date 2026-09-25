@@ -183,7 +183,36 @@ export class SolaraSocialService {
   private comments = new Map<string, Comment[]>();
   private followers = new Map<string, FollowerRelation[]>();
   private contentHooks: SolaraContentHook[] = [];
+  private sponsoredPool: import("@mosaix/feed-engine").SponsoredPost[] = [
+    {
+      id: "sponsored-1",
+      actorType: "organization",
+      actorId: "org-mosaix-commerce",
+      publicationType: "product_showcase",
+      targetType: "feed",
+      targetId: "global",
+      content: "🔥 **Offre Spéciale Artisanat local** : Découvrez les créations céramiques faites main avec -20% aujourd'hui !",
+      mediaUrls: ["https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=600&q=80"],
+      likeCount: 42,
+      commentsCount: 8,
+      createdAt: new Date(),
+      isSponsored: true,
+      sponsorName: "E-Commerce MosaiX",
+      sponsorBadge: "Sponsorisé",
+      ctaText: "Acheter en ligne",
+      ctaUrl: "/commerce/products/ceramic-vase",
+      campaignId: "cmp-artisanat-2026"
+    }
+  ];
   public publicationTypeRegistry = new PublicationTypeRegistry();
+
+  public getSponsoredPool(): import("@mosaix/feed-engine").SponsoredPost[] {
+    return this.sponsoredPool;
+  }
+
+  public addSponsoredPost(post: import("@mosaix/feed-engine").SponsoredPost): void {
+    this.sponsoredPool.push(post);
+  }
 
   constructor(private readonly repository?: SocialRepositoryPort) {}
 
