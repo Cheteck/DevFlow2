@@ -1,4 +1,4 @@
-import type { Proposal, ProposalStatus } from "./proposal.js";
+import type { Proposal } from "./proposal.js";
 import type { ProposalRepository } from "./proposal-repository.js";
 import type { PortfolioService } from "./portfolio-service.js";
 import { uuidV7 } from "@mosaix/types";

@@ -27,7 +27,8 @@
     "@mosaix/sdk": "workspace:*",
     "@mosaix/security": "workspace:*",
     "@mosaix/types": "workspace:*",
-    "@mosaix/events": "workspace:*"
+    "@mosaix/events": "workspace:*",
+    "@mosaix/feed-engine": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

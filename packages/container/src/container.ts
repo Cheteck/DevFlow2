@@ -148,3 +148,8 @@ export interface ServiceProvider {
   register(container: Container): void | Promise<void>;
   boot?(container: Container, router?: unknown): void | Promise<void>;
 }
+
+/**
+ * Global Container Singleton (canonical source for IoC resolution)
+ */
+export const container = new Container();

@@ -46,6 +46,8 @@ export class SatimPaymentPort implements PaymentPort {
       returnUrl: `https://mosaix.platform/api/payments/satim-callback?id=${idempotenceKey}`,
     };
 
+    console.log("[SATIM PAY] Prepared endpoint & payload for SATIM Gateway:", satimRegisterEndpoint, payload);
+
     this.activeHolds.set(orderId, { amount, key: idempotenceKey });
   }
 

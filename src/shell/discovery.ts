@@ -19,6 +19,7 @@ export const APP_ICONS: Record<string, string> = {
 
 // Seed shellRegistry with standard navigation icons
 for (const [key, icon] of Object.entries(APP_ICONS)) {
+  if (key === "subscription") continue; // Exclude engine from main navigation
   shellRegistry.registerNavigationItem({
     bacId: key,
     label: key.charAt(0).toUpperCase() + key.slice(1),

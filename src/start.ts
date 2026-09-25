@@ -8,18 +8,12 @@ import { URL } from "node:url";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-// @ts-ignore — BacExecutionContext exported via platform, tsc build cache may lag
 import type { ThemeMode, BacExecutionContext } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
-// @ts-ignore — core re-exports may lag behind src
 import {
   CompositionOverrideManager,
   platformSettingsService,
-  shellEntryPolicy,
-  createGuestSession,
-  requestDiagnosticsStore,
 } from "@mosaix/core";
-import type { ShellUserState } from "@mosaix/core";
 
 // Shell services & state
 import { apps } from "./shell/discovery.js";
@@ -92,17 +86,10 @@ const server = http.createServer(async (req, res) => {
   const parsedUrl = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
   const pathname = parsedUrl.pathname;
 
-  // 1. Static Assets Delivery (/public/) — ETag + gzip
+  // 1. Static Assets Delivery (/public/)
   if (pathname.startsWith("/public/")) {
     const filePath = path.join(process.cwd(), pathname);
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-      const stat = fs.statSync(filePath);
-      const etag = `"${stat.mtimeMs.toString(36)}-${stat.size.toString(36)}"`;
-      if (req.headers["if-none-match"] === etag) {
-        res.writeHead(304);
-        res.end();
-        return;
-      }
       const ext = path.extname(filePath).toLowerCase();
       const mimeMap: Record<string, string> = {
         ".png": "image/png",
@@ -112,47 +99,10 @@ const server = http.createServer(async (req, res) => {
         ".js": "application/javascript",
         ".json": "application/json",
       };
-      const acceptEncoding = req.headers["accept-encoding"] || "";
-      const shouldGzip = typeof acceptEncoding === "string" && acceptEncoding.includes("gzip") && [".js", ".css", ".svg", ".json"].includes(ext);
-      const headers: Record<string, string> = {
-        "Content-Type": mimeMap[ext] || "application/octet-stream",
-        ETag: etag,
-        "Cache-Control": "public, max-age=3600",
-      };
-      if (shouldGzip) headers["Content-Encoding"] = "gzip";
-      res.writeHead(200, headers);
-      const stream = fs.createReadStream(filePath);
-      if (shouldGzip) {
-        const { createGzip } = await import("node:zlib");
-        stream.pipe(createGzip()).pipe(res);
-      } else {
-        stream.pipe(res);
-      }
+      res.writeHead(200, { "Content-Type": mimeMap[ext] || "application/octet-stream" });
+      fs.createReadStream(filePath).pipe(res);
       return;
     }
-  }
-
-  const startHr = process.hrtime.bigint();
-  const reqMethod = req.method || "GET";
-  res.on("finish", () => {
-    const dur = Number(process.hrtime.bigint() - startHr) / 1e6;
-    console.log(`[http] ${reqMethod} ${pathname} ${res.statusCode} ${dur.toFixed(1)}ms`);
-    try {
-      requestDiagnosticsStore.append({ method: reqMethod, path: pathname, status: res.statusCode, dur: `${dur.toFixed(1)}ms` });
-    } catch {}
-  });
-  // 0. Health / Ready probes (k8s) — avant tout
-  if (pathname === "/health") {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ok", bacCount: apps.length, themeMode: activeMode, uptime: process.uptime() }));
-    return;
-  }
-  if (pathname === "/ready") {
-    const bacStates = bacOrchestrator.listDescriptors().map((d) => ({ id: d.id, enabled: d.isEnabled }));
-    const allReady = bacStates.every((b) => b.enabled);
-    res.writeHead(allReady ? 200 : 503, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ready: allReady, bacs: bacStates }));
-    return;
   }
 
   // 2. Resolve User, Active Space & Theme Mode context
@@ -186,7 +136,7 @@ const server = http.createServer(async (req, res) => {
 
   // 5. BAC Workspace Views Routing
   const matchedApp = apps.find(
-    (app: any) => pathname === app.route || pathname.startsWith(app.route + "/")
+    (app) => pathname === app.route || pathname.startsWith(app.route + "/")
   );
 
   if (matchedApp) {
@@ -214,11 +164,10 @@ const server = http.createServer(async (req, res) => {
     const appContributions = bacEntry ? bacEntry.contributions : [];
 
     let renderedContent: string;
-    // 1. Vraie vue BAC via l'orchestrateur (Solara, Booking, ...) — fallback placeholder sinon
-    const descriptor =
-      bacOrchestrator.getDescriptor(matchedApp.id) || (await bacOrchestrator.loadDescriptor(matchedApp.id));
+    const descriptor = (await bacOrchestrator.loadDescriptor(matchedApp.id)) || bacOrchestrator.getDescriptor(matchedApp.id);
+    
     if (descriptor) {
-      const bacResult = await bacOrchestrator.renderBac(matchedApp.id, {
+      const executionContext: BacExecutionContext = {
         tenantId: "default",
         spaceId: currentSpace,
         user: {
@@ -226,14 +175,21 @@ const server = http.createServer(async (req, res) => {
           roles: [currentUser.role],
           permissions: currentUser.permissions,
         },
-        theme: { mode: currentThemeMode },
+        theme: {
+          mode: currentThemeMode,
+        },
         request: {
           path: pathname,
           query: Object.fromEntries(parsedUrl.searchParams.entries()),
           headers: (req.headers as Record<string, string>) || {},
         },
-      });
-      renderedContent = bacResult.contentHtml;
+      };
+      try {
+        const renderResult = await descriptor.render(executionContext);
+        renderedContent = renderResult.contentHtml;
+      } catch (err) {
+        renderedContent = `<div class="p-6 text-rose-400">Erreur d'exécution du descripteur: ${escapeHtml(String(err))}</div>`;
+      }
     } else if (matchedApp.render) {
       try {
         renderedContent = matchedApp.render();
@@ -261,116 +217,12 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 6. Shell Entry Policy — Guest vs Authenticated (centralisé, testable)
+  // 6. Dynamic Default BAC Resolution & Workspace Root Routing
   const platformSettings = await platformSettingsService.getSettings();
-  // Résolution ShellUserState : guest si pas de session/role, authenticated sinon
-  const rawRole = cookies["mosaix_role"];
-  const hasSession = !!cookies["mosaix_session"] || !!cookies["mosaix_user"];
-  const isGuestState = !rawRole && !hasSession;
-  let shellUserState: import("@mosaix/core").ShellUserState;
-  let guestSetCookie: string | null = null;
-  if (isGuestState) {
-    let guestSid = cookies["mosaix_guest_sid"];
-    if (!guestSid) {
-      const guest = createGuestSession(parsedUrl.searchParams.get("locale") || undefined, undefined);
-      guestSid = guest.sessionId;
-      guestSetCookie = `mosaix_guest_sid=${guestSid}; Path=/; Max-Age=2592000; SameSite=Lax`;
-    }
-    shellUserState = { kind: "guest", guestSessionId: guestSid, locale: cookies["mosaix_locale"] };
-  } else {
-    shellUserState = {
-      kind: "authenticated",
-      userId: currentUser.id,
-      roles: [currentUser.role],
-      permissions: currentUser.permissions,
-    };
-  }
-
-  const { shellEntryPolicy: entryPolicy } = await import("@mosaix/core");
-  const entry = await entryPolicy.resolve({
-    userState: shellUserState,
-    settings: platformSettings,
-    isBacAvailable: async (bacId: string) => {
-      const d = bacOrchestrator.getDescriptor(bacId) || (await bacOrchestrator.loadDescriptor(bacId));
-      return !!d && d.isEnabled && (await d.isAvailable());
-    },
-    isBacEnabled: (bacId: string) => {
-      const d = bacOrchestrator.getDescriptor(bacId);
-      return !!d?.isEnabled;
-    },
-    canLaunch: async (bacId: string, state) => {
-      if (state.kind === "guest") return false; // Guest ne lance jamais de BAC privé par défaut
-      const clean = bacId.replace(/^@apps\//, "");
-      return currentUser.allowedBacs.includes("*") || currentUser.allowedBacs.includes(bacId) || currentUser.allowedBacs.includes(clean);
-    },
-  });
-
-  if (guestSetCookie) {
-    res.setHeader("Set-Cookie", guestSetCookie);
-  }
-
-  if (entry.kind === "guest") {
-    if (entry.destination.mode === "login") {
-      res.writeHead(302, { Location: entry.destination.route });
-      res.end();
-      return;
-    }
-    if (entry.destination.mode === "public-bac") {
-      const descriptor = bacOrchestrator.getDescriptor(entry.destination.bacId) || (await bacOrchestrator.loadDescriptor(entry.destination.bacId));
-      if (descriptor) {
-        const executionContext: BacExecutionContext = {
-          tenantId: "default",
-          spaceId: currentSpace,
-          user: { id: "guest", roles: [], permissions: [] },
-          theme: { mode: currentThemeMode },
-          request: { path: "/", query: Object.fromEntries(parsedUrl.searchParams.entries()), headers: (req.headers as Record<string, string>) || {} },
-        };
-        const renderResult = await descriptor.render(executionContext);
-        const matchedApp = { id: descriptor.id, name: descriptor.name, route: descriptor.routePrefix, category: "Application Publique" };
-        const bacEntry = bacRegistry.find((b) => b.id === descriptor.id);
-        const html = renderBacPage({
-          activeMode: currentThemeMode,
-          sharedStyles,
-          themeStyle: renderThemeStyleTag(currentThemeMode),
-          matchedApp,
-          currentUser,
-          currentSpace,
-          renderedContent: renderResult.contentHtml,
-          contributionsCount: bacEntry ? bacEntry.contributions.length : 0,
-          requestUrl: req.url,
-        });
-        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-        res.end(html);
-        return;
-      }
-    }
-    // landing
-    const widgetsHtml = `
-    <div class="glass-card p-4 rounded-xl space-y-2 border border-outline-variant/20">
-      <div class="flex items-center justify-between">
-        <span class="text-xs font-bold text-primary">Bienvenue — MosaiX</span>
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-      </div>
-      <p class="text-[11px] text-on-surface-variant">Connectez-vous pour accéder à votre espace Solara.</p>
-      <a href="/identity/login" class="inline-block mt-2 px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold">Se connecter</a>
-    </div>
-  `;
-    const homeHtml = renderHomePage({
-      activeMode: currentThemeMode,
-      sharedStyles,
-      currentUser,
-      currentSpace,
-      feedPosts: [],
-      widgetsHtml,
-      requestUrl: req.url,
-    });
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(homeHtml);
-    return;
-  }
-
-  // Authenticated → defaultBacId (Solara ici, configurable sans toucher Shell)
-  const defaultBacResolution = await bacOrchestrator.resolveDefaultBac(platformSettings, currentUser.allowedBacs);
+  const defaultBacResolution = await bacOrchestrator.resolveDefaultBac(
+    platformSettings,
+    currentUser.allowedBacs
+  );
 
   if (defaultBacResolution) {
     const { descriptor } = defaultBacResolution;
@@ -447,94 +299,6 @@ const server = http.createServer(async (req, res) => {
   res.end(homeHtml);
 });
 
-function startServer(port: number = PORT, retries = 3): void {
-  server.listen(port, () => {
-    console.log(`MosaiX platform host listening on http://localhost:${port}`);
-  });
-  server.on("error", (err: NodeJS.ErrnoException) => {
-    if (err.code === "EADDRINUSE" && retries > 0) {
-      console.warn(`[dev-server] Port ${port} in use, retrying ${port + 1} (${retries} left)...`);
-      setTimeout(() => {
-        server.close(() => startServer(port + 1, retries - 1));
-      }, 500);
-    } else {
-      console.error(`[dev-server] Failed to bind port ${port}:`, err.message);
-      process.exit(1);
-    }
-  });
-}
-
-function gracefulShutdown(signal: string): void {
-  console.log(`[dev-server] Received ${signal}, closing...`);
-  server.close(() => {
-    console.log("[dev-server] HTTP server closed");
-    process.exit(0);
-  });
-  // Force close after 5s
-  setTimeout(() => {
-    console.warn("[dev-server] Force closing after timeout");
-    process.exit(1);
-  }, 5000).unref();
-}
-
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-
-startServer();
-
-// HMR — WS + chokidar (Vite parity)
-let wss: any = null;
-if (process.env.NODE_ENV !== "production") {
-  (async () => {
-    try {
-      // @ts-ignore — ws types optional, dev-only
-      const { WebSocketServer } = await import("ws");
-      wss = new WebSocketServer({ server, path: "/__hmr" });
-      wss.on("connection", (ws: any) => ws.send(JSON.stringify({ type: "connected", ts: Date.now() })));
-      console.log("[hmr] WebSocket HMR ready on /__hmr");
-    } catch {}
-  })();
-}
-if (process.env.NODE_ENV !== "production") {
-  (async () => {
-    try {
-      // @ts-ignore — chokidar is dev-only, may not be installed in all envs
-      const chokidar = await import("chokidar");
-      const watcher = chokidar.watch(["apps/*/mosaix.json", "src/shell/theme/**/*", "themes/**/*"], {
-        ignoreInitial: true,
-      });
-      const broadcast = (payload: unknown) => {
-        if (!wss) return;
-        const data = JSON.stringify(payload);
-        for (const client of wss.clients as Set<any>) {
-          if (client.readyState === 1) {
-            try {
-              client.send(data);
-            } catch {}
-          }
-        }
-      };
-      watcher.on("change", async (path: string) => {
-        console.log(`[hmr] File changed: ${path}`);
-        if (path.includes("mosaix.json")) {
-          const bacId = path.split("/")[1] ? `@apps/${path.split("/")[1]}` : path;
-          try {
-            await bacOrchestrator.loadDescriptor(bacId);
-            console.log(`[hmr] BAC reloaded: ${bacId}`);
-            broadcast({ type: "update", fileChanged: path, timestamp: Date.now() });
-          } catch (e: any) {
-            console.warn(`[hmr] Failed to reload BAC ${bacId}`, e);
-            broadcast({ type: "error", fileChanged: path, error: String(e?.message || e) });
-          }
-        }
-        if (path.includes("theme")) {
-          console.log(`[hmr] Theme file changed, next SSR will recompile`);
-          broadcast({ type: "update", fileChanged: path, timestamp: Date.now() });
-        }
-      });
-      console.log("[hmr] Watching BAC manifests & theme for HMR");
-    } catch {
-      // chokidar not available — skip HMR
-    }
-  })();
-}
+server.listen(PORT, () => {
+  console.log(`MosaiX platform host listening on http://localhost:${PORT}`);
+});

@@ -11,7 +11,6 @@ import type {
   PlatformSettings,
 } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
-import { platformSettingsService } from "@mosaix/core";
 import { apps } from "../discovery.js";
 import { DynamicBacRegistry } from "../dynamic-bac-registry.js";
 
@@ -20,10 +19,8 @@ export class BacOrchestrator {
   private dynamicLoaders = new Map<string, () => Promise<BacDescriptor>>();
 
   constructor() {
-    // Les loaders dynamiques (vraies vues BAC) sont enregistrés d'abord pour que
-    // registerDiscoveredWorkspaceApps() ne les masque pas avec un placeholder.
-    this.registerBuiltinDynamicLoaders();
     this.registerDiscoveredWorkspaceApps();
+    this.registerBuiltinDynamicLoaders();
   }
 
   registerDynamicLoader(id: string, loader: () => Promise<BacDescriptor>): void {
@@ -38,10 +35,63 @@ export class BacOrchestrator {
       const { createSolaraDescriptor } = await import("../../../apps/solara/src/presentation/solara-view.js");
       return createSolaraDescriptor();
     });
-    // Booking dynamic descriptor loader (BookingPageView SSR)
+
+    // Booking dynamic descriptor loader
     this.registerDynamicLoader("booking", async () => {
       const { createBookingDescriptor } = await import("../../../apps/booking/src/presentation/booking-view.js");
       return createBookingDescriptor();
+    });
+
+    // Beam dynamic descriptor loader
+    this.registerDynamicLoader("beam", async () => {
+      const { createBeamDescriptor } = await import("../../../apps/beam/src/presentation/beam-view.js");
+      return createBeamDescriptor();
+    });
+
+    // Commerce dynamic descriptor loader
+    this.registerDynamicLoader("commerce", async () => {
+      const { createCommerceDescriptor } = await import("../../../apps/commerce/src/presentation/commerce-view.js");
+      return createCommerceDescriptor();
+    });
+
+    // Portfolio dynamic descriptor loader
+    this.registerDynamicLoader("portfolio", async () => {
+      const { createPortfolioDescriptor } = await import("../../../apps/portfolio/src/presentation/portfolio-view.js");
+      return createPortfolioDescriptor();
+    });
+
+    // Citadelle (Identity) dynamic descriptor loader
+    this.registerDynamicLoader("citadelle", async () => {
+      const { createCitadelleDescriptor } = await import("../../../apps/citadelle/src/presentation/citadelle-view.js");
+      return createCitadelleDescriptor();
+    });
+    this.registerDynamicLoader("identity", async () => {
+      const { createCitadelleDescriptor } = await import("../../../apps/citadelle/src/presentation/citadelle-view.js");
+      return createCitadelleDescriptor();
+    });
+
+    // Spaces dynamic descriptor loader
+    this.registerDynamicLoader("spaces", async () => {
+      const { createSpacesDescriptor } = await import("../../../apps/spaces/src/presentation/spaces-view.js");
+      return createSpacesDescriptor();
+    });
+
+    // Solidarity dynamic descriptor loader
+    this.registerDynamicLoader("solidarity", async () => {
+      const { createSolidarityDescriptor } = await import("../../../apps/solidarity/src/presentation/solidarity-view.js");
+      return createSolidarityDescriptor();
+    });
+
+    // Imperia dynamic descriptor loader
+    this.registerDynamicLoader("imperia", async () => {
+      const { createImperiaDescriptor } = await import("../../../apps/imperia/src/presentation/imperia-view.js");
+      return createImperiaDescriptor();
+    });
+
+    // Subscription dynamic descriptor loader
+    this.registerDynamicLoader("subscription", async () => {
+      const { createSubscriptionDescriptor } = await import("../../../apps/subscription/src/presentation/subscription-view.js");
+      return createSubscriptionDescriptor();
     });
   }
 
@@ -210,11 +260,6 @@ export class BacOrchestrator {
   private registerDiscoveredWorkspaceApps(): void {
     for (const app of apps) {
       const cleanId = app.id.replace(/^@apps\//, "");
-      // Pas de placeholder si une vraie vue BAC existe via un loader dynamique
-      // (Solara, Booking, ...) — le loader sera résolu à la demande par loadDescriptor().
-      if (this.dynamicLoaders.has(cleanId) || this.dynamicLoaders.has(app.id)) {
-        continue;
-      }
       const descriptor: BacDescriptor = {
         id: app.id,
         name: app.name,

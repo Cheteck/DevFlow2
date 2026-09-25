@@ -45,6 +45,9 @@
       "path": "../../packages/conformance"
     },
     {
+      "path": "../../packages/feed-engine"
+    },
+    {
       "path": "../../plugins/solara-content-moderator"
     }
   ]
