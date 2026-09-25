@@ -17,20 +17,59 @@ export class InitCommand implements CliCommand {
 
 export class DevCommand implements CliCommand {
   readonly name = "dev";
+  readonly aliases = ["serve"];
   async execute(ctx: CommandContext): Promise<CLIResult> {
+    if (ctx.args.includes("--help") || ctx.args.includes("-h")) {
+      const help = [
+        "Usage: mosaix dev [options]",
+        "",
+        "Options:",
+        "  -p, --port <port>     Port to run dev server on (default: 3000)",
+        "  --host <host>         Host to bind (default: localhost, use 0.0.0.0 for network)",
+        "  -a, --app <app>       Filter to single app (e.g. --app portfolio)",
+        "  --open                Open browser on start",
+        "  --strictPort          Exit if port is in use instead of trying next port",
+        "  --clearScreen         Clear screen on start (default: true, use --no-clearScreen to disable)",
+        "  --help, -h            Show this help",
+        "",
+        "Examples:",
+        "  mosaix dev --port 3000 --host 0.0.0.0 --open",
+        "  mosaix dev --app portfolio --port 3001",
+      ].join("\n");
+      return ctx.respond(help, { port: 3000 });
+    }
+
     let port: number | undefined;
+    let host: string | undefined;
     let app: string | undefined;
+    let open = false;
+    let strictPort = false;
+    let clearScreen = true;
 
     for (let i = 0; i < ctx.args.length; i++) {
       if ((ctx.args[i] === "--port" || ctx.args[i] === "-p") && ctx.args[i + 1]) {
         port = parseInt(ctx.args[i + 1] as string, 10);
       }
+      if (ctx.args[i] === "--host" && ctx.args[i + 1]) {
+        host = ctx.args[i + 1] as string;
+      }
       if ((ctx.args[i] === "--app" || ctx.args[i] === "-a") && ctx.args[i + 1]) {
         app = ctx.args[i + 1] as string;
       }
+      if (ctx.args[i] === "--open") open = true;
+      if (ctx.args[i] === "--strictPort") strictPort = true;
+      if (ctx.args[i] === "--clearScreen") clearScreen = true;
+      if (ctx.args[i] === "--no-clearScreen") clearScreen = false;
     }
 
-    const devServer = new MosaixDevServer(ctx.rootDir, { port: port ?? 3000, app: app ?? "" });
+    const devServer = new MosaixDevServer(ctx.rootDir, {
+      port: port ?? 3000,
+      host: host ?? "localhost",
+      app: app ?? "",
+      open,
+      strictPort,
+      clearScreen,
+    });
     return devServer.start({ json: ctx.isJson, ci: ctx.isCi });
   }
 }

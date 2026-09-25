@@ -11,11 +11,14 @@ import { ApplicationDiscovery } from "@mosaix/core";
 
 export interface DevServerOptions {
   port?: number;
+  host?: string;
   app?: string;
   json?: boolean;
   ci?: boolean;
   debug?: boolean;
   open?: boolean;
+  strictPort?: boolean;
+  clearScreen?: boolean;
 }
 
 export interface DevServerDiagnostics {
@@ -32,18 +35,27 @@ export interface DevServerDiagnostics {
 export class MosaixDevServer {
   private rootDir: string;
   private port: number;
+  private host: string;
   private activeApp: string | undefined = undefined;
+  private open: boolean;
+  private strictPort: boolean;
+  private clearScreen: boolean;
   private startTime = Date.now();
 
   constructor(rootDir: string = process.cwd(), options: DevServerOptions = {}) {
     this.rootDir = rootDir;
     this.port = options.port ?? 3000;
+    this.host = options.host ?? "localhost";
     this.activeApp = options.app;
+    this.open = options.open ?? false;
+    this.strictPort = options.strictPort ?? false;
+    this.clearScreen = options.clearScreen ?? true;
   }
 
   async start(options: DevServerOptions = {}): Promise<CLIResult> {
     const isJson = options.json ?? false;
     const isCi = options.ci ?? false;
+    if (this.clearScreen && !isJson) console.clear();
 
     const appsDir = path.join(this.rootDir, "apps");
     const pluginsDir = path.join(this.rootDir, "plugins");
@@ -86,24 +98,51 @@ export class MosaixDevServer {
       uptimeSeconds: Math.floor((Date.now() - this.startTime) / 1000),
     };
 
+    const hostDisplay = this.host === "0.0.0.0" ? "localhost" : this.host;
     const summaryText = [
-      "\nMosaiX Dev Server",
-      "────────────────────────────────────────────────────",
-      `Shell URL      http://localhost:${this.port}`,
-      `Diagnostic URL http://localhost:${this.port}/__mosaix`,
-      "\nApplications:",
-      ...apps.map((a) => `  ✓ ${a}`),
-      "\nPlugins:",
-      ...plugins.map((p) => `  ✓ ${p}`),
-      "\nContracts:",
-      `  ✓ ${conformancePassed ? "valid" : "warnings detected"}`,
-      "\nReady in " + ((Date.now() - this.startTime) / 1000).toFixed(2) + "s\n",
+      "\n  MosaiX Dev Server  v1.0.0",
+      "  ────────────────────────────────────────────────────",
+      `  ➜  Shell:   http://${hostDisplay}:${this.port}/`,
+      `  ➜  Network: http://${this.host}:${this.port}/`,
+      `  ➜  Health:  http://${hostDisplay}:${this.port}/health`,
+      `  ➜  Ready:   http://${hostDisplay}:${this.port}/ready`,
+      ...(this.activeApp ? [`  ➜  App:     ${this.activeApp} (filtered)`] : []),
+      "",
+      `  Applications (${apps.length}): ${apps.slice(0, 5).join(", ")}${apps.length > 5 ? "…" : ""}`,
+      `  Plugins (${plugins.length}): ${plugins.slice(0, 3).join(", ") || "none"}`,
+      `  Contracts: ${conformancePassed ? "✓ valid" : "⚠ warnings"}`,
+      `  Strict port: ${this.strictPort ? "yes" : "no (auto-retry)"}`,
+      "",
+      `  Ready in ${((Date.now() - this.startTime) / 1000).toFixed(2)}s`,
+      "",
     ].join("\n");
 
     if (isJson) {
-      console.log(JSON.stringify({ status: "success", message: "MosaiX Dev Server started", data: diagnostics }, null, 2));
+      console.log(JSON.stringify({ status: "success", message: "MosaiX Dev Server started", data: { ...diagnostics, host: this.host } }, null, 2));
     } else {
       console.log(summaryText);
+    }
+
+    // Open browser if requested (Vite parity)
+    if (this.open && !isCi && !isJson) {
+      try {
+        const open = await import("open");
+        await (open.default as unknown as (url: string) => Promise<void>)(`http://${hostDisplay}:${this.port}/`);
+      } catch {
+        // open not available — ignore
+      }
+    }
+
+    // In CLI mode, actually spawn the HTTP host (src/start.ts) unless --help
+    if (!isCi && !isJson && !this.activeApp) {
+      const { spawn } = await import("node:child_process");
+      const child = spawn("npx", ["tsx", "--watch", "src/start.ts"], {
+        stdio: "inherit",
+        env: { ...process.env, APP_PORT: String(this.port), HOST: this.host },
+        shell: true,
+      });
+      // Keep CLI alive while dev server runs
+      await new Promise(() => {}); // never resolves — dev server runs until SIGINT
     }
 
     return {

@@ -211,6 +211,32 @@ export function getShellClientScripts(): string {
             document.documentElement.classList.remove('dark');
           }
         }, 50);
+
+        // HMR — WebSocket live reload + error overlay (Vite parity)
+        (function() {
+          try {
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(proto + '//' + location.host + '/__hmr');
+            ws.onmessage = function(e) {
+              try {
+                const msg = JSON.parse(e.data);
+                if (msg.type === 'reload') {
+                  window.location.reload();
+                } else if (msg.type === 'update') {
+                  window.showToast('HMR: ' + msg.fileChanged, 'info', 2000);
+                  setTimeout(() => window.location.reload(), 300);
+                } else if (msg.type === 'error') {
+                  const overlay = document.createElement('div');
+                  overlay.id = 'hmr-error-overlay';
+                  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.8);color:#fff;padding:20px;overflow:auto;font-family:monospace;font-size:12px;';
+                  overlay.innerHTML = '<div style=\"max-width:800px;margin:40px auto;background:#1e293b;padding:20px;border-radius:12px;border:1px solid #ef4444;\"><h2 style=\"color:#ef4444;margin-bottom:10px;\">HMR Error</h2><pre style=\"white-space:pre-wrap;\">' + (msg.error || 'Unknown') + '</pre><button onclick=\"this.parentElement.parentElement.remove()\" style=\"margin-top:10px;padding:6px 12px;background:#ef4444;color:#fff;border-radius:8px;cursor:pointer;\">Close</button></div>';
+                  document.body.appendChild(overlay);
+                }
+              } catch {}
+            };
+            ws.onerror = function() {};
+          } catch {}
+        })();
       })();
     </script>
   `;

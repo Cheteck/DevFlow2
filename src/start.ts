@@ -458,7 +458,19 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 startServer();
 
-// HMR — watch BAC manifests + theme (no full reboot)
+// HMR — WS + chokidar (Vite parity)
+let wss: any = null;
+if (process.env.NODE_ENV !== "production") {
+  (async () => {
+    try {
+      // @ts-ignore — ws types optional, dev-only
+      const { WebSocketServer } = await import("ws");
+      wss = new WebSocketServer({ server, path: "/__hmr" });
+      wss.on("connection", (ws: any) => ws.send(JSON.stringify({ type: "connected", ts: Date.now() })));
+      console.log("[hmr] WebSocket HMR ready on /__hmr");
+    } catch {}
+  })();
+}
 if (process.env.NODE_ENV !== "production") {
   (async () => {
     try {
@@ -467,6 +479,17 @@ if (process.env.NODE_ENV !== "production") {
       const watcher = chokidar.watch(["apps/*/mosaix.json", "src/shell/theme/**/*", "themes/**/*"], {
         ignoreInitial: true,
       });
+      const broadcast = (payload: unknown) => {
+        if (!wss) return;
+        const data = JSON.stringify(payload);
+        for (const client of wss.clients as Set<any>) {
+          if (client.readyState === 1) {
+            try {
+              client.send(data);
+            } catch {}
+          }
+        }
+      };
       watcher.on("change", async (path: string) => {
         console.log(`[hmr] File changed: ${path}`);
         if (path.includes("mosaix.json")) {
@@ -474,13 +497,15 @@ if (process.env.NODE_ENV !== "production") {
           try {
             await bacOrchestrator.loadDescriptor(bacId);
             console.log(`[hmr] BAC reloaded: ${bacId}`);
-          } catch (e) {
+            broadcast({ type: "update", fileChanged: path, timestamp: Date.now() });
+          } catch (e: any) {
             console.warn(`[hmr] Failed to reload BAC ${bacId}`, e);
+            broadcast({ type: "error", fileChanged: path, error: String(e?.message || e) });
           }
         }
         if (path.includes("theme")) {
-          // Theme change — next request will compile fresh (getResolvedTheme)
           console.log(`[hmr] Theme file changed, next SSR will recompile`);
+          broadcast({ type: "update", fileChanged: path, timestamp: Date.now() });
         }
       });
       console.log("[hmr] Watching BAC manifests & theme for HMR");
