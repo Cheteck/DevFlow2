@@ -269,6 +269,7 @@ export { Money, Timestamp } from "./value-objects";
 export * from "./platform-settings.js";
 export * from "./shell-user-state.js";
 export * from "./shell-entry-policy.js";
+export * from "./request-diagnostics-store.js";
 
 
 

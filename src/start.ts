@@ -17,6 +17,7 @@ import {
   platformSettingsService,
   shellEntryPolicy,
   createGuestSession,
+  requestDiagnosticsStore,
 } from "@mosaix/core";
 import type { ShellUserState } from "@mosaix/core";
 
@@ -136,6 +137,9 @@ const server = http.createServer(async (req, res) => {
   res.on("finish", () => {
     const dur = Number(process.hrtime.bigint() - startHr) / 1e6;
     console.log(`[http] ${reqMethod} ${pathname} ${res.statusCode} ${dur.toFixed(1)}ms`);
+    try {
+      requestDiagnosticsStore.append({ method: reqMethod, path: pathname, status: res.statusCode, dur: `${dur.toFixed(1)}ms` });
+    } catch {}
   });
   // 0. Health / Ready probes (k8s) — avant tout
   if (pathname === "/health") {
