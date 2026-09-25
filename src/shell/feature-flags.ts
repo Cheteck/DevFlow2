@@ -1,10 +1,16 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { MemoryFeatureFlagsAdapter } from "@mosaix/adapter-featureflags-memory";
-import type { FeatureFlagDefinition, FeatureFlagUserContext } from "@mosaix/ports-feature-flags";
+import type {
+  FeatureFlagDefinition,
+  FeatureFlagUserContext,
+} from "@mosaix/ports-feature-flags";
 import { registerFeatureFlagsProvider } from "@mosaix/sdk";
 
-const FEATURE_FLAGS_FILE = path.resolve(process.cwd(), ".mosaix/feature-flags.json");
+const FEATURE_FLAGS_FILE = path.resolve(
+  process.cwd(),
+  ".mosaix/feature-flags.json",
+);
 
 /**
  * Standard platform feature flag catalog with domain tags and descriptions
@@ -26,20 +32,23 @@ export const DEFAULT_PLATFORM_FLAGS: Record<
   // Platform & Core
   "platform.mcp.gateway_enabled": {
     value: true,
-    description: "Active la passerelle MCP pour les intégrations et les outils agents.",
+    description:
+      "Active la passerelle MCP pour les intégrations et les outils agents.",
     category: "platform",
     variationType: "boolean",
   },
   "platform.live_editor.enabled": {
     value: true,
-    description: "Active la barre d'édition de grille et la customisation en direct de l'UI.",
+    description:
+      "Active la barre d'édition de grille et la customisation en direct de l'UI.",
     category: "platform",
     variationType: "boolean",
     rolesAllowlist: ["admin", "super-admin"],
   },
   "platform.experimental_plugins": {
     value: false,
-    description: "Active le chargement des extensions communautaires non certifiées.",
+    description:
+      "Active le chargement des extensions communautaires non certifiées.",
     category: "platform",
     variationType: "boolean",
     rolesAllowlist: ["admin"],
@@ -54,43 +63,50 @@ export const DEFAULT_PLATFORM_FLAGS: Record<
   },
   "apps.solara.enabled": {
     value: true,
-    description: "Active le module Solara (Réseau social, Flux d'actualité & Publications).",
+    description:
+      "Active le module Solara (Réseau social, Flux d'actualité & Publications).",
     category: "apps",
     variationType: "boolean",
   },
   "apps.beam.enabled": {
     value: true,
-    description: "Active le module Beam (Messagerie directe, canaux d'équipe & chat).",
+    description:
+      "Active le module Beam (Messagerie directe, canaux d'équipe & chat).",
     category: "apps",
     variationType: "boolean",
   },
   "apps.commerce.enabled": {
     value: true,
-    description: "Active le module Commerce (Boutique en ligne, paniers & checkout).",
+    description:
+      "Active le module Commerce (Boutique en ligne, paniers & checkout).",
     category: "apps",
     variationType: "boolean",
   },
   "apps.portfolio.enabled": {
     value: true,
-    description: "Active le module Portfolio (Vitrine des réalisations & galeries).",
+    description:
+      "Active le module Portfolio (Vitrine des réalisations & galeries).",
     category: "apps",
     variationType: "boolean",
   },
   "apps.spaces.enabled": {
     value: true,
-    description: "Active le module Espaces (Gestion des espaces collectifs & contextes).",
+    description:
+      "Active le module Espaces (Gestion des espaces collectifs & contextes).",
     category: "apps",
     variationType: "boolean",
   },
   "apps.solidarity.enabled": {
     value: true,
-    description: "Active le module Solidarité (Collecte, entraide & distribution).",
+    description:
+      "Active le module Solidarité (Collecte, entraide & distribution).",
     category: "apps",
     variationType: "boolean",
   },
   "apps.imperia.enabled": {
     value: true,
-    description: "Active le module Imperia (Console de gouvernance & supervision).",
+    description:
+      "Active le module Imperia (Console de gouvernance & supervision).",
     category: "apps",
     variationType: "boolean",
     rolesAllowlist: ["admin", "platform-governor"],
@@ -99,31 +115,36 @@ export const DEFAULT_PLATFORM_FLAGS: Record<
   // Functional Sub-features
   "beam.messaging.group_chats": {
     value: true,
-    description: "Permet la création de conversations de groupe à plusieurs membres dans Beam.",
+    description:
+      "Permet la création de conversations de groupe à plusieurs membres dans Beam.",
     category: "beam",
     variationType: "boolean",
   },
   "solara.posts.showcase_type": {
     value: true,
-    description: "Active les publications de type Showcase / Produit dans le fil Solara.",
+    description:
+      "Active les publications de type Showcase / Produit dans le fil Solara.",
     category: "solara",
     variationType: "boolean",
   },
   "solara.comments.reactions": {
     value: true,
-    description: "Permet les réactions émotionnelles en direct sur les publications.",
+    description:
+      "Permet les réactions émotionnelles en direct sur les publications.",
     category: "solara",
     variationType: "boolean",
   },
   "commerce.checkout.guest_mode": {
     value: false,
-    description: "Permet de finaliser une commande sans compte utilisateur Citadelle.",
+    description:
+      "Permet de finaliser une commande sans compte utilisateur Citadelle.",
     category: "commerce",
     variationType: "boolean",
   },
   "spaces.multi_tenancy.cross_space_sharing": {
     value: true,
-    description: "Autorise le partage de documents et flux entre différents espaces abonnés.",
+    description:
+      "Autorise le partage de documents et flux entre différents espaces abonnés.",
     category: "spaces",
     variationType: "boolean",
   },
@@ -131,13 +152,16 @@ export const DEFAULT_PLATFORM_FLAGS: Record<
 
 export class PersistentFeatureFlagsManager {
   private readonly adapter: MemoryFeatureFlagsAdapter;
-  private readonly flagMetadata = new Map<string, {
-    rolesAllowlist?: string[];
-    usersAllowlist?: string[];
-    tenantsAllowlist?: string[];
-    plansAllowlist?: string[];
-    percentageRollout?: number;
-  }>();
+  private readonly flagMetadata = new Map<
+    string,
+    {
+      rolesAllowlist?: string[];
+      usersAllowlist?: string[];
+      tenantsAllowlist?: string[];
+      plansAllowlist?: string[];
+      percentageRollout?: number;
+    }
+  >();
 
   constructor() {
     this.adapter = new MemoryFeatureFlagsAdapter();
@@ -167,7 +191,15 @@ export class PersistentFeatureFlagsManager {
         const parsed = JSON.parse(raw);
         if (typeof parsed === "object" && parsed !== null) {
           for (const [key, flagRecord] of Object.entries(parsed)) {
-            const record = flagRecord as { value?: boolean | string; description?: string; rolesAllowlist?: string[]; usersAllowlist?: string[]; tenantsAllowlist?: string[]; plansAllowlist?: string[]; percentageRollout?: number };
+            const record = flagRecord as {
+              value?: boolean | string;
+              description?: string;
+              rolesAllowlist?: string[];
+              usersAllowlist?: string[];
+              tenantsAllowlist?: string[];
+              plansAllowlist?: string[];
+              percentageRollout?: number;
+            };
             const val = record?.value !== undefined ? record.value : flagRecord;
             if (val !== undefined) {
               const desc = record?.description;
@@ -186,7 +218,10 @@ export class PersistentFeatureFlagsManager {
         }
       }
     } catch (e) {
-      console.warn("[FeatureFlags] Failed to read .mosaix/feature-flags.json:", e);
+      console.warn(
+        "[FeatureFlags] Failed to read .mosaix/feature-flags.json:",
+        e,
+      );
     }
 
     // 3. Register as global SDK provider
@@ -197,7 +232,11 @@ export class PersistentFeatureFlagsManager {
     return this.adapter;
   }
 
-  public async isEnabled(key: string, context?: FeatureFlagUserContext, defaultValue = false): Promise<boolean> {
+  public async isEnabled(
+    key: string,
+    context?: FeatureFlagUserContext,
+    defaultValue = false,
+  ): Promise<boolean> {
     const baseResult = await this.adapter.isEnabled(key, context, defaultValue);
     if (!baseResult) return false;
 
@@ -215,7 +254,10 @@ export class PersistentFeatureFlagsManager {
 
     // 2. Roles allowlist
     if (meta.rolesAllowlist && meta.rolesAllowlist.length > 0) {
-      if (context.roles && context.roles.some(r => meta.rolesAllowlist!.includes(r))) {
+      if (
+        context.roles &&
+        context.roles.some((r) => meta.rolesAllowlist!.includes(r))
+      ) {
         return true;
       }
       return false;
@@ -223,7 +265,10 @@ export class PersistentFeatureFlagsManager {
 
     // 3. Tenants allowlist
     if (meta.tenantsAllowlist && meta.tenantsAllowlist.length > 0) {
-      if (context.tenantId && meta.tenantsAllowlist.includes(context.tenantId)) {
+      if (
+        context.tenantId &&
+        meta.tenantsAllowlist.includes(context.tenantId)
+      ) {
         return true;
       }
       return false;
@@ -231,7 +276,10 @@ export class PersistentFeatureFlagsManager {
 
     // 4. Subscription Plans allowlist
     if (meta.plansAllowlist && meta.plansAllowlist.length > 0) {
-      const userPlan = (context as unknown as { subscriptionPlan?: string }).subscriptionPlan || (context.custom?.subscriptionPlan as string);
+      const customPlan = context.custom?.subscriptionPlan;
+      const userPlan =
+        context.subscriptionPlan ??
+        (typeof customPlan === "string" ? customPlan : undefined);
       if (userPlan && meta.plansAllowlist.includes(userPlan)) {
         return true;
       }
@@ -239,7 +287,11 @@ export class PersistentFeatureFlagsManager {
     }
 
     // 5. Percentage Rollout
-    if (typeof meta.percentageRollout === "number" && meta.percentageRollout >= 0 && meta.percentageRollout < 100) {
+    if (
+      typeof meta.percentageRollout === "number" &&
+      meta.percentageRollout >= 0 &&
+      meta.percentageRollout < 100
+    ) {
       if (context.userId) {
         let hash = 0;
         for (let i = 0; i < context.userId.length; i++) {
@@ -255,11 +307,11 @@ export class PersistentFeatureFlagsManager {
     return true;
   }
 
-  public isEnabledSync(key: string, defaultValue = true): boolean {
-    const flagsMap = (this.adapter as unknown as { flags: Map<string, { value: boolean | string }> }).flags;
-    const raw = flagsMap?.get(key);
-    if (!raw) return defaultValue;
-    if (typeof raw.value === "boolean") return raw.value;
+  public isEnabledSync(key: string, defaultValue = false): boolean {
+    // Aligned with async isEnabled(): unknown flags default to false (D-05).
+    // Prefer the adapter's sync read over reaching into its internals (T-01).
+    const syncRead = this.adapter.isEnabledSync?.bind(this.adapter);
+    if (typeof syncRead === "function") return syncRead(key, defaultValue);
     return defaultValue;
   }
 
@@ -267,7 +319,11 @@ export class PersistentFeatureFlagsManager {
     return this.adapter.listFlags();
   }
 
-  public async setFlag(key: string, value: boolean | string, description?: string): Promise<void> {
+  public async setFlag(
+    key: string,
+    value: boolean | string,
+    description?: string,
+  ): Promise<void> {
     this.adapter.setFlag(key, value, description);
     await this.saveToDisk();
   }
@@ -295,7 +351,10 @@ export class PersistentFeatureFlagsManager {
       }
 
       const flags = await this.adapter.listFlags();
-      const record: Record<string, { value: boolean | string; description?: string; category?: string }> = {};
+      const record: Record<
+        string,
+        { value: boolean | string; description?: string; category?: string }
+      > = {};
       for (const f of flags) {
         record[f.key] = {
           value: f.defaultValue,
@@ -303,7 +362,11 @@ export class PersistentFeatureFlagsManager {
           category: f.category,
         };
       }
-      fs.writeFileSync(FEATURE_FLAGS_FILE, JSON.stringify(record, null, 2), "utf-8");
+      fs.writeFileSync(
+        FEATURE_FLAGS_FILE,
+        JSON.stringify(record, null, 2),
+        "utf-8",
+      );
     } catch (e) {
       console.error("[FeatureFlags] Failed to persist flags to disk:", e);
     } finally {

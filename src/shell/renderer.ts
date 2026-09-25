@@ -325,7 +325,7 @@ export function renderSecondarySidebar(
             ${section.items
               .map(
                 (item) => `
-              <button onclick="switchAdminTab('${item.id}')" id="sidebar-tab-${item.id}" data-search="${escapeHtml(item.searchKeywords)}" class="admin-tab-btn sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 transition-all duration-200 group text-xs font-medium w-full text-left cursor-pointer border border-transparent">
+              <button onclick="switchAdminTab('${escapeHtml(item.id)}')" id="sidebar-tab-${item.id}" data-search="${escapeHtml(item.searchKeywords)}" class="admin-tab-btn sidebar-nav-item flex items-center justify-between px-3 py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 hover:translate-x-0.5 transition-all duration-200 group text-xs font-medium w-full text-left cursor-pointer border border-transparent">
                 <div class="flex items-center gap-2.5 truncate">
                   <span class="material-symbols-outlined text-base text-primary/80 group-hover:scale-110 transition-transform">${escapeHtml(item.icon)}</span>
                   <span class="truncate">${escapeHtml(item.label)}</span>
@@ -626,7 +626,7 @@ export function renderUserSwitcherWidget(
                 .map((space) => {
                   const isCurrent = activeSpace && activeSpace.id === space.id;
                   return `
-                  <button onclick="switchActiveSpace('${space.id}')" class="w-full flex items-center justify-between p-1.5 rounded-lg hover:bg-surface-variant/40 transition text-left cursor-pointer ${isCurrent ? "bg-emerald-500/10 border border-emerald-500/20" : ""}">
+                  <button onclick="switchActiveSpace('${escapeHtml(space.id)}')" class="w-full flex items-center justify-between p-1.5 rounded-lg hover:bg-surface-variant/40 transition text-left cursor-pointer ${isCurrent ? "bg-emerald-500/10 border border-emerald-500/20" : ""}">
                     <div class="flex items-center gap-2 min-w-0">
                       <span class="text-xs">${space.avatar}</span>
                       <div class="min-w-0">
@@ -688,7 +688,7 @@ export function renderUserSwitcherWidget(
               .map((profile) => {
                 const isSelected = profile.role === user.role && !activeSpace;
                 return `
-                <button onclick="switchUserRole('${profile.role}')" class="w-full flex items-center justify-between p-2 rounded-xl hover:bg-surface-variant/40 transition text-left cursor-pointer ${isSelected ? "bg-primary/10 border border-primary/20" : ""}">
+                <button onclick="switchUserRole('${escapeHtml(profile.role)}')" class="w-full flex items-center justify-between p-2 rounded-xl hover:bg-surface-variant/40 transition text-left cursor-pointer ${isSelected ? "bg-primary/10 border border-primary/20" : ""}">
                   <div class="flex items-center gap-2.5 min-w-0">
                     <span class="text-sm shrink-0">${profile.avatar}</span>
                     <div class="min-w-0">
@@ -851,9 +851,6 @@ export function renderMobileDrawer(
   `;
 }
 
-// -----------------------------------------------------------------------------
-// MOBILE BOTTOM NAVIGATION BAR (FIXED BOTTOM BAR)
-// -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 // MOBILE BOTTOM NAVIGATION BAR (FIXED BOTTOM BAR WITH 5 CANONICAL ACTIONS)
 // -----------------------------------------------------------------------------
@@ -1220,7 +1217,7 @@ export function renderCommandPaletteModal(): string {
             ${Object.values(USER_PROFILES)
               .map(
                 (profile) => `
-              <button onclick="switchUserRole('${profile.role}'); closeCommandPalette();" class="cmd-item w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-primary/10 transition group text-xs font-semibold text-on-surface text-left">
+              <button onclick="switchUserRole('${escapeHtml(profile.role)}'); closeCommandPalette();" class="cmd-item w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-primary/10 transition group text-xs font-semibold text-on-surface text-left">
                 <div class="flex items-center gap-3">
                   <span class="text-base">${profile.avatar}</span>
                   <div>

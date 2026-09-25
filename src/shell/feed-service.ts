@@ -28,7 +28,11 @@ export interface PaginatedFeedResponse {
 export class FeedService {
   constructor(private readonly db: SQLiteDatabaseAdapter) {}
 
-  async addItem(item: Omit<ShellFeedItem, "id" | "timestamp" | "likes"> & { likes?: number }): Promise<ShellFeedItem> {
+  async addItem(
+    item: Omit<ShellFeedItem, "id" | "timestamp" | "likes"> & {
+      likes?: number;
+    },
+  ): Promise<ShellFeedItem> {
     const fullItem: ShellFeedItem = {
       id: `feed_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       timestamp: Date.now(),
@@ -50,17 +54,19 @@ export class FeedService {
         fullItem.likes,
         fullItem.timestamp,
         fullItem.spaceId ?? null,
-      ]
+      ],
     );
 
     return fullItem;
   }
 
-  async getFeed(options: {
-    category?: string;
-    limit?: number;
-    cursor?: number; // timestamp cursor for keyset pagination
-  } = {}): Promise<PaginatedFeedResponse> {
+  async getFeed(
+    options: {
+      category?: string;
+      limit?: number;
+      cursor?: number; // timestamp cursor for keyset pagination
+    } = {},
+  ): Promise<PaginatedFeedResponse> {
     const limit = Math.min(Math.max(options.limit || 20, 1), 100);
     const params: unknown[] = [];
     let sql = `SELECT id, type, author, title, content, category, tags, likes, timestamp, space_id as spaceId FROM shell_feed`;
@@ -100,7 +106,8 @@ export class FeedService {
       spaceId: r.spaceId ? String(r.spaceId) : undefined,
     }));
 
-    const nextCursor = items.length > 0 && hasMore ? items[items.length - 1].timestamp : null;
+    const nextCursor =
+      items.length > 0 && hasMore ? items[items.length - 1].timestamp : null;
 
     return {
       items,
@@ -110,7 +117,9 @@ export class FeedService {
   }
 
   async seedInitialFeedIfEmpty(): Promise<void> {
-    const countResult = await this.db.query<{ count: number }>(`SELECT count(*) as count FROM shell_feed`);
+    const countResult = await this.db.query<{ count: number }>(
+      `SELECT count(*) as count FROM shell_feed`,
+    );
     if (countResult && countResult[0] && Number(countResult[0].count) > 0) {
       return;
     }
@@ -120,7 +129,8 @@ export class FeedService {
         type: "post",
         author: "Camille Dupont (Citadelle)",
         title: "Bienvenue sur l'infrastructure MosaiX IJIDeals",
-        content: "L'écosystème modulaire Bounded Application Components (BAC) est en ligne avec 9 contextes intégrés.",
+        content:
+          "L'écosystème modulaire Bounded Application Components (BAC) est en ligne avec 9 contextes intégrés.",
         category: "general",
         tags: ["welcome", "mosaix"],
         likes: 12,
@@ -129,7 +139,8 @@ export class FeedService {
         type: "product",
         author: "Boutique Solidaire (Portfolio)",
         title: "Panier Maraîcher Bio de Saison",
-        content: "Nouveau lot de produits locaux disponibles à la réservation immédiate via Commerce & Booking.",
+        content:
+          "Nouveau lot de produits locaux disponibles à la réservation immédiate via Commerce & Booking.",
         category: "commerce",
         tags: ["bio", "local"],
         likes: 8,
@@ -138,7 +149,8 @@ export class FeedService {
         type: "event",
         author: "Collectif Solidarité",
         title: "Atelier Réparation & Échange de Compétences",
-        content: "Rendez-vous samedi à 14h dans l'espace communautaire. Inscription sans frais.",
+        content:
+          "Rendez-vous samedi à 14h dans l'espace communautaire. Inscription sans frais.",
         category: "solidarity",
         tags: ["entraide", "atelier"],
         likes: 19,
@@ -153,4 +165,9 @@ export class FeedService {
 
 const { dbAdapter } = initDatabase();
 export const feedService = new FeedService(dbAdapter);
-feedService.seedInitialFeedIfEmpty().catch(() => {});
+feedService.seedInitialFeedIfEmpty().catch((err: unknown) => {
+  console.error(
+    "[FeedService] Initial seed failed:",
+    err instanceof Error ? err.message : err,
+  );
+});

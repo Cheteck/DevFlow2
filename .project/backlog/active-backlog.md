@@ -280,3 +280,11 @@ Constat : `solara-view.ts:10` branché (`/`) via `bac-orchestrator.ts:35`, `book
 - **VIEW-SUBSCRIPTION [ENGINE]** — Moteur sans homepage autonome : retirer de la nav (`discovery.ts:81` `featureFlag` off / filtre `kind==="engine"`), exposer plans/factures via Imperia en capability. Fichiers : `apps/subscription/src/presentation/` (pages admin) + suppression nav. Critère : `/subscription` absent de la sidebar, accessible via Imperia.
 
 > Ordre recommandé : VIEW-BEAM + VIEW-COMMERCE (P0, usage quotidien) → VIEW-PORTFOLIO + VIEW-SPACES (P1) → VIEW-CITADELLE + VIEW-SOLIDARITY (P1) → VIEW-IMPERIA + VIEW-SUBSCRIPTION (P2).
+
+---
+
+## 10. Audit shell 2026-09-25 — restes à planifier (constat 2026-09-26)
+
+- **AUTH-REAL [SHELL/SECURITY]** — Remplacer le cookie démo `mosaix_role` (non signé) par une vraie session : login Citadelle (scrypt, `identities` table) → JWT HttpOnly/Secure/SameSite → résolution `currentUser` depuis le token vérifié (pas le cookie brut). Inclut rotation `MOSAIX_AUTH_PREVIOUS_SECRETS` déjà supportée par `JwtService`. Fichiers : `src/server/routes/` (nouveau `session-routes.ts`), `src/start.ts:152` (résolution), `src/shell/profiles.ts` (mapper JWT→UserProfile). Critère : `mosaix_role=admin` forgé ne donne plus aucun droit ; `isDemoMode()` devient OPT-IN explicite même en dev. Criticité 🔴 — bloque toute mise en production réelle.
+- **RENDERER-SPLIT [SHELL]** — Découper `src/shell/renderer.ts` (~1550L) en modules : `shell/render/{sidebar,user-menu,mobile,modals,inspector}.ts` + baril ré-exportant (contrats d'import inchangés). Pré-requis : verrouiller d'abord le rendu via tests snapshot (aucun test renderer aujourd'hui). Fichiers : `src/shell/renderer.ts`. Critère : même HTML servi (diff snapshot vide), `pnpm test` vert, aucun fichier > 400L. Criticité 🟡.
+- **PALETTE-INSPECTOR-WIRING [SHELL]** — Implémenter `openCommandPalette/closeCommandPalette/closeDevInspector` manquants (bouton ⌘K et appels existants jettent `ReferenceError`). Réutiliser `setOverlayOpen()` de `shell-client-scripts.ts`. Fichiers : `src/shell/client/shell-client-scripts.ts`. Critère : ⌘K ouvre la palette, Échap la ferme, plus d'erreur console. Criticité 🟡.

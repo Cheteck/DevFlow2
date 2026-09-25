@@ -42,7 +42,7 @@ export function renderHomePage(opts: HomePageOptions): string {
   } = opts;
 
   return `<!DOCTYPE html>
-<html class="${activeMode === 'dark' ? 'dark' : activeMode === 'high-contrast' ? 'high-contrast' : ''}" lang="fr" data-theme-mode="${activeMode}">
+<html class="${activeMode === "dark" ? "dark" : activeMode === "high-contrast" ? "high-contrast" : ""}" lang="fr" data-theme-mode="${activeMode}">
 ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode), sharedStyles)}
   ${getShellClientScripts()}
 </head>
@@ -107,9 +107,9 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
 
           <!-- Dynamic Theme Toggle -->
           <div class="hidden lg:flex items-center gap-0.5 bg-surface-container-low border border-outline-variant/20 p-0.5 rounded-xl text-xs">
-            <button onclick="setTheme('light')" class="px-2 py-1 rounded-lg transition ${activeMode === 'light' ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-variant/30'}" title="Thème Clair">Light</button>
-            <button onclick="setTheme('dark')" class="px-2 py-1 rounded-lg transition ${activeMode === 'dark' ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-variant/30'}" title="Thème Sombre">Dark</button>
-            <button onclick="setTheme('high-contrast')" class="px-2 py-1 rounded-lg transition ${activeMode === 'high-contrast' ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-variant/30'}" title="Contraste Élevé">Contrast</button>
+            <button onclick="setTheme('light')" class="px-2 py-1 rounded-lg transition ${activeMode === "light" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Clair">Light</button>
+            <button onclick="setTheme('dark')" class="px-2 py-1 rounded-lg transition ${activeMode === "dark" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Sombre">Dark</button>
+            <button onclick="setTheme('high-contrast')" class="px-2 py-1 rounded-lg transition ${activeMode === "high-contrast" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Contraste Élevé">Contrast</button>
           </div>
 
           <div class="hidden lg:block h-5 w-px bg-outline-variant/20"></div>
@@ -290,7 +290,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
                 </div>
 
                 <div class="flex items-center justify-between pt-2 border-t border-outline-variant/10 text-xs text-on-surface-variant">
-                  <button onclick="likePost('${post.id}')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-surface-variant/30 hover:text-rose-400 transition cursor-pointer">
+                  <button onclick="likePost('${escapeHtml(post.id)}')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-surface-variant/30 hover:text-rose-400 transition cursor-pointer">
                     <span class="material-symbols-outlined text-sm">favorite</span>
                     <span class="text-[11px] font-semibold" id="likes-${post.id}">${post.likes}</span>
                   </button>
@@ -306,7 +306,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
                   </button>
                 </div>
               </div>
-            `
+            `,
               )
               .join("")}
           </div>

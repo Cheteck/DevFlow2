@@ -15,13 +15,22 @@ export type BackplaneListener = (message: DistributedEventMessage) => void;
 
 export interface ClusterTransportAdapter {
   publish(topic: string, message: DistributedEventMessage): Promise<void>;
-  subscribe(topic: string, onMessage: (message: DistributedEventMessage) => void): Promise<() => void>;
+  subscribe(
+    topic: string,
+    onMessage: (message: DistributedEventMessage) => void,
+  ): Promise<() => void>;
   close?(): Promise<void>;
 }
 
 export class DistributedEventBackplane {
   private static instance: DistributedEventBackplane;
-  private nodeId = `node_${Math.random().toString(36).substring(2, 9)}`;
+  // Stable across restarts when set (D-04): HOSTNAME in containers,
+  // MOSAIX_NODE_ID for explicit topologies, random suffix otherwise.
+  private nodeId =
+    process.env.MOSAIX_NODE_ID ||
+    (typeof process !== "undefined" && process.env.HOSTNAME
+      ? `node_${process.env.HOSTNAME}`
+      : `node_${Math.random().toString(36).substring(2, 9)}`);
   private listeners = new Map<string, Set<BackplaneListener>>();
   private sseClients = new Set<(event: string, data: string) => void>();
   private clusterAdapter?: ClusterTransportAdapter;
@@ -35,7 +44,9 @@ export class DistributedEventBackplane {
 
   setClusterAdapter(adapter: ClusterTransportAdapter): void {
     this.clusterAdapter = adapter;
-    console.info(`[EventBackplane] Cluster transport adapter attached for node ${this.nodeId}`);
+    console.info(
+      `[EventBackplane] Cluster transport adapter attached for node ${this.nodeId}`,
+    );
   }
 
   getNodeId(): string {
@@ -56,8 +67,11 @@ export class DistributedEventBackplane {
 
     // 2. Relay to external cluster transport if configured (Redis / NATS)
     if (this.clusterAdapter) {
-      this.clusterAdapter.publish(topic, message).catch(err => {
-        console.error(`[EventBackplane] Cluster publication error on [${topic}]:`, err);
+      this.clusterAdapter.publish(topic, message).catch((err) => {
+        console.error(
+          `[EventBackplane] Cluster publication error on [${topic}]:`,
+          err,
+        );
       });
     }
 
@@ -81,7 +95,10 @@ export class DistributedEventBackplane {
         try {
           listener(message);
         } catch (err) {
-          console.error(`[EventBackplane] Error in topic listener [${message.topic}]:`, err);
+          console.error(
+            `[EventBackplane] Error in topic listener [${message.topic}]:`,
+            err,
+          );
         }
       }
     }
@@ -109,4 +126,5 @@ export class DistributedEventBackplane {
   }
 }
 
-export const distributedEventBackplane = DistributedEventBackplane.getInstance();
+export const distributedEventBackplane =
+  DistributedEventBackplane.getInstance();

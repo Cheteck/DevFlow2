@@ -27,8 +27,12 @@ export class MemoryFeatureFlagsAdapter implements FeatureFlagsPort {
   private readonly flags = new Map<string, MemoryFeatureFlagRecord>();
   private readonly auditLogs: FeatureFlagAuditRecord[] = [];
 
-
-  constructor(initialFlags?: Record<string, string | boolean | Partial<MemoryFeatureFlagRecord>>) {
+  constructor(
+    initialFlags?: Record<
+      string,
+      string | boolean | Partial<MemoryFeatureFlagRecord>
+    >,
+  ) {
     // 1. Seed from central FEATURE_FLAG_CATALOG
     for (const [key, def] of Object.entries(FEATURE_FLAG_CATALOG)) {
       this.flags.set(key, {
@@ -71,13 +75,19 @@ export class MemoryFeatureFlagsAdapter implements FeatureFlagsPort {
 
     // Evaluate context restrictions if present
     if (record.rolesAllowlist && record.rolesAllowlist.length > 0) {
-      if (!context?.roles || !context.roles.some((r) => record.rolesAllowlist!.includes(r))) {
+      if (
+        !context?.roles ||
+        !context.roles.some((r) => record.rolesAllowlist!.includes(r))
+      ) {
         return false;
       }
     }
 
     if (record.tenantAllowlist && record.tenantAllowlist.length > 0) {
-      if (!context?.tenantId || !record.tenantAllowlist.includes(context.tenantId)) {
+      if (
+        !context?.tenantId ||
+        !record.tenantAllowlist.includes(context.tenantId)
+      ) {
         return false;
       }
     }
@@ -95,7 +105,10 @@ export class MemoryFeatureFlagsAdapter implements FeatureFlagsPort {
     if (!record) return defaultValue;
 
     if (record.rolesAllowlist && record.rolesAllowlist.length > 0) {
-      if (!context?.roles || !context.roles.some((r) => record.rolesAllowlist!.includes(r))) {
+      if (
+        !context?.roles ||
+        !context.roles.some((r) => record.rolesAllowlist!.includes(r))
+      ) {
         return defaultValue;
       }
     }
@@ -108,7 +121,11 @@ export class MemoryFeatureFlagsAdapter implements FeatureFlagsPort {
     flagKey: string,
     value: string | boolean,
     description?: string,
-    options?: { category?: string; rolesAllowlist?: string[]; tenantAllowlist?: string[] },
+    options?: {
+      category?: string;
+      rolesAllowlist?: string[];
+      tenantAllowlist?: string[];
+    },
   ): void {
     const existing = this.flags.get(flagKey);
     this.auditLogs.push({
@@ -121,8 +138,13 @@ export class MemoryFeatureFlagsAdapter implements FeatureFlagsPort {
     this.flags.set(flagKey, {
       key: flagKey,
       value,
-      description: description ?? existing?.description ?? `Feature flag ${flagKey}`,
-      category: options?.category ?? existing?.category ?? flagKey.split(".")[0] ?? "general",
+      description:
+        description ?? existing?.description ?? `Feature flag ${flagKey}`,
+      category:
+        options?.category ??
+        existing?.category ??
+        flagKey.split(".")[0] ??
+        "general",
       variationType: typeof value === "boolean" ? "boolean" : "string",
       rolesAllowlist: options?.rolesAllowlist ?? existing?.rolesAllowlist,
       tenantAllowlist: options?.tenantAllowlist ?? existing?.tenantAllowlist,
@@ -133,6 +155,16 @@ export class MemoryFeatureFlagsAdapter implements FeatureFlagsPort {
     return this.auditLogs;
   }
 
+  /**
+   * Synchronous boolean read for SSR render paths. Only meaningful for
+   * in-memory adapters — remote providers should not implement this.
+   */
+  isEnabledSync(flagKey: string, defaultValue = false): boolean {
+    const record = this.flags.get(flagKey);
+    if (!record) return defaultValue;
+    if (typeof record.value === "boolean") return record.value;
+    return defaultValue;
+  }
 
   async listFlags(): Promise<FeatureFlagDefinition[]> {
     return Array.from(this.flags.values()).map((f) => ({

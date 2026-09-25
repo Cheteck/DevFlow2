@@ -3,15 +3,11 @@
  */
 
 import { ssrFragmentCache } from "./ssr-cache.js";
+import { escapeHtml } from "@mosaix/support";
 
-export function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+// Single canonical escapeHtml lives in @mosaix/support (A-03).
+// This module re-exports it so existing deep imports keep working.
+export { escapeHtml };
 
 export interface RenderShellOptions {
   pageTitle: string;
@@ -29,9 +25,16 @@ export interface RenderShellOptions {
 /**
  * Renders HTML head block with LRU fragment caching.
  */
-export function renderHeadBlock(pageTitle: string, activeThemeMode: string, themeStyleTagHtml: string, sharedStylesHtml: string): string {
+export function renderHeadBlock(
+  pageTitle: string,
+  activeThemeMode: string,
+  themeStyleTagHtml: string,
+  sharedStylesHtml: string,
+): string {
   const cacheKey = `head:${pageTitle}:${activeThemeMode}`;
-  return ssrFragmentCache.getOrCompute(cacheKey, () => `
+  return ssrFragmentCache.getOrCompute(
+    cacheKey,
+    () => `
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
@@ -98,7 +101,9 @@ export function renderHeadBlock(pageTitle: string, activeThemeMode: string, them
         }
       </style>
     </head>
-  `, 60_000);
+  `,
+    60_000,
+  );
 }
 
 /**

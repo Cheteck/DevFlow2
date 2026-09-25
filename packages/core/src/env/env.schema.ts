@@ -71,6 +71,11 @@ export const baseEnvSchema = z
       .union([z.string(), z.boolean()])
       .transform((v) => v === true || String(v).toLowerCase() === "true")
       .optional(),
+    // Canonical alias, same meaning as TRUST_PROXY.
+    MOSAIX_TRUST_PROXY: z
+      .union([z.string(), z.boolean()])
+      .transform((v) => v === true || String(v).toLowerCase() === "true")
+      .optional(),
     ALLOW_IN_MEMORY_IN_PRODUCTION: z
       .union([z.string(), z.boolean()])
       .transform((v) => v === true || String(v).toLowerCase() === "true")
