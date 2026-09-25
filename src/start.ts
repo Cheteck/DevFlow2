@@ -18,8 +18,16 @@ import {
 
 // Shell services & state
 import { apps } from "./shell/discovery.js";
-import { bacRegistry } from "./generated-bac-registry.js";
-import { USER_PROFILES, type UserProfile } from "./shell/profiles.js";
+import { DynamicBacRegistry } from "./shell/dynamic-bac-registry.js";
+import {
+  getActiveUserProfile,
+  getActiveSpaceProfile,
+  type UserProfile,
+} from "./shell/profiles.js";
+import {
+  standardRateLimiter,
+  strictRateLimiter,
+} from "./shell/rate-limiter.js";
 import { feedService } from "./shell/feed-service.js";
 import { distributedEventBackplane } from "./shell/event-backplane.js";
 import { anonymizationOrchestrator } from "./shell/anonymization-orchestrator.js";
@@ -47,7 +55,25 @@ SecurityGuard.enforceProductionConstraints();
 const bootEnv = validateEnv(process.env as Record<string, string | undefined>);
 
 const PORT = bootEnv.resolvedPort;
-let activeMode: ThemeMode = "dark";
+
+// Static MIME types (module-level: never rebuilt per request).
+const STATIC_MIME_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".css": "text/css",
+  ".js": "application/javascript",
+  ".json": "application/json",
+};
+
+// API routes with sensitive side effects get the strict bucket.
+const STRICT_RATE_LIMIT_PREFIXES = [
+  "/api/user/switch",
+  "/api/user/gdpr",
+  "/api/auth",
+  "/api/psp",
+  "/api/login",
+];
 
 // Composition Overrides Store initialization
 const compositionOverrideManager = new CompositionOverrideManager();
@@ -67,10 +93,10 @@ function getSharedStyles(mode: ThemeMode): string {
       color: var(--on-surface);
     }
     .glass-card {
-      background: rgba(26, 28, 44, 0.7);
+      background: ${mode === "light" ? "rgba(255, 255, 255, 0.7)" : "rgba(26, 28, 44, 0.7)"};
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid ${mode === "light" ? "rgba(15, 23, 42, 0.08)" : "rgba(255, 255, 255, 0.08)"};
     }
     .sidebar-collapsed .secondary-sidebar {
       display: none !important;
@@ -81,14 +107,15 @@ function getSharedStyles(mode: ThemeMode): string {
   `;
 }
 
-function parseCookies(header?: string): Record<string, string> {
-  if (!header) return {};
-  return Object.fromEntries(
-    header.split(";").map((c) => {
-      const [k, ...v] = c.trim().split("=");
-      return [k, decodeURIComponent(v.join("="))];
-    })
-  );
+function headersToRecord(
+  headers: http.IncomingHttpHeaders,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (typeof value === "string") out[key] = value;
+    else if (Array.isArray(value)) out[key] = value.join(", ");
+  }
+  return out;
 }
 
 const server = http.createServer(async (req, res) => {
@@ -99,96 +126,197 @@ const server = http.createServer(async (req, res) => {
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("X-XSS-Protection", "1; mode=block");
 
-    const parsedUrl = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+    const parsedUrl = new URL(
+      req.url || "/",
+      `http://${req.headers.host || "localhost"}`,
+    );
     const pathname = parsedUrl.pathname;
 
-  // 1. Static Assets Delivery (/public/)
-  if (pathname.startsWith("/public/")) {
-    const publicDir = path.resolve(process.cwd(), "public");
-    const safePath = path.resolve(process.cwd(), "." + pathname);
-    if (!safePath.startsWith(publicDir)) {
-      res.writeHead(403, { "Content-Type": "text/plain" });
-      res.end("Forbidden");
+    // 1b. Rate limiting on API routes (S-04). Static assets are exempt.
+    // Sensitive endpoints get the strict bucket (15 burst, 2/s refill).
+    if (pathname.startsWith("/api/")) {
+      const strict = STRICT_RATE_LIMIT_PREFIXES.some((prefix) =>
+        pathname.startsWith(prefix),
+      );
+      const allow = (
+        strict ? strictRateLimiter : standardRateLimiter
+      ).middleware(pathname);
+      if (!allow(req, res)) return;
+    }
+
+    // 1. Static Assets Delivery (/public/)
+    if (pathname.startsWith("/public/")) {
+      const publicDir = path.resolve(process.cwd(), "public");
+      const safePath = path.resolve(process.cwd(), "." + pathname);
+      if (!safePath.startsWith(publicDir)) {
+        res.writeHead(403, { "Content-Type": "text/plain" });
+        res.end("Forbidden");
+        return;
+      }
+      if (fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
+        const ext = path.extname(safePath).toLowerCase();
+        res.writeHead(200, {
+          "Content-Type": STATIC_MIME_TYPES[ext] || "application/octet-stream",
+        });
+        fs.createReadStream(safePath).pipe(res);
+        return;
+      }
+    }
+
+    // 2. Resolve User, Active Space & Theme Mode context (VULN-01: default unauthenticated role is member)
+    // Single source of truth: profiles.ts (S-01/A-01). The role cookie is a
+    // demo credential — never a trust boundary; production gates live in
+    // SecurityGuard + isDemoMode().
+    const currentUser: UserProfile = getActiveUserProfile(req, parsedUrl);
+    const activeSpaceProfile = getActiveSpaceProfile(req, parsedUrl);
+    const currentSpace = activeSpaceProfile ? activeSpaceProfile.id : null;
+    const themeCookie = (req.headers.cookie || "").match(
+      /mosaix_theme_mode=([a-z-]+)/,
+    );
+    const requestedTheme = themeCookie ? themeCookie[1] : "";
+    const currentThemeMode: ThemeMode =
+      requestedTheme === "light" ||
+      requestedTheme === "high-contrast" ||
+      requestedTheme === "system"
+        ? requestedTheme
+        : "dark";
+    const sharedStyles = getSharedStyles(currentThemeMode);
+
+    // 3. Platform Maintenance Gate Middleware (FEAT-01)
+    if (
+      handleMaintenanceGate(
+        req,
+        res,
+        pathname,
+        currentUser.role,
+        currentThemeMode,
+        sharedStyles,
+      )
+    ) {
       return;
     }
-    if (fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
-      const ext = path.extname(safePath).toLowerCase();
-      const mimeMap: Record<string, string> = {
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".svg": "image/svg+xml",
-        ".css": "text/css",
-        ".js": "application/javascript",
-        ".json": "application/json",
-      };
-      res.writeHead(200, { "Content-Type": mimeMap[ext] || "application/octet-stream" });
-      fs.createReadStream(safePath).pipe(res);
+
+    // 4. API Request Dispatcher (Theme, User, Flags, Compositions, Auth, Feed, GDPR, SSE)
+    const isApiHandled = await dispatchApiRequest(req, res, parsedUrl, {
+      activeMode: currentThemeMode,
+      currentUser,
+      compositionOverrideManager,
+      feedService,
+      eventBackplane: distributedEventBackplane,
+      anonymizationOrchestrator,
+    });
+    if (isApiHandled) {
       return;
     }
-  }
 
-  // 2. Resolve User, Active Space & Theme Mode context (VULN-01: default unauthenticated role is member)
-  const cookies = parseCookies(req.headers.cookie);
-  const activeRole = cookies["mosaix_role"] || "member";
-  const currentUser: UserProfile = USER_PROFILES[activeRole] || USER_PROFILES["member"];
-  const currentSpace = cookies["mosaix_active_space"] || null;
-  const currentThemeMode: ThemeMode = (cookies["mosaix_theme_mode"] as ThemeMode) || activeMode || "dark";
-  const sharedStyles = getSharedStyles(currentThemeMode);
+    // 5. BAC Workspace Views Routing
+    const matchedApp = apps.find(
+      (app) => pathname === app.route || pathname.startsWith(app.route + "/"),
+    );
 
-  // 3. Platform Maintenance Gate Middleware (FEAT-01)
-  if (handleMaintenanceGate(req, res, pathname, currentUser.role, currentThemeMode, sharedStyles)) {
-    return;
-  }
+    if (matchedApp) {
+      const cleanAppId = matchedApp.id.replace(/^@apps\//, "");
+      const isAllowed =
+        currentUser.allowedBacs.includes("*") ||
+        currentUser.allowedBacs.includes(matchedApp.id) ||
+        currentUser.allowedBacs.includes(cleanAppId) ||
+        (cleanAppId === "citadelle" &&
+          currentUser.allowedBacs.includes("identity")) ||
+        (cleanAppId === "identity" &&
+          currentUser.allowedBacs.includes("citadelle"));
 
-  // 4. API Request Dispatcher (Theme, User, Flags, Compositions, Auth, Feed, GDPR, SSE)
-  const isApiHandled = await dispatchApiRequest(req, res, parsedUrl, {
-    activeMode: currentThemeMode,
-    setActiveMode: (mode) => {
-      activeMode = mode;
-    },
-    currentUser,
-    compositionOverrideManager,
-    feedService,
-    eventBackplane: distributedEventBackplane,
-    anonymizationOrchestrator,
-  });
-  if (isApiHandled) {
-    return;
-  }
-
-  // 5. BAC Workspace Views Routing
-  const matchedApp = apps.find(
-    (app) => pathname === app.route || pathname.startsWith(app.route + "/")
-  );
-
-  if (matchedApp) {
-    const cleanAppId = matchedApp.id.replace(/^@apps\//, "");
-    const isAllowed =
-      currentUser.allowedBacs.includes("*") ||
-      currentUser.allowedBacs.includes(matchedApp.id) ||
-      currentUser.allowedBacs.includes(cleanAppId) ||
-      (cleanAppId === "citadelle" && currentUser.allowedBacs.includes("identity")) ||
-      (cleanAppId === "identity" && currentUser.allowedBacs.includes("citadelle"));
-
-    if (!isAllowed) {
-      res.writeHead(403, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(`
+      if (!isAllowed) {
+        res.writeHead(403, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(`
         <div style="font-family:sans-serif; text-align:center; padding:50px;">
           <h2 style="color:#ef4444;">Accès non autorisé</h2>
           <p>Votre profil (${escapeHtml(currentUser.roleLabel)}) n'a pas accès au module <strong>${escapeHtml(matchedApp.name)}</strong>.</p>
           <a href="/" style="color:#6366f1;">&larr; Retour à l'accueil</a>
         </div>
       `);
+        return;
+      }
+
+      // Live read (D-01): never cache the plugin registry across requests.
+      const bacEntry = DynamicBacRegistry.getAll().find(
+        (b) => b.id === matchedApp.id,
+      );
+      const appContributions = bacEntry ? bacEntry.contributions : [];
+
+      let renderedContent: string;
+      // loadDescriptor lazy-loads + caches; getDescriptor is the sync
+      // re-read fallback (T-05: same contract, no I/O).
+      const descriptor =
+        (await bacOrchestrator.loadDescriptor(matchedApp.id)) ||
+        bacOrchestrator.getDescriptor(matchedApp.id);
+
+      if (descriptor) {
+        const executionContext: BacExecutionContext = {
+          tenantId: "default",
+          spaceId: currentSpace,
+          user: {
+            id: currentUser.id,
+            roles: [currentUser.role],
+            permissions: currentUser.permissions,
+          },
+          theme: {
+            mode: currentThemeMode,
+          },
+          request: {
+            path: pathname,
+            query: Object.fromEntries(parsedUrl.searchParams.entries()),
+            headers: headersToRecord(req.headers),
+          },
+        };
+        try {
+          const renderResult = await descriptor.render(executionContext);
+          renderedContent = renderResult.contentHtml;
+        } catch (err) {
+          renderedContent = `<div class="p-6 text-rose-400">Erreur d'exécution du descripteur: ${escapeHtml(String(err))}</div>`;
+        }
+      } else if (typeof matchedApp.renderView === "function") {
+        try {
+          renderedContent = matchedApp.renderView(pathname);
+        } catch (err) {
+          renderedContent = `<div class="p-6 text-rose-400">Erreur d'exécution: ${escapeHtml(String(err))}</div>`;
+        }
+      } else {
+        renderedContent = renderBacAdminSafely(matchedApp.id, appContributions);
+      }
+
+      const html = renderBacPage({
+        activeMode: currentThemeMode,
+        sharedStyles,
+        themeStyle: renderThemeStyleTag(currentThemeMode),
+        matchedApp,
+        currentUser,
+        currentSpace,
+        renderedContent,
+        contributionsCount: appContributions.length,
+        requestUrl: req.url,
+      });
+
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(html);
       return;
     }
 
-    const bacEntry = bacRegistry.find((b) => b.id === matchedApp.id);
-    const appContributions = bacEntry ? bacEntry.contributions : [];
+    // 6. Dynamic Default BAC Resolution & Workspace Root Routing
+    const platformSettings = await platformSettingsService.getSettings();
+    const defaultBacResolution = await bacOrchestrator.resolveDefaultBac(
+      platformSettings,
+      currentUser.allowedBacs,
+    );
 
-    let renderedContent: string;
-    const descriptor = (await bacOrchestrator.loadDescriptor(matchedApp.id)) || bacOrchestrator.getDescriptor(matchedApp.id);
-    
-    if (descriptor) {
+    if (defaultBacResolution) {
+      const { descriptor } = defaultBacResolution;
+      const cleanAppId = descriptor.id.replace(/^@apps\//, "");
+      // Live read (D-01): never cache the plugin registry across requests.
+      const bacEntry = DynamicBacRegistry.getAll().find(
+        (b) => b.id === descriptor.id || b.id === cleanAppId,
+      );
+      const appContributions = bacEntry ? bacEntry.contributions : [];
+
       const executionContext: BacExecutionContext = {
         tenantId: "default",
         spaceId: currentSpace,
@@ -201,103 +329,40 @@ const server = http.createServer(async (req, res) => {
           mode: currentThemeMode,
         },
         request: {
-          path: pathname,
+          path: "/",
           query: Object.fromEntries(parsedUrl.searchParams.entries()),
           headers: (req.headers as Record<string, string>) || {},
         },
       };
-      try {
-        const renderResult = await descriptor.render(executionContext);
-        renderedContent = renderResult.contentHtml;
-      } catch (err) {
-        renderedContent = `<div class="p-6 text-rose-400">Erreur d'exécution du descripteur: ${escapeHtml(String(err))}</div>`;
-      }
-    } else if (matchedApp.render) {
-      try {
-        renderedContent = matchedApp.render();
-      } catch (err) {
-        renderedContent = `<div class="p-6 text-rose-400">Erreur d'exécution: ${escapeHtml(String(err))}</div>`;
-      }
-    } else {
-      renderedContent = renderBacAdminSafely(matchedApp.id, appContributions);
+
+      const renderResult = await descriptor.render(executionContext);
+
+      const matchedApp = {
+        id: descriptor.id,
+        name: descriptor.name,
+        route: descriptor.routePrefix,
+        category: "Application Principale",
+      };
+
+      const html = renderBacPage({
+        activeMode: currentThemeMode,
+        sharedStyles,
+        themeStyle: renderThemeStyleTag(currentThemeMode),
+        matchedApp,
+        currentUser,
+        currentSpace,
+        renderedContent: renderResult.contentHtml,
+        contributionsCount: appContributions.length,
+        requestUrl: req.url,
+      });
+
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(html);
+      return;
     }
 
-    const html = renderBacPage({
-      activeMode: currentThemeMode,
-      sharedStyles,
-      themeStyle: renderThemeStyleTag(currentThemeMode),
-      matchedApp,
-      currentUser,
-      currentSpace,
-      renderedContent,
-      contributionsCount: appContributions.length,
-      requestUrl: req.url,
-    });
-
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(html);
-    return;
-  }
-
-  // 6. Dynamic Default BAC Resolution & Workspace Root Routing
-  const platformSettings = await platformSettingsService.getSettings();
-  const defaultBacResolution = await bacOrchestrator.resolveDefaultBac(
-    platformSettings,
-    currentUser.allowedBacs
-  );
-
-  if (defaultBacResolution) {
-    const { descriptor } = defaultBacResolution;
-    const cleanAppId = descriptor.id.replace(/^@apps\//, "");
-    const bacEntry = bacRegistry.find((b) => b.id === descriptor.id || b.id === cleanAppId);
-    const appContributions = bacEntry ? bacEntry.contributions : [];
-
-    const executionContext: BacExecutionContext = {
-      tenantId: "default",
-      spaceId: currentSpace,
-      user: {
-        id: currentUser.id,
-        roles: [currentUser.role],
-        permissions: currentUser.permissions,
-      },
-      theme: {
-        mode: currentThemeMode,
-      },
-      request: {
-        path: "/",
-        query: Object.fromEntries(parsedUrl.searchParams.entries()),
-        headers: (req.headers as Record<string, string>) || {},
-      },
-    };
-
-    const renderResult = await descriptor.render(executionContext);
-
-    const matchedApp = {
-      id: descriptor.id,
-      name: descriptor.name,
-      route: descriptor.routePrefix,
-      category: "Application Principale",
-    };
-
-    const html = renderBacPage({
-      activeMode: currentThemeMode,
-      sharedStyles,
-      themeStyle: renderThemeStyleTag(currentThemeMode),
-      matchedApp,
-      currentUser,
-      currentSpace,
-      renderedContent: renderResult.contentHtml,
-      contributionsCount: appContributions.length,
-      requestUrl: req.url,
-    });
-
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(html);
-    return;
-  }
-
-  // Fallback: If no default or fallback BAC is available, render Platform Hub
-  const widgetsHtml = `
+    // Fallback: If no default or fallback BAC is available, render Platform Hub
+    const widgetsHtml = `
     <div class="glass-card p-4 rounded-xl space-y-2 border border-outline-variant/20">
       <div class="flex items-center justify-between">
         <span class="text-xs font-bold text-primary">Plateforme MosaiX</span>
@@ -307,19 +372,19 @@ const server = http.createServer(async (req, res) => {
     </div>
   `;
 
-  const homeHtml = renderHomePage({
-    activeMode: currentThemeMode,
-    sharedStyles,
-    currentUser,
-    currentSpace,
-    feedPosts: [],
-    widgetsHtml,
-    requestUrl: req.url,
-  });
+    const homeHtml = renderHomePage({
+      activeMode: currentThemeMode,
+      sharedStyles,
+      currentUser,
+      currentSpace,
+      feedPosts: [],
+      widgetsHtml,
+      requestUrl: req.url,
+    });
 
-  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-  res.end(homeHtml);
-  } catch (err: any) {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(homeHtml);
+  } catch (err: unknown) {
     console.error("[ServerError]", err);
     if (!res.headersSent) {
       res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });

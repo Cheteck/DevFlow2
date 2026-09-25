@@ -24,8 +24,9 @@ import { handleComplianceAndSystemRoutes } from "./routes/compliance-routes.js";
 import { handleMobileRoutes } from "./routes/mobile-routes.js";
 
 export interface ApiDispatcherContext {
+  // Per-request theme resolved from the mosaix_theme_mode cookie.
+  // No global mutable theme state (A-04): theme POSTs persist via cookie.
   activeMode: ThemeMode;
-  setActiveMode: (mode: ThemeMode) => void;
   currentUser: UserProfile;
   compositionOverrideManager: CompositionOverrideManager;
   feedService: FeedService;
@@ -37,7 +38,7 @@ export type ApiRouteHandler = (
   req: http.IncomingMessage,
   res: http.ServerResponse,
   parsedUrl: URL,
-  context: ApiDispatcherContext
+  context: ApiDispatcherContext,
 ) => Promise<boolean> | boolean;
 
 export class ApiRouteRegistry {
@@ -56,7 +57,7 @@ export const apiRouteRegistry = new ApiRouteRegistry();
 
 // 1. Maintenance API (FEAT-01)
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
-  handleMaintenanceRoutes(req, res, parsedUrl, ctx.currentUser)
+  handleMaintenanceRoutes(req, res, parsedUrl, ctx.currentUser),
 );
 
 // 2. Theme Switching & Preset Export/Import (THEME-14 / GAP-IHM-03)
@@ -66,20 +67,19 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
     res,
     parsedUrl,
     ctx.activeMode,
-    ctx.setActiveMode,
     ctx.currentUser.role,
-    ctx.compositionOverrideManager
-  )
+    ctx.compositionOverrideManager,
+  ),
 );
 
 // 3. User Role & Space switching API
 apiRouteRegistry.register((req, res, parsedUrl) =>
-  handleUserAndSpaceRoutes(req, res, parsedUrl)
+  handleUserAndSpaceRoutes(req, res, parsedUrl),
 );
 
 // 4. Feature Flags API
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
-  handleFeatureFlagRoutes(req, res, parsedUrl, ctx.currentUser.role)
+  handleFeatureFlagRoutes(req, res, parsedUrl, ctx.currentUser.role),
 );
 
 // 5. Composition & Block Overrides API
@@ -89,13 +89,13 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
     res,
     parsedUrl,
     ctx.currentUser.role,
-    ctx.compositionOverrideManager
-  )
+    ctx.compositionOverrideManager,
+  ),
 );
 
 // 6. Auth & Wizard API
 apiRouteRegistry.register((req, res, parsedUrl) =>
-  handleAuthRoutes(req, res, parsedUrl)
+  handleAuthRoutes(req, res, parsedUrl),
 );
 
 // 7. Feed & Realtime Posts API
@@ -106,8 +106,8 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
     parsedUrl,
     ctx.currentUser,
     ctx.feedService,
-    ctx.eventBackplane
-  )
+    ctx.eventBackplane,
+  ),
 );
 
 // 8. Compliance (PSP, GDPR, SSE)
@@ -118,26 +118,20 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
     parsedUrl,
     ctx.currentUser,
     ctx.anonymizationOrchestrator,
-    ctx.eventBackplane
-  )
+    ctx.eventBackplane,
+  ),
 );
 
 // 9. Mobile Bridge (PKCE, FCM Push, Delta Sync, Codegen)
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
-  handleMobileRoutes(
-    req,
-    res,
-    parsedUrl,
-    ctx.currentUser,
-    ctx.feedService
-  )
+  handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.feedService),
 );
 
 export async function dispatchApiRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   parsedUrl: URL,
-  context: ApiDispatcherContext
+  context: ApiDispatcherContext,
 ): Promise<boolean> {
   const pathname = parsedUrl.pathname;
 
@@ -147,7 +141,9 @@ export async function dispatchApiRequest(
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
     });
-    res.end(JSON.stringify({ status: "alive", timestamp: new Date().toISOString() }));
+    res.end(
+      JSON.stringify({ status: "alive", timestamp: new Date().toISOString() }),
+    );
     return true;
   }
 
@@ -158,7 +154,12 @@ export async function dispatchApiRequest(
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
     });
-    res.end(JSON.stringify({ status: isReady ? "ready" : "not_ready", timestamp: new Date().toISOString() }));
+    res.end(
+      JSON.stringify({
+        status: isReady ? "ready" : "not_ready",
+        timestamp: new Date().toISOString(),
+      }),
+    );
     return true;
   }
 
@@ -169,7 +170,7 @@ export async function dispatchApiRequest(
       res,
       parsedUrl,
       context.currentUser,
-      context.feedService
+      context.feedService,
     );
   }
 
@@ -181,7 +182,7 @@ export async function dispatchApiRequest(
       parsedUrl,
       context.currentUser,
       context.anonymizationOrchestrator,
-      context.eventBackplane
+      context.eventBackplane,
     );
   }
 
@@ -197,6 +198,11 @@ export async function dispatchApiRequest(
   }
 
   // Unhandled API route fallback with RFC 7807 Problem Details
-  sendProblemResponse(res, 404, "Endpoint Not Found", `La ressource d'API ${pathname} n'est pas définie.`);
+  sendProblemResponse(
+    res,
+    404,
+    "Endpoint Not Found",
+    `La ressource d'API ${pathname} n'est pas définie.`,
+  );
   return true;
 }

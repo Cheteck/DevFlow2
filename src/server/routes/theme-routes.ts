@@ -7,7 +7,10 @@ import type { URL } from "node:url";
 import type { ThemeMode } from "@mosaix/contracts";
 import type { CompositionOverrideManager } from "@mosaix/core";
 import { applyThemeMode } from "../../shell/theme/theme-bridge.js";
-import { saveCompositionOverridesToFile, type SavedBlockOverride } from "../../shell/editor.js";
+import {
+  saveCompositionOverridesToFile,
+  type SavedBlockOverride,
+} from "../../shell/editor.js";
 import { readLimitedJson } from "../utils/safe-body-parser.js";
 
 export async function handleThemeRoutes(
@@ -15,18 +18,22 @@ export async function handleThemeRoutes(
   res: http.ServerResponse,
   parsedUrl: URL,
   activeMode: ThemeMode,
-  setActiveMode: (mode: ThemeMode) => void,
   currentUserRole?: string,
-  compositionOverrideManager?: CompositionOverrideManager
+  compositionOverrideManager?: CompositionOverrideManager,
 ): Promise<boolean> {
   const pathname = parsedUrl.pathname;
 
   // 1. GET / POST /api/theme
-  if (pathname === "/api/theme" && (req.method === "POST" || req.method === "GET")) {
+  if (
+    pathname === "/api/theme" &&
+    (req.method === "POST" || req.method === "GET")
+  ) {
     const requestedMode = parsedUrl.searchParams.get("mode");
-    if (requestedMode && ["light", "dark", "high-contrast", "system"].includes(requestedMode)) {
+    if (
+      requestedMode &&
+      ["light", "dark", "high-contrast", "system"].includes(requestedMode)
+    ) {
       const mode = requestedMode as ThemeMode;
-      setActiveMode(mode);
       await applyThemeMode(mode);
       res.writeHead(200, {
         "Content-Type": "application/json",
@@ -46,7 +53,10 @@ export async function handleThemeRoutes(
       if (currentUserRole !== "admin") {
         res.writeHead(403, { "Content-Type": "application/json" });
         res.end(
-          JSON.stringify({ success: false, error: "Accès refusé. Privilèges d'administration requis." })
+          JSON.stringify({
+            success: false,
+            error: "Accès refusé. Privilèges d'administration requis.",
+          }),
         );
         return true;
       }
@@ -59,30 +69,39 @@ export async function handleThemeRoutes(
           };
         }>(req);
         if (data.mode) {
-          setActiveMode(data.mode as ThemeMode);
           await applyThemeMode(data.mode as ThemeMode);
         }
         if (data.compositionStore && compositionOverrideManager) {
           const store = data.compositionStore;
-          for (const [slotId, slotOverride] of Object.entries(store.slotOverrides || {})) {
+          for (const [slotId, slotOverride] of Object.entries(
+            store.slotOverrides || {},
+          )) {
             if (slotOverride && Array.isArray(slotOverride.blocks)) {
               for (const block of slotOverride.blocks) {
                 compositionOverrideManager.setBlockOverride(
                   "application-shell",
                   slotId,
-                  block as SavedBlockOverride
+                  block as SavedBlockOverride,
                 );
               }
             }
           }
-          saveCompositionOverridesToFile(compositionOverrideManager, "application-shell");
+          saveCompositionOverridesToFile(
+            compositionOverrideManager,
+            "application-shell",
+          );
         }
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ success: true }));
         return true;
       } catch {
         res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: false, error: "Fichier preset JSON invalide ou payload trop volumineux" }));
+        res.end(
+          JSON.stringify({
+            success: false,
+            error: "Fichier preset JSON invalide ou payload trop volumineux",
+          }),
+        );
         return true;
       }
     }

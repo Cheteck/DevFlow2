@@ -10,7 +10,7 @@ import type { DistributedEventBackplane } from "../../shell/event-backplane.js";
 import type { UserProfile } from "../../shell/profiles.js";
 import { feedStore } from "../../shell/feed-store.js";
 import { apps } from "../../shell/discovery.js";
-import { bacRegistry } from "../../generated-bac-registry.js";
+import { DynamicBacRegistry } from "../../shell/dynamic-bac-registry.js";
 import { readLimitedJson } from "../utils/safe-body-parser.js";
 
 export async function handleComplianceAndSystemRoutes(
@@ -19,7 +19,7 @@ export async function handleComplianceAndSystemRoutes(
   parsedUrl: URL,
   currentUser: UserProfile,
   anonymizationOrchestrator: AnonymizationOrchestrator,
-  eventBackplane: DistributedEventBackplane
+  eventBackplane: DistributedEventBackplane,
 ): Promise<boolean> {
   const pathname = parsedUrl.pathname;
 
@@ -40,24 +40,32 @@ export async function handleComplianceAndSystemRoutes(
       const hasComplianceAdminPermission =
         currentUser?.role === "admin" &&
         (currentUser?.permissions?.includes("compliance:admin:manage") ||
-         currentUser?.permissions?.includes("user:gdpr:anonymize:all") ||
-         currentUser?.permissions?.includes("identity:user:delete"));
+          currentUser?.permissions?.includes("user:gdpr:anonymize:all") ||
+          currentUser?.permissions?.includes("identity:user:delete"));
 
-      if (requestedUserId && requestedUserId !== currentUser.id && !hasComplianceAdminPermission) {
+      if (
+        requestedUserId &&
+        requestedUserId !== currentUser.id &&
+        !hasComplianceAdminPermission
+      ) {
         res.writeHead(403, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
             success: false,
-            error: "Forbidden: You are not authorized to anonymize another user account.",
-          })
+            error:
+              "Forbidden: You are not authorized to anonymize another user account.",
+          }),
         );
         return true;
       }
 
       const targetUserId =
-        hasComplianceAdminPermission && requestedUserId ? requestedUserId : currentUser.id;
+        hasComplianceAdminPermission && requestedUserId
+          ? requestedUserId
+          : currentUser.id;
 
-      const result = await anonymizationOrchestrator.anonymizeUser(targetUserId);
+      const result =
+        await anonymizationOrchestrator.anonymizeUser(targetUserId);
       eventBackplane.publish("identity.user.anonymized", {
         userId: targetUserId,
         timestamp: Date.now(),
@@ -76,14 +84,14 @@ export async function handleComplianceAndSystemRoutes(
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
+      Connection: "keep-alive",
     });
     res.write(
       `data: ${JSON.stringify({
         type: "connected",
         nodeId: eventBackplane.getNodeId(),
         timestamp: Date.now(),
-      })}\n\n`
+      })}\n\n`,
     );
     const unsubscribe = eventBackplane.registerSseClient((event, data) => {
       res.write(`event: ${event}\ndata: ${data}\n\n`);
@@ -96,7 +104,8 @@ export async function handleComplianceAndSystemRoutes(
 
   // 4. Platform Diagnostic & Inspection endpoint
   if (pathname === "/__mosaix") {
-    const allContributions = bacRegistry.flatMap((b) => b.contributions);
+    // Live read (D-01): never rely on a load-time registry snapshot.
+    const allContributions = DynamicBacRegistry.getAllContributions();
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(
       JSON.stringify(
@@ -115,8 +124,8 @@ export async function handleComplianceAndSystemRoutes(
           feedPostsCount: feedStore.length,
         },
         null,
-        2
-      )
+        2,
+      ),
     );
     return true;
   }

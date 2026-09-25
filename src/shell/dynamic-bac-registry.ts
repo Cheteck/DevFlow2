@@ -57,7 +57,10 @@ export class DynamicBacRegistry {
       try {
         listener(plugin);
       } catch (err) {
-        console.error(`[DynamicBacRegistry] Listener error on plugin ${plugin.id}:`, err);
+        console.error(
+          `[DynamicBacRegistry] Listener error on plugin ${plugin.id}:`,
+          err,
+        );
       }
     }
   }
@@ -68,7 +71,9 @@ export class DynamicBacRegistry {
     this.dynamicLoaders.set(id, loader);
   }
 
-  static async loadDynamicModule(id: string): Promise<BacPluginRegistration | undefined> {
+  static async loadDynamicModule(
+    id: string,
+  ): Promise<BacPluginRegistration | undefined> {
     const cleanId = id.replace(/^@apps\//, "");
     const existing = this.get(cleanId);
     if (existing && existing.contributions.length > 0) return existing;
@@ -86,7 +91,10 @@ export class DynamicBacRegistry {
       this.register(registration);
       return registration;
     } catch (err) {
-      console.error(`[DynamicBacRegistry] Failed to load dynamic module [${id}]:`, err);
+      console.error(
+        `[DynamicBacRegistry] Failed to load dynamic module [${id}]:`,
+        err,
+      );
       return existing;
     }
   }
@@ -109,11 +117,14 @@ export class DynamicBacRegistry {
     return this.getAll().flatMap((b) => b.contributions);
   }
 
-  static onPluginRegistered(listener: (plugin: BacPluginRegistration) => void): () => void {
+  static onPluginRegistered(
+    listener: (plugin: BacPluginRegistration) => void,
+  ): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
 }
 
-// Export backward-compatible array for seamless transition
-export const bacRegistry = DynamicBacRegistry.getAll();
+// NOTE (D-01): no frozen bacRegistry snapshot export on purpose — call
+// DynamicBacRegistry.getAll() at the usage site so late plugin
+// registrations are visible.
