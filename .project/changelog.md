@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-09-25 — Gestion des secrets façon Laravel & commande d'installation
+
+### Added
+- **`@mosaix/config` — `app-key.ts` (inspiré de Laravel `APP_KEY`)** :
+  - `generateAppKey()` → `base64:<32 octets>` (AES-256), `parseAppKey()` valide préfixe + longueur selon cipher (`AES-256-CBC` → 32, `AES-128-CBC` → 16), erreurs fail-fast `MissingAppKeyError` / `InvalidAppKeyError`.
+  - `generateSecret()` (JWT / session / webhook, hex ou base64url, ≥ 128 bits), `resolveKeysWithRotation()` (courante d'abord, anciennes ensuite).
+  - **`env-file.ts`** : lecture/écriture `.env` préservant commentaires et ordre, remplit les placeholders `#KEY=` en place, n'écrase jamais sans `force`.
+- **CLI `mosaix key:generate` / `key:check` + `pnpm key:*`** : génère uniquement les secrets manquants (`MOSAIX_APP_KEY`, JWT, session, CDN), refuse d'écraser en prod sans `--force`, `--show` pour dry-run ; `key:check` audite présence/entropie (gate CI).
+- **CLI `mosaix install` / alias `setup` + `pnpm setup`** : première installation non-interactive et idempotente (preflight Node 22+ → `.env` + secrets → dossiers → `pnpm install --frozen-lockfile` → `pnpm db:setup` → admin), `--dry-run`, `--skip-deps/--skip-db/--skip-admin`.
+- **Rotation JWT sans coupure** : `JwtService` accepte `previousSecrets?` (`MOSAIX_AUTH_PREVIOUS_SECRETS`, virgules) — signe avec la courante, vérifie chacune en `timingSafeEqual`.
+- **Schéma env canonique** (`@mosaix/core` `env.schema.ts`, extensible via `validateEnv(env, extraSchema)`) branché au boot (`src/start.ts`), `pnpm check:env` garde `.env.example` (42 clés) synchronisé.
+- **Docs** : `.env.example` sectionné et commenté, sections README « Première installation » et « Clés ».
+
+### Changed
+- `compose.yml` / `compose.staging.yml` alignés sur les clés canoniques (`${MOSAIX_*:-default}`) ; secret JWT de staging sorti du repo (requis via env/`.env.staging`).
+- `PortfolioMediaManager` : `secretKey` en dur remplacé par `MOSAIX_CDN_SECRET` (throw en prod si fallback dev).
+- `package.json` : `lint` corrigé pour ESLint 9 flat config (`eslint .`), `check` inclut `check:contracts` + `check:env`.
+
+### Chore
+- `pnpm-lock.yaml` re-suivi (installs reproductibles, `--frozen-lockfile` fonctionnel).
+
 ## 2026-09-25 — Passerelle Mobile Native Android & iOS (`@mosaix/mobile-bridge`)
 
 ### Added
