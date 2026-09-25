@@ -12,7 +12,9 @@ import {
   InMemoryThemeAssignmentsStore,
   ThemeRuntime,
   ThemeTargetRegistry,
+  PostgresThemeAssignmentsStore,
   registerBacThemeTargets,
+  container,
 } from "@mosaix/core";
 import { MOSAIX_DEFAULT_THEME } from "./mosaix-default-theme.js";
 
@@ -31,19 +33,19 @@ export function initThemeBridge(options: ThemeBridgeOptions = {}): ThemeRuntime 
   } else {
     const registry = new ThemeTargetRegistry();
     registerBacThemeTargets(registry);
-    const store = new InMemoryThemeAssignmentsStore();
-    // Assigne le thème par défaut au shell ET à tous les BACs pour propagation par défaut (même source de vérité)
-    const allTargets = [...registry.list().map((t) => ({ type: t.type, id: t.type })), { type: "shell", id: "shell" }];
-    for (const target of allTargets) {
-      store.assign({
-        target,
-        themeId: MOSAIX_DEFAULT_THEME.id,
-        mode: (options.defaultMode ?? "light") as ThemeMode,
-        source: "platform",
-        updatedAt: new Date().toISOString(),
-        updatedBy: "system",
-      });
+
+    let store;
+    const hasContainer = typeof container !== "undefined" && container && typeof container.isBound === "function";
+    if (hasContainer && container.isBound("database")) {
+      const db = container.resolve<any>("database");
+      store = new PostgresThemeAssignmentsStore(db);
+    } else if (hasContainer && container.isBound("databasePort")) {
+      const db = container.resolve<any>("databasePort");
+      store = new PostgresThemeAssignmentsStore(db);
+    } else {
+      store = new InMemoryThemeAssignmentsStore();
     }
+
     activeRuntime = createThemeRuntime({ registry, store });
   }
 
@@ -52,10 +54,6 @@ export function initThemeBridge(options: ThemeBridgeOptions = {}): ThemeRuntime 
 
   currentMode = options.defaultMode ?? "light";
 
-  return activeRuntime;
-}
-
-export function getActiveRuntime(): ThemeRuntime | null {
   return activeRuntime;
 }
 
@@ -74,25 +72,7 @@ export async function applyThemeMode(mode: ThemeMode): Promise<CompiledTheme> {
     currentCompiledTheme = outcome.compiled;
   }
 
-  // Propage le même mode aux BACs (même source de vérité, même compiled via :root)
-  if (activeRuntime) {
-    for (const t of ["commerce", "portfolio", "booking", "beam", "solara", "solidarity", "citadelle", "imperia", "subscription", "space", "store"] as const) {
-      try {
-        await activeRuntime.apply({ target: { type: t, id: t }, mode });
-      } catch {
-        // fail-open : un BAC sans assignment reste sur fallback
-      }
-    }
-  }
-
   return currentCompiledTheme!;
-}
-
-export async function getThemeForTarget(target: { type: string; id: string }, mode?: ThemeMode): Promise<CompiledTheme | null> {
-  if (!activeRuntime) initThemeBridge();
-  const m = mode ?? currentMode;
-  const outcome = await activeRuntime!.apply({ target, mode: m });
-  return outcome.compiled ?? currentCompiledTheme;
 }
 
 export function getCompiledTheme(): CompiledTheme | null {
