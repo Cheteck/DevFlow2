@@ -205,7 +205,7 @@ export * from "./component-lifecycle";
 
 export * from "./context-registry";
 export * from "./composition-resolver";
-export * from "./composition-override-manager";
+export * from "./composition-override-manager.js";
 
 export * from "./application-runtime";
 export { ApplicationDiscovery } from "./app-discovery";
@@ -266,7 +266,9 @@ export type {
 export { Money, Timestamp } from "./value-objects";
 
 // Platform Settings & BAC Orchestration
-export * from "./platform-settings";
+export * from "./platform-settings.js";
+export * from "./shell-user-state.js";
+export * from "./shell-entry-policy.js";
 
 
 

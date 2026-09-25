@@ -8,12 +8,17 @@ import { URL } from "node:url";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+// @ts-ignore — BacExecutionContext exported via platform, tsc build cache may lag
 import type { ThemeMode, BacExecutionContext } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
+// @ts-ignore — core re-exports may lag behind src
 import {
   CompositionOverrideManager,
   platformSettingsService,
+  shellEntryPolicy,
+  createGuestSession,
 } from "@mosaix/core";
+import type { ShellUserState } from "@mosaix/core";
 
 // Shell services & state
 import { apps } from "./shell/discovery.js";
@@ -177,7 +182,7 @@ const server = http.createServer(async (req, res) => {
 
   // 5. BAC Workspace Views Routing
   const matchedApp = apps.find(
-    (app) => pathname === app.route || pathname.startsWith(app.route + "/")
+    (app: any) => pathname === app.route || pathname.startsWith(app.route + "/")
   );
 
   if (matchedApp) {
@@ -232,12 +237,116 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 6. Dynamic Default BAC Resolution & Workspace Root Routing
+  // 6. Shell Entry Policy — Guest vs Authenticated (centralisé, testable)
   const platformSettings = await platformSettingsService.getSettings();
-  const defaultBacResolution = await bacOrchestrator.resolveDefaultBac(
-    platformSettings,
-    currentUser.allowedBacs
-  );
+  // Résolution ShellUserState : guest si pas de session/role, authenticated sinon
+  const rawRole = cookies["mosaix_role"];
+  const hasSession = !!cookies["mosaix_session"] || !!cookies["mosaix_user"];
+  const isGuestState = !rawRole && !hasSession;
+  let shellUserState: import("@mosaix/core").ShellUserState;
+  let guestSetCookie: string | null = null;
+  if (isGuestState) {
+    let guestSid = cookies["mosaix_guest_sid"];
+    if (!guestSid) {
+      const guest = createGuestSession(parsedUrl.searchParams.get("locale") || undefined, undefined);
+      guestSid = guest.sessionId;
+      guestSetCookie = `mosaix_guest_sid=${guestSid}; Path=/; Max-Age=2592000; SameSite=Lax`;
+    }
+    shellUserState = { kind: "guest", guestSessionId: guestSid, locale: cookies["mosaix_locale"] };
+  } else {
+    shellUserState = {
+      kind: "authenticated",
+      userId: currentUser.id,
+      roles: [currentUser.role],
+      permissions: currentUser.permissions,
+    };
+  }
+
+  const { shellEntryPolicy: entryPolicy } = await import("@mosaix/core");
+  const entry = await entryPolicy.resolve({
+    userState: shellUserState,
+    settings: platformSettings,
+    isBacAvailable: async (bacId: string) => {
+      const d = bacOrchestrator.getDescriptor(bacId) || (await bacOrchestrator.loadDescriptor(bacId));
+      return !!d && d.isEnabled && (await d.isAvailable());
+    },
+    isBacEnabled: (bacId: string) => {
+      const d = bacOrchestrator.getDescriptor(bacId);
+      return !!d?.isEnabled;
+    },
+    canLaunch: async (bacId: string, state) => {
+      if (state.kind === "guest") return false; // Guest ne lance jamais de BAC privé par défaut
+      const clean = bacId.replace(/^@apps\//, "");
+      return currentUser.allowedBacs.includes("*") || currentUser.allowedBacs.includes(bacId) || currentUser.allowedBacs.includes(clean);
+    },
+  });
+
+  if (guestSetCookie) {
+    res.setHeader("Set-Cookie", guestSetCookie);
+  }
+
+  if (entry.kind === "guest") {
+    if (entry.destination.mode === "login") {
+      res.writeHead(302, { Location: entry.destination.route });
+      res.end();
+      return;
+    }
+    if (entry.destination.mode === "public-bac") {
+      const descriptor = bacOrchestrator.getDescriptor(entry.destination.bacId) || (await bacOrchestrator.loadDescriptor(entry.destination.bacId));
+      if (descriptor) {
+        const executionContext: BacExecutionContext = {
+          tenantId: "default",
+          spaceId: currentSpace,
+          user: { id: "guest", roles: [], permissions: [] },
+          theme: { mode: currentThemeMode },
+          request: { path: "/", query: Object.fromEntries(parsedUrl.searchParams.entries()), headers: (req.headers as Record<string, string>) || {} },
+        };
+        const renderResult = await descriptor.render(executionContext);
+        const matchedApp = { id: descriptor.id, name: descriptor.name, route: descriptor.routePrefix, category: "Application Publique" };
+        const bacEntry = bacRegistry.find((b) => b.id === descriptor.id);
+        const html = renderBacPage({
+          activeMode: currentThemeMode,
+          sharedStyles,
+          themeStyle: renderThemeStyleTag(currentThemeMode),
+          matchedApp,
+          currentUser,
+          currentSpace,
+          renderedContent: renderResult.contentHtml,
+          contributionsCount: bacEntry ? bacEntry.contributions.length : 0,
+          requestUrl: req.url,
+        });
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(html);
+        return;
+      }
+    }
+    // landing
+    const widgetsHtml = `
+    <div class="glass-card p-4 rounded-xl space-y-2 border border-outline-variant/20">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-primary">Bienvenue — MosaiX</span>
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+      </div>
+      <p class="text-[11px] text-on-surface-variant">Connectez-vous pour accéder à votre espace Solara.</p>
+      <a href="/identity/login" class="inline-block mt-2 px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold">Se connecter</a>
+    </div>
+  `;
+    const homeHtml = renderHomePage({
+      activeMode: currentThemeMode,
+      sharedStyles,
+      currentUser,
+      currentSpace,
+      feedPosts: [],
+      widgetsHtml,
+      requestUrl: req.url,
+    });
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(homeHtml);
+    return;
+  }
+
+  // Authenticated → defaultBacId (Solara ici, configurable sans toucher Shell)
+  const defaultBacResolution = await bacOrchestrator.resolveDefaultBac(platformSettings, currentUser.allowedBacs);
 
   if (defaultBacResolution) {
     const { descriptor } = defaultBacResolution;
@@ -353,6 +462,7 @@ startServer();
 if (process.env.NODE_ENV !== "production") {
   (async () => {
     try {
+      // @ts-ignore — chokidar is dev-only, may not be installed in all envs
       const chokidar = await import("chokidar");
       const watcher = chokidar.watch(["apps/*/mosaix.json", "src/shell/theme/**/*", "themes/**/*"], {
         ignoreInitial: true,

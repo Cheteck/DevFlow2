@@ -35,6 +35,12 @@ export interface PlatformSettings {
   unauthenticatedStrategy: "redirect_login" | "render_public_landing" | "render_auth_bac";
   /** Auth BAC ID for login rendering */
   authBacId: string;
+  /** Guest experience — independent from defaultBacId (PRD Guest vs Authenticated) */
+  guestExperience: {
+    mode: "landing" | "login" | "public-bac";
+    bacId?: string;
+    route?: string;
+  };
   /** Custom settings bag for plugins / extensions */
   metadata?: Record<string, unknown>;
 }

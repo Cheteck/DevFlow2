@@ -19,6 +19,7 @@ export const CANONICAL_DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   allowedRolesInMaintenance: ["admin", "superadmin"],
   unauthenticatedStrategy: "render_auth_bac",
   authBacId: "citadelle",
+  guestExperience: { mode: "landing" },
   metadata: {},
 };
 
