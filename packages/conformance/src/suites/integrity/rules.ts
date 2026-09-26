@@ -83,16 +83,8 @@ export const INTEGRITY_RULES: IntegrityRule[] = [
     remediation:
       "Persist sessions and auth codes in database tables via appropriate repository ports.",
     pattern:
-      /(authCodes|drafts|storedCodes)\s*=\s*new\s+Map|private\s+static\s+(sessions|devices)\s*=\s*new\s+Map/i,
+      /\b(authCodes|drafts|storedCodes)\s*=\s*new\s+Map|\bprivate\s+static\s+(sessions|devices)\s*=\s*new\s+Map/i,
     include: ["src/**/*.ts", "apps/**/*.ts", "packages/**/*.ts"],
-    allow: [
-      "apps/citadelle/src/domain/registration-wizard.service.ts",
-      "apps/portfolio/src/domain/product-wizard.service.ts",
-      "apps/solara/src/domain/social-auto-share-plugin.ts",
-      "packages/mobile-bridge/src/auth/refresh-token-rotator.ts",
-      "packages/mobile-bridge/src/push/device-registry.ts",
-      "src/server/routes/mobile-routes.ts",
-    ],
   },
   {
     id: "CONF-SEC-001",

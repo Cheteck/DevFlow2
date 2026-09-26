@@ -28,7 +28,7 @@ export interface StoredSession {
  * to protect against replay attacks.
  */
 export class RefreshTokenRotator {
-  private static sessions = new Map<string, StoredSession>();
+  private static sessionStore = new Map<string, StoredSession>();
 
   /**
    * Initializes a new session upon successful authentication
@@ -55,7 +55,7 @@ export class RefreshTokenRotator {
       isRevoked: false,
     };
 
-    this.sessions.set(sessionId, session);
+    this.sessionStore.set(sessionId, session);
 
     return {
       accessToken,
@@ -76,7 +76,7 @@ export class RefreshTokenRotator {
     let targetSession: StoredSession | undefined;
 
     // Search across sessions
-    for (const session of this.sessions.values()) {
+    for (const session of this.sessionStore.values()) {
       if (session.currentRefreshToken === refreshToken) {
         targetSession = session;
         break;
@@ -97,7 +97,7 @@ export class RefreshTokenRotator {
     }
 
     if (targetSession.expiresAt.getTime() < Date.now()) {
-      this.sessions.delete(targetSession.sessionId);
+      this.sessionStore.delete(targetSession.sessionId);
       return { success: false, error: "Refresh token expired." };
     }
 
@@ -125,10 +125,10 @@ export class RefreshTokenRotator {
    * Revokes all sessions belonging to a specific family ID
    */
   public static revokeFamily(familyId: string): void {
-    for (const [id, session] of this.sessions.entries()) {
+    for (const [id, session] of this.sessionStore.entries()) {
       if (session.familyId === familyId) {
         session.isRevoked = true;
-        this.sessions.delete(id);
+        this.sessionStore.delete(id);
       }
     }
   }
@@ -137,10 +137,10 @@ export class RefreshTokenRotator {
    * Revokes all sessions for a user (e.g. Logout on all devices)
    */
   public static revokeAllForUser(userId: string): void {
-    for (const [id, session] of this.sessions.entries()) {
+    for (const [id, session] of this.sessionStore.entries()) {
       if (session.userId === userId) {
         session.isRevoked = true;
-        this.sessions.delete(id);
+        this.sessionStore.delete(id);
       }
     }
   }

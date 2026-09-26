@@ -22,8 +22,8 @@ import type { FeedService } from "../../shell/feed-service.js";
 
 const fcmAdapter = new FcmPushAdapter();
 
-// In-memory auth codes store for OAuth 2.1 PKCE demo flow
-const authCodes = new Map<string, { userId: string; codeChallenge: string; method: "S256"; expiresAt: number }>();
+// In-memory PKCE auth codes store for OAuth 2.1 PKCE demo flow
+const pkceAuthCodeStore = new Map<string, { userId: string; codeChallenge: string; method: "S256"; expiresAt: number }>();
 
 function readJsonBody(req: http.IncomingMessage, maxBytes: number = 512 * 1024): Promise<Record<string, unknown>> {
   return new Promise((resolve) => {
@@ -143,7 +143,7 @@ export async function handleMobileRoutes(
 
     // Cryptographically secure authorization code (256 bits entropy)
     const code = `auth_code_${crypto.randomBytes(32).toString("hex")}`;
-    authCodes.set(code, {
+    pkceAuthCodeStore.set(code, {
       userId: currentUser.id || "Lord Cheteck",
       codeChallenge,
       method: "S256",
@@ -165,7 +165,7 @@ export async function handleMobileRoutes(
       const code = String(body.code || "");
       const codeVerifier = String(body.codeVerifier || "");
 
-      const storedCode = authCodes.get(code);
+      const storedCode = pkceAuthCodeStore.get(code);
       if (!storedCode || storedCode.expiresAt < Date.now()) {
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "invalid_grant", message: "Code d'autorisation expiré ou invalide." }));
@@ -174,7 +174,7 @@ export async function handleMobileRoutes(
 
       // Verify PKCE verifier against stored challenge
       const isValid = PkceValidator.verify(codeVerifier, storedCode.codeChallenge, storedCode.method);
-      authCodes.delete(code); // One-time use
+      pkceAuthCodeStore.delete(code); // One-time use
 
       if (!isValid) {
         res.writeHead(400, { "Content-Type": "application/json" });

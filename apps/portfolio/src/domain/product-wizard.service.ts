@@ -74,7 +74,7 @@ export interface WizardStepResult {
 }
 
 export class ProductWizardService {
-  private drafts = new Map<string, ProductWizardDraft>();
+  private activeDrafts = new Map<string, ProductWizardDraft>();
 
   startDraft(vendorId?: string, spaceId?: string): ProductWizardDraft {
     const draftId = `draft_prod_${crypto.randomUUID()}`;
@@ -89,18 +89,18 @@ export class ProductWizardService {
       createdAt: now,
       updatedAt: now,
     };
-    this.drafts.set(draftId, draft);
+    this.activeDrafts.set(draftId, draft);
     return draft;
   }
 
   getDraft(draftId: string): ProductWizardDraft | null {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) return null;
     return { ...draft };
   }
 
   listDrafts(vendorId?: string): ProductWizardDraft[] {
-    const all = Array.from(this.drafts.values());
+    const all = Array.from(this.activeDrafts.values());
     if (vendorId) {
       return all.filter((d) => d.vendorId === vendorId);
     }
@@ -108,7 +108,7 @@ export class ProductWizardService {
   }
 
   saveStep1(draftId: string, data: ProductStep1Identity): WizardStepResult {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) {
       return { valid: false, errors: ["Session de création de produit introuvable ou expirée."] };
     }
@@ -144,7 +144,7 @@ export class ProductWizardService {
   }
 
   saveStep2(draftId: string, data: ProductStep2Pricing): WizardStepResult {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) {
       return { valid: false, errors: ["Session introuvable."] };
     }
@@ -179,7 +179,7 @@ export class ProductWizardService {
   }
 
   saveStep3(draftId: string, data: ProductStep3Media): WizardStepResult {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) {
       return { valid: false, errors: ["Session introuvable."] };
     }
@@ -202,7 +202,7 @@ export class ProductWizardService {
   }
 
   saveStep4(draftId: string, data: ProductStep4SeoAndPublish): WizardStepResult {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) {
       return { valid: false, errors: ["Session introuvable."] };
     }
@@ -234,7 +234,7 @@ export class ProductWizardService {
     draftId: string,
     portfolioService: PortfolioService
   ): Promise<Vendable> {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft || !draft.step1 || !draft.step2 || !draft.step3 || !draft.step4) {
       throw new Error("Impossible de publier : toutes les étapes du wizard doivent être complétées.");
     }
@@ -319,7 +319,7 @@ export class ProductWizardService {
     const saved = await portfolioService.create(vendable);
 
     // Delete draft after publication
-    this.drafts.delete(draftId);
+    this.activeDrafts.delete(draftId);
 
     return saved;
   }
