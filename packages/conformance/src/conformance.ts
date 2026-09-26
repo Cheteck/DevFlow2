@@ -10,6 +10,23 @@ export interface ConformanceValidationResult {
   errors: string[];
 }
 
+function findWorkspaceRoot(startDir: string = process.cwd()): string {
+  let curr = path.resolve(startDir);
+  while (curr !== path.parse(curr).root) {
+    if (
+      fs.existsSync(path.join(curr, "pnpm-workspace.yaml")) ||
+      fs.existsSync(path.join(curr, "lerna.json")) ||
+      (fs.existsSync(path.join(curr, "package.json")) && fs.existsSync(path.join(curr, "apps")))
+    ) {
+      return curr;
+    }
+    const parent = path.dirname(curr);
+    if (parent === curr) break;
+    curr = parent;
+  }
+  return process.cwd();
+}
+
 export class AppConformanceValidator {
   static validate(manifest: Record<string, unknown>): ConformanceValidationResult {
     const errors: string[] = [];
@@ -136,17 +153,38 @@ export class AppConformanceValidator {
     };
   }
 
-  static validateAllWorkspaceApps(appsRootDir: string): Record<string, ConformanceValidationResult> {
+  static validateAllWorkspaceApps(appsRootDir?: string): Record<string, ConformanceValidationResult> {
     const results: Record<string, ConformanceValidationResult> = {};
 
-    if (!fs.existsSync(appsRootDir)) {
+    let targetDir: string;
+    if (appsRootDir) {
+      if (path.isAbsolute(appsRootDir)) {
+        targetDir = appsRootDir;
+      } else {
+        const cwdPath = path.resolve(process.cwd(), appsRootDir);
+        if (fs.existsSync(cwdPath)) {
+          targetDir = cwdPath;
+        } else {
+          targetDir = path.resolve(findWorkspaceRoot(), appsRootDir);
+        }
+      }
+    } else {
+      const cwdApps = path.resolve(process.cwd(), "apps");
+      if (fs.existsSync(cwdApps)) {
+        targetDir = cwdApps;
+      } else {
+        targetDir = path.resolve(findWorkspaceRoot(), "apps");
+      }
+    }
+
+    if (!fs.existsSync(targetDir)) {
       return results;
     }
 
-    const entries = fs.readdirSync(appsRootDir, { withFileTypes: true });
+    const entries = fs.readdirSync(targetDir, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isDirectory() && !entry.name.startsWith("_")) {
-        const appDir = path.join(appsRootDir, entry.name);
+        const appDir = path.join(targetDir, entry.name);
         results[entry.name] = this.validateWorkspaceAppDirectory(appDir);
       }
     }

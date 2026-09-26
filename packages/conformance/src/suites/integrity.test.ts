@@ -37,17 +37,17 @@ describe("IntegrityConformanceSuite", () => {
     expect(IntegrityConformanceSuite.scan({ rootDir: root })).toEqual([]);
   });
 
-  it("flags ad-hoc DDL outside migration providers", () => {
+  it("flags ad-hoc DDL outside migration providers with stable CONF-DB-001 ID and alias", () => {
     write(
       root,
       "src/repo.ts",
       `await db.execute("CREATE TABLE IF NOT EXISTS t (id TEXT)");\n`,
     );
     const findings = IntegrityConformanceSuite.scan({ rootDir: root });
-    expect(findings.map((f) => f.ruleId)).toContain(
-      "no-ddl-outside-migrations",
-    );
+    expect(findings.map((f) => f.ruleId)).toContain("CONF-DB-001");
+    expect(findings.map((f) => f.alias)).toContain("no-ddl-outside-migrations");
     expect(findings[0]?.severity).toBe("error");
+    expect(findings[0]?.remediation).toBeDefined();
   });
 
   it("allows DDL inside migration providers and engine", () => {
@@ -80,12 +80,15 @@ describe("IntegrityConformanceSuite", () => {
       "src/server/routes/feed-routes.ts",
       `await db.query(sql).catch(() => null);\n`,
     );
-    const ids = IntegrityConformanceSuite.scan({ rootDir: root }).map(
-      (f) => f.ruleId,
-    );
-    expect(ids).toContain("no-memory-session-stores");
-    expect(ids).toContain("no-plaintext-password-defaults");
-    expect(ids).toContain("no-swallowed-db-errors");
+    const findings = IntegrityConformanceSuite.scan({ rootDir: root });
+    const ids = findings.map((f) => f.ruleId);
+    const aliases = findings.map((f) => f.alias);
+    expect(ids).toContain("CONF-SESSION-001");
+    expect(aliases).toContain("no-memory-session-stores");
+    expect(ids).toContain("CONF-SEC-001");
+    expect(aliases).toContain("no-plaintext-password-defaults");
+    expect(ids).toContain("CONF-DB-003");
+    expect(aliases).toContain("no-swallowed-db-errors");
   });
 
   it("flags direct sqlite imports, allows adapters and seeder scripts", () => {
@@ -95,7 +98,6 @@ describe("IntegrityConformanceSuite", () => {
       `import { DatabaseSync } from "node:sqlite";\n`,
     );
     write(root, "src/hack.ts", `import { DatabaseSync } from "node:sqlite";\n`);
-    // Install/seed provisioning DML is legitimate (DDL stays banned there).
     write(
       root,
       "scripts/init-dev-admin.ts",
@@ -103,7 +105,7 @@ describe("IntegrityConformanceSuite", () => {
     );
     const findings = IntegrityConformanceSuite.scan({ rootDir: root });
     const byFile = new Map(findings.map((f) => [f.file, f.ruleId]));
-    expect(byFile.get("src/hack.ts")).toBe("no-direct-sqlite-driver");
+    expect(byFile.get("src/hack.ts")).toBe("CONF-DB-002");
     expect(byFile.has("scripts/init-dev-admin.ts")).toBe(false);
     expect([...byFile.keys()]).not.toContain(
       "packages/adapters/database-sqlite/src/index.ts",
@@ -121,18 +123,28 @@ describe("IntegrityConformanceSuite", () => {
       "packages/mobile-bridge/src/push/adapter.ts",
       "constructor(config = { isMockMode: true }) {}\n",
     );
-    const ids = IntegrityConformanceSuite.scan({ rootDir: root }).map(
-      (f) => f.ruleId,
+    const findings = IntegrityConformanceSuite.scan({ rootDir: root });
+    const ids = findings.map((f) => f.ruleId);
+    expect(ids).toContain("CONF-ID-001");
+    expect(ids).toContain("CONF-SEC-003");
+  });
+
+  it("flags direct cross-BAC imports via CONF-BOUNDARY-001", () => {
+    write(
+      root,
+      "apps/commerce/src/domain/commerce-service.ts",
+      `import { CitadelleService } from "../../citadelle/src/domain/citadelle-service";\n`,
     );
-    expect(ids).toContain("no-math-random-ids");
-    expect(ids).toContain("no-mock-in-prod-path");
+    const findings = IntegrityConformanceSuite.scan({ rootDir: root });
+    expect(findings.map((f) => f.ruleId)).toContain("CONF-BOUNDARY-001");
   });
 
   it("supports custom rules and global allowlists", () => {
     write(root, "src/a.ts", `eval(userInput);\n`);
     const custom: IntegrityRule[] = [
       {
-        id: "no-eval",
+        id: "CONF-CUSTOM-001",
+        alias: "no-eval",
         severity: "error",
         message: "no eval",
         pattern: /\beval\(/,
@@ -150,14 +162,26 @@ describe("IntegrityConformanceSuite", () => {
     ).toHaveLength(0);
   });
 
-  it("summarizes counts by severity and rule", () => {
+  it("summarizes counts by severity and rule (supports both ruleId and alias)", () => {
     write(root, "src/a.ts", `CREATE TABLE t (id TEXT);\nMath.random();\n`);
     const summary = IntegrityConformanceSuite.summarize(
       IntegrityConformanceSuite.scan({ rootDir: root }),
     );
     expect(summary.errors).toBe(1);
     expect(summary.warns).toBe(1);
+    expect(summary.byRule["CONF-DB-001"]).toBe(1);
     expect(summary.byRule["no-ddl-outside-migrations"]).toBe(1);
+  });
+
+  it("generates JSON and SARIF reports", () => {
+    write(root, "src/a.ts", `CREATE TABLE t (id TEXT);\n`);
+    const findings = IntegrityConformanceSuite.scan({ rootDir: root });
+    const jsonStr = IntegrityConformanceSuite.toJSON(findings);
+    const sarifStr = IntegrityConformanceSuite.toSARIF(findings);
+
+    expect(jsonStr).toContain("CONF-DB-001");
+    expect(sarifStr).toContain("https://json.schemastore.org/sarif-2.1.0.json");
+    expect(sarifStr).toContain("CONF-DB-001");
   });
 
   it("flags hardcoded UI sentences, skips brand names and code", () => {
@@ -172,7 +196,7 @@ describe("IntegrityConformanceSuite", () => {
       `window.showToast('Déconnexion réussie. Redirection...', 'success');\nconst x = computeTotal(a, b);\n`,
     );
     const findings = IntegrityConformanceSuite.scan({ rootDir: root }).filter(
-      (f) => f.ruleId === "no-hardcoded-ui-text",
+      (f) => f.ruleId === "CONF-I18N-001" || f.alias === "no-hardcoded-ui-text",
     );
     const excerpts = findings.map((f) => f.excerpt);
     expect(excerpts.some((e) => e.includes("Vue d'ensemble"))).toBe(true);
@@ -190,7 +214,7 @@ describe("IntegrityConformanceSuite", () => {
       '<h4 class="x">${escapeHtml(title)}</h4>\n<p>{count} éléments</p>\n',
     );
     const findings = IntegrityConformanceSuite.scan({ rootDir: root }).filter(
-      (f) => f.ruleId === "no-hardcoded-ui-text",
+      (f) => f.ruleId === "CONF-I18N-001" || f.alias === "no-hardcoded-ui-text",
     );
     expect(findings).toHaveLength(1);
     expect(findings[0]?.excerpt).toContain("éléments");
@@ -199,7 +223,7 @@ describe("IntegrityConformanceSuite", () => {
   it("ignores UI text outside view layers", () => {
     write(root, "src/server/routes/api.ts", `<h1>Vue d'ensemble</h1>\n`);
     const findings = IntegrityConformanceSuite.scan({ rootDir: root }).filter(
-      (f) => f.ruleId === "no-hardcoded-ui-text",
+      (f) => f.ruleId === "CONF-I18N-001" || f.alias === "no-hardcoded-ui-text",
     );
     expect(findings).toHaveLength(0);
   });
