@@ -115,89 +115,8 @@ export {
   PluginLifecycleError,
 } from "./plugin/plugin-errors";
 
-// ─── Theme Resolution ────────────────────────────────
-export { ThemeTargetRegistry } from "./theme/theme-target-registry";
-export type {
-  ThemeTargetRegistration,
-  ThemeTargetCapabilities,
-} from "./theme/theme-target-registry";
-export {
-  ThemeResolver,
-  createThemeResolver,
-  DEFAULT_THEME_PRECEDENCE,
-  resolveTarget,
-  resolveAssignment,
-  resolveThemeId,
-  resolveMode,
-  resolveInheritance,
-  satisfiesVersion,
-} from "./theme/theme-resolver";
-export type {
-  ThemeResolverOptions,
-  ThemeResolutionOutcome,
-  TargetStepResult,
-  ThemeIdDecision,
-  ModeStepResult,
-  ThemeInheritanceResolverLike,
-  InheritanceStepDeps,
-} from "./theme/theme-resolver";
-
-export {
-  ThemeInheritanceResolver,
-  resolveThemeInheritance,
-} from "./theme/theme-inheritance-resolver";
-export type {
-  ThemeManifestLookup,
-  ThemeInheritanceResolverOptions,
-} from "./theme/theme-inheritance-resolver";
-
-export {
-  ThemeError,
-  ThemeNotFoundError,
-  ThemeCycleError,
-  ThemeVersionError,
-  ThemeValidationError,
-  ThemeInjectionError,
-  ThemeCompatibilityError,
-  ThemeAuthorizationError,
-} from "./theme/theme-errors";
-export type { ThemeErrorCode } from "./theme/theme-errors";
-
-export { InMemoryThemeAssignmentsStore } from "./theme/in-memory-theme-assignments-store";
-export type {
-  ThemeMutationListener,
-  InMemoryThemeAssignmentsStoreOptions,
-} from "./theme/in-memory-theme-assignments-store";
-
-// ─── Theme Compilation, Cache, Injection & Runtime ────────────────
-export { compile, THE_GROUP_CSS_NAMES } from "./theme/theme-compiler";
-
-export {
-  ThemeCache,
-  toThemeCacheKey,
-  THEME_CACHE_DEFAULT_MAX,
-} from "./theme/theme-cache";
-export type { ThemeCacheKey } from "./theme/theme-cache";
-
-export {
-  ThemeInjector,
-  diffCompiledTheme,
-  INJECTOR_BATCH_THRESHOLD,
-} from "./theme/theme-injector";
-export type { ThemeRoot, CssStyleHost } from "./theme/theme-injector";
-
-export {
-  ThemeRuntime,
-  createThemeRuntime,
-  THEME_CHANGED_EVENT_VERSION,
-  THEME_RUNTIME_OWNER_APP,
-} from "./theme/theme-runtime";
-export type {
-  ThemeChangedPublisher,
-  ThemeApplyOutcome,
-  ThemeRuntimeOptions,
-  ThemeRuntimeFactoryOptions,
-} from "./theme/theme-runtime";
+// ─── Dedicated Theme System (@mosaix/theme) ────────────────
+export * from "@mosaix/theme";
 
 export * from "./database-resolver";
 
@@ -209,15 +128,6 @@ export * from "./composition-override-manager.js";
 
 export * from "./application-runtime";
 export { ApplicationDiscovery } from "./app-discovery";
-
-export { resolveSlot, SHELL_ROUTES, isShellRoute } from "./theme/resolve-slot";
-export type {
-  SlotResolutionContext,
-  SlotResolutionResult,
-} from "./theme/resolve-slot";
-export { deepMergeTokens } from "./theme/resolve-tokens";
-export { ThemeDiscovery } from "./theme/theme-discovery";
-export type { DiscoveredThemeInfo } from "./theme/theme-discovery";
 
 // Env module (AdonisJS-inspired)
 export { Env, EnvManager } from "./env/env";
@@ -253,14 +163,6 @@ export type {
 
 // Built-in Kernel Modules & Services
 export * from "./modules/index";
-
-// Theme persistence + BAC targets
-export { PostgresThemeAssignmentsStore } from "./theme/postgres-theme-assignments-store";
-export { ThemeAssignmentsMigrationProvider } from "./theme/theme-assignments-migration";
-export {
-  BAC_THEME_TARGETS,
-  registerBacThemeTargets,
-} from "./theme/bac-theme-targets";
 
 // Effective Permission Resolver & Value Objects
 export {

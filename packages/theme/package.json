@@ -1,0 +1,37 @@
+{
+  "name": "@mosaix/theme",
+  "version": "0.1.0",
+  "description": "MosaiX Dedicated Theme System — Pure Compiler, Decomposed Resolver, Shadow DOM Injector, UniTheme Presets, PrestaShop Parent/Child Inheritance, and 3-Level SDK",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "dev": "tsc --watch",
+    "build": "tsc --skipLibCheck",
+    "clean": "rimraf dist",
+    "test": "vitest run"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@mosaix/contracts": "workspace:*",
+    "@mosaix/schemas": "workspace:*",
+    "@mosaix/support": "workspace:*",
+    "@mosaix/types": "workspace:*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "require": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}

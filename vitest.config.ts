@@ -15,6 +15,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@mosaix/core": path.resolve(__dirname, "./packages/core/src/index.ts"),
+      "@mosaix/theme": path.resolve(__dirname, "./packages/theme/src/index.ts"),
       "@mosaix/contracts": path.resolve(__dirname, "./packages/contracts/src/index.ts"),
       "@mosaix/schemas": path.resolve(__dirname, "./packages/schemas/src/index.ts"),
       "@mosaix/security": path.resolve(__dirname, "./packages/security/src/index.ts"),
@@ -60,6 +61,5 @@ export default defineConfig({
       "@mosaix/dev-session": path.resolve(__dirname, "./packages/dev-session/src/index.ts"),
       "@mosaix/dev-server": path.resolve(__dirname, "./packages/dev-server/src/index.ts"),
     },
-
   },
 });

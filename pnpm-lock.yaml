@@ -1701,6 +1701,31 @@ importers:
 
   packages/telemetry: {}
 
+  packages/theme:
+    dependencies:
+      '@mosaix/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@mosaix/schemas':
+        specifier: workspace:*
+        version: link:../schemas
+      '@mosaix/support':
+        specifier: workspace:*
+        version: link:../support
+      '@mosaix/types':
+        specifier: workspace:*
+        version: link:../types
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/node@25.9.7)(tsx@4.23.13)
+
   packages/types: {}
 
   packages/ui-runtime: {}
