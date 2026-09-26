@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 /**
  * @apps/spaces — Custom Domain DNS & SSL State Machine (GAP-01)
  */
@@ -20,7 +21,7 @@ export class SpaceCustomDomainEngine {
       domain,
       dnsStatus: "PENDING_DNS",
       sslStatus: "NONE",
-      verificationTxtRecord: `mosaix-verification=${Math.random().toString(36).substring(2, 12)}`,
+      verificationTxtRecord: `mosaix-verification=${crypto.randomBytes(12).toString("hex")}`,
     };
   }
 

@@ -167,7 +167,7 @@ export class DeliveryPartnerService {
 
     const id = `ship_${crypto.randomUUID()}`;
     const now = new Date().toISOString();
-    const trackingNumber = input.trackingNumber || `TRK-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const trackingNumber = input.trackingNumber || `TRK-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
     const shipment: ShipmentRecord = {
       id,

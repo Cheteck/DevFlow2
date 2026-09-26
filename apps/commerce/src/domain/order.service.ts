@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 import { OrderModel } from './order.model.js';
 import { OrderValidationError, OrderNotFoundError } from './commerce.errors.js';
 import { CheckoutOrderWorkflow, type PaymentPort, type InventoryPort } from '../workflows/checkout-order.workflow.js';
@@ -36,7 +37,7 @@ export class OrderService {
     }
 
     const order = new OrderModel();
-    order.id = `ord-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    order.id = `ord-${crypto.randomUUID()}`;
     order.userId = params.userId;
     order.vendableId = params.vendableId;
     order.status = 'Pending';

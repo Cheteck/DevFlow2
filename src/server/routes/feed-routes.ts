@@ -48,7 +48,7 @@ export async function handleFeedRoutes(
               category: "solara",
               likes: 0,
             })
-            .catch(() => null);
+            .catch((err) => { console.warn("[Feed] Persist post error:", err); });
 
           // Broadcast via distributed event backplane
           eventBackplane.publish("solara.post.published", { post: newPost });
@@ -73,7 +73,7 @@ export async function handleFeedRoutes(
       : undefined;
     const category = parsedUrl.searchParams.get("category") || undefined;
 
-    const paginated = await feedService.getFeed({ limit, cursor, category }).catch(() => null);
+    let paginated = null; try { paginated = await feedService.getFeed({ limit, cursor, category }); } catch (err) { console.warn("[Feed] Get feed error:", err); }
     if (paginated && paginated.items.length > 0) {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(

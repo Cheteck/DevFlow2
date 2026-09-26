@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 import type { Subscription } from "./subscription.model.js";
 
 export class SubscriptionTrialManager {
@@ -85,7 +86,7 @@ export class RedisSortedSetMeteringEngine {
       this.sortedSets.set(meterKey, []);
     }
     const set = this.sortedSets.get(meterKey)!;
-    set.push({ member: `${timestamp}:${Math.random().toString(36).slice(2, 6)}`, score: timestamp });
+    set.push({ member: `${timestamp}:${crypto.randomUUID().slice(0, 8)}`, score: timestamp });
   }
 
   getUsageInRange(meterKey: string, startTimestamp: number, endTimestamp: number): number {

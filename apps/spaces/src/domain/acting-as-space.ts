@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 /**
  * @apps/spaces — Acting As Space Representation Engine & Outbox Event Emission (GAP-04 & P0 Feature Flag)
  */
@@ -35,7 +36,7 @@ export class ActingAsSpaceEngine {
     }
 
     const auditEvent: ActingAsAuditEvent = {
-      eventId: `evt-${Math.random().toString(36).substring(2, 9)}`,
+      eventId: `evt-${crypto.randomUUID()}`,
       eventType: "spaces.acting_as.executed",
       context: {
         realUserId,

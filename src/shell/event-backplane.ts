@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 /**
  * @mosaix/shell — Distributed Event Backplane & Realtime Broadcast
  * Bridges local events to multi-node SSE / Redis PubSub cluster channels.
@@ -30,7 +31,7 @@ export class DistributedEventBackplane {
     process.env.MOSAIX_NODE_ID ||
     (typeof process !== "undefined" && process.env.HOSTNAME
       ? `node_${process.env.HOSTNAME}`
-      : `node_${Math.random().toString(36).substring(2, 9)}`);
+      : `node_${crypto.randomUUID().slice(0, 8)}`);
   private listeners = new Map<string, Set<BackplaneListener>>();
   private sseClients = new Set<(event: string, data: string) => void>();
   private clusterAdapter?: ClusterTransportAdapter;
@@ -55,7 +56,7 @@ export class DistributedEventBackplane {
 
   publish(topic: string, payload: unknown): DistributedEventMessage {
     const message: DistributedEventMessage = {
-      id: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: `evt_${crypto.randomUUID()}`,
       topic,
       payload,
       timestamp: Date.now(),

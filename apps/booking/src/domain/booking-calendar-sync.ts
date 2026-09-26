@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 import type { BookingSlot, Reservation } from "./booking.model.js";
 
 export interface IcsEventOptions {
@@ -103,7 +104,7 @@ export class BookingWaitlistManager {
   addToWaitlist(slotId: string, customerId: string, customerName: string, customerEmail: string): WaitlistEntry {
     const list = this.waitlists.get(slotId) ?? [];
     const entry: WaitlistEntry = {
-      id: `wtl-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: `wtl-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
       slotId,
       customerId,
       customerName,

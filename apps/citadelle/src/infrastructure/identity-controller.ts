@@ -108,7 +108,7 @@ export class IdentityController {
 
     try {
       if (targetSessionId) {
-        await this.authManager.revokeSession(targetSessionId).catch(() => null);
+        try { await this.authManager.revokeSession(targetSessionId); } catch { /* ignore */ }
       }
       if (identityId) {
         const newSession = await this.authManager.createSession(identityId, tenantId);

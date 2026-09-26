@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 /**
  * @apps/portfolio/domain — Shop Inventory Reports & Out-Of-Stock Demand Intelligence
  * FEAT-06: Rapports boutiques [CŒUR + plugin rendu] (portfolio + commerce)
@@ -73,7 +74,7 @@ export class ShopInventoryReportService {
       throw new Error("Adresse email invalide pour l'alerte réapprovisionnement.");
     }
 
-    const id = `sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const id = `sub_${crypto.randomUUID()}`;
     const sub: RestockAlertSubscription = {
       id,
       vendableId,

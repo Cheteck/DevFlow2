@@ -23,7 +23,7 @@ export class OrderRepository {
         created_at TEXT,
         updated_at TEXT
       )
-    `).catch(() => null);
+    `).catch((err) => { console.warn("[Commerce] Table init warning:", err); });
   }
 
   async save(order: OrderModel): Promise<OrderModel> {
@@ -62,7 +62,7 @@ export class OrderRepository {
 
   async findById(id: string): Promise<OrderModel | null> {
     if (this.db) {
-      const rows = await this.db.query<Record<string, unknown>>(`SELECT * FROM commerce_orders WHERE id = ?`, [id]).catch(() => []);
+      let rows: Record<string, unknown>[] = []; try { rows = await this.db.query<Record<string, unknown>>(`SELECT * FROM commerce_orders WHERE id = ?`, [id]); } catch (err) { console.warn("[Commerce] Find order error:", err); }
       if (rows.length > 0) {
         const r = rows[0];
         const model = new OrderModel({
@@ -84,7 +84,7 @@ export class OrderRepository {
 
   async findAll(): Promise<OrderModel[]> {
     if (this.db) {
-      const rows = await this.db.query<Record<string, unknown>>(`SELECT * FROM commerce_orders`).catch(() => []);
+      let rows: Record<string, unknown>[] = []; try { rows = await this.db.query<Record<string, unknown>>(`SELECT * FROM commerce_orders`); } catch (err) { console.warn("[Commerce] Find all orders error:", err); }
       if (rows.length > 0) {
         const list: OrderModel[] = [];
         for (const r of rows) {
@@ -110,7 +110,7 @@ export class OrderRepository {
   async delete(id: string): Promise<boolean> {
     this.orders.delete(id);
     if (this.db) {
-      await this.db.execute(`DELETE FROM commerce_orders WHERE id = ?`, [id]).catch(() => null);
+      try { await this.db.execute(`DELETE FROM commerce_orders WHERE id = ?`, [id]); } catch (err) { console.warn("[Commerce] Delete order error:", err); }
     }
     return true;
   }
@@ -118,7 +118,7 @@ export class OrderRepository {
   async clear(): Promise<void> {
     this.orders.clear();
     if (this.db) {
-      await this.db.execute(`DELETE FROM commerce_orders`).catch(() => null);
+      try { await this.db.execute(`DELETE FROM commerce_orders`); } catch (err) { console.warn("[Commerce] Clear orders error:", err); }
     }
   }
 }

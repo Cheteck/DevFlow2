@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 import type { CredentialStore, Credential, SaveCredentialInput } from "@mosaix/ports-credential-store";
 
 export class InMemoryCredentialStore implements CredentialStore {
@@ -13,7 +14,7 @@ export class InMemoryCredentialStore implements CredentialStore {
   }
 
   async save(input: SaveCredentialInput): Promise<Credential> {
-    const id = `cred_${Math.random().toString(36).slice(2, 11)}`;
+    const id = `cred_${crypto.randomUUID()}`;
     const now = new Date().toISOString();
     const cred: Credential = {
       id,

@@ -36,10 +36,10 @@ export class SubscriptionService {
         created_at INTEGER,
         updated_at INTEGER
       )
-    `).catch(() => null);
+    `).catch((err) => { console.warn("[Subscription] Table init warning:", err); });
 
     // Load existing subscriptions from DB
-    const rows = await this.db.query<Record<string, unknown>>(`SELECT * FROM user_subscriptions`).catch(() => []);
+    let rows: Record<string, unknown>[] = []; try { rows = await this.db.query<Record<string, unknown>>(`SELECT * FROM user_subscriptions`); } catch (err) { console.warn("[Subscription] Load subs error:", err); }
     for (const r of rows) {
       const sub: UserSubscription = {
         id: String(r["id"]),
@@ -127,10 +127,7 @@ export class SubscriptionService {
   async getUserSubscriptionAsync(userId: string): Promise<UserSubscription | undefined> {
     if (this.db) {
       const query = this.formatQuery(`SELECT * FROM user_subscriptions WHERE user_id = ? AND (status = 'active' OR status = 'trialing') LIMIT 1`);
-      const rows = await this.db.query<Record<string, unknown>>(
-        query,
-        [userId]
-      ).catch(() => []);
+      let rows: Record<string, unknown>[] = []; try { rows = await this.db.query<Record<string, unknown>>(query, [userId]); } catch (err) { console.warn("[Subscription] Query sub error:", err); }
       if (rows.length > 0) {
         const r = rows[0];
         const sub: UserSubscription = {

@@ -211,7 +211,12 @@ export async function handleMobileRoutes(
   // 6. Test FCM Push Notification to Registered Device
   if (pathname === "/api/mobile/push/test" && req.method === "POST") {
     const body = await readJsonBody(req);
-    const fcmToken = String(body.fcmToken || "mock_token_android_123");
+    const fcmToken = String(body.fcmToken || "");
+    if (!fcmToken) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "fcmToken parameter is required for push dispatch" }));
+      return true;
+    }
 
     const result = await fcmAdapter.sendToDevice(fcmToken, {
       title: body.title ? String(body.title) : "☀️ MosaiX Solara",
