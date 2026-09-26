@@ -21,6 +21,24 @@ Conversations directes/groupe, dispatch de messages, capabilities beam.message.s
 
 Monte sur `RuntimeKernel` via conteneur enfant par tenant. Communique inter-apps uniquement par capabilities/evenements (aucun import direct inter-apps). Infra via ports/adapters.
 
+
+## Donnees possedees (source de verite)
+
+- Conversations (directes/groupe), participants, messages, pieces jointes, accuses, presence, recherche, E2E (ECDH/AES-GCM), upload fragmente, purge RGPD, bot commands.
+
+## References externes (par ID, jamais de jointure)
+
+- Participants → Citadelle (opaque) ; pieces jointes via StoragePort.
+
+## Invariants frontieres (ADR-0016)
+
+1. **Conversations privees uniquement** : ni feed social (Solara), ni notifications systeme generiques, ni bus metier inter-BAC (infra events MosaiX).
+2. **CIBLE : Beam ne distribue pas les notifications produit** (BOUND-04).
+
+## Ecarts cible-vs-reel
+
+- [ ] **Ecart (cible vs reel)** : tables `beam_notifications` + `beam_push_subscriptions` — la notification transverse est absorbee. Geler toute extension notif ici ; extraction vers Notifications (BOUND-04).
+
 ## Frontieres
 
 - Aucun import depuis une autre app.

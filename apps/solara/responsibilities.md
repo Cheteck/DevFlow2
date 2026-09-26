@@ -21,6 +21,24 @@ Publications polymorphes (sondages, articles, showcases), commentaires, reaction
 
 Monte sur `RuntimeKernel` via conteneur enfant par tenant. Communique inter-apps uniquement par capabilities/evenements (aucun import direct inter-apps). Infra via ports/adapters.
 
+
+## Donnees possedees (source de verite)
+
+- Publications polymorphes (articles, sondages, showcases), commentaires, reactions, follows, feed + scoring, visibilite, rich media OpenGraph, groupes, realtime, analytics, moderation 3-tiers (+ plugin `solara-content-moderator`), auto-share, contenu sponsorise.
+
+## References externes (par ID, jamais de jointure)
+
+- Auteur → Citadelle/Space (par ID) ; ressources referencees (vendable, offre, Space) **par ID**, jamais dupliquees.
+
+## Invariants frontieres (ADR-0016)
+
+1. **Possede interactions + contenu social, pas les objets references** : un post peut montrer un produit sans le posseder.
+2. **Moderation = pipeline a hooks** (stages injectables), pas de censure en dur.
+
+## Ecarts cible-vs-reel
+
+- [ ] `sponsoredPool` : formaliser la frontiere publicitaire (post sponsorise ≠ offre Commerce) ou extraire vers Billing/Ads plus tard.
+
 ## Frontieres
 
 - Aucun import depuis une autre app.

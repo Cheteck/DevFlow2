@@ -21,6 +21,26 @@ Orders, sagas de checkout avec compensation (orchestration), paiement, capabilit
 
 Monte sur `RuntimeKernel` via conteneur enfant par tenant. Communique inter-apps uniquement par capabilities/evenements (aucun import direct inter-apps). Infra via ports/adapters.
 
+
+## Donnees possedees (source de verite)
+
+- Offres multi-vendeurs (rattachement vendeur, `payoutDestination`, variantes commerciales), prix de vente, promotions/coupons, panier, checkout (saga + compensation), devis, commandes + lignes, fulfillment/shipments, partenaires livraison, encheres, avis verifies (via plugin).
+
+## References externes (par ID, jamais de jointure)
+
+- Vendables → Portfolio (par ID) ; vendeur → Space (par ID) ; acheteur → Citadelle (opaque).
+- **CIBLE** : intents/transactions → futur BAC Payments ; factures/avoirs → futur Billing (references par ID).
+
+## Invariants frontieres (ADR-0016)
+
+1. **Ne possede jamais la ressource source** : l'offre reference, elle ne duplique pas.
+2. **CIBLE : commande ≠ paiement ≠ facture** (arbitrage 1, ADR-0016) : Commerce orchestre ; l'etat financier appartient a Payments, les documents a Billing.
+3. **Disponibilite = Booking** : Commerce initie une reservation dans le checkout, Booking tranche.
+
+## Ecarts cible-vs-reel
+
+- [ ] **Ecart majeur (cible vs reel)** : `commerce_payment_intents` (+ `refund` !), `satim-payment-port` (SATIM CIB/Edahabia), `DemoPaymentPort`, webhooks `payment_intent.succeeded` — le paiement est absorbe. Extraction `BOUND-02` (Payments) puis `BOUND-03` (Billing) ; en attendant, isoler derriere `PaymentPort` sans nouvelle logique financiere dans Commerce.
+
 ## Frontieres
 
 - Aucun import depuis une autre app.

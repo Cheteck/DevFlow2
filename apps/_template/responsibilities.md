@@ -37,3 +37,9 @@ Monte sur `RuntimeKernel` via conteneur enfant par tenant. Communique inter-apps
 - [ ] Conforme a `pnpm check:conformance` + `check:manifests`.
 - [ ] Tests de domaine verts (`*.test.ts`).
 - [ ] OpenAPI genere sans erreur.
+
+## Consigne (ADR-0016) — obligatoire pour tout nouveau BAC
+
+- Declarer : **donnees possedees** (source de verite, tables/modeles), **references externes** (IDs, jamais de jointure ni de table etrangere en ecriture), **capabilities** (toute operation exposee = capability versionnee), **evenements** (faits passes, jamais d'appel deguise).
+- Interdits : acces direct aux tables d'un autre BAC ; absorption paiement/facturation/notification (BACs transverses dedies) ; role metier emis par Citadelle ; logique metier dans Imperia.
+- Tout ecart entre cette fiche et le code devient une tache backlog priorisee.

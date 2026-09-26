@@ -143,6 +143,28 @@ persistance Postgres best-effort).
 - Expose ses capabilities aux consoles d'admin et au shell (carte `appCard` "Imperia Gouvernance ⚡",
   `frontend/src/index.ts`).
 
+
+## Donnees possedees (source de verite)
+
+- Registre des manifests BAC, topologie, scores de conformite (vues derivees, recalculees).
+- Catalogue `CANONICAL_SETTINGS_DEFINITIONS`, politiques `GovernancePolicy`, catalogue plugins, migrations (inventaire + preview), audit logs (`imperia_audit_logs`), DLQ/circuit-breakers (supervision).
+- **Aucune donnee metier** : tout est gouvernance ou derive.
+
+## References externes (par ID, jamais de jointure)
+
+- Lit les manifests des BACs **en copie** (registre + validation, jamais d'import de code).
+- References `platform_settings.platform_theme_id`, `themes/*/theme.json`.
+
+## Invariants frontieres (ADR-0016)
+
+1. **Gouverne, n'execute pas** (arbitrage 3, ADR-0016) : enregistre, configure, supervise — ne mute jamais les donnees metier d'un BAC.
+2. **Ne contourne ni Citadelle (authN) ni les policies des BACs (authZ).**
+3. **Acces global-only** : superadmin/admin/platform-admin/platform-governor (voir section Acces).
+
+## Ecarts cible-vs-reel
+
+- [ ] Desalignement `requireAdmin` (n'accepte pas `superadmin`) — voir section Ecarts (deja trace).
+
 ## Frontieres
 
 - Acces reserve aux roles globaux sur **toutes** les routes, lecture comme ecriture

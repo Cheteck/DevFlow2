@@ -21,6 +21,24 @@ Signalements, besoins, dons, hubs/entrepots, missions, confirmations de distribu
 
 Monte sur `RuntimeKernel` via conteneur enfant par tenant. Communique inter-apps uniquement par capabilities/evenements (aucun import direct inter-apps). Infra via ports/adapters.
 
+
+## Donnees possedees (source de verite)
+
+- Incidents, alertes de crise, besoins/demandes d'aide, dons (intentions + suivi), hubs/entrepots, missions, benevoles, distributions, matching geospatial (Haversine), arbre de Merkle (traçabilite), file offline, checklists, rapports OCHA/HXL.
+
+## References externes (par ID, jamais de jointure)
+
+- Acteurs → Citadelle/Spaces (par ID) ; beneficiaires pseudonymises (ne jamais stocker d'identite directe).
+
+## Invariants frontieres (ADR-0016)
+
+1. **Source de verite des operations de solidarite** — ne remplace ni l'alerte nationale, ni l'identite, ni les paiements.
+2. **Dons financiers → futur Payments** : Solidarity suit l'intention et la distribution, pas la transaction.
+
+## Ecarts cible-vs-reel
+
+- [ ] Pseudonymisation beneficiaires : audit RGPD dedie (donnees sensibles, terrain).
+
 ## Frontieres
 
 - Aucun import depuis une autre app.

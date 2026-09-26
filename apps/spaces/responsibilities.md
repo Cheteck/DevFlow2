@@ -21,6 +21,30 @@ Paradigme Pages/Spaces : entites, modules activables, roles equipe, acting-as-sp
 
 Monte sur `RuntimeKernel` via conteneur enfant par tenant. Communique inter-apps uniquement par capabilities/evenements (aucun import direct inter-apps). Infra via ports/adapters.
 
+
+## Donnees possedees (source de verite)
+
+- Spaces (`spaces_spaces` : slug, categorie, template, `ownerId`, `team[]`, `enabledCapabilities`, domaine, navigation publique).
+- Equipes et roles locaux (`owner|administrator|editor|moderator|analyst`), demandes d'adhesion, audience/followers du Space.
+- Registre metier (`business-registry` : verify/reject/revoke), contexte `acting-as-space` + piste d'audit.
+- Ressources **possedees en propre** par le Space (pages, medias de marque).
+
+## References externes (par ID, jamais de jointure)
+
+- `ownerId` / `member.userId` → Citadelle (opaque).
+- `enabledCapabilities` → capabilities declarees par les BACs (activation, pas reimplementation).
+- Ressources metier (offres, commandes, publications) → **references par ID**, propriete au BAC competent.
+
+## Invariants frontieres (ADR-0016)
+
+1. **Ownership ≠ propriete metier** (arbitrage 2, ADR-0016) : le Space est acteur et contexte d'action ; une commande passee *dans* un Space appartient a Commerce, une publication a Solara.
+2. **Un Space n'est ni un compte utilisateur ni un commerce autonome.**
+3. **`acting-as-space` toujours audite** (qui, quel Space, quel role, quelle capability).
+
+## Ecarts cible-vs-reel
+
+- [ ] Verifier qu'aucune logique commande/paiement ne s'est glissee dans `business-registry` ou les templates (revue ciblee).
+
 ## Frontieres
 
 - Aucun import depuis une autre app.
