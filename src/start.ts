@@ -10,11 +10,7 @@ import * as path from "node:path";
 
 import type { ThemeMode } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
-import {
-  CompositionOverrideManager,
-  platformSettingsService,
-  validateEnv,
-} from "@mosaix/core";
+import { platformSettingsService } from "@mosaix/core";
 
 // Bootstrap framework initialization (Laravel-style)
 import { bootstrapApplication } from "../bootstrap/index.js";
@@ -50,10 +46,8 @@ import { renderHomePage } from "./shell/pages/home-page.js";
 
 // Boot the MosaiX Application container via Laravel-inspired bootstrap system
 const app = await bootstrapApplication();
-const bootEnv = app.getConfig<ReturnType<typeof validateEnv>>("env");
-const compositionOverrideManager = app.getService<CompositionOverrideManager>(
-  "compositionOverrideManager",
-);
+const bootEnv = app.env;
+const compositionOverrideManager = app.composition;
 
 const PORT = bootEnv.resolvedPort;
 

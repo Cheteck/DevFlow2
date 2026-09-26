@@ -1,12 +1,18 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   MosaixApplication,
   createApplication,
   bootstrapApplication,
   type ServiceProvider,
 } from "./index.js";
+import { closeDatabase, initDatabase } from "../src/shell/database-bootstrap.js";
+import { runShellMigrations } from "../src/shell/migrations.js";
 
 describe("MosaiX Bootstrap Suite (Laravel-inspired)", () => {
+  afterEach(async () => {
+    await closeDatabase();
+  });
+
   it("registers and boots service providers in proper sequential order", async () => {
     const executionOrder: string[] = [];
 
@@ -18,16 +24,16 @@ describe("MosaiX Bootstrap Suite (Laravel-inspired)", () => {
       },
       boot(app) {
         executionOrder.push("A:boot");
-        app.setService("serviceA", { active: true });
+        app.setService("env", { resolvedPort: 3000 } as any);
       },
     };
 
     const testProviderB: ServiceProvider = {
       name: "TestProviderB",
-      register(app) {
+      register() {
         executionOrder.push("B:register");
       },
-      boot(app) {
+      boot() {
         executionOrder.push("B:boot");
       },
     };
@@ -48,7 +54,7 @@ describe("MosaiX Bootstrap Suite (Laravel-inspired)", () => {
     ]);
 
     expect(app.getConfig("providerA")).toBe(true);
-    expect(app.getService<{ active: boolean }>("serviceA")).toEqual({ active: true });
+    expect(app.env.resolvedPort).toBe(3000);
   });
 
   it("handles config and service lookup with error fallbacks", () => {
@@ -61,14 +67,14 @@ describe("MosaiX Bootstrap Suite (Laravel-inspired)", () => {
       "[MosaixApplication] Config key [non.existent] is not set.",
     );
 
-    expect(app.hasService("customService")).toBe(false);
-    expect(() => app.getService("customService")).toThrowError(
-      "[MosaixApplication] Service [customService] is not registered.",
+    expect(app.hasService("env")).toBe(false);
+    expect(() => app.getService("env")).toThrowError(
+      "[MosaixApplication] Service [env] is not registered.",
     );
 
-    app.setService("customService", { id: 123 });
-    expect(app.hasService("customService")).toBe(true);
-    expect(app.getService<{ id: number }>("customService").id).toBe(123);
+    app.setService("env", { resolvedPort: 4000 } as any);
+    expect(app.hasService("env")).toBe(true);
+    expect(app.env.resolvedPort).toBe(4000);
   });
 
   it("creates and boots application via createApplication/bootstrapApplication factory", async () => {
@@ -99,5 +105,46 @@ describe("MosaiX Bootstrap Suite (Laravel-inspired)", () => {
 
     expect(server).toBeDefined();
     expect(app.server).toBe(server);
+  });
+
+  // Requirement 2: Real Database integration tests with injected env
+  it("fails fast with 'database not migrated' on fresh unmigrated SQLite :memory: database", async () => {
+    const testEnv = {
+      DB_CONNECTION: "sqlite",
+      DB_DATABASE: ":memory:",
+      MOSAIX_APP_KEY: "base64:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=",
+    };
+
+    await expect(createApplication({ env: testEnv })).rejects.toThrowError(
+      /database not migrated/,
+    );
+  });
+
+  it("boots successfully with applied migrations and verifies SQLite write query", async () => {
+    const testEnv = {
+      DB_CONNECTION: "sqlite",
+      DB_DATABASE: ":memory:",
+      MOSAIX_APP_KEY: "base64:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=",
+    };
+
+    // Pre-migrate the memory database instance
+    const { dbAdapter } = initDatabase({ env: testEnv });
+    await runShellMigrations(dbAdapter);
+
+    // Boot application with injected env
+    const app = await createApplication({ env: testEnv });
+    expect(app.isBooted()).toBe(true);
+
+    // Verify DB write query through app.db accessor
+    await app.db.execute("CREATE TABLE test_bootstrap (id TEXT PRIMARY KEY, val TEXT)");
+    await app.db.execute("INSERT INTO test_bootstrap VALUES (?, ?)", ["1", "verified"]);
+
+    const rows = await app.db.query<{ val: string }>(
+      "SELECT val FROM test_bootstrap WHERE id = ?",
+      ["1"],
+    );
+    expect(rows[0]?.val).toBe("verified");
+
+    await app.close();
   });
 });

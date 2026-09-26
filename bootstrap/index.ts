@@ -8,6 +8,8 @@ export {
   bootstrapApplication,
   MosaixApplication,
   type ApplicationOptions,
+  type ApplicationServices,
+  type EnvConfig,
 } from "./app.js";
 
 export {

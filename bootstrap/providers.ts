@@ -9,7 +9,7 @@ import {
   validateEnv,
 } from "@mosaix/core";
 import { SecurityGuard } from "../src/shell/security-guard.js";
-import { databaseReady } from "../src/shell/database-bootstrap.js";
+import { initDatabase } from "../src/shell/database-bootstrap.js";
 import { getPendingMigrationIds } from "../src/shell/migrations.js";
 import { applyPersistedPlatformTheme } from "../src/shell/theme/theme-persistence.js";
 import { loadSavedCompositionOverrides } from "../src/shell/editor.js";
@@ -26,11 +26,18 @@ export interface ServiceProvider {
  */
 export const EnvironmentServiceProvider: ServiceProvider = {
   name: "EnvironmentServiceProvider",
-  register() {
-    loadEnvFile();
+  register(app) {
+    if (app.options.rootDir) {
+      loadEnvFile([".env", ".env.local"], app.options.rootDir);
+    } else {
+      loadEnvFile();
+    }
   },
   boot(app) {
-    const bootEnv = validateEnv(process.env as Record<string, string | undefined>);
+    const source =
+      app.options.env ?? (process.env as Record<string, string | undefined>);
+    const bootEnv = validateEnv(source);
+    app.setService("env", bootEnv);
     app.setConfig("env", bootEnv);
   },
 };
@@ -51,7 +58,11 @@ export const SecurityServiceProvider: ServiceProvider = {
 export const DatabaseServiceProvider: ServiceProvider = {
   name: "DatabaseServiceProvider",
   async boot(app) {
-    const { dbAdapter, identityStore, manager } = await databaseReady();
+    const { dbAdapter, identityStore, manager } = initDatabase({
+      env: app.options.env,
+      rootDir: app.options.rootDir,
+    });
+    await manager.ready();
     const pendingMigrations = await getPendingMigrationIds(dbAdapter);
     if (pendingMigrations.length > 0) {
       throw new Error(
@@ -66,12 +77,12 @@ export const DatabaseServiceProvider: ServiceProvider = {
 };
 
 /**
- * Theme Service Provider — applies saved platform theme settings.
+ * Theme Service Provider — applies saved platform theme settings using app.db.
  */
 export const ThemeServiceProvider: ServiceProvider = {
   name: "ThemeServiceProvider",
-  async boot() {
-    await applyPersistedPlatformTheme();
+  async boot(app) {
+    await applyPersistedPlatformTheme(app.db);
   },
 };
 

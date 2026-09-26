@@ -14,7 +14,6 @@
   },
   "include": [
     "src/**/*.ts",
-    "bootstrap/**/*.ts",
     "packages/*/src/**/*.ts",
     "packages/adapters/*/src/**/*.ts",
     "packages/ports/*/src/**/*.ts",

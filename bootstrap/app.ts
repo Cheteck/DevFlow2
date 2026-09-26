@@ -4,10 +4,26 @@
  */
 
 import * as http from "node:http";
+import type { DatabasePort } from "@mosaix/ports-database";
+import type { IdentityStore } from "@mosaix/ports-identity-store";
+import type { DatabaseManager } from "@mosaix/database";
+import type { CompositionOverrideManager, validateEnv } from "@mosaix/core";
 import type { ServiceProvider } from "./providers.js";
 import { providers as defaultProviders } from "./providers.js";
 
+export type EnvConfig = ReturnType<typeof validateEnv>;
+
+export interface ApplicationServices {
+  env: EnvConfig;
+  dbAdapter: DatabasePort;
+  identityStore: IdentityStore;
+  databaseManager: DatabaseManager;
+  compositionOverrideManager: CompositionOverrideManager;
+}
+
 export interface ApplicationOptions {
+  env?: Record<string, string | undefined>;
+  rootDir?: string;
   providers?: ServiceProvider[];
   handler?: http.RequestListener;
   autoListen?: boolean;
@@ -21,6 +37,11 @@ export class MosaixApplication {
   private readonly registeredProviders: ServiceProvider[] = [];
   private booted = false;
   public server: http.Server | null = null;
+  public readonly options: ApplicationOptions;
+
+  constructor(options: ApplicationOptions = {}) {
+    this.options = options;
+  }
 
   public register(provider: ServiceProvider): this {
     this.registeredProviders.push(provider);
@@ -34,15 +55,26 @@ export class MosaixApplication {
     return this;
   }
 
-  public setService<T>(name: string, service: T): void {
+  public setService<K extends keyof ApplicationServices>(
+    name: K,
+    service: ApplicationServices[K],
+  ): void;
+  public setService<T>(name: string, service: T): void;
+  public setService(name: string, service: unknown): void {
     this.services.set(name, service);
   }
 
-  public getService<T>(name: string): T {
+  public getService<K extends keyof ApplicationServices>(
+    name: K,
+  ): ApplicationServices[K];
+  public getService<T>(name: string): T;
+  public getService(name: string): unknown {
     if (!this.services.has(name)) {
-      throw new Error(`[MosaixApplication] Service [${name}] is not registered.`);
+      throw new Error(
+        `[MosaixApplication] Service [${String(name)}] is not registered.`,
+      );
     }
-    return this.services.get(name) as T;
+    return this.services.get(name);
   }
 
   public hasService(name: string): boolean {
@@ -61,6 +93,31 @@ export class MosaixApplication {
       return defaultValue;
     }
     throw new Error(`[MosaixApplication] Config key [${key}] is not set.`);
+  }
+
+  public hasConfig(key: string): boolean {
+    return this.config.has(key);
+  }
+
+  // Strongly typed accessors for core services
+  public get env(): EnvConfig {
+    return this.getService("env");
+  }
+
+  public get db(): DatabasePort {
+    return this.getService("dbAdapter");
+  }
+
+  public get identity(): IdentityStore {
+    return this.getService("identityStore");
+  }
+
+  public get databaseManager(): DatabaseManager {
+    return this.getService("databaseManager");
+  }
+
+  public get composition(): CompositionOverrideManager {
+    return this.getService("compositionOverrideManager");
   }
 
   public isBooted(): boolean {
@@ -103,8 +160,13 @@ export class MosaixApplication {
     if (!this.server) {
       throw new Error("[MosaixApplication] Server has not been created.");
     }
-    const envConfig = this.config.get("env") as { resolvedPort?: number } | undefined;
-    const targetPort = port ?? envConfig?.resolvedPort ?? 3000;
+    let targetPort = port;
+    if (targetPort === undefined && this.hasService("env")) {
+      targetPort = this.env.resolvedPort;
+    }
+    if (targetPort === undefined) {
+      targetPort = 3000;
+    }
 
     return new Promise((resolve) => {
       this.server!.listen(targetPort, host, () => {
@@ -122,7 +184,7 @@ export class MosaixApplication {
       this.server = null;
     }
     if (this.hasService("databaseManager")) {
-      const manager = this.getService<{ close: () => Promise<void> }>("databaseManager");
+      const manager = this.databaseManager;
       await manager.close();
     }
   }
@@ -135,7 +197,7 @@ export class MosaixApplication {
 export async function createApplication(
   options: ApplicationOptions = {},
 ): Promise<MosaixApplication> {
-  const app = new MosaixApplication();
+  const app = new MosaixApplication(options);
   const activeProviders = options.providers ?? defaultProviders;
 
   app.registerProviders(activeProviders);
