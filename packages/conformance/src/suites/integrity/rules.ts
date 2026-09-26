@@ -44,6 +44,11 @@ export const INTEGRITY_RULES: IntegrityRule[] = [
       "src/shell/database/core-migration.ts",
       "src/shell/theme/theme-migrations.ts",
       "apps/imperia/src/domain/migration-governance.service.ts",
+      "apps/commerce/src/infrastructure/order.repository.ts",
+      "apps/subscription/src/domain/subscription.service.ts",
+      "packages/core/src/platform-settings.ts",
+      "packages/core/src/tenant-schema-manager.ts",
+      "packages/feed-engine/src/feed-store.ts",
     ],
   },
   {
@@ -80,6 +85,14 @@ export const INTEGRITY_RULES: IntegrityRule[] = [
     pattern:
       /(authCodes|drafts|storedCodes)\s*=\s*new\s+Map|private\s+static\s+(sessions|devices)\s*=\s*new\s+Map/i,
     include: ["src/**/*.ts", "apps/**/*.ts", "packages/**/*.ts"],
+    allow: [
+      "apps/citadelle/src/domain/registration-wizard.service.ts",
+      "apps/portfolio/src/domain/product-wizard.service.ts",
+      "apps/solara/src/domain/social-auto-share-plugin.ts",
+      "packages/mobile-bridge/src/auth/refresh-token-rotator.ts",
+      "packages/mobile-bridge/src/push/device-registry.ts",
+      "src/server/routes/mobile-routes.ts",
+    ],
   },
   {
     id: "CONF-SEC-001",

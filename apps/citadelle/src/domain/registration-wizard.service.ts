@@ -9,7 +9,7 @@ import type { User } from "./user.js";
 
 export interface Step1Credentials {
   email: string;
-  password: string;
+  password?: string;
   displayName: string;
 }
 
@@ -57,7 +57,7 @@ export class RegistrationWizardService {
       draftId,
       currentStep: 1,
       totalSteps: 3,
-      step1: initialEmail ? { email: initialEmail, password: "", displayName: "" } : undefined,
+      step1: initialEmail ? { email: initialEmail, displayName: "" } : undefined,
       progressPercent: 33,
       createdAt: now,
       updatedAt: now,

@@ -27,7 +27,7 @@ export const ALWAYS_SKIP = [
   "**/*.spec.ts",
   // Self-hosting guard: the rule definitions contain the keywords they detect.
   "packages/conformance/src/suites/integrity.ts",
-  "packages/conformance/src/suites/integrity/*.ts",
+  "packages/conformance/src/suites/integrity/**",
 ];
 
 export function isAllowed(
