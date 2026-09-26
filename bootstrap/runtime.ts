@@ -70,8 +70,9 @@ export function getSharedStyles(mode: ThemeMode): string {
     }
     .glass-card {
       background: ${mode === "light" ? "rgba(255, 255, 255, 0.7)" : "rgba(26, 28, 44, 0.7)"};
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid ${mode === "light" ? "rgba(15, 23, 42, 0.08)" : "rgba(255, 255, 255, 0.08)"};
     }
     .sidebar-collapsed .secondary-sidebar {
       display: none !important;
@@ -173,9 +174,9 @@ export function createHttpRequestHandler(services: ApplicationServices) {
         activeMode: currentThemeMode,
         currentUser,
         compositionOverrideManager: services.compositionOverrideManager,
-        feedService: services.feedService,
+        feedService: services.getFeedService(),
         eventBackplane: services.eventBackplane,
-        anonymizationOrchestrator: services.anonymizationOrchestrator,
+        anonymizationOrchestrator: services.getAnonymizationOrchestrator(),
       });
       if (isApiHandled) {
         return;

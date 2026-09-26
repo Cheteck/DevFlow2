@@ -15,9 +15,9 @@ import { getAnonymizationOrchestrator } from "../src/shell/anonymization-orchest
 
 export interface ApplicationServices {
   compositionOverrideManager: CompositionOverrideManager;
-  feedService: ReturnType<typeof getFeedService>;
+  getFeedService: typeof getFeedService;
   eventBackplane: typeof distributedEventBackplane;
-  anonymizationOrchestrator: ReturnType<typeof getAnonymizationOrchestrator>;
+  getAnonymizationOrchestrator: typeof getAnonymizationOrchestrator;
 }
 
 export async function registerServices(): Promise<ApplicationServices> {
@@ -41,8 +41,8 @@ export async function registerServices(): Promise<ApplicationServices> {
 
   return {
     compositionOverrideManager,
-    feedService: getFeedService(),
+    getFeedService,
     eventBackplane: distributedEventBackplane,
-    anonymizationOrchestrator: getAnonymizationOrchestrator(),
+    getAnonymizationOrchestrator,
   };
 }

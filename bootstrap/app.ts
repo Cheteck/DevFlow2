@@ -47,7 +47,7 @@ export class Application {
    */
   async listen(port?: number, host = "0.0.0.0"): Promise<http.Server> {
     if (!this.booted) {
-      await this.boot();
+      throw new Error("Application must be booted before listening. Call app.boot() first.");
     }
     const serverPort = port ?? this.config.port;
     const server = this.httpServer || this.createServer();
