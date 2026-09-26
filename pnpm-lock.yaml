@@ -1280,6 +1280,9 @@ importers:
       '@mosaix/schemas':
         specifier: workspace:*
         version: link:../schemas
+      '@mosaix/theme':
+        specifier: workspace:*
+        version: link:../theme
       '@mosaix/types':
         specifier: workspace:*
         version: link:../types

@@ -33,6 +33,7 @@ const elementTypes = [
   { type: "framework-primitive", pattern: "packages/plugin-engine/**" },
   { type: "framework-primitive", pattern: "packages/database/**" },
   { type: "framework-primitive", pattern: "packages/control-plane/**" },
+  { type: "framework-primitive", pattern: "packages/theme/**" },
 
   // Layer 5: Runtime Entry & Tooling
   { type: "runtime-entry", pattern: "packages/gateway/**" },
