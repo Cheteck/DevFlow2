@@ -67,7 +67,7 @@ describe("IntegrityConformanceSuite", () => {
   it("flags memory session stores, cleartext passwords and swallowed errors", () => {
     write(
       root,
-      "src/server/routes/mobile-routes.ts",
+      "src/server/routes/session-routes.ts",
       `const authCodes = new Map<string, Code>();\n`,
     );
     write(

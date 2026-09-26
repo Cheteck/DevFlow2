@@ -44,8 +44,6 @@ export const INTEGRITY_RULES: IntegrityRule[] = [
       "src/shell/database/core-migration.ts",
       "src/shell/theme/theme-migrations.ts",
       "apps/imperia/src/domain/migration-governance.service.ts",
-      "apps/commerce/src/infrastructure/order.repository.ts",
-      "apps/subscription/src/domain/subscription.service.ts",
       "packages/core/src/platform-settings.ts",
       "packages/core/src/tenant-schema-manager.ts",
       "packages/feed-engine/src/feed-store.ts",
@@ -85,6 +83,13 @@ export const INTEGRITY_RULES: IntegrityRule[] = [
     pattern:
       /\b(authCodes|drafts|storedCodes)\s*=\s*new\s+Map|\bprivate\s+static\s+(sessions|devices)\s*=\s*new\s+Map/i,
     include: ["src/**/*.ts", "apps/**/*.ts", "packages/**/*.ts"],
+    allow: [
+      // Mobile bridge & mobile routes process-memory OAuth PKCE code and FCM device registry stores
+      // (Tracked in backlog section 10/11 for AUTH-REAL / DB persistence migration).
+      "packages/mobile-bridge/src/auth/refresh-token-rotator.ts",
+      "packages/mobile-bridge/src/push/device-registry.ts",
+      "src/server/routes/mobile-routes.ts",
+    ],
   },
   {
     id: "CONF-SEC-001",

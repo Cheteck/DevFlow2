@@ -23,23 +23,14 @@ export class SubscriptionService {
 
   private async initDatabaseTable(): Promise<void> {
     if (!this.db) return;
-    await this.db.execute(`
-      CREATE TABLE IF NOT EXISTS user_subscriptions (
-        id TEXT PRIMARY KEY,
-        user_id TEXT,
-        plan_id TEXT,
-        status TEXT,
-        current_period_start INTEGER,
-        current_period_end INTEGER,
-        cancel_at_period_end INTEGER,
-        metered_usage_units INTEGER,
-        created_at INTEGER,
-        updated_at INTEGER
-      )
-    `).catch((err) => { console.warn("[Subscription] Table init warning:", err); });
 
-    // Load existing subscriptions from DB
-    let rows: Record<string, unknown>[] = []; try { rows = await this.db.query<Record<string, unknown>>(`SELECT * FROM user_subscriptions`); } catch (err) { console.warn("[Subscription] Load subs error:", err); }
+    // Load existing subscriptions from DB (schema created by MigrationProvider)
+    let rows: Record<string, unknown>[] = [];
+    try {
+      rows = await this.db.query<Record<string, unknown>>(`SELECT * FROM user_subscriptions`);
+    } catch (err) {
+      console.warn("[Subscription] Load subs error:", err);
+    }
     for (const r of rows) {
       const sub: UserSubscription = {
         id: String(r["id"]),
@@ -127,7 +118,12 @@ export class SubscriptionService {
   async getUserSubscriptionAsync(userId: string): Promise<UserSubscription | undefined> {
     if (this.db) {
       const query = this.formatQuery(`SELECT * FROM user_subscriptions WHERE user_id = ? AND (status = 'active' OR status = 'trialing') LIMIT 1`);
-      let rows: Record<string, unknown>[] = []; try { rows = await this.db.query<Record<string, unknown>>(query, [userId]); } catch (err) { console.warn("[Subscription] Query sub error:", err); }
+      let rows: Record<string, unknown>[] = [];
+      try {
+        rows = await this.db.query<Record<string, unknown>>(query, [userId]);
+      } catch (err) {
+        console.warn("[Subscription] Query sub error:", err);
+      }
       if (rows.length > 0) {
         const r = rows[0];
         const sub: UserSubscription = {
@@ -225,7 +221,6 @@ export class SubscriptionService {
 
   isCapabilityAllowed(userId: string, capabilityId: string): boolean {
     const sub = this.getUserSubscription(userId);
-    // If no active paid plan, check against free plan
     const effectivePlanId = sub?.planId || "plan-community-free";
     const plan = this.plans.get(effectivePlanId);
     if (!plan) return false;

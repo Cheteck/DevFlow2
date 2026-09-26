@@ -25,6 +25,7 @@
     "@mosaix/http": "workspace:*",
     "@mosaix/ports-database": "workspace:*",
     "@mosaix/schemas": "workspace:*",
+    "@mosaix/theme": "workspace:*",
     "@mosaix/types": "workspace:*",
     "zod": "^3.25.76"
   },

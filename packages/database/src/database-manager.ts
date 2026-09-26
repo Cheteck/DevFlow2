@@ -128,7 +128,9 @@ export function resolveDatabaseConfig(
     if (m) database = m[1] === "" ? ":memory:" : m[1];
     else if (input.databaseUrl === ":memory:") database = ":memory:";
   }
-  database ??= path.join(rootDir, "data", "mosaix.sqlite");
+  if (!database) {
+    return { connection: "sqlite", database: path.join(rootDir, "data", "mosaix.sqlite") };
+  }
   if (database !== ":memory:" && !path.isAbsolute(database)) {
     database = path.join(rootDir, database);
   }
