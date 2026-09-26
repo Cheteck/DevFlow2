@@ -1,6 +1,5 @@
 import * as crypto from "node:crypto";
-import { loadEnvFile } from "@mosaix/core";
-import { closeDatabase, databaseReady } from "../src/shell/database-bootstrap.js";
+import { createCliApplication } from "../bootstrap/index.js";
 
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -9,10 +8,13 @@ function hashPassword(password: string): string {
 }
 
 async function initAdmin() {
-  loadEnvFile();
+  const app = await createCliApplication({
+    skipSecurity: true,
+    skipComposition: true,
+  });
 
   try {
-  const { dbAdapter, config } = await databaseReady();
+  const { dbAdapter, config } = app;
   const driver = config.connection === "pgsql" ? "PostgreSQL" : "SQLite";
   console.log(`[database] Using driver: ${driver}`);
 
@@ -72,7 +74,7 @@ async function initAdmin() {
   }
   } finally {
     // Release the pool (PostgreSQL sockets keep the event loop alive).
-    await closeDatabase();
+    await app.close();
   }
 }
 

@@ -6,20 +6,21 @@
  * pending migrations through the engine, runs the baseline seeders, then
  * reports table counts. The only sanctioned writer of schema + demo data.
  */
-import { loadEnvFile, validateEnv } from "@mosaix/core";
-import { databaseReady } from "../src/shell/database-bootstrap.js";
+import { createCliApplication } from "../bootstrap/index.js";
 import { runShellMigrations } from "../src/shell/migrations.js";
 import { runDatabaseSeeds } from "../src/shell/seeders/database-seeder.js";
 
 async function main() {
-  loadEnvFile();
-  validateEnv(process.env as Record<string, string | undefined>);
+  const app = await createCliApplication({
+    skipSecurity: true,
+    skipComposition: true,
+  });
 
   console.log("==================================================");
   console.log("   MosaiX Platform — Initialisation base de données");
   console.log("==================================================");
 
-  const { dbAdapter, config } = await databaseReady();
+  const { dbAdapter, config } = app;
   const where =
     config.connection === "sqlite"
       ? `sqlite:${config.database}`

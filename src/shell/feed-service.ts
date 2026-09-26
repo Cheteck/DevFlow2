@@ -170,8 +170,13 @@ let cachedFeedService: FeedService | undefined;
  * Lazily-built feed singleton. Built on first USE (not at import time) so
  * the entrypoint's `loadEnvFile()` always runs before the database config
  * is resolved — see `initDatabase()` env-aware cache.
+ *
+ * Explicit injection wins: the composition root (`bootstrap/app.ts`,
+ * `src/start.ts`) passes its own adapter so the singleton never depends on
+ * which database the global cache happens to hold (multi-instance safe).
+ * First call wins; later `db` arguments are ignored.
  */
-export function getFeedService(): FeedService {
-  cachedFeedService ??= new FeedService(initDatabase().dbAdapter);
+export function getFeedService(db?: DatabasePort): FeedService {
+  cachedFeedService ??= new FeedService(db ?? initDatabase().dbAdapter);
   return cachedFeedService;
 }

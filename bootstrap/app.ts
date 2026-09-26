@@ -74,6 +74,18 @@ export interface Application {
 }
 
 /**
+ * Boot steps in canonical order (Laravel `bootstrap/app.php`).
+ * `build()` enforces this order regardless of `with*` call order.
+ */
+export type BootStep =
+  | "env"
+  | "security"
+  | "database"
+  | "migrations"
+  | "composition"
+  | "theme";
+
+/**
  * Fluent builder — Laravel `Application::configure()->withX()` style.
  * Each `with*` step is idempotent-safe to call once; `build()` runs the
  * chain in the canonical order regardless of call order.
@@ -83,8 +95,7 @@ export class ApplicationBuilder {
     Pick<ApplicationOptions, "rootDir" | "envFiles">
   > &
     ApplicationOptions;
-  private steps: Array<"env" | "security" | "database" | "migrations" | "composition" | "theme"> =
-    [];
+  private steps: BootStep[] = [];
 
   constructor(options: ApplicationOptions = {}) {
     this.options = {
@@ -119,17 +130,10 @@ export class ApplicationBuilder {
   }
 
   async build(): Promise<Application> {
-    const order = [
-      "env",
-      "security",
-      "database",
-      "migrations",
-      "composition",
-      "theme",
-    ] as const;
+    // Canonical boot order (Laravel `bootstrap/app.php`): enforced here so
+    // callers may chain `with*` in any order.
     const wanted = new Set(this.steps);
-    const run = (s: (typeof order)[number]) =>
-      wanted.size === 0 || wanted.has(s);
+    const run = (s: BootStep) => wanted.size === 0 || wanted.has(s);
 
     let env!: NormalizedEnv;
     let db!: {
@@ -181,9 +185,10 @@ export class ApplicationBuilder {
       loadSavedCompositionOverrides(compositionOverrideManager);
     }
 
-    // 6. Persisted theme before serving traffic.
+    // 6. Persisted theme before serving traffic (explicit adapter: never
+    // depend on which database the global cache happens to hold).
     if (run("theme") && !this.options.skipTheme) {
-      await applyPersistedPlatformTheme();
+      await applyPersistedPlatformTheme(db.dbAdapter);
     }
 
     return {
@@ -199,9 +204,7 @@ export class ApplicationBuilder {
     };
   }
 
-  private add(
-    step: "env" | "security" | "database" | "migrations" | "composition" | "theme",
-  ): this {
+  private add(step: BootStep): this {
     if (!this.steps.includes(step)) this.steps.push(step);
     return this;
   }

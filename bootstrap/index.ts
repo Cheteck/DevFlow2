@@ -17,5 +17,6 @@ export {
   createCliApplication,
   type Application,
   type ApplicationOptions,
+  type BootStep,
   type ProviderDescriptor,
 } from "./app.js";

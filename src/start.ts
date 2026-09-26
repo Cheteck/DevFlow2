@@ -193,9 +193,9 @@ const server = http.createServer(async (req, res) => {
       activeMode: currentThemeMode,
       currentUser,
       compositionOverrideManager,
-      feedService: getFeedService(),
+      feedService: getFeedService(app.dbAdapter),
       eventBackplane: distributedEventBackplane,
-      anonymizationOrchestrator: getAnonymizationOrchestrator(),
+      anonymizationOrchestrator: getAnonymizationOrchestrator(app.dbAdapter),
     });
     if (isApiHandled) {
       return;

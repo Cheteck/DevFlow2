@@ -101,8 +101,13 @@ let cachedOrchestrator: AnonymizationOrchestrator | undefined;
 /**
  * Lazily-built orchestrator singleton — see `getFeedService()`: never bind
  * the database at import time, only on first use after env is loaded.
+ * Explicit injection wins over the global cache (first call wins).
  */
-export function getAnonymizationOrchestrator(): AnonymizationOrchestrator {
-  cachedOrchestrator ??= new AnonymizationOrchestrator(initDatabase().dbAdapter);
+export function getAnonymizationOrchestrator(
+  db?: DatabasePort,
+): AnonymizationOrchestrator {
+  cachedOrchestrator ??= new AnonymizationOrchestrator(
+    db ?? initDatabase().dbAdapter,
+  );
   return cachedOrchestrator;
 }
