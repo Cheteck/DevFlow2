@@ -37,6 +37,7 @@
     "check": "pnpm check:conformance && pnpm check:manifests && pnpm check:contracts && pnpm check:themes && pnpm build && pnpm lint && pnpm test:typecheck && pnpm test && pnpm exec prettier --check . && pnpm check:ui-contracts",
     "check:conformance": "tsx scripts/validate-conformance.ts",
     "check:env": "tsx scripts/check-env.ts",
+    "check:integrity": "tsx scripts/check-integrity.ts",
     "check:manifests": "tsx scripts/validate-manifests.ts",
     "check:themes": "tsx scripts/check-themes.ts",
     "check:contracts": "tsx scripts/check-contracts.ts",

@@ -1,5 +1,12 @@
-import type { DatabasePort } from "@mosaix/ports-database";
-
+/**
+ * @shell/feed-store — legacy in-memory read fallback for the feed.
+ *
+ * Single writer doctrine: `FeedService` (SQLite, migration-owned schema) is
+ * the only writer. This array only serves GET fallbacks when the database
+ * holds no posts yet (fresh installs) and the compliance counters. No DDL,
+ * no dual-write mirror here — the previous Proxy-based DB mirror wrote a
+ * divergent schema and swallowed failures (see bypass audit F1).
+ */
 export interface FeedPost {
   id: string;
   author: string;
@@ -44,91 +51,4 @@ const DEFAULT_POSTS: FeedPost[] = [
   }
 ];
 
-const rawFeedStore: FeedPost[] = [];
-let db: DatabasePort | undefined;
-
-export const feedStore = new Proxy(rawFeedStore, {
-  get(target, prop, receiver) {
-    return Reflect.get(target, prop, receiver);
-  },
-  set(target, prop, value, receiver) {
-    const success = Reflect.set(target, prop, value, receiver);
-    if (success && typeof prop === "string" && !isNaN(Number(prop))) {
-      // Index-based set (e.g. unshift or push added an item)
-      const post = value as FeedPost;
-      if (post && post.id && db) {
-        savePostToDb(post).catch(err => {
-          console.error("[FeedStore] Failed to save post to SQLite:", err);
-        });
-      }
-    }
-    return success;
-  }
-});
-
-async function savePostToDb(post: FeedPost): Promise<void> {
-  if (!db) return;
-  await db.query(
-    `INSERT INTO shell_feed (id, author, author_role, author_avatar, bac_source, content, timestamp, likes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT (id) DO UPDATE SET
-       author = excluded.author,
-       author_role = excluded.author_role,
-       author_avatar = excluded.author_avatar,
-       bac_source = excluded.bac_source,
-       content = excluded.content,
-       timestamp = excluded.timestamp,
-       likes = excluded.likes`,
-    [
-      post.id,
-      post.author,
-      post.authorRole,
-      post.authorAvatar,
-      post.bacSource,
-      post.content,
-      post.timestamp,
-      post.likes
-    ]
-  );
-}
-
-export async function initFeedStore(database: DatabasePort): Promise<void> {
-  db = database;
-  
-  // Create table
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS shell_feed (
-      id TEXT PRIMARY KEY,
-      author TEXT,
-      author_role TEXT,
-      author_avatar TEXT,
-      bac_source TEXT,
-      content TEXT,
-      timestamp TEXT,
-      likes INTEGER
-    )
-  `);
-
-  // Load posts
-  const rows = await db.query<Record<string, unknown>>(`SELECT * FROM shell_feed`);
-  if (rows.length === 0) {
-    // Seed default posts
-    for (const post of DEFAULT_POSTS) {
-      await savePostToDb(post);
-      rawFeedStore.push(post);
-    }
-  } else {
-    const posts = rows.map((r): FeedPost => ({
-      id: String(r["id"]),
-      author: String(r["author"] || ""),
-      authorRole: String(r["author_role"] || ""),
-      authorAvatar: String(r["author_avatar"] || ""),
-      bacSource: String(r["bac_source"] || ""),
-      content: String(r["content"] || ""),
-      timestamp: String(r["timestamp"] || ""),
-      likes: Number(r["likes"] || 0)
-    }));
-    rawFeedStore.length = 0;
-    rawFeedStore.push(...posts);
-  }
-}
+export const feedStore: FeedPost[] = [...DEFAULT_POSTS];

@@ -18,15 +18,17 @@ async function initAdmin() {
   const dbPath = path.join(dataDir, "mosaix.sqlite");
   const dbAdapter = new SQLiteDatabaseAdapter(dbPath);
 
-  await dbAdapter.execute(`
-    CREATE TABLE IF NOT EXISTS identities (
-      id TEXT PRIMARY KEY,
-      email TEXT UNIQUE,
-      password_hash TEXT,
-      roles TEXT,
-      created_at TEXT
+  // Schema is migration-owned (shell.core.v1.001 + `pnpm db:setup` runs
+  // before this script in the install flow). No DDL here — fail fast if
+  // the migrated schema is absent so drift surfaces instead of forking.
+  const tables = await dbAdapter.query<{ name: string }>(
+    `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'identities'`,
+  );
+  if (tables.length === 0) {
+    throw new Error(
+      "[security] Table 'identities' missing — run 'pnpm db:setup' (migrations) before creating the admin.",
     );
-  `);
+  }
 
   const adminEmail = process.env.ADMIN_EMAIL || "admin@mosaix.local";
   const explicitPassword = process.env.ADMIN_PASSWORD;

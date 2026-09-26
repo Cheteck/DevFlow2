@@ -37,6 +37,7 @@ export async function handleFeedRoutes(
             likes: 0,
           };
           feedStore.unshift(newPost);
+          void feedStore;
 
           // Persist with FeedService
           await feedService

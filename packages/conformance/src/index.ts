@@ -14,3 +14,4 @@ export * from "./suites/security";
 export * from "./suites/auth";
 export * from "./suites/theme";
 export * from "./suites/kernel";
+export * from "./suites/integrity";
