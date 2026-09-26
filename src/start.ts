@@ -10,12 +10,8 @@ import * as path from "node:path";
 
 import type { ThemeMode, BacExecutionContext } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
-import {
-  CompositionOverrideManager,
-  platformSettingsService,
-  loadEnvFile,
-  validateEnv,
-} from "@mosaix/core";
+import { platformSettingsService } from "@mosaix/core";
+import { createApplication } from "../bootstrap/app.js";
 
 // Shell services & state
 import { apps } from "./shell/discovery.js";
@@ -32,7 +28,6 @@ import {
 import { getFeedService } from "./shell/feed-service.js";
 import { distributedEventBackplane } from "./shell/event-backplane.js";
 import { getAnonymizationOrchestrator } from "./shell/anonymization-orchestrator.js";
-import { loadSavedCompositionOverrides } from "./shell/editor.js";
 import { bacOrchestrator } from "./shell/orchestrator/bac-orchestrator.js";
 import {
   renderThemeStyleTag,
@@ -40,45 +35,22 @@ import {
   getResolvedTheme,
 } from "./shell/theme/theme-bridge.js";
 import { renderBacAdminSafely } from "./shell/renderer.js";
-import { SecurityGuard } from "./shell/security-guard.js";
 
 // Server decoupling modules
 import { handleMaintenanceGate } from "./server/middleware/maintenance-gate.js";
 import { dispatchApiRequest } from "./server/api-dispatcher.js";
 import { renderBacPage } from "./shell/pages/bac-page.js";
 import { renderHomePage } from "./shell/pages/home-page.js";
-import { databaseReady } from "./shell/database-bootstrap.js";
-import { getPendingMigrationIds } from "./shell/migrations.js";
-import { applyPersistedPlatformTheme } from "./shell/theme/theme-persistence.js";
 
-// Load `.env` files first (zero-dep): without this, file-only secrets such
-// as MOSAIX_AUTH_JWT_SECRET are invisible and dev falls back to the
-// insecure default (`DEV_NOTICE`). Shell/docker env always wins.
-loadEnvFile();
-
-// Enforce production security constraints (VULN-08)
-SecurityGuard.enforceProductionConstraints();
-
-// Canonical env validation (fail-fast, extensible — see @mosaix/core env.schema).
-// Legacy aliases (APP_PORT/PORT, DATABASE_URL...) still accepted with a warning.
-const bootEnv = validateEnv(process.env as Record<string, string | undefined>);
-
-// Database: connect only (driver from DB_CONNECTION / DATABASE_URL, PRAGMAs
-// awaited). Schema comes from versioned migrations applied via the CLI —
-// the boot path never runs DDL or seeds, it verifies and fails fast.
+// Single composition root (Laravel `bootstrap/app.php`): env → security →
+// database (connect only, PRAGMAs awaited) → migrations fail-fast →
+// composition overrides → persisted theme. Schema comes from versioned
+// migrations applied via the CLI — the boot path never runs DDL or seeds.
 // Fresh checkout or pending migrations? Run: pnpm mosaix migrate
 // (add --seed for baseline demo data).
-const { dbAdapter } = await databaseReady();
-const pendingMigrations = await getPendingMigrationIds(dbAdapter);
-if (pendingMigrations.length > 0) {
-  throw new Error(
-    `[boot] database not migrated (${pendingMigrations.length} pending: ${pendingMigrations.join(", ")}). ` +
-      `Run "pnpm mosaix migrate" first (Laravel-style: artisan migrate before serve).`,
-  );
-}
-await applyPersistedPlatformTheme();
-
-const PORT = bootEnv.resolvedPort;
+const app = await createApplication();
+const { compositionOverrideManager } = app;
+const PORT = app.env.resolvedPort;
 
 // Static MIME types (module-level: never rebuilt per request).
 const STATIC_MIME_TYPES: Record<string, string> = {
@@ -98,10 +70,6 @@ const STRICT_RATE_LIMIT_PREFIXES = [
   "/api/psp",
   "/api/login",
 ];
-
-// Composition Overrides Store initialization
-const compositionOverrideManager = new CompositionOverrideManager();
-loadSavedCompositionOverrides(compositionOverrideManager);
 
 // Global CSS styles generator function
 function getSharedStyles(mode: ThemeMode): string {

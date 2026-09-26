@@ -1,0 +1,4 @@
+# Laravel-style `bootstrap/cache/` — generated boot caches
+# (`mosaix config:cache`, composition snapshots). Never commit generated
+# files; the directory itself is tracked via this file.
+!.gitkeep
