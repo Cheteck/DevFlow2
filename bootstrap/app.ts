@@ -65,6 +65,12 @@ export interface Application {
   readonly config: DatabaseConfig;
   readonly compositionOverrideManager: CompositionOverrideManager;
   readonly providers: readonly ProviderDescriptor[];
+  /**
+   * Close connections and reset the shared bootstrap cache
+   * (tests / shutdown). Idempotent — mirrors `MosaixApplication.close()`
+   * without the stringly-typed service lookup.
+   */
+  readonly close: () => Promise<void>;
 }
 
 /**
@@ -189,6 +195,7 @@ export class ApplicationBuilder {
       config: db.config,
       compositionOverrideManager,
       providers: applicationProviders,
+      close: () => closeDatabase(),
     };
   }
 

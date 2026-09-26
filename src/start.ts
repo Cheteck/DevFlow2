@@ -11,7 +11,7 @@ import * as path from "node:path";
 import type { ThemeMode, BacExecutionContext } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
 import { platformSettingsService } from "@mosaix/core";
-import { createApplication } from "../bootstrap/app.js";
+import { createApplication } from "../bootstrap/index.js";
 
 // Shell services & state
 import { apps } from "./shell/discovery.js";

@@ -5,7 +5,7 @@ import {
   closeDatabase,
   createApplication,
   createCliApplication,
-} from "./app.js";
+} from "./index.js";
 
 function memoryOptions() {
   return {
@@ -48,6 +48,9 @@ describe("bootstrap/app (Laravel-style composition root)", () => {
         "CREATE TABLE bootstrap_smoke (id INTEGER PRIMARY KEY)",
       ),
     ).resolves.toBeDefined();
+    // Application-owned shutdown is idempotent.
+    await expect(app.close()).resolves.toBeUndefined();
+    await expect(app.close()).resolves.toBeUndefined();
   });
 
   it("createApplication fails fast when migrations are pending", async () => {
