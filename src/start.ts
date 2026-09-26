@@ -8,14 +8,16 @@ import { URL } from "node:url";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import type { ThemeMode, BacExecutionContext } from "@mosaix/contracts";
+import type { ThemeMode } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
 import {
   CompositionOverrideManager,
   platformSettingsService,
-  loadEnvFile,
   validateEnv,
 } from "@mosaix/core";
+
+// Bootstrap framework initialization (Laravel-style)
+import { bootstrapApplication } from "../bootstrap/index.js";
 
 // Shell services & state
 import { apps } from "./shell/discovery.js";
@@ -32,7 +34,6 @@ import {
 import { getFeedService } from "./shell/feed-service.js";
 import { distributedEventBackplane } from "./shell/event-backplane.js";
 import { getAnonymizationOrchestrator } from "./shell/anonymization-orchestrator.js";
-import { loadSavedCompositionOverrides } from "./shell/editor.js";
 import { bacOrchestrator } from "./shell/orchestrator/bac-orchestrator.js";
 import {
   renderThemeStyleTag,
@@ -40,43 +41,19 @@ import {
   getResolvedTheme,
 } from "./shell/theme/theme-bridge.js";
 import { renderBacAdminSafely } from "./shell/renderer.js";
-import { SecurityGuard } from "./shell/security-guard.js";
 
 // Server decoupling modules
 import { handleMaintenanceGate } from "./server/middleware/maintenance-gate.js";
 import { dispatchApiRequest } from "./server/api-dispatcher.js";
 import { renderBacPage } from "./shell/pages/bac-page.js";
 import { renderHomePage } from "./shell/pages/home-page.js";
-import { databaseReady } from "./shell/database-bootstrap.js";
-import { getPendingMigrationIds } from "./shell/migrations.js";
-import { applyPersistedPlatformTheme } from "./shell/theme/theme-persistence.js";
 
-// Load `.env` files first (zero-dep): without this, file-only secrets such
-// as MOSAIX_AUTH_JWT_SECRET are invisible and dev falls back to the
-// insecure default (`DEV_NOTICE`). Shell/docker env always wins.
-loadEnvFile();
-
-// Enforce production security constraints (VULN-08)
-SecurityGuard.enforceProductionConstraints();
-
-// Canonical env validation (fail-fast, extensible — see @mosaix/core env.schema).
-// Legacy aliases (APP_PORT/PORT, DATABASE_URL...) still accepted with a warning.
-const bootEnv = validateEnv(process.env as Record<string, string | undefined>);
-
-// Database: connect only (driver from DB_CONNECTION / DATABASE_URL, PRAGMAs
-// awaited). Schema comes from versioned migrations applied via the CLI —
-// the boot path never runs DDL or seeds, it verifies and fails fast.
-// Fresh checkout or pending migrations? Run: pnpm mosaix migrate
-// (add --seed for baseline demo data).
-const { dbAdapter } = await databaseReady();
-const pendingMigrations = await getPendingMigrationIds(dbAdapter);
-if (pendingMigrations.length > 0) {
-  throw new Error(
-    `[boot] database not migrated (${pendingMigrations.length} pending: ${pendingMigrations.join(", ")}). ` +
-      `Run "pnpm mosaix migrate" first (Laravel-style: artisan migrate before serve).`,
-  );
-}
-await applyPersistedPlatformTheme();
+// Boot the MosaiX Application container via Laravel-inspired bootstrap system
+const app = await bootstrapApplication();
+const bootEnv = app.getConfig<ReturnType<typeof validateEnv>>("env");
+const compositionOverrideManager = app.getService<CompositionOverrideManager>(
+  "compositionOverrideManager",
+);
 
 const PORT = bootEnv.resolvedPort;
 
@@ -98,10 +75,6 @@ const STRICT_RATE_LIMIT_PREFIXES = [
   "/api/psp",
   "/api/login",
 ];
-
-// Composition Overrides Store initialization
-const compositionOverrideManager = new CompositionOverrideManager();
-loadSavedCompositionOverrides(compositionOverrideManager);
 
 // Global CSS styles generator function
 function getSharedStyles(mode: ThemeMode): string {
@@ -142,7 +115,7 @@ function headersToRecord(
   return out;
 }
 
-const server = http.createServer(async (req, res) => {
+const server = app.createServer(async (req, res) => {
   try {
     // Inject standard OWASP security headers
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -235,7 +208,7 @@ const server = http.createServer(async (req, res) => {
 
     // 5. BAC Workspace Views Routing
     const matchedApp = apps.find(
-      (app) => pathname === app.route || pathname.startsWith(app.route + "/"),
+      (appItem) => pathname === appItem.route || pathname.startsWith(appItem.route + "/"),
     );
 
     if (matchedApp) {
@@ -275,7 +248,7 @@ const server = http.createServer(async (req, res) => {
         bacOrchestrator.getDescriptor(matchedApp.id);
 
       if (descriptor) {
-        const executionContext: BacExecutionContext = {
+        const executionContext = {
           tenantId: "default",
           spaceId: currentSpace,
           user: {
@@ -342,7 +315,7 @@ const server = http.createServer(async (req, res) => {
       );
       const appContributions = bacEntry ? bacEntry.contributions : [];
 
-      const executionContext: BacExecutionContext = {
+      const executionContext = {
         tenantId: "default",
         spaceId: currentSpace,
         user: {
@@ -420,6 +393,6 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`MosaiX platform host listening on http://0.0.0.0:${PORT}`);
 });
