@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 /**
  * @apps/spaces — Public Followers & Community Membership Workflow (GAP-03)
  */
@@ -42,7 +43,7 @@ export class SpaceAudienceEngine {
 
   requestCommunityMembership(spaceId: string, userId: string): CommunityMembershipRequest {
     const req: CommunityMembershipRequest = {
-      id: `req-${Math.random().toString(36).substring(2, 9)}`,
+      id: `req-${crypto.randomUUID()}`,
       spaceId,
       userId,
       status: "PENDING",

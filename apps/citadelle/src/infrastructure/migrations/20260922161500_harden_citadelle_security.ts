@@ -15,4 +15,5 @@ export const migration: Migration = {
   id: "20260922161500_harden_citadelle_security",
   content: statements.map((s) => s.sql).join("\n"),
   checksum: computeChecksum(statements.map((s) => s.sql).join("\n")),
+  resources: ["table:citadelle_identities", "table:citadelle_sessions"],
 };

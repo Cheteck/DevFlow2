@@ -231,14 +231,14 @@ describe("MosaiX CLI PRD Specification Suite", () => {
       const before = await router.execute("migrate:status", { json: true });
       expect(before.exitCode).toBe(EXIT_CODES.SUCCESS);
       const rowsBefore = before.data as Array<{ applied: boolean }>;
-      expect(rowsBefore.length).toBe(2);
+      expect(rowsBefore.length).toBe(3);
       expect(rowsBefore.every((r) => r.applied === false)).toBe(true);
 
       const migrated = await router.execute("migrate", { json: true });
       expect(migrated.exitCode).toBe(EXIT_CODES.SUCCESS);
       expect(
         (migrated.data as { applied: readonly string[] }).applied,
-      ).toHaveLength(2);
+      ).toHaveLength(3);
 
       const after = await router.execute("migrate:status", { json: true });
       expect(after.exitCode).toBe(EXIT_CODES.SUCCESS);
@@ -272,7 +272,7 @@ describe("MosaiX CLI PRD Specification Suite", () => {
         applied: readonly string[];
         seeded: string[];
       };
-      expect(data.applied).toHaveLength(2);
+      expect(data.applied).toHaveLength(3);
       expect(data.seeded).toContain("shell_feed");
     });
 
@@ -286,7 +286,7 @@ describe("MosaiX CLI PRD Specification Suite", () => {
       expect(rolledBack.exitCode).toBe(EXIT_CODES.SUCCESS);
       expect(
         (rolledBack.data as { rolledBack: readonly string[] }).rolledBack,
-      ).toHaveLength(2);
+      ).toHaveLength(3);
 
       const status = await router.execute("migrate:status", { json: true });
       const rows = status.data as Array<{ applied: boolean }>;

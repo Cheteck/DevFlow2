@@ -1,11 +1,8 @@
 /**
- * @mosaix/core — Slot Resolution Engine
- * Implements deterministic precedence hierarchy:
- * parent(0) < theme(1) < app non-propriétaire(2) < app propriétaire(3) < tenant(4)
- * with shell routes exclusion and route owner matching.
+ * @mosaix/theme — Slot Resolution Engine
  */
 
-import { ThemeError } from "./theme-errors";
+import { ThemeError } from "./theme-errors.js";
 
 export const SHELL_ROUTES: readonly string[] = ["/", "/login", "/register"];
 
@@ -41,7 +38,7 @@ export interface SlotResolutionContext {
 export interface SlotResolutionResult {
   slotId: string;
   template: string;
-  provider: string; // "parent" | "theme" | "app-non-owner" | "app-owner" | "tenant"
+  provider: string;
   precedenceLevel: number;
   chain: Array<{ provider: string; template: string }>;
 }
@@ -52,26 +49,23 @@ export function resolveSlot(ctx: SlotResolutionContext): SlotResolutionResult {
   let winningProvider = "theme";
   let winningLevel = 1;
 
-  // Level 0: Parent theme
   if (ctx.parentThemeId) {
     chain.push({ provider: "parent", template: `parent-default/${ctx.slotId}` });
   }
 
-  // Level 1: Active theme
   const themeTemplate = `themes/${ctx.activeThemeId}/slots/${ctx.slotId}.html`;
   chain.push({ provider: "theme", template: themeTemplate });
 
   const isShell = isShellRoute(ctx.route);
 
-  // If not a shell route, check apps (Levels 2 and 3)
   if (!isShell && ctx.apps) {
     let ownerAppId: string | null = null;
     let longestMatchLen = -1;
     const matchingApps: Array<{ id: string; app: AppThemeOverrideConfig; pattern: string }> = [];
 
     for (const app of ctx.apps) {
-      const appRoutes = Array.isArray(app.routes) 
-        ? app.routes 
+      const appRoutes = Array.isArray(app.routes)
+        ? app.routes
         : (app.routes && typeof app.routes === "object" && "prefix" in app.routes ? [app.routes.prefix as string] : [`/${app.id}`]);
 
       for (const pattern of appRoutes) {
@@ -108,7 +102,6 @@ export function resolveSlot(ctx: SlotResolutionContext): SlotResolutionResult {
     }
   }
 
-  // Level 4: Tenant override
   if (ctx.tenantOverrides?.slots?.[ctx.slotId]) {
     const tenantTemplate = ctx.tenantOverrides.slots[ctx.slotId];
     chain.push({ provider: "tenant", template: tenantTemplate });

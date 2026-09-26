@@ -3,8 +3,8 @@
  */
 
 export class TimestampableTrait {
-  createdAt!: Date;
-  updatedAt!: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 
   touch(): void {
     if (!this.createdAt) {
@@ -31,14 +31,14 @@ export class SoftDeleteTrait {
 }
 
 export interface TraitCtor {
-  prototype: Record<string, unknown>;
+  prototype: object;
 }
 
 /**
  * Helper to apply multiple trait classes/mixins to a target class prototype.
  */
 export function applyTraits(
-  targetClass: { prototype: Record<string, unknown> },
+  targetClass: { prototype: object },
   traits: TraitCtor[],
 ): void {
   for (const trait of traits) {

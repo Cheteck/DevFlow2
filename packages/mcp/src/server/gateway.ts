@@ -40,6 +40,17 @@ export class MCPGateway {
     this.promptRegistry = prompts;
   }
 
+  /** Anonymous fallback principal for unauthenticated JSON-RPC callers. */
+  private anonymousPrincipal(): MCPPrincipal {
+    return {
+      actorId: "anonymous-agent",
+      actorType: "agent",
+      tenantId: "tenant-default",
+      scopes: ["mcp:admin"],
+      expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+    };
+  }
+
   async handleRequest(
     request: JSONRPCRequest,
     context?: { principal?: MCPPrincipal; [key: string]: unknown }
@@ -77,11 +88,7 @@ export class MCPGateway {
             };
           }
 
-          const principal: MCPPrincipal = context?.principal || {
-            actorId: "anonymous-agent",
-            tenantId: "tenant-default",
-            scopes: ["mcp:admin"],
-          };
+          const principal: MCPPrincipal = context?.principal || this.anonymousPrincipal();
 
           // 1. RBAC Check
           const authorized = mcpPermissionGate.authorize(name, tool.requiredPermission, principal);
@@ -125,7 +132,8 @@ export class MCPGateway {
         }
 
         case "resources/read": {
-          const { uri } = params || {};
+          const { uri: rawUri } = params || {};
+          const uri = typeof rawUri === "string" ? rawUri : "";
           const resource = this.resourceRegistry.getResource(uri);
           if (!resource) {
             return {
@@ -135,11 +143,7 @@ export class MCPGateway {
             };
           }
 
-          const principal: MCPPrincipal = context?.principal || {
-            actorId: "anonymous-agent",
-            tenantId: "tenant-default",
-            scopes: ["mcp:admin"],
-          };
+          const principal: MCPPrincipal = context?.principal || this.anonymousPrincipal();
 
           if (resource.requiredPermission) {
             const authorized = mcpPermissionGate.authorize(uri, resource.requiredPermission, principal);
@@ -169,7 +173,8 @@ export class MCPGateway {
         }
 
         case "prompts/get": {
-          const { name, arguments: args } = params || {};
+          const { name: rawName, arguments: args } = params || {};
+          const name = typeof rawName === "string" ? rawName : "";
           const prompt = this.promptRegistry.getPrompt(name);
           if (!prompt) {
             return {
@@ -178,7 +183,10 @@ export class MCPGateway {
               error: { code: -32601, message: `Prompt [${name}] not found` },
             };
           }
-          const messages = await prompt.handler(args || {});
+          const stringArgs: Record<string, string> = Object.fromEntries(
+            Object.entries(args ?? {}).map(([key, value]) => [key, String(value ?? "")]),
+          );
+          const messages = await prompt.handler(stringArgs);
           return {
             jsonrpc: "2.0",
             id,

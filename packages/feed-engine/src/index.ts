@@ -38,7 +38,7 @@ export interface FeedAttachment {
   mimeType?: string;
   title?: string;
   previewUrl?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface FeedPollOption {
@@ -87,7 +87,7 @@ export interface FeedPost {
   repostCount?: number;
   reactions?: Record<string, number>;
 
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt?: Date;
   isPinned?: boolean;
@@ -204,7 +204,7 @@ export interface StructuredFeedCard {
   id: string;
   publicationType: PublicationType;
   componentName: string;
-  props: Record<string, any>;
+  props: Record<string, unknown>;
   fallbackHtml: string;
 }
 

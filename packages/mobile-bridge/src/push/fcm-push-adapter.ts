@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 import type { PushNotificationPort, PushNotificationPayload, PushDispatchResult } from "./push-notification-port";
 import { DeviceRegistry } from "./device-registry";
 
@@ -14,7 +15,7 @@ export interface FcmConfiguration {
 export class FcmPushAdapter implements PushNotificationPort {
   private sentHistory: Array<{ timestamp: Date; token: string; payload: PushNotificationPayload }> = [];
 
-  constructor(private config: FcmConfiguration = { isMockMode: true }) {}
+  constructor(private config: FcmConfiguration = {}) {}
 
   /**
    * Formats FCM v1 compliant JSON payload
@@ -50,8 +51,7 @@ export class FcmPushAdapter implements PushNotificationPort {
       payload,
     });
 
-    // In production or mock mode, generate standard messageId
-    const messageId = `fcm_msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const messageId = `fcm_msg_${crypto.randomUUID()}`;
 
     return {
       success: true,

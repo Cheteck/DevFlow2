@@ -35,7 +35,9 @@ export function discoverApps() {
     const id = m.id;
     const cleanId = id.replace(/^@apps\//, "");
     const name = m.name || cleanId.charAt(0).toUpperCase() + cleanId.slice(1);
-    const prefix = m.routes?.prefix || `/${cleanId}`;
+    const routes = m.routes;
+    const prefix =
+      routes && !Array.isArray(routes) && routes.prefix ? routes.prefix : `/${cleanId}`;
     const bacInfo = DynamicBacRegistry.get(cleanId);
     
     const render = (targetPath?: string) => {
@@ -58,7 +60,7 @@ export function discoverApps() {
           </div>
           <div>
             <h2 class="text-xl font-bold text-on-surface">${name}</h2>
-            <p class="text-sm text-on-surface-variant mt-1">${m.description || "Module connecté et enregistré dans le registre décentralisé MosaiX."}</p>
+            <p class="text-sm text-on-surface-variant mt-1">${m.metadata?.description || "Module connecté et enregistré dans le registre décentralisé MosaiX."}</p>
           </div>
           <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -74,7 +76,7 @@ export function discoverApps() {
     return {
       id,
       name,
-      description: m.description || "Module connecté au réseau MosaiX.",
+      description: m.metadata?.description || "Module connecté au réseau MosaiX.",
       category: "Modules",
       route: prefix,
       icon,

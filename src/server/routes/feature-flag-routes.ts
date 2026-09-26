@@ -19,8 +19,8 @@ export async function handleFeatureFlagRoutes(
   if (pathname === "/api/feature-flags/override" && req.method === "POST") {
     try {
       const body = await readLimitedJson<{ key?: string; value?: unknown }>(req);
-      if (body.key && typeof body.value !== "undefined") {
-        await platformFeatureFlags.setFlagValue(body.key, body.value as any);
+      if (body.key && (typeof body.value === "boolean" || typeof body.value === "string")) {
+        await platformFeatureFlags.setFlag(body.key, body.value);
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ success: true, key: body.key, value: body.value }));
         return true;
@@ -52,8 +52,8 @@ export async function handleFeatureFlagRoutes(
       try {
         const data = await readLimitedJson<{ key?: string; value?: unknown; description?: string }>(req);
         const { key, value, description } = data;
-        if (key && value !== undefined) {
-          await platformFeatureFlags.setFlag(key, value as any, description);
+        if (key && (typeof value === "boolean" || typeof value === "string")) {
+          await platformFeatureFlags.setFlag(key, value, description);
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ success: true, message: `Flag ${key} updated`, key, value }));
           return true;

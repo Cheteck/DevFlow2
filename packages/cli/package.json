@@ -25,7 +25,8 @@
     "@mosaix/migrations": "workspace:*",
     "@mosaix/ports-database": "workspace:*",
     "@mosaix/schemas": "workspace:*",
-    "@mosaix/types": "workspace:*"
+    "@mosaix/types": "workspace:*",
+    "open": "^10.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

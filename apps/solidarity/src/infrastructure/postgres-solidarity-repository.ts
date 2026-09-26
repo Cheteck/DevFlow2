@@ -117,6 +117,13 @@ export class PostgresSolidarityRepository {
     );
   }
 
+  async getResources(): Promise<Resource[]> {
+    const rows = await this.db.query<Record<string, unknown>>(`SELECT data FROM solidarity_resources`);
+    return rows
+      .map((r) => (r["data"] === undefined ? null : hydrate<Resource>(r["data"])))
+      .filter((r): r is Resource => r !== null);
+  }
+
   async saveHub(hub: Hub): Promise<void> {
     await this.db.query(
       `INSERT INTO solidarity_hubs (id, "spaceId", name, type, "geoZone", data)
@@ -165,6 +172,13 @@ export class PostgresSolidarityRepository {
         JSON.stringify(distribution),
       ],
     );
+  }
+
+  async getDistributions(): Promise<Distribution[]> {
+    const rows = await this.db.query<Record<string, unknown>>(`SELECT data FROM solidarity_distributions`);
+    return rows
+      .map((r) => (r["data"] === undefined ? null : hydrate<Distribution>(r["data"])))
+      .filter((d): d is Distribution => d !== null);
   }
 
   /** Debug helper: raw row inspection. */

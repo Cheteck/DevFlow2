@@ -51,6 +51,10 @@ export abstract class Controller {
   protected notFound(message = "Not Found"): HttpResponse<{ error: string }> {
     return this.json({ error: message }, 404);
   }
+
+  protected internalError(message = "Internal Server Error", statusCode = 500): HttpResponse<{ error: string }> {
+    return this.json({ error: message }, statusCode);
+  }
 }
 
 export type RouteHandler = (req: HttpRequest) => Promise<HttpResponse> | HttpResponse;

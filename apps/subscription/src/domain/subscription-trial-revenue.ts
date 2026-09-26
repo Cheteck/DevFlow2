@@ -1,4 +1,15 @@
-import type { Subscription } from "./subscription.model.js";
+import * as crypto from "node:crypto";
+
+/**
+ * Minimal subscription view for trial/revenue analytics.
+ * Status vocabulary here is `ACTIVE`/`CANCELLED` (billing analytics),
+ * distinct from `UserSubscription`'s lifecycle statuses.
+ */
+export interface Subscription {
+  id: string;
+  tenantId: string;
+  status: string;
+}
 
 export class SubscriptionTrialManager {
   static createTrial(tenantId: string, planId: string, durationDays: number = 14): {
@@ -85,7 +96,7 @@ export class RedisSortedSetMeteringEngine {
       this.sortedSets.set(meterKey, []);
     }
     const set = this.sortedSets.get(meterKey)!;
-    set.push({ member: `${timestamp}:${Math.random().toString(36).slice(2, 6)}`, score: timestamp });
+    set.push({ member: `${timestamp}:${crypto.randomUUID().slice(0, 8)}`, score: timestamp });
   }
 
   getUsageInRange(meterKey: string, startTimestamp: number, endTimestamp: number): number {

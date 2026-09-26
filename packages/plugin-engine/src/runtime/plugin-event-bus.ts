@@ -2,6 +2,8 @@
  * @mosaix/plugin-engine/runtime — Inter-Plugin Event Bus
  */
 
+import * as crypto from "node:crypto";
+
 export interface PluginEvent<T = unknown> {
   id: string;
   topic: string; // e.g. "plugin:theme:colorChanged" or "plugin:analytics:pageView"
@@ -16,7 +18,11 @@ export interface EventSubscription {
   id: string;
   topicPattern: string;
   subscriberPluginId: string;
-  listener: PluginEventListener<unknown>;
+  // `any` (not `unknown`): typed listeners `(event: PluginEvent<T>) => ...`
+  // must stay assignable under `strictFunctionTypes`; dispatch passes the
+  // concrete event through.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  listener: PluginEventListener<any>;
   unsubscribe: () => void;
 }
 
@@ -33,7 +39,7 @@ export class PluginEventBus {
     subscriberPluginId: string,
     listener: PluginEventListener<T>
   ): EventSubscription {
-    const subId = `sub_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const subId = `sub_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
     const subscription: EventSubscription = {
       id: subId,
       topicPattern,
@@ -57,7 +63,7 @@ export class PluginEventBus {
     payload: T
   ): Promise<{ deliveredCount: number; errors: Array<{ subId: string; error: Error }> }> {
     const event: PluginEvent<T> = {
-      id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      id: `evt_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
       topic,
       sourcePluginId,
       timestamp: new Date().toISOString(),

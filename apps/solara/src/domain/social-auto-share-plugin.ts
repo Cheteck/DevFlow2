@@ -33,7 +33,7 @@ export interface SocialAutoShareSettings {
 }
 
 export class SocialAutoSharePlugin {
-  private drafts = new Map<string, SocialShareDraft>();
+  private activeDrafts = new Map<string, SocialShareDraft>();
   private settingsPerSpace = new Map<string, SocialAutoShareSettings>();
 
   private defaultSettings: SocialAutoShareSettings = {
@@ -98,17 +98,17 @@ export class SocialAutoSharePlugin {
       createdAt: new Date().toISOString(),
     };
 
-    this.drafts.set(id, draft);
+    this.activeDrafts.set(id, draft);
     return draft;
   }
 
   getDraft(draftId: string): SocialShareDraft | null {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     return draft ? { ...draft } : null;
   }
 
   listDrafts(filter?: { vendorId?: string; spaceId?: string; status?: string }): SocialShareDraft[] {
-    return Array.from(this.drafts.values()).filter((d) => {
+    return Array.from(this.activeDrafts.values()).filter((d) => {
       if (filter?.vendorId && d.vendorId !== filter.vendorId) return false;
       if (filter?.spaceId && d.spaceId !== filter.spaceId) return false;
       if (filter?.status && d.status !== filter.status) return false;
@@ -127,7 +127,7 @@ export class SocialAutoSharePlugin {
     },
     solaraService?: SolaraSocialService
   ): Promise<SocialShareDraft> {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) {
       throw new Error("Brouillon de partage social introuvable.");
     }
@@ -159,7 +159,7 @@ export class SocialAutoSharePlugin {
   }
 
   discardDraft(draftId: string): void {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (draft) {
       draft.status = "discarded";
     }

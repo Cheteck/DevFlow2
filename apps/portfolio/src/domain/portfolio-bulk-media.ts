@@ -12,6 +12,11 @@ export class PortfolioBulkExporter {
     return JSON.stringify(vendables, null, 2);
   }
 
+  static titleOf(vendable: Vendable): string {
+    const localized = Object.values(vendable.content ?? {});
+    return localized[0]?.name ?? "";
+  }
+
   static toCsv(vendables: Vendable[]): string {
     const headers = [
       "id",
@@ -23,12 +28,12 @@ export class PortfolioBulkExporter {
       "slug",
     ];
     const rows = vendables.map((v) => [
-      v.id,
-      `"${(v.title ?? "").replace(/"/g, '""')}"`,
-      v.category ?? "",
+      v.identity.id,
+      `"${PortfolioBulkExporter.titleOf(v).replace(/"/g, '""')}"`,
+      v.classification.categories?.[0] ?? "",
       v.pricing?.basePrice ?? 0,
       v.pricing?.currency ?? "EUR",
-      v.status,
+      v.identity.status,
       v.seo?.slug ?? "",
     ]);
     return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -86,14 +91,21 @@ export class PortfolioBulkImporter {
         errors.push(`Line ${i + 1}: Required fields 'id' or 'title' missing.`);
       } else {
         valid.push({
-          id: row.id,
-          title: row.title,
-          category: row.category || undefined,
-          status: (row.status as Vendable["status"]) || "Draft",
+          identity: {
+            id: row.id,
+            reference: row.id,
+            type: "Product",
+            status: (row.status as Vendable["identity"]["status"]) || "Draft",
+          },
+          content: { default: { name: row.title } },
+          characteristics: { attributes: {} },
+          classification: row.category ? { categories: [row.category] } : {},
+          media: [],
+          variants: [],
+          relations: [],
           pricing: {
             basePrice: row.price ? parseFloat(row.price) : 0,
             currency: row.currency || "EUR",
-            isFree: row.price === "0",
           },
         });
       }

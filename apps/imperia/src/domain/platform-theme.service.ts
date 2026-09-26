@@ -66,7 +66,7 @@ export class PlatformThemeService {
 
   async getActiveThemeId(): Promise<string> {
     if (this.themeRuntime) {
-      const active = await this.themeRuntime.getActiveAssignment({ type: "shell", id: "shell" });
+      const active = this.themeRuntime.getAssignment({ type: "shell", id: "shell" });
       return active?.themeId || "mosaix-default";
     }
     return "mosaix-default";
@@ -79,11 +79,11 @@ export class PlatformThemeService {
     }
 
     if (this.themeRuntime) {
-      await this.themeRuntime.apply({
-        target: { type: "shell", id: "shell" },
+      await this.themeRuntime.assignTheme(
+        { type: "shell", id: "shell" },
         themeId,
-        mode,
-      });
+        { mode, source: "admin" },
+      );
     }
   }
 }

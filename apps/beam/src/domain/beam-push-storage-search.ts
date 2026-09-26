@@ -58,7 +58,7 @@ export class BeamMessageSearchEngine {
   static search(messages: MessageModel[], query: string, channelId?: string): MessageModel[] {
     const q = query.toLowerCase();
     return messages.filter((m) => {
-      if (channelId && m.channelId !== channelId) return false;
+      if (channelId && m.conversationId !== channelId) return false;
       return m.content.toLowerCase().includes(q);
     });
   }
@@ -99,10 +99,10 @@ export class BeamDataRetentionManager {
     const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
     return messages.filter((m) => {
       // Do not purge if under active legal hold
-      if (this.isUnderLegalHold(m.channelId)) {
+      if (this.isUnderLegalHold(m.conversationId)) {
         return true;
       }
-      return m.createdAt.getTime() >= cutoff;
+      return new Date(m.sentAt).getTime() >= cutoff;
     });
   }
 

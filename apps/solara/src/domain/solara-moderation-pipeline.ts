@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 export interface ModerationDecision {
   status: "approved" | "rejected" | "flagged_for_human_review";
   sanitizedContent?: string;
@@ -80,7 +81,7 @@ export class HumanReviewQueueStage implements ModerationStage {
 
 
   enqueue(content: string, authorId: string | undefined, reason: string): ReviewQueueItem {
-    const id = `rev-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const id = `rev-${crypto.randomUUID()}`;
     const item: ReviewQueueItem = {
       id,
       content,

@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 export type ComplianceFramework = "SOC2" | "ISO27001" | "GDPR" | "HIPAA";
 
 export interface ComplianceControl {
@@ -86,7 +87,7 @@ export class ChangeRequestWorkflow {
     changes: Record<string, unknown>,
   ): ChangeRequest {
     return {
-      id: `cr-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: `cr-${crypto.randomUUID()}`,
       title,
       description,
       authorId,

@@ -2,8 +2,8 @@
  * @shell/database — Shell core migration provider (Laravel-style `database/migrations`).
  *
  * Owns the shell-level tables (identities/auth, feed, commerce, portfolio,
- * spaces, beam, booking, imperia, solidarity, platform settings) as a
- * versioned migration executed **only from the CLI** (`mosaix migrate`),
+ * spaces, beam, booking, imperia, solidarity, subscriptions, platform
+ * settings) as versioned migrations executed **only from the CLI** (`mosaix migrate`),
  * tracked in the `mosaix_migrations` ledger — never as ad-hoc DDL at boot.
  *
  * Content is intentionally byte-faithful to the historical bootstrap schema
@@ -17,6 +17,7 @@ import {
 } from "@mosaix/migrations";
 
 export const SHELL_CORE_MIGRATION_ID = "shell.core.v1.001_create_core_tables";
+export const SHELL_SUBSCRIPTION_MIGRATION_ID = "shell.core.v1.002_create_subscription_tables";
 
 const UP = `
 CREATE TABLE IF NOT EXISTS identities (
@@ -283,6 +284,28 @@ DROP TABLE IF EXISTS identities;
 DROP TABLE IF EXISTS platform_settings;
 `;
 
+const UP_SUBSCRIPTIONS = `
+CREATE TABLE IF NOT EXISTS user_subscriptions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  plan_id TEXT,
+  status TEXT,
+  current_period_start INTEGER,
+  current_period_end INTEGER,
+  cancel_at_period_end INTEGER,
+  metered_usage_units INTEGER,
+  created_at INTEGER,
+  updated_at INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user ON user_subscriptions (user_id);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_status ON user_subscriptions (status);
+`;
+
+const DOWN_SUBSCRIPTIONS = `
+DROP TABLE IF EXISTS user_subscriptions;
+`;
+
 export class ShellCoreMigrationProvider implements MigrationProvider {
   ownerId(): string {
     return "shell";
@@ -318,6 +341,18 @@ export class ShellCoreMigrationProvider implements MigrationProvider {
           "table:solidarity_contributions",
           "table:platform_settings",
         ],
+      },
+      {
+        // v1.002 — subscription persistence previously ensured ad-hoc by the
+        // SubscriptionService constructor (removed per CONF-DB-001). The
+        // Postgres provider (apps/subscription) owns this schema long-term;
+        // this SQLite table keeps the shell runtime working until per-BAC
+        // ownership lands (backlog DB-BAC-OWNERSHIP).
+        id: SHELL_SUBSCRIPTION_MIGRATION_ID,
+        content: UP_SUBSCRIPTIONS,
+        down: DOWN_SUBSCRIPTIONS,
+        checksum: computeChecksum(UP_SUBSCRIPTIONS),
+        resources: ["table:user_subscriptions"],
       },
     ];
   }

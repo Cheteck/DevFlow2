@@ -23,6 +23,10 @@ export interface RenderShellOptions {
   footerHtml?: string;
 }
 
+function toBridgeMode(mode: string): "light" | "dark" | "high-contrast" {
+  return mode === "dark" || mode === "high-contrast" ? mode : "light";
+}
+
 /**
  * Renders HTML head block with LRU fragment caching.
  */
@@ -53,7 +57,7 @@ export function renderHeadBlock(
           darkMode: "class",
           theme: {
             extend: {
-              colors: ${JSON.stringify(getTailwindThemeColors(activeThemeMode as any), null, 14)}
+              colors: ${JSON.stringify(getTailwindThemeColors(toBridgeMode(activeThemeMode)), null, 14)}
             }
           }
         }

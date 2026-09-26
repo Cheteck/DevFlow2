@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { AppConformanceValidator } from "./index";
 
 describe("MOSAIX-APP Conformance Validator Suite", () => {
@@ -46,5 +49,29 @@ describe("MOSAIX-APP Conformance Validator Suite", () => {
     expect(results["solidarity"]?.valid).toBe(true);
     expect(results["booking"]?.valid).toBe(true);
     expect(results["subscription"]?.valid).toBe(true);
+  });
+
+  it("validates apps from a fixture directory in a cwd-independent manner", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mosaix-conformance-apps-"));
+    const dummyAppDir = path.join(tmpDir, "dummyapp");
+    fs.mkdirSync(path.join(dummyAppDir, "src"), { recursive: true });
+
+    const manifest = {
+      type: "application",
+      id: "dummyapp",
+      name: "Dummy App",
+      version: "1.0.0",
+      domain: { name: "dummy" },
+      runtime: { entrypoint: "./src/index.ts" },
+      capabilities: [],
+      permissions: [],
+      events: [],
+    };
+    fs.writeFileSync(path.join(dummyAppDir, "mosaix.json"), JSON.stringify(manifest), "utf-8");
+    fs.writeFileSync(path.join(dummyAppDir, "src", "index.ts"), "export const a = 1;\n", "utf-8");
+
+    const results = AppConformanceValidator.validateAllWorkspaceApps(tmpDir);
+    expect(Object.keys(results)).toContain("dummyapp");
+    expect(results["dummyapp"]?.valid).toBe(true);
   });
 });

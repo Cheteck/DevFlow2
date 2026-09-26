@@ -108,7 +108,13 @@ export class IdentityController {
 
     try {
       if (targetSessionId) {
-        await this.authManager.revokeSession(targetSessionId).catch(() => null);
+        try {
+          await this.authManager.revokeSession(targetSessionId);
+        } catch (revokeErr) {
+          // Best-effort revoke during refresh: the old session may already be
+          // expired. Log explicitly instead of swallowing (CONF-DB-003).
+          console.warn("[Citadelle] Best-effort session revoke failed:", revokeErr);
+        }
       }
       if (identityId) {
         const newSession = await this.authManager.createSession(identityId, tenantId);

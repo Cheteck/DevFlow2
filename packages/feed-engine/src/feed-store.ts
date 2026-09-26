@@ -1,4 +1,4 @@
-import type { FeedPost, FeedReaction, FeedComment } from "./index";
+import type { FeedPost, FeedReaction, FeedComment, SocialActorType, FeedTargetType } from "./index";
 
 export interface Queryable {
   execute(sql: string, params?: readonly unknown[]): Promise<number>;
@@ -121,10 +121,10 @@ export class SQLiteFeedStore {
 
     return rows.map(row => ({
       id: String(row.id),
-      actorType: String(row.actor_type) as any,
+      actorType: String(row.actor_type) as SocialActorType,
       actorId: String(row.actor_id),
       publicationType: String(row.publication_type),
-      targetType: String(row.target_type) as any,
+      targetType: String(row.target_type) as FeedTargetType,
       targetId: String(row.target_id),
       content: String(row.content),
       mediaUrls: row.media_urls ? JSON.parse(String(row.media_urls)) : undefined,
@@ -200,7 +200,7 @@ export class SQLiteFeedStore {
       id: String(row.id),
       targetType: "post",
       targetId: String(row.target_id),
-      actorType: String(row.actor_type) as any,
+      actorType: String(row.actor_type) as SocialActorType,
       actorId: String(row.actor_id),
       content: String(row.content),
       createdAt: new Date(String(row.created_at))

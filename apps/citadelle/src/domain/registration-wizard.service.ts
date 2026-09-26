@@ -9,7 +9,7 @@ import type { User } from "./user.js";
 
 export interface Step1Credentials {
   email: string;
-  password: string;
+  password?: string;
   displayName: string;
 }
 
@@ -47,7 +47,7 @@ export interface StepValidationResult {
 }
 
 export class RegistrationWizardService {
-  private drafts = new Map<string, RegistrationDraft>();
+  private activeDrafts = new Map<string, RegistrationDraft>();
   private readonly ttlMs = 24 * 60 * 60 * 1000; // 24 hours
 
   startRegistration(initialEmail?: string): RegistrationDraft {
@@ -57,23 +57,23 @@ export class RegistrationWizardService {
       draftId,
       currentStep: 1,
       totalSteps: 3,
-      step1: initialEmail ? { email: initialEmail, password: "", displayName: "" } : undefined,
+      step1: initialEmail ? { email: initialEmail, displayName: "" } : undefined,
       progressPercent: 33,
       createdAt: now,
       updatedAt: now,
     };
-    this.drafts.set(draftId, draft);
+    this.activeDrafts.set(draftId, draft);
     return draft;
   }
 
   getDraft(draftId: string): RegistrationDraft | null {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) return null;
     return { ...draft };
   }
 
   saveStep1(draftId: string, data: Step1Credentials): StepValidationResult {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) {
       return { valid: false, errors: ["Session d'inscription introuvable ou expirée."] };
     }
@@ -106,7 +106,7 @@ export class RegistrationWizardService {
   }
 
   saveStep2(draftId: string, data: Step2Profile): StepValidationResult {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) {
       return { valid: false, errors: ["Session d'inscription introuvable ou expirée."] };
     }
@@ -135,7 +135,7 @@ export class RegistrationWizardService {
   }
 
   saveStep3(draftId: string, data: Step3Security): StepValidationResult {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) {
       return { valid: false, errors: ["Session d'inscription introuvable ou expirée."] };
     }
@@ -162,7 +162,7 @@ export class RegistrationWizardService {
     draftId: string,
     userService: UserService
   ): Promise<{ user: User; draft: RegistrationDraft }> {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft || !draft.step1 || !draft.step2 || !draft.step3) {
       throw new Error("L'inscription ne peut pas être finalisée : données incomplètes.");
     }
@@ -190,7 +190,7 @@ export class RegistrationWizardService {
     });
 
     // Clean up draft
-    this.drafts.delete(draftId);
+    this.activeDrafts.delete(draftId);
 
     return { user: createdUser, draft };
   }

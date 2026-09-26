@@ -1,6 +1,6 @@
 /**
  * @shell/client — Central Client-Side Shell Scripts
- * Provides unified toast, dialogs, localization, theme, user/space switcher, and search.
+ * Provides unified toast, dialogs, localization, theme, user/space switcher, search, command palette & dev inspector.
  */
 
 export function renderShellToastContainer(): string {
@@ -241,6 +241,31 @@ export function getShellClientScripts(): string {
           if (sheet) window.setOverlayOpen(sheet, null, sheet.classList.contains('hidden'));
         };
 
+        // Command Palette & Dev Inspector Wiring
+        window.openCommandPalette = function() {
+          const modal = document.getElementById('command-palette-modal');
+          const input = document.getElementById('command-palette-input');
+          if (modal) {
+            window.setOverlayOpen(modal, null, true);
+            if (input) setTimeout(() => input.focus(), 50);
+          }
+        };
+
+        window.closeCommandPalette = function() {
+          const modal = document.getElementById('command-palette-modal');
+          if (modal) window.setOverlayOpen(modal, null, false);
+        };
+
+        window.closeDevInspector = function() {
+          const drawer = document.getElementById('dev-inspector-drawer');
+          if (drawer) window.setOverlayOpen(drawer, null, false);
+        };
+
+        window.toggleDevInspector = function() {
+          const drawer = document.getElementById('dev-inspector-drawer');
+          if (drawer) window.setOverlayOpen(drawer, null, drawer.classList.contains('hidden'));
+        };
+
         window.markNotificationsAsRead = function() {
           const badges = document.querySelectorAll('.notification-unread-badge');
           badges.forEach(b => b.classList.add('hidden'));
@@ -304,7 +329,7 @@ export function getShellClientScripts(): string {
           }
         };
 
-        // Close dropdowns when clicking outside or pressing Escape
+        // Close dropdowns and modals on click outside or keydown
         document.addEventListener('click', function(e) {
           const menu = document.getElementById('user-menu-dropdown');
           const btn = document.getElementById('user-menu-button');
@@ -316,17 +341,26 @@ export function getShellClientScripts(): string {
         });
 
         document.addEventListener('keydown', function(e) {
-          if (e.key === 'Escape') {
+          if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            const modal = document.getElementById('command-palette-modal');
+            if (modal && !modal.classList.contains('hidden')) {
+              window.closeCommandPalette();
+            } else {
+              window.openCommandPalette();
+            }
+          } else if (e.key === 'Escape') {
             const menu = document.getElementById('user-menu-dropdown');
             const btn = document.getElementById('user-menu-button');
             if (menu && !menu.classList.contains('hidden')) {
               window.setOverlayOpen(menu, btn, false);
             }
+            window.closeCommandPalette();
+            window.closeDevInspector();
           }
         });
 
-        // Secondary sidebar live filter (shared: markup lives in the
-        // shell renderer, used by every page).
+        // Secondary sidebar live filter
         window.filterSecondarySidebar = function(query) {
           const q = (query || '').toLowerCase().trim();
           const clearBtns = document.querySelectorAll('#secondary-sidebar-filter-clear');

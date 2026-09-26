@@ -74,7 +74,7 @@ export interface WizardStepResult {
 }
 
 export class ProductWizardService {
-  private drafts = new Map<string, ProductWizardDraft>();
+  private activeDrafts = new Map<string, ProductWizardDraft>();
 
   startDraft(vendorId?: string, spaceId?: string): ProductWizardDraft {
     const draftId = `draft_prod_${crypto.randomUUID()}`;
@@ -89,18 +89,18 @@ export class ProductWizardService {
       createdAt: now,
       updatedAt: now,
     };
-    this.drafts.set(draftId, draft);
+    this.activeDrafts.set(draftId, draft);
     return draft;
   }
 
   getDraft(draftId: string): ProductWizardDraft | null {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) return null;
     return { ...draft };
   }
 
   listDrafts(vendorId?: string): ProductWizardDraft[] {
-    const all = Array.from(this.drafts.values());
+    const all = Array.from(this.activeDrafts.values());
     if (vendorId) {
       return all.filter((d) => d.vendorId === vendorId);
     }
@@ -108,7 +108,7 @@ export class ProductWizardService {
   }
 
   saveStep1(draftId: string, data: ProductStep1Identity): WizardStepResult {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) {
       return { valid: false, errors: ["Session de création de produit introuvable ou expirée."] };
     }
@@ -144,7 +144,7 @@ export class ProductWizardService {
   }
 
   saveStep2(draftId: string, data: ProductStep2Pricing): WizardStepResult {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) {
       return { valid: false, errors: ["Session introuvable."] };
     }
@@ -179,7 +179,7 @@ export class ProductWizardService {
   }
 
   saveStep3(draftId: string, data: ProductStep3Media): WizardStepResult {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) {
       return { valid: false, errors: ["Session introuvable."] };
     }
@@ -202,7 +202,7 @@ export class ProductWizardService {
   }
 
   saveStep4(draftId: string, data: ProductStep4SeoAndPublish): WizardStepResult {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft) {
       return { valid: false, errors: ["Session introuvable."] };
     }
@@ -234,7 +234,7 @@ export class ProductWizardService {
     draftId: string,
     portfolioService: PortfolioService
   ): Promise<Vendable> {
-    const draft = this.drafts.get(draftId);
+    const draft = this.activeDrafts.get(draftId);
     if (!draft || !draft.step1 || !draft.step2 || !draft.step3 || !draft.step4) {
       throw new Error("Impossible de publier : toutes les étapes du wizard doivent être complétées.");
     }
@@ -275,28 +275,39 @@ export class ProductWizardService {
       classification: {
         categories: [draft.step1.category],
         tags: draft.step1.tags,
-        brand: draft.step1.brand,
       },
       characteristics: {
-        physical: draft.step3.weightGrams
-          ? {
-              weight: draft.step3.weightGrams,
-              dimensions: draft.step3.dimensions,
-            }
-          : undefined,
-        custom: draft.step3.characteristics,
+        // Wizard-specific extras (brand, physical, custom, provenance) live
+        // in free-form attributes — the typed model has no dedicated slots.
+        attributes: {
+          ...(draft.step3.characteristics ?? {}),
+          ...(draft.step3.weightGrams
+            ? {
+                physical: {
+                  weight: draft.step3.weightGrams,
+                  dimensions: draft.step3.dimensions,
+                },
+              }
+            : {}),
+          ...(draft.step1.brand ? { brand: draft.step1.brand } : {}),
+          vendorId: draft.vendorId,
+          spaceId: draft.spaceId || draft.step4.spaceId,
+          wizardCompletedAt: new Date().toISOString(),
+        },
       },
-      media: {
-        images: draft.step3.mediaUrls.map((url, idx) => ({
-          url,
+      media: draft.step3.mediaUrls.map((url, idx) => ({
+        id: `media_${crypto.randomUUID()}`,
+        type: "image" as const,
+        url,
+        metadata: {
           role: idx === 0 ? "primary" : "gallery",
           order: idx,
-        })),
-      },
+        },
+      })),
       variants: draft.step2.variants.map((v) => ({
         id: `var_${crypto.randomUUID()}`,
         reference: v.sku,
-        name: v.name,
+        content: { [lang]: { name: v.name } },
         pricing: {
           basePrice: draft.step2!.basePrice + (v.priceModifier || 0),
           currency: draft.step2!.currency,
@@ -307,19 +318,15 @@ export class ProductWizardService {
           reserved: 0,
           reorderPoint: 2,
         },
-        characteristics: v.attributes,
+        characteristics: { attributes: { ...(v.attributes ?? {}) } },
       })),
-      metadata: {
-        vendorId: draft.vendorId,
-        spaceId: draft.spaceId || draft.step4.spaceId,
-        wizardCompletedAt: new Date().toISOString(),
-      },
+      relations: [],
     };
 
-    const saved = await portfolioService.create(vendable);
+    const saved = await portfolioService.createVendable(vendable);
 
     // Delete draft after publication
-    this.drafts.delete(draftId);
+    this.activeDrafts.delete(draftId);
 
     return saved;
   }

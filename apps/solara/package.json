@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@mosaix-plugin/solara-content-moderator": "workspace:*",
+    "@mosaix/commands": "workspace:*",
     "@mosaix/container": "workspace:*",
     "@mosaix/http": "workspace:*",
     "@mosaix/orm": "workspace:*",

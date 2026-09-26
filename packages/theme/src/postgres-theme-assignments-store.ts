@@ -1,10 +1,5 @@
 /**
- * @mosaix/core — PostgresThemeAssignmentsStore (THEME-06-PG)
- *
- * Persisted adapter for ThemeAssignmentsStore port.
- * Mirrors InMemoryThemeAssignmentsStore semantics but backed by Postgres.
- * Table: theme_assignments(target_type, target_id, theme_id, mode, version, source, updated_at, updated_by)
- * PK: (target_type, target_id)
+ * @mosaix/theme — PostgresThemeAssignmentsStore
  */
 
 import type {
@@ -14,8 +9,8 @@ import type {
 } from "@mosaix/contracts";
 import type { DatabasePort } from "@mosaix/ports-database";
 import { ThemeAssignmentSchema } from "@mosaix/schemas";
-import { ThemeValidationError } from "./theme-errors";
-import type { ThemeMutationListener } from "./in-memory-theme-assignments-store";
+import { ThemeValidationError } from "./theme-errors.js";
+import type { ThemeMutationListener } from "./in-memory-theme-assignments-store.js";
 
 export interface PostgresThemeAssignmentsStoreOptions {
   onMutation?: ThemeMutationListener;
@@ -38,14 +33,18 @@ export class PostgresThemeAssignmentsStore implements ThemeAssignmentsStore {
   }
 
   private rowToAssignment(row: Record<string, unknown>): ThemeAssignment {
+    const rawMode = row["mode"];
+    const mode =
+      rawMode === "light" || rawMode === "dark" || rawMode === "high-contrast" || rawMode === "system"
+        ? rawMode
+        : "system";
     return {
       target: {
         type: String(row["target_type"]),
         id: String(row["target_id"]),
       },
       themeId: String(row["theme_id"]),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mode: (row["mode"] as any) ?? "system",
+      mode,
       ...(row["version"] ? { version: String(row["version"]) } : {}),
       source: String(row["source"] ?? "admin") as ThemeAssignment["source"],
       updatedAt: String(row["updated_at"]),

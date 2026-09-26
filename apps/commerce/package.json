@@ -20,6 +20,7 @@
     "@mosaix-plugin/commerce-recently-viewed": "workspace:*",
     "@mosaix-plugin/commerce-reviews": "workspace:*",
     "@mosaix-plugin/commerce-wishlist": "workspace:*",
+    "@mosaix/orchestration": "workspace:*",
     "@mosaix/sdk": "workspace:*",
     "@mosaix/types": "workspace:*"
   },

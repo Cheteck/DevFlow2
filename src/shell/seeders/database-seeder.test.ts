@@ -23,11 +23,14 @@ describe("migrate + seed flow (CLI-only)", () => {
     const pendingBefore = await getPendingMigrationIds(db);
     expect(pendingBefore).toContain("shell.core.v1.001_create_core_tables");
     expect(pendingBefore).toContain(
+      "shell.core.v1.002_create_subscription_tables",
+    );
+    expect(pendingBefore).toContain(
       "shell.theme.v1.001_create_theme_assignments",
     );
 
     const migrated = await runShellMigrations(db);
-    expect(migrated.applied).toHaveLength(2);
+    expect(migrated.applied).toHaveLength(3);
 
     await expect(getPendingMigrationIds(db)).resolves.toEqual([]);
   });

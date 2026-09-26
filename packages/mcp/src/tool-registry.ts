@@ -9,7 +9,11 @@ export interface MCPToolDefinition {
   outputSchema?: Record<string, unknown>;
   requiredPermission: string;
   ownerApp: string;
-  handler: (input: unknown, context?: unknown) => Promise<unknown>;
+  // `any` input (not `unknown`): typed handlers `(input: TInput) => ...` must
+  // stay assignable under `strictFunctionTypes`; validation happens against
+  // `inputSchema` at the gateway boundary, not in the type system.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  handler: (input: any, context?: unknown) => Promise<unknown>;
 }
 
 export class MCPToolRegistry {

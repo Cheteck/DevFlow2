@@ -20,7 +20,7 @@ export class ControlPlaneController extends Controller {
   constructor() {
     super();
     const policy = new Policy();
-    policy.define("read-admin", (user: UserContext) => user.roles.includes("admin"));
+    policy.define("read-admin", (user: UserContext) => (user.roles ?? []).includes("admin"));
     this.guard = new Guard(policy);
   }
 
@@ -39,7 +39,7 @@ export class ControlPlaneController extends Controller {
   private principalFrom(req: HttpRequest): UserContext | null {
     const p = req.principal;
     if (!p) return null;
-    return { id: p.sub, roles: p.roles ?? [] };
+    return { sub: p.sub, roles: p.roles ?? [] };
   }
 
   async getTopology(req: HttpRequest): Promise<HttpResponse> {

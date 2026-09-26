@@ -25,7 +25,7 @@ export class SessionTokenManager {
     private readonly refreshTokenTtlSeconds = 30 * 24 * 3600, // 30 days
   ) {}
 
-  generateTokenPair(userId: string, familyId = crypto.randomUUID()): TokenPair {
+  generateTokenPair(userId: string, familyId: string = crypto.randomUUID()): TokenPair {
     const accessToken = crypto.randomBytes(32).toString("base64url");
     const refreshToken = crypto.randomBytes(48).toString("base64url");
     const expiresAt = Date.now() + this.refreshTokenTtlSeconds * 1000;

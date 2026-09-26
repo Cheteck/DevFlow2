@@ -82,13 +82,15 @@ export async function handleCompositionRoutes(
           const currentStore = compositionOverrideManager.getStore(surfaceId);
           const existingSlot = currentStore.slotOverrides[slotId];
           const existingBlock = existingSlot?.blocks.find((b) => b.contributionId === contributionId);
+          // Route-level aliases mapped onto the canonical wrapper contract.
+          const wrapperAliases = { card: "card", plain: "borderless", hero: "hero-strip" } as const;
 
           compositionOverrideManager.setBlockOverride(surfaceId, slotId, {
             contributionId,
             placementId: existingBlock?.placementId || `p-${contributionId}`,
             order: typeof order === "number" ? order : (existingBlock?.order ?? 1),
             gridSpan: typeof gridSpan === "number" ? gridSpan : (existingBlock?.gridSpan ?? 6),
-            wrapper: wrapper || existingBlock?.wrapper || "card",
+            wrapper: (wrapper && wrapperAliases[wrapper]) || existingBlock?.wrapper || "card",
             enabled: typeof enabled === "boolean" ? enabled : (existingBlock?.enabled ?? true),
           });
 

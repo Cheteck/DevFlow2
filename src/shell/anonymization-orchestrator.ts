@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 /**
  * @mosaix/shell — GDPR Right-to-be-Forgotten & Anonymization Orchestrator
  * Coordinates cascading erasure / irreversible anonymization across all bounded contexts.
@@ -23,15 +24,13 @@ export class AnonymizationOrchestrator {
    */
   async anonymizeUser(userId: string): Promise<AnonymizationResult> {
     const timestamp = new Date().toISOString();
-    const pseudonym = `anonymized_${Math.random().toString(36).substring(2, 10)}`;
+    const pseudonym = `anonymized_${crypto.randomBytes(6).toString("hex")}`;
     const contextsUpdated: string[] = [];
     const details: Record<string, number | string> = {};
 
     try {
       // 1. Check columns in identities table
-      const cols = await this.db
-        .query<{ name: string }>(`PRAGMA table_info(identities)`)
-        .catch(() => []);
+      let cols: { name: string }[] = []; try { cols = await this.db.query<{ name: string }>(`PRAGMA table_info(identities)`); } catch (err) { console.warn("[GDPR] Pragma query warning:", err); }
       const colNames = new Set(cols.map((c) => c.name));
 
       if (colNames.has("display_name")) {

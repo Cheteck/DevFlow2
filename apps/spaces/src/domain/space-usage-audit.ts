@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 export interface SpaceUsageMetrics {
   spaceId: string;
   memberCount: number;
@@ -66,7 +67,7 @@ export class SpaceAuditLogger {
   log(entry: Omit<SpaceAuditEntry, "id" | "timestamp">): SpaceAuditEntry {
     const fullEntry: SpaceAuditEntry = {
       ...entry,
-      id: `audit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: `audit-${crypto.randomUUID()}`,
       timestamp: new Date().toISOString(),
     };
     this.logs.push(fullEntry);

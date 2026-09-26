@@ -1,5 +1,5 @@
 /**
- * @mosaix/core — Token Deep Merge Engine
+ * @mosaix/theme — Token Deep Merge Engine
  */
 
 export function deepMergeTokens(

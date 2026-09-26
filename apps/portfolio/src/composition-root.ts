@@ -42,25 +42,31 @@ export function mountPortfolioRoutes(
   });
 
   router.post("/portfolio/vendables", async (req) => {
-    const body = req.body as { name?: string; type?: "Product" | "Service" | "DigitalProduct" | "Experience" };
-    if (!body?.name || !body?.type) {
-      return {
-        statusCode: 400,
-        body: { error: "Missing name or type" },
-      };
-    }
+    const body = req.body as { name?: string; type?: string };
     const typeMap = {
       product: "Product",
       service: "Service",
       digital_good: "DigitalProduct",
+      digitalproduct: "DigitalProduct",
       experience: "Experience",
     } as const;
+    const normalizedType =
+      typeMap[(body.type ?? "").toLowerCase() as keyof typeof typeMap] ??
+      (["Product", "Service", "DigitalProduct", "Experience"] as const).find(
+        (t) => t === body.type,
+      );
+    if (!body?.name || !normalizedType) {
+      return {
+        statusCode: 400,
+        body: { error: "Missing name or valid type" },
+      };
+    }
     const id = `vend_${Date.now()}`;
     const vendable: Vendable = {
       identity: {
         id,
         reference: `REF-${id}`,
-        type: typeMap[body.type],
+        type: normalizedType,
         status: "Draft",
       },
       content: {

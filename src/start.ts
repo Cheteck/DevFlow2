@@ -284,7 +284,8 @@ const server = http.createServer(async (req, res) => {
             permissions: currentUser.permissions,
           },
           theme: {
-            mode: currentThemeMode,
+            // "system" has no runtime rendering — resolve to light (matches SSR default branch).
+            mode: currentThemeMode === "system" ? "light" : currentThemeMode,
           },
           request: {
             path: pathname,
@@ -350,7 +351,8 @@ const server = http.createServer(async (req, res) => {
           permissions: currentUser.permissions,
         },
         theme: {
-          mode: currentThemeMode,
+          // "system" has no runtime rendering — resolve to light (matches SSR default branch).
+          mode: currentThemeMode === "system" ? "light" : currentThemeMode,
         },
         request: {
           path: "/",
@@ -412,7 +414,8 @@ const server = http.createServer(async (req, res) => {
     console.error("[ServerError]", err);
     if (!res.headersSent) {
       res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
-      res.end(`Internal Server Error: ${err?.message || "Unknown error"}`);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      res.end(`Internal Server Error: ${message}`);
     }
   }
 });

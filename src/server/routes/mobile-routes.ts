@@ -211,7 +211,12 @@ export async function handleMobileRoutes(
   // 6. Test FCM Push Notification to Registered Device
   if (pathname === "/api/mobile/push/test" && req.method === "POST") {
     const body = await readJsonBody(req);
-    const fcmToken = String(body.fcmToken || "mock_token_android_123");
+    const fcmToken = String(body.fcmToken || "");
+    if (!fcmToken) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "fcmToken parameter is required for push dispatch" }));
+      return true;
+    }
 
     const result = await fcmAdapter.sendToDevice(fcmToken, {
       title: body.title ? String(body.title) : "☀️ MosaiX Solara",
@@ -234,10 +239,10 @@ export async function handleMobileRoutes(
     const clientSince = parsedUrl.searchParams.get("since") || undefined;
     const clientIfNoneMatch = req.headers["if-none-match"];
 
-    const posts = await feedService.listFeed();
-    const syncablePosts: SyncableItem[] = posts.map((p) => ({
+    const page = await feedService.getFeed({ limit: 1000 });
+    const syncablePosts: SyncableItem[] = page.items.map((p) => ({
       ...p,
-      updatedAt: p.createdAt,
+      updatedAt: new Date(p.timestamp).toISOString(),
     }));
 
     const deltaResult = DeltaSyncEngine.calculateDelta(syncablePosts, clientSince, clientIfNoneMatch);

@@ -127,15 +127,15 @@ export function initThemeBridge(
     const hasContainer =
       typeof container !== "undefined" &&
       container &&
-      typeof container.isBound === "function";
+      typeof container.has === "function";
     // Exact store DB type, no `any`, no extra imports.
     type StoreDb = ConstructorParameters<
       typeof PostgresThemeAssignmentsStore
     >[0];
-    if (hasContainer && container.isBound("database")) {
+    if (hasContainer && container.has("database")) {
       const db = container.resolve<StoreDb>("database");
       store = new PostgresThemeAssignmentsStore(db);
-    } else if (hasContainer && container.isBound("databasePort")) {
+    } else if (hasContainer && container.has("databasePort")) {
       const db = container.resolve<StoreDb>("databasePort");
       store = new PostgresThemeAssignmentsStore(db);
     } else {
@@ -145,7 +145,10 @@ export function initThemeBridge(
     activeRuntime = createThemeRuntime({ registry, store });
   }
 
-  activeRuntime.registerTarget({ type: "shell", id: "shell" });
+  activeRuntime.registerTarget({
+    type: "shell",
+    capabilities: { userSelectable: false, adminConfigurable: true },
+  });
   // Register every discovered theme from themes/ (default + alternates
   // like midnight-ocean) — the catalog is file-driven, never hardcoded.
   ensureCatalog();
@@ -166,7 +169,7 @@ export async function applyThemeMode(mode: ThemeMode): Promise<CompiledTheme> {
   currentMode = mode;
   const outcome = await activeRuntime!.apply({
     target: { type: "shell", id: "shell" },
-    mode,
+    applicationPreference: { inherit: false, preferredMode: mode },
   });
 
   if (outcome.compiled) {
@@ -196,10 +199,11 @@ export function getResolvedTheme(mode: ThemeMode = "light"): CompiledTheme {
   ) {
     return currentCompiledTheme;
   }
-  currentCompiledTheme = compile(getActiveManifest(), mode);
+  const compiled = compile(getActiveManifest(), mode);
+  currentCompiledTheme = compiled;
   currentMode = mode;
   compiledForThemeId = activeThemeId;
-  return currentCompiledTheme;
+  return compiled;
 }
 
 export function generateUnifiedThemeCssVariables(

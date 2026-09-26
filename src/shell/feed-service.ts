@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 /**
  * @mosaix/shell — Feed Service with Keyset Pagination
  */
@@ -34,7 +35,7 @@ export class FeedService {
     },
   ): Promise<ShellFeedItem> {
     const fullItem: ShellFeedItem = {
-      id: `feed_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: `feed_${crypto.randomUUID()}`,
       timestamp: Date.now(),
       likes: item.likes ?? 0,
       ...item,

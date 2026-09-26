@@ -15,7 +15,7 @@ export class BookingProviderDashboardView {
         <td class="p-3 text-sm text-slate-300 font-mono">${s.price ?? 0} €</td>
         <td class="p-3 text-sm">
           <span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
-            s.status === "BOOKED"
+            s.status === "fully_booked"
               ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
               : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
           }">${s.status}</span>

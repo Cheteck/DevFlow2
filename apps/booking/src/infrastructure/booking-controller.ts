@@ -7,13 +7,13 @@ export class BookingController {
   mount(router: Router): void {
     // List slots
     router.get("/slots", async (req: HttpRequest): Promise<HttpResponse> => {
-      const url = new URL(req.url || "/", "http://localhost");
+      const url = new URL(req.path || "/", "http://localhost");
       const providerId = url.searchParams.get("providerId") || undefined;
       const status = url.searchParams.get("status") || undefined;
 
       const slots = this.service.listSlots({ providerId, status });
       return {
-        status: 200,
+        statusCode: 200,
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ success: true, slots }),
       };
@@ -24,7 +24,7 @@ export class BookingController {
       const slotId = req.params?.id;
       if (!slotId) {
         return {
-          status: 400,
+          statusCode: 400,
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ success: false, error: "Identifiant de créneau manquant" }),
         };
@@ -33,14 +33,14 @@ export class BookingController {
       const slot = this.service.getSlot(slotId);
       if (!slot) {
         return {
-          status: 404,
+          statusCode: 404,
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ success: false, error: `Créneau [${slotId}] introuvable` }),
         };
       }
 
       return {
-        status: 200,
+        statusCode: 200,
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ success: true, slot }),
       };
@@ -53,7 +53,7 @@ export class BookingController {
 
         if (!body.providerId || !body.serviceName || !body.startTime || !body.endTime) {
           return {
-            status: 400,
+            statusCode: 400,
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ success: false, error: "Champs requis : providerId, serviceName, startTime, endTime" }),
           };
@@ -69,14 +69,14 @@ export class BookingController {
         });
 
         return {
-          status: 201,
+          statusCode: 201,
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ success: true, slot }),
         };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Erreur interne lors de la création du créneau";
         return {
-          status: 400,
+          statusCode: 400,
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ success: false, error: message }),
         };
@@ -90,7 +90,7 @@ export class BookingController {
 
         if (!body.slotId || !body.customerId || !body.customerName || !body.customerEmail) {
           return {
-            status: 400,
+            statusCode: 400,
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ success: false, error: "Champs requis : slotId, customerId, customerName, customerEmail" }),
           };
@@ -104,14 +104,14 @@ export class BookingController {
         });
 
         return {
-          status: 201,
+          statusCode: 201,
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ success: true, reservation }),
         };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Erreur lors de la réservation";
         return {
-          status: 400,
+          statusCode: 400,
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ success: false, error: message }),
         };
@@ -120,13 +120,13 @@ export class BookingController {
 
     // List reservations
     router.get("/reservations", async (req: HttpRequest): Promise<HttpResponse> => {
-      const url = new URL(req.url || "/", "http://localhost");
+      const url = new URL(req.path || "/", "http://localhost");
       const slotId = url.searchParams.get("slotId") || undefined;
       const customerId = url.searchParams.get("customerId") || undefined;
 
       const reservations = this.service.listReservations({ slotId, customerId });
       return {
-        status: 200,
+        statusCode: 200,
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ success: true, reservations }),
       };
@@ -137,7 +137,7 @@ export class BookingController {
       const reservationId = req.params?.id;
       if (!reservationId) {
         return {
-          status: 400,
+          statusCode: 400,
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ success: false, error: "Identifiant de réservation manquant" }),
         };
@@ -146,14 +146,14 @@ export class BookingController {
       try {
         const reservation = this.service.cancelReservation(reservationId);
         return {
-          status: 200,
+          statusCode: 200,
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ success: true, reservation }),
         };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Erreur lors de l'annulation";
         return {
-          status: 404,
+          statusCode: 404,
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ success: false, error: message }),
         };

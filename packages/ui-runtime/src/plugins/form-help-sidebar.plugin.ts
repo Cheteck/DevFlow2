@@ -98,6 +98,17 @@ export class FormHelpSidebarPlugin {
     return guide.steps.find((s) => s.step === stepNumber) || null;
   }
 
+  /**
+   * Slot-renderer entry: resolves a wizard step name to the matching guide
+   * (falling back to the first guide, step 1) and renders its sidebar HTML.
+   */
+  renderHelpPanel(step: string): string {
+    const guide =
+      CANONICAL_FORM_HELP_GUIDES[step] ?? Object.values(CANONICAL_FORM_HELP_GUIDES)[0];
+    if (!guide) return "";
+    return this.renderSidebarHtml(guide.formId, 1);
+  }
+
   renderSidebarHtml(formId: string, stepNumber: number): string {
     const tip = this.getHelpForStep(formId, stepNumber);
     if (!tip) return "";

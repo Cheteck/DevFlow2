@@ -6,5 +6,6 @@ export interface Session {
   createdAt: string;
   expiresAt: string;
   revokedAt?: string;
-  attributes: Record<string, unknown>;
+  /** Optional extra claims — aligned with the `SessionStore` port. */
+  attributes?: Record<string, unknown>;
 }

@@ -6,7 +6,6 @@
 import { Container, Router, createBoundedAppBootstrap } from "@mosaix/sdk";
 import { MosaixApp, RuntimeKernel, type TenantIdentity } from "@mosaix/sdk";
 import type { ApplicationManifest } from "@mosaix/contracts";
-import type { WorkflowStatus } from "./domain/vendable.js";
 
 import type { DatabasePort } from "@mosaix/ports-database";
 import { PortfolioService } from "./domain/portfolio-service.js";
@@ -103,9 +102,13 @@ export class PortfolioServiceProvider {
 
     app.provideCapability("portfolio.vendable.publish", async (input) => {
       const inp = input as { vendableId?: string; status?: string; qualityPassed?: boolean };
+      const publishStatuses = ["Published", "Draft", "In Review", "Archived", "Validated"] as const;
+      const status = (
+        (publishStatuses as readonly string[]).includes(inp.status ?? "") ? inp.status : "Draft"
+      ) as (typeof publishStatuses)[number];
       return vendableWorkflow.publish({
         vendableId: inp.vendableId ?? "",
-        status: (inp.status as WorkflowStatus) ?? "Draft",
+        status,
         qualityPassed: inp.qualityPassed ?? true,
       });
     });

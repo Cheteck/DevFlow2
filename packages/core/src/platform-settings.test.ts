@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   PlatformSettingsService,
   InMemoryPlatformSettingsStore,
-  CANONICAL_DEFAULT_PLATFORM_SETTINGS,
 } from "./platform-settings.js";
 
 describe("PlatformSettingsService", () => {

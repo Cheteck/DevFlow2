@@ -322,7 +322,7 @@ export class SolaraSocialService {
     if (!post) throw new Error(`Post [${postId}] non trouvé.`);
 
     const comment: Comment = {
-      id: `cmt-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: `cmt-${crypto.randomUUID()}`,
       postId,
       actorType,
       actorId,
@@ -411,7 +411,7 @@ export class SolaraSocialService {
 
   async addReaction(postId: string, actorType: SocialActorType, actorId: string, type: ReactionModel["type"]): Promise<SocialReaction> {
     const reaction: SocialReaction = {
-      id: `react-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: `react-${crypto.randomUUID()}`,
       postId,
       actorType,
       actorId,
