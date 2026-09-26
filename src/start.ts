@@ -29,9 +29,9 @@ import {
   standardRateLimiter,
   strictRateLimiter,
 } from "./shell/rate-limiter.js";
-import { feedService } from "./shell/feed-service.js";
+import { getFeedService } from "./shell/feed-service.js";
 import { distributedEventBackplane } from "./shell/event-backplane.js";
-import { anonymizationOrchestrator } from "./shell/anonymization-orchestrator.js";
+import { getAnonymizationOrchestrator } from "./shell/anonymization-orchestrator.js";
 import { loadSavedCompositionOverrides } from "./shell/editor.js";
 import { bacOrchestrator } from "./shell/orchestrator/bac-orchestrator.js";
 import {
@@ -225,9 +225,9 @@ const server = http.createServer(async (req, res) => {
       activeMode: currentThemeMode,
       currentUser,
       compositionOverrideManager,
-      feedService,
+      feedService: getFeedService(),
       eventBackplane: distributedEventBackplane,
-      anonymizationOrchestrator,
+      anonymizationOrchestrator: getAnonymizationOrchestrator(),
     });
     if (isApiHandled) {
       return;

@@ -4,6 +4,7 @@ import type {
   DatabasePort,
   MigrationLock,
 } from "@mosaix/ports-database";
+import { Pool } from "pg";
 
 export interface PgQueryResult {
   readonly rows: readonly unknown[];
@@ -23,6 +24,19 @@ export interface PostgresPoolOptions {
   readonly idleTimeoutMillis?: number;
   readonly connectionTimeoutMillis?: number;
   readonly healthCheckIntervalMillis?: number;
+}
+
+/**
+ * Rewrites SQLite-style `?` placeholders to positional `$n` parameters.
+ * Already-positional SQL (`$1`) passes through unchanged. `??` is left
+ * alone. Limitation: raw PostgreSQL JSON operators (`?`, `?|`, `?&`)
+ * cannot be distinguished from placeholders — write them with an
+ * immediately following `?` escape or, preferably, avoid them in
+ * port-level queries (use `json_extract`-style functions instead).
+ */
+export function translatePlaceholders(sql: string): string {
+  let index = 0;
+  return sql.replace(/\?\?|\?/g, (match) => (match === "??" ? match : `$${++index}`));
 }
 
 /**
@@ -118,6 +132,13 @@ export class PostgresPoolManager {
 
 /**
  * PostgreSQL `DatabasePort` adapter. Duck-typed constructor accepting any pg-compatible client/pool or PostgresPoolManager.
+ *
+ * Placeholder convention: callers write SQLite-style `?` placeholders;
+ * the adapter rewrites them to positional `$n` on the way in, so the same
+ * queries run on both drivers. `??` is left untouched. Limitation: raw
+ * PostgreSQL JSON operators (`?`, `?|`, `?&`) are indistinguishable from
+ * placeholders and get rewritten — port-level queries must avoid them
+ * (no such usage exists in the codebase as of 2026-09-26).
  */
 export class PostgresDatabaseAdapter implements DatabasePort {
   readonly capabilities: DatabaseCapabilities = {
@@ -143,7 +164,7 @@ export class PostgresDatabaseAdapter implements DatabasePort {
   }
 
   async execute(sql: string, params?: readonly unknown[]): Promise<number> {
-    const res = await this.client.query(sql, params);
+    const res = await this.client.query(translatePlaceholders(sql), params);
     return res.rowCount ?? 0;
   }
 
@@ -151,7 +172,7 @@ export class PostgresDatabaseAdapter implements DatabasePort {
     sql: string,
     params?: readonly unknown[]
   ): Promise<T[]> {
-    const res = await this.client.query(sql, params);
+    const res = await this.client.query(translatePlaceholders(sql), params);
     return res.rows as unknown as T[];
   }
 
@@ -211,4 +232,30 @@ export class PostgresDatabaseAdapter implements DatabasePort {
       await this.client.end();
     }
   }
+}
+
+/**
+ * Builds a `PgClient` over a `pg` connection pool. Single composition point
+ * for real PostgreSQL connectivity (shell bootstrap + CLI share it).
+ */
+export function createPgPoolClient(connectionString?: string): PgClient {
+  const pool = connectionString !== undefined ? new Pool({ connectionString }) : new Pool();
+  return {
+    query: async (sql: string, params?: readonly unknown[]) => {
+      const result = await pool.query(sql, [...(params ?? [])]);
+      return { rows: result.rows, rowCount: result.rowCount };
+    },
+    end: async () => {
+      await pool.end();
+    },
+  };
+}
+
+/**
+ * Builds a pool-managed `PostgresDatabaseAdapter` from a connection string
+ * (or the standard `PG*` env vars when omitted).
+ */
+export function createPostgresDatabasePort(connectionString?: string): PostgresDatabaseAdapter {
+  const manager = new PostgresPoolManager(() => createPgPoolClient(connectionString));
+  return new PostgresDatabaseAdapter(manager);
 }

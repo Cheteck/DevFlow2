@@ -15,6 +15,9 @@
  */
 import { SQLiteDatabaseAdapter } from "@mosaix/adapter-database-sqlite";
 import { SQLiteIdentityStoreAdapter } from "@mosaix/adapter-identity-store-sqlite";
+import { PostgresIdentityStoreAdapter } from "@mosaix/adapter-identity-store-postgres";
+import { createPostgresDatabasePort } from "@mosaix/adapter-database-postgres";
+import type { IdentityStore } from "@mosaix/ports-identity-store";
 import {
   applySqlitePragmas,
   DatabaseManager,
@@ -34,13 +37,19 @@ export interface DatabaseBootstrapOptions {
 
 export interface DatabaseBootstrapResult {
   dbAdapter: DatabasePort;
-  identityStore: SQLiteIdentityStoreAdapter;
+  identityStore: IdentityStore;
   manager: DatabaseManager;
   config: DatabaseConfig;
 }
 
-let cachedBootstrap: DatabaseBootstrapResult | null = null;
+let cachedBootstrap: { key: string; result: DatabaseBootstrapResult } | null = null;
 let readyPromise: Promise<DatabaseBootstrapResult> | null = null;
+
+function configKey(config: DatabaseConfig): string {
+  return config.connection === "sqlite"
+    ? `sqlite:${config.database}`
+    : `pgsql:${config.connectionString}`;
+}
 
 function sqliteFactory(databasePath: string): DatabasePort {
   if (databasePath !== ":memory:") {
@@ -83,28 +92,50 @@ function readConfig(
  * Resolve the driver and build the (sync) connection. Cheap and side-effect
  * free besides creating the SQLite directory. Await `databaseReady()` before
  * issuing queries so PRAGMAs are guaranteed applied.
+ *
+ * The cache is keyed on the resolved config: if the environment changes
+ * between calls (e.g. a module-level `initDatabase()` ran during ESM import
+ * evaluation, before the entrypoint's `loadEnvFile()`), the stale bootstrap
+ * is closed and rebuilt instead of silently serving the wrong database.
  */
 export function initDatabase(
   options: DatabaseBootstrapOptions = {},
 ): DatabaseBootstrapResult {
-  if (cachedBootstrap) {
-    return cachedBootstrap;
-  }
-
   const rootDir = options.rootDir ?? process.cwd();
   const env =
     options.env ?? (process.env as Record<string, string | undefined>);
   const config = readConfig(rootDir, env);
+  const key = configKey(config);
+  if (cachedBootstrap && cachedBootstrap.key === key) {
+    return cachedBootstrap.result;
+  }
+  if (cachedBootstrap) {
+    const stale = cachedBootstrap.result;
+    cachedBootstrap = null;
+    readyPromise = null;
+    void Promise.resolve()
+      .then(() => stale.manager.close())
+      .catch((err) => {
+        console.warn("[database] failed to close stale connection:", err);
+      });
+  }
   const manager = new DatabaseManager(
     config,
-    { sqlite: sqliteFactory },
+    {
+      sqlite: sqliteFactory,
+      pgsql: (connectionString) => createPostgresDatabasePort(connectionString),
+    },
     { onConnect },
   );
   const dbAdapter = manager.connection();
-  const identityStore = new SQLiteIdentityStoreAdapter(dbAdapter);
+  const identityStore: IdentityStore =
+    config.connection === "pgsql"
+      ? new PostgresIdentityStoreAdapter(dbAdapter)
+      : new SQLiteIdentityStoreAdapter(dbAdapter);
 
-  cachedBootstrap = { dbAdapter, identityStore, manager, config };
-  return cachedBootstrap;
+  const result: DatabaseBootstrapResult = { dbAdapter, identityStore, manager, config };
+  cachedBootstrap = { key, result };
+  return result;
 }
 
 /** Await the connect hook (PRAGMAs). Boot and CLI must await this. */
@@ -119,7 +150,7 @@ export function databaseReady(): Promise<DatabaseBootstrapResult> {
 /** Close connections and reset the cache (tests / shutdown). */
 export async function closeDatabase(): Promise<void> {
   if (cachedBootstrap) {
-    await cachedBootstrap.manager.close();
+    await cachedBootstrap.result.manager.close();
   }
   cachedBootstrap = null;
   readyPromise = null;

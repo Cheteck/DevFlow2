@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@mosaix/adapter-database-sqlite": "workspace:*",
+    "@mosaix/adapter-database-postgres": "workspace:*",
     "@mosaix/conformance": "workspace:*",
     "@mosaix/config": "workspace:*",
     "@mosaix/contracts": "workspace:*",

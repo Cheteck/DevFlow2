@@ -96,7 +96,13 @@ export class AnonymizationOrchestrator {
   }
 }
 
-const { dbAdapter } = initDatabase();
-export const anonymizationOrchestrator = new AnonymizationOrchestrator(
-  dbAdapter,
-);
+let cachedOrchestrator: AnonymizationOrchestrator | undefined;
+
+/**
+ * Lazily-built orchestrator singleton — see `getFeedService()`: never bind
+ * the database at import time, only on first use after env is loaded.
+ */
+export function getAnonymizationOrchestrator(): AnonymizationOrchestrator {
+  cachedOrchestrator ??= new AnonymizationOrchestrator(initDatabase().dbAdapter);
+  return cachedOrchestrator;
+}

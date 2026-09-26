@@ -10,10 +10,23 @@
 import { MigrationRegistry } from "@mosaix/migrations";
 import { ShellThemeMigrationProvider } from "./theme/theme-migrations.js";
 import { ShellCoreMigrationProvider } from "./database/core-migration.js";
+import { ShellPostgresPatchProvider } from "./database/postgres-patches.js";
 
-export function createShellMigrationRegistry(): MigrationRegistry {
+/**
+ * Builds the shell registry, optionally with the PostgreSQL-only follow-up
+ * patches (`shell.pg.*`). Dialect-gated because the patches use PG-only DDL
+ * (`ALTER COLUMN ... TYPE BIGINT`) that SQLite cannot execute. Consumers
+ * holding a live adapter pass `db.capabilities.dialect`; dialect-less
+ * consumers (tests on `:memory:` SQLite) get the portable subset.
+ */
+export function createShellMigrationRegistry(
+  dialect: "sqlite" | "postgres" = "sqlite",
+): MigrationRegistry {
   const registry = new MigrationRegistry();
   registry.register(new ShellCoreMigrationProvider());
   registry.register(new ShellThemeMigrationProvider());
+  if (dialect === "postgres") {
+    registry.register(new ShellPostgresPatchProvider());
+  }
   return registry;
 }

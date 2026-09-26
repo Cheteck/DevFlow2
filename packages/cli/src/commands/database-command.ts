@@ -20,6 +20,7 @@ import {
 } from "@mosaix/database";
 import type { DatabasePort } from "@mosaix/ports-database";
 import { SQLiteDatabaseAdapter } from "@mosaix/adapter-database-sqlite";
+import { createPostgresDatabasePort } from "@mosaix/adapter-database-postgres";
 
 export interface CliDatabase {
   readonly manager: DatabaseManager;
@@ -56,7 +57,10 @@ export async function connectCliDatabase(
   );
   const manager = new DatabaseManager(
     config,
-    { sqlite: sqliteFactory },
+    {
+      sqlite: sqliteFactory,
+      pgsql: (connectionString) => createPostgresDatabasePort(connectionString),
+    },
     {
       onConnect: async (db, cfg) => {
         if (cfg.connection === "sqlite") await applySqlitePragmas(db);

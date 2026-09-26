@@ -23,7 +23,7 @@ import { createShellMigrationRegistry } from "./migration-registry.js";
  * migrations applies nothing.
  */
 export async function runShellMigrations(db: DatabasePort): Promise<RunResult> {
-  const registry = createShellMigrationRegistry();
+  const registry = createShellMigrationRegistry(db.capabilities.dialect);
   const store = new SqlMigrationStore(db);
   const planner = new MigrationPlanner(registry, store);
   const plan = await planner.plan();
@@ -62,7 +62,7 @@ async function ledgerExists(db: DatabasePort): Promise<boolean> {
 export async function getPendingMigrationIds(
   db: DatabasePort,
 ): Promise<string[]> {
-  const registry = createShellMigrationRegistry();
+  const registry = createShellMigrationRegistry(db.capabilities.dialect);
   if (!(await ledgerExists(db))) {
     return registry.all().map((m) => m.id);
   }

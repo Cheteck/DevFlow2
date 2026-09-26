@@ -19,9 +19,10 @@ function bind(db: DatabasePort, sql: string): string {
 
 async function tableCount(db: DatabasePort, table: string): Promise<number> {
   const rows = await db
-    .query<{ count: number }>(`SELECT COUNT(*) as count FROM ${table}`)
+    .query<{ count: number | string }>(`SELECT COUNT(*) as count FROM ${table}`)
     .catch(() => [{ count: 1 }]);
-  return rows[0]?.count ?? 1;
+  // PostgreSQL returns COUNT(*) as a string — coerce for both drivers.
+  return Number(rows[0]?.count ?? 1);
 }
 
 /**

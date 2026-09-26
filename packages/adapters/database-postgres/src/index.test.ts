@@ -117,6 +117,25 @@ describe("PostgresDatabaseAdapter", () => {
     ]);
   });
 
+  it("rewrites ? placeholders to positional $n parameters", async () => {
+    const client = new MockPgClient([]);
+    const db = new PostgresDatabaseAdapter(client);
+
+    await db.execute("UPDATE users SET name = ?, role = ? WHERE id = ?", ["John", "admin", 7]);
+
+    expect(client.queries).toEqual(["UPDATE users SET name = $1, role = $2 WHERE id = $3"]);
+    expect(client.params).toEqual([["John", "admin", 7]]);
+  });
+
+  it("leaves positional params and ?? untouched", async () => {
+    const client = new MockPgClient([]);
+    const db = new PostgresDatabaseAdapter(client);
+
+    await db.query(`SELECT 1 WHERE id = $1 AND code ?? 'x'`, [7]);
+
+    expect(client.queries).toEqual([`SELECT 1 WHERE id = $1 AND code ?? 'x'`]);
+  });
+
   it("supports pooled execution via PostgresPoolManager", async () => {
     const client = new MockPgClient([{ healthy: 1 }], 1);
     const pool = new PostgresPoolManager(() => client);

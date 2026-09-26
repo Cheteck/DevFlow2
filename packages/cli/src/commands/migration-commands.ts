@@ -31,7 +31,7 @@ async function buildMigrationCli(ctx: CommandContext): Promise<{
   connection: string;
 }> {
   const { db, config, manager } = await connectCliDatabase(ctx);
-  const registry = createShellMigrationRegistry();
+  const registry = createShellMigrationRegistry(db.capabilities.dialect);
   const store = new SqlMigrationStore(db);
   return {
     cli: new MigrationCLI(registry, store, db),

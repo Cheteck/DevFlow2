@@ -164,5 +164,14 @@ export class FeedService {
   }
 }
 
-const { dbAdapter } = initDatabase();
-export const feedService = new FeedService(dbAdapter);
+let cachedFeedService: FeedService | undefined;
+
+/**
+ * Lazily-built feed singleton. Built on first USE (not at import time) so
+ * the entrypoint's `loadEnvFile()` always runs before the database config
+ * is resolved — see `initDatabase()` env-aware cache.
+ */
+export function getFeedService(): FeedService {
+  cachedFeedService ??= new FeedService(initDatabase().dbAdapter);
+  return cachedFeedService;
+}

@@ -14,7 +14,7 @@
     "plugins/*"
   ],
   "scripts": {
-    "mosaix": "tsx packages/cli/src/index.ts",
+    "mosaix": "tsx packages/cli/src/run.ts",
     "key:generate": "tsx scripts/key-generate.ts",
     "key:check": "tsx scripts/key-check.ts",
     "setup": "tsx scripts/install.ts",
@@ -69,8 +69,10 @@
   },
   "dependencies": {
     "@mosaix/adapter-database-sqlite": "workspace:*",
+    "@mosaix/adapter-database-postgres": "workspace:*",
     "@mosaix/adapter-featureflags-memory": "workspace:*",
     "@mosaix/adapter-identity-store-sqlite": "workspace:*",
+    "@mosaix/adapter-identity-store-postgres": "workspace:*",
     "@mosaix/cli": "workspace:*",
     "@mosaix/contracts": "workspace:*",
     "@mosaix/core": "workspace:*",
@@ -79,6 +81,7 @@
     "@mosaix/migrations": "workspace:*",
     "@mosaix/ports-feature-flags": "workspace:*",
     "@mosaix/ports-database": "workspace:*",
+    "@mosaix/ports-identity-store": "workspace:*",
     "@mosaix/schemas": "workspace:*",
     "@mosaix/sdk": "workspace:*",
     "@mosaix/security": "workspace:*",
