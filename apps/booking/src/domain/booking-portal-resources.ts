@@ -9,7 +9,7 @@ export interface BookingReminder {
 
 export class BookingReminderScheduler {
   static scheduleReminders(slot: BookingSlot, userId: string): BookingReminder[] {
-    const startTime = slot.startTime.getTime();
+    const startTime = new Date(slot.startTime).getTime();
     const t24h = new Date(startTime - 24 * 60 * 60 * 1000);
     const t1h = new Date(startTime - 1 * 60 * 60 * 1000);
 
@@ -60,7 +60,7 @@ export class BookingAnalyticsEngine {
       return { totalSlots: 0, fillRate: 0, totalRevenue: 0, noShowRate: 0 };
     }
 
-    const booked = slots.filter((s) => s.status === "BOOKED");
+    const booked = slots.filter((s) => s.status === "fully_booked");
     const fillRate = booked.length / slots.length;
     const totalRevenue = booked.reduce((acc, s) => acc + (s.price ?? 0), 0);
 

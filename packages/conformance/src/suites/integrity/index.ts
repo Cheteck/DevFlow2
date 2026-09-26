@@ -1,7 +1,7 @@
 /**
  * @mosaix/conformance — Integrity suite entrypoint.
  */
-import { INTEGRITY_RULES, type IntegrityRule, type IntegritySeverity } from "./rules.js";
+import { INTEGRITY_RULES, type IntegrityRule } from "./rules.js";
 import { scanIntegrity, type IntegrityScanOptions } from "./scanner.js";
 import { IntegrityReport, type IntegrityFinding, type IntegritySummary } from "./report.js";
 

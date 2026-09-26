@@ -5,7 +5,7 @@
 
 import * as crypto from "node:crypto";
 import type { OrderService } from "./order.service.js";
-import type { Order } from "./order.model.js";
+import type { OrderModel } from "./order.model.js";
 
 export type AuctionStatus = "draft" | "active" | "closed" | "cancelled";
 
@@ -230,7 +230,7 @@ export class AuctionService {
   async closeAuction(
     auctionId: string,
     orderService?: OrderService
-  ): Promise<{ auction: Auction; winningOrder?: Order }> {
+  ): Promise<{ auction: Auction; winningOrder?: OrderModel }> {
     const auc = this.auctions.get(auctionId);
     if (!auc) {
       throw new Error("Enchère introuvable.");
@@ -243,7 +243,7 @@ export class AuctionService {
     auc.status = "closed";
     auc.updatedAt = new Date().toISOString();
 
-    let winningOrder: Order | undefined;
+    let winningOrder: OrderModel | undefined;
 
     if (auc.bidHistory.length > 0 && auc.highestBidderId && auc.reserveMet) {
       const topBid = auc.bidHistory[auc.bidHistory.length - 1];
@@ -251,21 +251,13 @@ export class AuctionService {
 
       if (orderService) {
         try {
-          winningOrder = await orderService.createOrder({
-            customerId: topBid.bidderId,
-            items: [
-              {
-                vendableId: auc.vendableId,
-                variantId: "default",
-                name: `[Enchère Gagnée] ${auc.vendableTitle}`,
-                quantity: 1,
-                unitPrice: topBid.amount,
-                totalPrice: topBid.amount,
-              },
-            ],
-            currency: auc.currency,
+          const placed = await orderService.createOrder({
+            userId: topBid.bidderId,
+            vendableId: auc.vendableId,
+            amount: topBid.amount,
           });
-          auc.settledOrderId = winningOrder.id;
+          winningOrder = placed.order;
+          auc.settledOrderId = String(winningOrder.id);
         } catch {
           // Log order settlement creation
         }

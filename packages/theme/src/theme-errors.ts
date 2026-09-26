@@ -31,17 +31,13 @@ export class ThemeError extends KernelError {
     messageOrDetails?: string | KernelErrorDetails,
     details: KernelErrorDetails = {}
   ) {
-    let code: ThemeErrorCode = "THEME_VALIDATION";
-    let message = "";
-    let det = details;
-
-    if (typeof messageOrDetails === "string") {
-      code = codeOrMessage as ThemeErrorCode;
-      message = messageOrDetails;
-    } else {
-      message = codeOrMessage;
-      det = (messageOrDetails as KernelErrorDetails) || {};
-    }
+    const hasMessage = typeof messageOrDetails === "string";
+    const code = (hasMessage ? codeOrMessage : "THEME_VALIDATION") as ThemeErrorCode;
+    const message = hasMessage ? (messageOrDetails as string) : codeOrMessage;
+    const det =
+      !hasMessage && messageOrDetails !== undefined
+        ? (messageOrDetails as KernelErrorDetails)
+        : details;
 
     super(code, message, det);
     this.name = "ThemeError";

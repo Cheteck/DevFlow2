@@ -77,8 +77,6 @@
     "@mosaix/database": "workspace:*",
     "@mosaix/http": "workspace:*",
     "@mosaix/migrations": "workspace:*",
-    "@mosaix/migrations": "workspace:*",
-    "@mosaix/migrations": "workspace:*",
     "@mosaix/ports-feature-flags": "workspace:*",
     "@mosaix/ports-database": "workspace:*",
     "@mosaix/schemas": "workspace:*",

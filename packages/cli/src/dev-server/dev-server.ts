@@ -136,7 +136,7 @@ export class MosaixDevServer {
     // In CLI mode, actually spawn the HTTP host (src/start.ts) unless --help
     if (!isCi && !isJson && !this.activeApp) {
       const { spawn } = await import("node:child_process");
-      const child = spawn("npx", ["tsx", "--watch", "src/start.ts"], {
+      spawn("npx", ["tsx", "--watch", "src/start.ts"], {
         stdio: "inherit",
         env: { ...process.env, APP_PORT: String(this.port), HOST: this.host },
         shell: true,

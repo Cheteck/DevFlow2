@@ -44,6 +44,7 @@ export class OrderService {
 
     const orderAmount = params.amount ?? 50;
     const idempotenceKey = params.idempotenceKey || `idemp-${order.id}`;
+    order.totalAmount = orderAmount;
 
     const initialState = {
       orderId: order.id,

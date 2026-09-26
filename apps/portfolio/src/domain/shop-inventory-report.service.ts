@@ -103,7 +103,7 @@ export class ShopInventoryReportService {
   async generateReport(portfolioService: PortfolioService, spaceId?: string): Promise<ShopInventoryReport> {
     const vendables = await portfolioService.search({ limit: 1000 });
     const filtered = spaceId
-      ? vendables.filter((v) => v.metadata?.spaceId === spaceId)
+      ? vendables.filter((v) => v.characteristics.attributes?.spaceId === spaceId)
       : vendables;
 
     const alerts: StockAlertItem[] = [];

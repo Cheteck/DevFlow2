@@ -1,5 +1,15 @@
 import * as crypto from "node:crypto";
-import type { Subscription } from "./subscription.model.js";
+
+/**
+ * Minimal subscription view for trial/revenue analytics.
+ * Status vocabulary here is `ACTIVE`/`CANCELLED` (billing analytics),
+ * distinct from `UserSubscription`'s lifecycle statuses.
+ */
+export interface Subscription {
+  id: string;
+  tenantId: string;
+  status: string;
+}
 
 export class SubscriptionTrialManager {
   static createTrial(tenantId: string, planId: string, durationDays: number = 14): {

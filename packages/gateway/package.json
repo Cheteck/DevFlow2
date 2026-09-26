@@ -29,6 +29,7 @@
     "@mosaix/core": "workspace:*",
     "@mosaix/http": "workspace:*",
     "@mosaix/pipeline": "workspace:*",
+    "@mosaix/ports-cache": "workspace:*",
     "@mosaix/telemetry": "workspace:*",
     "@mosaix/types": "workspace:*"
   },

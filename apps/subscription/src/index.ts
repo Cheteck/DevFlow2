@@ -68,7 +68,7 @@ export class SubscriptionServiceProvider {
       return inp?.userId ? this.subscriptionService.getUserSubscription(inp.userId) : null;
     });
 
-    router.get("/health", () => ({ status: "ok", app: MANIFEST.id }));
+    router.get("/health", () => ({ statusCode: 200, body: { status: "ok", app: MANIFEST.id } }));
 
     return app;
   }
@@ -92,4 +92,4 @@ export * from "./domain/subscription.js";
 export * from "./domain/subscription.service.js";
 export * from "./domain/subscription-billing-engine.js";
 export * from "./domain/subscription-trial-revenue.js";
-export * from "./presentation/index.js";
+export * from "./presentation/subscription-view.js";

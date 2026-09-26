@@ -5,8 +5,11 @@ import {
   SchemaBuilder,
   PostgresGrammar,
   computeChecksum,
+  type Blueprint,
   type Migration,
   type MigrationProvider,
+  type SqlStatement,
+  type TableBuilder,
 } from "@mosaix/migrations";
 
 export class ThemeAssignmentsMigrationProvider implements MigrationProvider {
@@ -18,7 +21,7 @@ export class ThemeAssignmentsMigrationProvider implements MigrationProvider {
     const builder = new SchemaBuilder();
     const grammar = new PostgresGrammar();
 
-    builder.createTable("theme_assignments", (table: any) => {
+    builder.createTable("theme_assignments", (table: TableBuilder) => {
       table.string("target_type");
       table.string("target_id");
       table.string("theme_id");
@@ -32,16 +35,18 @@ export class ThemeAssignmentsMigrationProvider implements MigrationProvider {
     });
     builder.createIndex("theme_assignments", "uniq_theme_assignments_target", ["target_type", "target_id"], true);
 
-    const statements = builder.blueprints.flatMap((bp: any) => grammar.compile(bp));
-    const sqlContent = statements.map((s: any) => s.sql).join("\n");
-    const downStatements = [{ type: "dropTable" as const, table: "theme_assignments" }].flatMap((bp: any) =>
+    const statements: readonly SqlStatement[] = builder.blueprints.flatMap((bp: Blueprint) =>
+      grammar.compile(bp),
+    );
+    const sqlContent = statements.map((s) => s.sql).join("\n");
+    const downStatements = [{ type: "dropTable" as const, table: "theme_assignments" }].flatMap((bp: Blueprint) =>
       grammar.compile(bp),
     );
     return [
       {
         id: "core.theme.v1.001_create_theme_assignments",
         content: sqlContent,
-        down: downStatements.map((s: any) => s.sql).join("\n"),
+        down: downStatements.map((s) => s.sql).join("\n"),
         checksum: computeChecksum(sqlContent),
         resources: ["table:theme_assignments"],
       },

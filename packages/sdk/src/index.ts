@@ -10,6 +10,7 @@ import type {
   MosaixEventEnvelope,
   TenantIdentity,
 } from "@mosaix/contracts";
+import type { PayloadValidator } from "@mosaix/core";
 import type { FeatureFlagsPort, FeatureFlagUserContext } from "@mosaix/ports-feature-flags";
 import { uuidV7 } from "@mosaix/types";
 
@@ -47,15 +48,15 @@ export class MosaixApp {
   registerEventSchema(entry: {
     type: string;
     version: string;
-    schema?: unknown;
-    payloadSchema?: unknown;
+    schema?: PayloadValidator | Record<string, unknown>;
+    payloadSchema?: PayloadValidator;
   }): void {
     this.kernel.registerEventSchema({
       type: entry.type,
       version: entry.version,
       ownerApp: this.manifest.id,
-      schema: entry.schema as Record<string, unknown>,
-      payloadSchema: entry.payloadSchema as Record<string, unknown> | undefined,
+      ...(entry.schema !== undefined ? { schema: entry.schema } : {}),
+      ...(entry.payloadSchema !== undefined ? { payloadSchema: entry.payloadSchema } : {}),
     });
   }
 
@@ -98,7 +99,7 @@ export class MosaixApp {
 
   registerCapabilityContract(
     capabilityId: string,
-    contract: { inputValidator?: unknown; outputValidator?: unknown },
+    contract: { inputValidator?: PayloadValidator; outputValidator?: PayloadValidator },
   ): void {
     this.kernel.bindCapabilityContract(capabilityId, this.manifest.id, contract);
   }

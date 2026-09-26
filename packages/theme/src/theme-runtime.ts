@@ -3,12 +3,15 @@
  */
 
 import type {
+  AssignmentSource,
   CompiledTheme,
+  ThemeAssignment,
   ThemeAssignmentsStore,
   ThemeChangedPayload,
   ThemeManifest,
   ThemeMode,
   ThemeResolutionContext,
+  ThemeTarget,
   MosaixEventEnvelope,
   TenantIdentity,
 } from "@mosaix/contracts";
@@ -74,6 +77,7 @@ export class ThemeRuntime {
   private readonly injector: ThemeInjector;
   private readonly publish: ThemeChangedPublisher;
   private readonly resolver: ThemeResolver;
+  private readonly store: ThemeAssignmentsStore;
   private readonly catalog = new Map<string, ThemeManifest>();
 
   constructor(options: ThemeRuntimeOptions) {
@@ -81,6 +85,7 @@ export class ThemeRuntime {
     this.cache = options.cache ?? new ThemeCache();
     this.injector = options.injector ?? new ThemeInjector();
     this.publish = options.publish ?? (() => undefined);
+    this.store = options.store;
 
     this.resolver = createThemeResolver({
       registry: this.registry,
@@ -117,6 +122,37 @@ export class ThemeRuntime {
 
   listThemes(): ThemeManifest[] {
     return Array.from(this.catalog.values());
+  }
+
+  /** Registry backing target registration ( shell/admin surfaces). */
+  getRegistry(): ThemeTargetRegistry {
+    return this.registry;
+  }
+
+  /** Active assignment for a target (undefined when none assigned). */
+  getAssignment(target: ThemeTarget): ThemeAssignment | undefined {
+    return this.store.get(target);
+  }
+
+  /** Persists a theme assignment, then applies it. */
+  async assignTheme(
+    target: ThemeTarget,
+    themeId: string,
+    options: { mode?: ThemeMode; source?: AssignmentSource } = {},
+  ): Promise<ThemeApplyOutcome> {
+    this.store.assign({
+      target,
+      themeId,
+      ...(options.mode !== undefined ? { mode: options.mode } : {}),
+      source: options.source ?? "admin",
+    });
+    return this.apply({ target });
+  }
+
+  /** Removes the assignment for a target, then re-applies (falls back). */
+  async unassignTheme(target: ThemeTarget): Promise<ThemeApplyOutcome> {
+    this.store.unassign(target);
+    return this.apply({ target });
   }
 
   async apply(ctx: ThemeResolutionContext): Promise<ThemeApplyOutcome> {

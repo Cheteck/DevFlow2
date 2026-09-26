@@ -9,6 +9,7 @@ import type { CompositionOverrideManager } from "@mosaix/core";
 import { applyThemeMode } from "../../shell/theme/theme-bridge.js";
 import {
   saveCompositionOverridesToFile,
+  toBlockPlacementOverride,
   type SavedBlockOverride,
 } from "../../shell/editor.js";
 import { readLimitedJson } from "../utils/safe-body-parser.js";
@@ -81,7 +82,7 @@ export async function handleThemeRoutes(
                 compositionOverrideManager.setBlockOverride(
                   "application-shell",
                   slotId,
-                  block as SavedBlockOverride,
+                  toBlockPlacementOverride(block as SavedBlockOverride),
                 );
               }
             }

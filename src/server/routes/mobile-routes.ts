@@ -239,10 +239,10 @@ export async function handleMobileRoutes(
     const clientSince = parsedUrl.searchParams.get("since") || undefined;
     const clientIfNoneMatch = req.headers["if-none-match"];
 
-    const posts = await feedService.listFeed();
-    const syncablePosts: SyncableItem[] = posts.map((p) => ({
+    const page = await feedService.getFeed({ limit: 1000 });
+    const syncablePosts: SyncableItem[] = page.items.map((p) => ({
       ...p,
-      updatedAt: p.createdAt,
+      updatedAt: new Date(p.timestamp).toISOString(),
     }));
 
     const deltaResult = DeltaSyncEngine.calculateDelta(syncablePosts, clientSince, clientIfNoneMatch);

@@ -1,24 +1,41 @@
-import type { TokenStore } from "@mosaix/ports-token-store";
+import type { TokenEntry, TokenStore } from "@mosaix/ports-token-store";
 
 export class InMemoryTokenStore implements TokenStore {
-  private tokens = new Map<string, { userId: string; expiresAt: Date }>();
+  private tokens = new Map<string, TokenEntry>();
 
-  async saveToken(token: string, userId: string, ttlSeconds: number): Promise<void> {
-    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
-    this.tokens.set(token, { userId, expiresAt });
+  async save(entry: TokenEntry): Promise<void> {
+    this.tokens.set(entry.tokenId, { ...entry });
   }
 
-  async verifyToken(token: string): Promise<string | null> {
-    const data = this.tokens.get(token);
-    if (!data) return null;
-    if (data.expiresAt < new Date()) {
-      this.tokens.delete(token);
+  async findById(tokenId: string): Promise<TokenEntry | null> {
+    const entry = this.tokens.get(tokenId);
+    if (!entry) return null;
+    if (entry.revokedAt !== undefined) return null;
+    if (new Date(entry.expiresAt) < new Date()) {
+      this.tokens.delete(tokenId);
       return null;
     }
-    return data.userId;
+    return { ...entry };
   }
 
-  async revokeToken(token: string): Promise<void> {
-    this.tokens.delete(token);
+  async revoke(tokenId: string): Promise<void> {
+    const entry = this.tokens.get(tokenId);
+    if (entry) {
+      this.tokens.set(tokenId, {
+        ...entry,
+        revokedAt: new Date().toISOString(),
+      });
+    }
+  }
+
+  async revokeAllForSession(sessionId: string): Promise<void> {
+    for (const [id, entry] of this.tokens) {
+      if (entry.sessionId === sessionId) {
+        this.tokens.set(id, {
+          ...entry,
+          revokedAt: new Date().toISOString(),
+        });
+      }
+    }
   }
 }

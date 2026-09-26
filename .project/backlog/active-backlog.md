@@ -320,9 +320,22 @@ Cartographie cible IJIDeals confrontee au code : ownership unique, capabilities 
 
 ---
 
-## 13. Conformance @mosaix/conformance — ecarter le stub vers le gardien (constat 2026-09-26)
+## 13. Conformance @mosaix/conformance — du stub au gardien (constat 2026-09-26, LIVRÉ sur branche `conformance-backlog-tasks-4684373506280316899`)
 
-Evaluation : `packages/conformance/src/conformance.ts:13` (manifest OK) + `suites/integrity.ts:226` (9 regles, 11 tests verts) sains ; mais 13/14 suites = stubs 1-champ (`capability.ts:5`, `event.ts:5`, `permission.ts:5`...), IDs non stables (kebab, pas `CONF-*-NNN`), pas de reporting JSON/SARIF, pas de boundary enforcement reel, `index.test.ts:35` rouge (`expected +0 to be 10`, cwd relatif), `check:integrity` = 532 findings (17 error, 483 `no-hardcoded-ui-text` qui noient le signal), golden-path = E2E lourd contraire a la frontiere "pas de demarrage complet". Mesures : `pnpm --filter @mosaix/conformance test`, `pnpm check:integrity`.
+Statut Branle : CONF-01..07 + PALETTE-INSPECTOR-WIRING implémentés ; revue PR traitée (gate-evasions revertées, dep core→theme déclarée, DDL migrée, 245→0 erreurs `tsc build.json`, 33→0 erreurs ESLint, 655/655 tests verts, `check:integrity --strict` vert). Mesures : `pnpm exec tsc --build tsconfig.build.json --force` (0 erreur), `pnpm exec eslint .` (0 erreur), `pnpm test` (119 fichiers / 655 tests verts), `pnpm check:integrity --strict` (0 error), `pnpm check:conformance` (10/10).
+
+- **CONF-01 [P0] ✅ LIVRÉ** — `findWorkspaceRoot()` + param optionnel + test fixture tmpdir cwd-indépendant (`conformance.ts`, `index.test.ts` : 4/4 verts).
+- **CONF-02 [P0] ✅ LIVRÉ** — IDs stables `CONF-DB/SESSION/SEC/ID/I18N/BOUNDARY-NNN` + alias kebab + remediation (`rules.ts`, `responsibilities.md`).
+- **CONF-03 [P0] ✅ LIVRÉ** — `report.ts` (`toJSON`/`toSARIF`), `col` dans les findings, `--format=json|sarif` (`check-integrity.ts`).
+- **CONF-04 [P0] ✅ LIVRÉ** — `integrity/{rules,scanner,allowlist,report,index}.ts` + façade `integrity.ts` (13/13 tests verts).
+- **CONF-05 [P1] ✅ LIVRÉ** — `CONF-BOUNDARY-001` imports inter-BAC + `packages/theme/**` enregistré en boundary ESLint.
+- **CONF-06 [P1] ✅ LIVRÉ** — capability (`domain.resource.action` + semver), event (name/type + semver), permission (string|objet) + `contracts.test.ts` (6/6).
+- **CONF-07 [P2] ✅ LIVRÉ** — golden-path canonique minimal < 5s sans les 5 BACs.
+- Bonus revue : `@mosaix/theme` extrait (doublon `core/src/theme/` supprimé), ports `TokenStore`/`StoragePort`/`HttpPort`/`MetricsPort`/`TracingPort` définis, `user_subscriptions` migré (`shell.core.v1.002`), deps workspace manquantes déclarées (`commands`, `ports-cache`, `orchestration`, `orm`, `ports-crypto`, `open`, `dev-session`).
+
+> Ordre recommande : CONF-01 + CONF-02 (P0, debloque CI) -> CONF-03 + CONF-04 (P0, reporting/orga) -> CONF-05 + CONF-06 (P1, vraie valeur gardien) -> CONF-07 (P2). Regle d'hygiene : toute nouvelle classe de contournement devient regle `CONF-*` documentee + testee avant enforcement `--strict` ; `no-hardcoded-ui-text` reste `warn` tant que pas d'infra i18n.
+
+Dette volontairement NON traitée ici (hors périmètre PR, à planifier) : migration ESM NodeNext (imports sans extension `.js`, ~500 sites — les builds composites par paquet restent rouges), formatage Prettier global (758 fichiers, jamais appliqué sur `main`).
 
 - **CONF-01 [P0, Low] Fix validateAllWorkspaceApps + test cwd-independant** — Resoudre `appsDir` depuis la racine (pas cwd relatif `conformance.ts:139-155`), test `index.test.ts:35` durcit en independant du cwd (fixture tmpdir ou racine resolue). Critere : `vitest run` vert dans `packages/conformance`. Score 32 (val risque x2, cout faible).
 - **CONF-02 [P0, Low] IDs stables CONF-*-NNN (alias kebab conserve)** — Mapper `CONF-DB-001..003`, `CONF-SEC-001..002`, `CONF-SESSION-001`, `CONF-ID-001`, `CONF-I18N-001`... sur les 9 regles `integrity.ts:110-224`, exposer `ruleId` stable + alias dans `IntegrityFinding`, documenter dans `responsibilities.md`. Critere : suppressions CI et rapports utilisent `CONF-*`. Score 30.

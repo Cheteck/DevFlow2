@@ -72,9 +72,8 @@ export class PortfolioService {
     "pricing_period",
   ];
 
-  private static ALLOWED_WORKFLOW_TRANSITIONS: Record<
-    WorkflowStatus,
-    WorkflowStatus[]
+  private static ALLOWED_WORKFLOW_TRANSITIONS: Partial<
+    Record<WorkflowStatus, WorkflowStatus[]>
   > = {
     Draft: ["In Review", "Draft"],
     "In Review": ["Validated", "Draft"],

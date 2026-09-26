@@ -1,23 +1,32 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "lib": ["ES2022", "DOM"],
-    "outDir": "./dist",
-    "rootDir": "./src",
+    "composite": true,
+    "outDir": "../../.mosaix/build/packages/theme",
+    "rootDir": "../..",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "tsBuildInfoFile": "../../.mosaix/build/packages/theme/.tsbuildinfo"
   },
   "include": [
     "src/**/*.ts"
   ],
   "exclude": [
     "src/**/*.test.ts"
+  ],
+  "references": [
+    {
+      "path": "../contracts"
+    },
+    {
+      "path": "../schemas"
+    },
+    {
+      "path": "../support"
+    },
+    {
+      "path": "../types"
+    }
   ]
 }

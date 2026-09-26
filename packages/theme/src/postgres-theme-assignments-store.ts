@@ -33,13 +33,18 @@ export class PostgresThemeAssignmentsStore implements ThemeAssignmentsStore {
   }
 
   private rowToAssignment(row: Record<string, unknown>): ThemeAssignment {
+    const rawMode = row["mode"];
+    const mode =
+      rawMode === "light" || rawMode === "dark" || rawMode === "high-contrast" || rawMode === "system"
+        ? rawMode
+        : "system";
     return {
       target: {
         type: String(row["target_type"]),
         id: String(row["target_id"]),
       },
       themeId: String(row["theme_id"]),
-      mode: (row["mode"] as any) ?? "system",
+      mode,
       ...(row["version"] ? { version: String(row["version"]) } : {}),
       source: String(row["source"] ?? "admin") as ThemeAssignment["source"],
       updatedAt: String(row["updated_at"]),

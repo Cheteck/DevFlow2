@@ -4,7 +4,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { type IntegrityRule, INTEGRITY_RULES, TS_SOURCES } from "./rules.js";
-import { isAllowed, globMatch, toPosix } from "./allowlist.js";
+import { isAllowed, isAlwaysSkipped, globMatch, toPosix } from "./allowlist.js";
 import type { IntegrityFinding } from "./report.js";
 
 export interface IntegrityScanOptions {
@@ -32,7 +32,7 @@ export function collectFiles(rootDir: string, include: string[]): string[] {
       }
       if (!entry.isFile() || !full.endsWith(".ts")) continue;
       const rel = toPosix(path.relative(rootDir, full));
-      if (isAllowed(rel, { pattern: /^$/ } as any)) continue;
+      if (isAlwaysSkipped(rel)) continue;
       if (include.some((p) => globMatch(p, rel))) out.push(full);
     }
   };

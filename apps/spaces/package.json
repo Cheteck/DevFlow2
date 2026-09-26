@@ -19,6 +19,7 @@
     "type": "app"
   },
   "dependencies": {
+    "@mosaix/commands": "workspace:*",
     "@mosaix/container": "workspace:*",
     "@mosaix/http": "workspace:*",
     "@mosaix/orm": "workspace:*",

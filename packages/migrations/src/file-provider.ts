@@ -1,8 +1,5 @@
-import {
-  type Migration,
-  type MigrationProvider,
-  computeChecksum
-} from "./registry.js";
+import type { Migration, MigrationProvider } from "./migration.js";
+import { computeChecksum } from "./registry.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 

@@ -35,8 +35,13 @@ export function isAllowed(
   rule: IntegrityRule,
   globalAllow: string[] = []
 ): boolean {
-  if (ALWAYS_SKIP.some((p) => globMatch(p, relPath))) return true;
+  if (isAlwaysSkipped(relPath)) return true;
   if (rule.allow && rule.allow.some((p) => globMatch(p, relPath))) return true;
   if (globalAllow.some((p) => globMatch(p, relPath))) return true;
   return false;
+}
+
+/** Unconditional skips (node_modules, dist, tests, self-hosting guard). */
+export function isAlwaysSkipped(relPath: string): boolean {
+  return ALWAYS_SKIP.some((p) => globMatch(p, relPath));
 }

@@ -48,11 +48,20 @@ export async function handleAuthRoutes(
 
       let result;
       if (stepNum === 1) {
-        result = registrationWizardService.saveStep1(draftId, data as any);
+        result = registrationWizardService.saveStep1(
+          draftId,
+          data as unknown as Parameters<typeof registrationWizardService.saveStep1>[1],
+        );
       } else if (stepNum === 2) {
-        result = registrationWizardService.saveStep2(draftId, data as any);
+        result = registrationWizardService.saveStep2(
+          draftId,
+          data as unknown as Parameters<typeof registrationWizardService.saveStep2>[1],
+        );
       } else {
-        result = registrationWizardService.saveStep3(draftId, data as any);
+        result = registrationWizardService.saveStep3(
+          draftId,
+          data as unknown as Parameters<typeof registrationWizardService.saveStep3>[1],
+        );
       }
 
       if (!result.valid) {

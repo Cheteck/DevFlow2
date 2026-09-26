@@ -3,7 +3,19 @@
  * FEAT-11: Analyse catégories [CŒUR] (imperia + spaces/portfolio)
  */
 
-import type { PortfolioService } from "@apps/portfolio";
+/**
+ * Minimal structural port for catalog search — Imperia must not import the
+ * Portfolio BAC directly (boundary: capabilities/events only). The caller
+ * injects any adapter matching this shape; `undefined` means "no catalog".
+ */
+export interface PortfolioCatalogSearchPort {
+  search(query: { limit: number }): Promise<
+    Array<{
+      classification?: { categories?: string[] };
+      metadata?: { spaceId?: string };
+    }>
+  >;
+}
 
 export interface CategoryMarketStats {
   category: string;
@@ -28,7 +40,7 @@ export class CategoryAnalysisService {
    * Scans portfolio catalog and spaces distribution to identify underserved categories
    */
   async analyzeCategories(
-    portfolioService?: PortfolioService,
+    portfolioService?: PortfolioCatalogSearchPort,
     activeCategories = [
       "Artisanat & Création",
       "Mode & Vêtements",

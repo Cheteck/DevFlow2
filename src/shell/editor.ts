@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { CompositionOverrideManager } from "@mosaix/core";
+import type { BlockPlacementOverride, BlockWrapperType } from "@mosaix/contracts";
 
 export const OVERRIDES_FILE_PATH = path.resolve(process.cwd(), ".mosaix", "composition-overrides.json");
 
@@ -34,6 +35,34 @@ export interface SavedStore {
   slotOverrides?: Record<string, SavedSlotOverride>;
 }
 
+const KNOWN_WRAPPER_TYPES: readonly string[] = [
+  "card",
+  "hero-strip",
+  "collapsible",
+  "panel",
+  "borderless",
+  "glass",
+  "pill",
+];
+
+/**
+ * Normalizes a persisted (file/preset) block onto the canonical
+ * `BlockPlacementOverride` contract — unknown wrapper names fall back to
+ * `"card"` instead of failing the whole load.
+ */
+export function toBlockPlacementOverride(block: SavedBlockOverride): BlockPlacementOverride {
+  return {
+    contributionId: block.contributionId,
+    placementId: block.placementId,
+    order: block.order,
+    gridSpan: block.gridSpan,
+    wrapper: (
+      KNOWN_WRAPPER_TYPES.includes(block.wrapper) ? block.wrapper : "card"
+    ) as BlockWrapperType,
+    enabled: block.enabled,
+  };
+}
+
 export function loadCompositionOverridesFromFile(manager: CompositionOverrideManager) {
   try {
     if (fs.existsSync(OVERRIDES_FILE_PATH)) {
@@ -47,7 +76,7 @@ export function loadCompositionOverridesFromFile(manager: CompositionOverrideMan
               for (const [slotId, slotOverride] of Object.entries(typedStore.slotOverrides)) {
                 if (slotOverride && Array.isArray(slotOverride.blocks)) {
                   for (const block of slotOverride.blocks) {
-                    manager.setBlockOverride(surfaceId, slotId, block);
+                    manager.setBlockOverride(surfaceId, slotId, toBlockPlacementOverride(block));
                   }
                 }
               }

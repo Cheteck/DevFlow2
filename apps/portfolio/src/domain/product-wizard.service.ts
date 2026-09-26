@@ -275,28 +275,39 @@ export class ProductWizardService {
       classification: {
         categories: [draft.step1.category],
         tags: draft.step1.tags,
-        brand: draft.step1.brand,
       },
       characteristics: {
-        physical: draft.step3.weightGrams
-          ? {
-              weight: draft.step3.weightGrams,
-              dimensions: draft.step3.dimensions,
-            }
-          : undefined,
-        custom: draft.step3.characteristics,
+        // Wizard-specific extras (brand, physical, custom, provenance) live
+        // in free-form attributes — the typed model has no dedicated slots.
+        attributes: {
+          ...(draft.step3.characteristics ?? {}),
+          ...(draft.step3.weightGrams
+            ? {
+                physical: {
+                  weight: draft.step3.weightGrams,
+                  dimensions: draft.step3.dimensions,
+                },
+              }
+            : {}),
+          ...(draft.step1.brand ? { brand: draft.step1.brand } : {}),
+          vendorId: draft.vendorId,
+          spaceId: draft.spaceId || draft.step4.spaceId,
+          wizardCompletedAt: new Date().toISOString(),
+        },
       },
-      media: {
-        images: draft.step3.mediaUrls.map((url, idx) => ({
-          url,
+      media: draft.step3.mediaUrls.map((url, idx) => ({
+        id: `media_${crypto.randomUUID()}`,
+        type: "image" as const,
+        url,
+        metadata: {
           role: idx === 0 ? "primary" : "gallery",
           order: idx,
-        })),
-      },
+        },
+      })),
       variants: draft.step2.variants.map((v) => ({
         id: `var_${crypto.randomUUID()}`,
         reference: v.sku,
-        name: v.name,
+        content: { [lang]: { name: v.name } },
         pricing: {
           basePrice: draft.step2!.basePrice + (v.priceModifier || 0),
           currency: draft.step2!.currency,
@@ -307,16 +318,12 @@ export class ProductWizardService {
           reserved: 0,
           reorderPoint: 2,
         },
-        characteristics: v.attributes,
+        characteristics: { attributes: { ...(v.attributes ?? {}) } },
       })),
-      metadata: {
-        vendorId: draft.vendorId,
-        spaceId: draft.spaceId || draft.step4.spaceId,
-        wizardCompletedAt: new Date().toISOString(),
-      },
+      relations: [],
     };
 
-    const saved = await portfolioService.create(vendable);
+    const saved = await portfolioService.createVendable(vendable);
 
     // Delete draft after publication
     this.activeDrafts.delete(draftId);

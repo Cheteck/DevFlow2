@@ -3,7 +3,6 @@
  */
 
 import type {
-  CompiledTheme,
   ThemeAssignment,
   ThemeChangedPayload,
   ThemeManifest,
@@ -73,10 +72,10 @@ export class ThemeSDK {
       this.runtime.registerTarget(registration);
     },
     get: (type: string) => {
-      return (this.runtime as any).registry?.get(type);
+      return this.runtime.getRegistry().get(type);
     },
     list: (): ThemeTargetRegistration[] => {
-      return (this.runtime as any).registry?.list() ?? [];
+      return this.runtime.getRegistry().list();
     },
   };
 
@@ -101,12 +100,13 @@ export class ThemeSDK {
   };
 
   async assign(assignment: ThemeAssignment): Promise<ThemeApplyOutcome> {
-    ((this.runtime as any).resolver?.store as any)?.assign?.(assignment);
-    return this.get(assignment.target);
+    return this.runtime.assignTheme(assignment.target, assignment.themeId, {
+      ...(assignment.mode !== undefined ? { mode: assignment.mode } : {}),
+      source: assignment.source,
+    });
   }
 
   async unassign(target: ThemeTarget): Promise<ThemeApplyOutcome> {
-    ((this.runtime as any).resolver?.store as any)?.unassign?.(target);
-    return this.get(target);
+    return this.runtime.unassignTheme(target);
   }
 }

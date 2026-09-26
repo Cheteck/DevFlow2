@@ -12,6 +12,11 @@ export interface ThemeManifest extends MosaixArtifactManifest {
   tokens: DesignTokens;
   /** Optional parent theme id to inherit from. */
   extends?: string;
+  /**
+   * Theme contract semver validated at discovery time
+   * (`ThemeDiscovery` requires a valid `major.minor.patch` value).
+   */
+  contractVersion?: string;
   assets?: ThemeAssets;
   accessibility?: AccessibilityProfile;
   /**

@@ -21,6 +21,7 @@
   "dependencies": {
     "@mosaix/contracts": "workspace:*",
     "@mosaix/ports-credential-store": "workspace:*",
+    "@mosaix/ports-crypto": "workspace:*",
     "@mosaix/ports-identity-store": "workspace:*",
     "@mosaix/ports-secrets": "workspace:*",
     "@mosaix/ports-session-creation": "workspace:*"

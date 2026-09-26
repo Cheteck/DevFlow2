@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ThemeManifest } from "@mosaix/contracts";
 import {
   compile,
   createThemeRuntime,
@@ -10,8 +11,8 @@ import {
 
 describe("@mosaix/theme Package", () => {
   it("compiles theme tokens deterministically to CSS variables", () => {
-    const manifest = {
-      type: "theme" as const,
+    const manifest: ThemeManifest = {
+      type: "theme",
       id: "test-theme",
       name: "Test Theme",
       version: "1.0.0",
@@ -28,7 +29,7 @@ describe("@mosaix/theme Package", () => {
       },
     };
 
-    const compiled = compile(manifest as any, "light");
+    const compiled = compile(manifest, "light");
     expect(compiled["--mx-color-primary"]).toBe("#4f46e5");
     expect(compiled["--mx-space-sm"]).toBe("8px");
   });
@@ -46,8 +47,8 @@ describe("@mosaix/theme Package", () => {
     const store = new InMemoryThemeAssignmentsStore();
     const runtime = createThemeRuntime({ registry, store });
 
-    const manifest = {
-      type: "theme" as const,
+    const manifest: ThemeManifest = {
+      type: "theme",
       id: "mosaix-default",
       name: "Default",
       version: "1.0.0",
@@ -56,7 +57,7 @@ describe("@mosaix/theme Package", () => {
         colors: { primary: "#4f46e5" },
       },
     };
-    runtime.registerTheme(manifest as any);
+    runtime.registerTheme(manifest);
 
     const sdk = new ThemeSDK(runtime);
 
@@ -65,7 +66,7 @@ describe("@mosaix/theme Package", () => {
       target: { type: "store", id: "store-1" },
       themeId: "mosaix-default",
       mode: "dark",
-      source: "entity",
+      source: "admin",
     });
 
     // Level 1: get

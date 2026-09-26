@@ -180,14 +180,12 @@ export class CitadelleServiceProvider {
     app.registerEventSchema({
       type: identityUserCreatedEvent,
       version: "1.0.0",
-      schema: {},
-      payloadSchema: identityEventPayloadSchemas[identityUserCreatedEvent] as unknown as Record<string, unknown>,
+      schema: identityEventPayloadSchemas[identityUserCreatedEvent] as unknown as Record<string, unknown>,
     });
     app.registerEventSchema({
       type: identityUserUpdatedEvent,
       version: "1.0.0",
-      schema: {},
-      payloadSchema: identityEventPayloadSchemas[identityUserUpdatedEvent] as unknown as Record<string, unknown>,
+      schema: identityEventPayloadSchemas[identityUserUpdatedEvent] as unknown as Record<string, unknown>,
     });
 
     return app;

@@ -67,7 +67,9 @@ export class EventSchemaRegistry {
   validateEnvelope(envelope: MosaixEventEnvelope): boolean {
     const schema = this.get(envelope.type, envelope.version);
     if (!schema) return false;
-    return schema.ownerApp === envelope.source.application;
+    const source = envelope.source as string | { application?: string };
+    const application = typeof source === "string" ? source : source.application;
+    return schema.ownerApp === application;
   }
 
   /**

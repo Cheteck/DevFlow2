@@ -5,8 +5,8 @@ export type FeedSortStrategy = "chronological" | "engagement" | "trending";
 export class FeedScoringEngine {
   static score(post: Post, now: number = Date.now()): number {
     const ageHours = Math.max(1, (now - post.createdAt.getTime()) / (1000 * 60 * 60));
-    const likes = post.metrics.likesCount ?? 0;
-    const comments = post.metrics.commentsCount ?? 0;
+    const likes = post.likeCount ?? 0;
+    const comments = post.commentsCount ?? 0;
     const engagement = likes * 2 + comments * 5;
 
     // Decay gravity formula: engagement / (ageHours ^ 1.5)

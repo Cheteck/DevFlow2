@@ -2,7 +2,14 @@
  * @mosaix/container — Official IoC Container (Phase 2)
  */
 
-export type InjectionToken<T = unknown> = string | symbol | (new (...args: unknown[]) => T);
+export type InjectionToken<T = unknown> =
+  | string
+  | symbol
+  // `any[]` (not `unknown[]`): classes with optional typed constructor params
+  // must stay usable as tokens under `strictFunctionTypes` (inversify-style).
+  // The token is an identity key — construction always goes through Factory.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | (new (...args: any[]) => T);
 
 export type Factory<T = unknown> = (
   container: Container,

@@ -45,8 +45,11 @@ function getUserPermissions(user?: UserProfile): string[] {
 export function renderPrimarySidebar(
   user: UserProfile,
   activeRoute: string,
-  activeSpace?: SpaceProfile | null,
+  activeSpace?: SpaceProfile | string | null,
 ): string {
+  if (typeof activeSpace === "string") {
+    activeSpace = SPACES_LIST.find((s) => s.id === activeSpace) ?? null;
+  }
   // Filter visible BACs based on user's allowedBacs permission AND dynamic feature flags
   const userBacs = getUserAllowedBacs(user);
   const allowedApps = apps.filter((app) => {
@@ -261,8 +264,11 @@ export function renderSecondarySidebar(
   user: UserProfile,
   activeBacId: string,
   currentUrl: string = "/",
-  activeSpace?: SpaceProfile | null,
+  activeSpace?: SpaceProfile | string | null,
 ): string {
+  if (typeof activeSpace === "string") {
+    activeSpace = SPACES_LIST.find((s) => s.id === activeSpace) ?? null;
+  }
   const cleanBacId = (activeBacId || "").replace(/^@apps\//, "");
   const isImperia = cleanBacId === "imperia";
   const spaceLabel = activeSpace
@@ -496,8 +502,11 @@ export function renderSecondarySidebar(
 // -----------------------------------------------------------------------------
 export function renderUserSwitcherWidget(
   user: UserProfile,
-  activeSpace?: SpaceProfile | null,
+  activeSpace?: SpaceProfile | string | null,
 ): string {
+  if (typeof activeSpace === "string") {
+    activeSpace = SPACES_LIST.find((s) => s.id === activeSpace) ?? null;
+  }
   const userSpaces = SPACES_LIST.filter((space) => {
     if (user.role === "admin") return true;
     return space.ownerUserRole === user.role;
@@ -1480,7 +1489,7 @@ export function renderToastContainer(): string {
 
 export function renderBacAdminSafely(
   appId: string,
-  contributions: unknown[] = [],
+  _contributions: unknown[] = [],
 ): string {
   const cleanId = (appId || "").replace(/^@apps\//, "");
   const icon = APP_ICONS[cleanId] || APP_ICONS[appId] || "📦";

@@ -8,7 +8,7 @@ export interface WorkflowStep<TContext = Record<string, unknown>> {
   compensate?: (context: TContext) => Promise<void> | void;
 }
 
-export class WorkflowEngine<TContext extends Record<string, unknown> = Record<string, unknown>> {
+export class WorkflowEngine<TContext extends object = Record<string, unknown>> {
   private steps: WorkflowStep<TContext>[] = [];
 
   addStep(step: WorkflowStep<TContext>): this {

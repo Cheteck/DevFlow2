@@ -21,6 +21,7 @@
   "dependencies": {
     "@mosaix/contracts": "workspace:*",
     "@mosaix/core": "workspace:*",
+    "@mosaix/ports-cache": "workspace:*",
     "@mosaix/schemas": "workspace:*",
     "@mosaix/security": "workspace:*",
     "@mosaix/types": "workspace:*"

@@ -43,7 +43,9 @@ export class ProductionBuildCompiler {
     for (const app of apps) {
       appRecord[app.id] = app;
       if (app.capabilities) capabilitiesList.push(...app.capabilities);
-      if (app.domain?.events) eventsList.push(...app.domain.events);
+      if (typeof app.domain === "object" && app.domain?.events) {
+        eventsList.push(...app.domain.events);
+      }
       if (app.permissions) permissionsList.push(...app.permissions);
     }
 

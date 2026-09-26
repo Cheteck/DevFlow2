@@ -1,6 +1,7 @@
 import type { Container, ServiceProvider, Router, HttpRequest } from "@mosaix/sdk";
 import type { DatabasePort } from "@mosaix/ports-database";
 import type { FeatureFlagsPort } from "@mosaix/ports-feature-flags";
+import * as crypto from "node:crypto";
 import { ImperiaGovernanceController } from "./imperia-controller.js";
 import { GovernancePolicyRegistry } from "../domain/governance-policy.js";
 import { PlatformTopologyService } from "../domain/platform-topology.service.js";
@@ -11,6 +12,43 @@ import { ControlPlaneSupervisorService } from "../domain/control-plane-superviso
 import { MigrationGovernanceService } from "../domain/migration-governance.service.js";
 import { PostgresImperiaRepository } from "./postgres-imperia-repository.js";
 import { ControlPlaneServer } from "@mosaix/control-plane";
+import type { DLQRepository } from "../domain/control-plane-supervisor.service.js";
+
+/**
+ * Bridges `PostgresImperiaRepository` to the supervisor's `DLQRepository`
+ * port (naming/shape mapping only — no new persistence semantics).
+ */
+export function toDLQRepository(repo: PostgresImperiaRepository): DLQRepository {
+  return {
+    saveDLQItem: (item) =>
+      repo.saveDLQItem({
+        id: item.id ?? `dlq-${crypto.randomUUID()}`,
+        topic: item.topic,
+        payload: item.payload,
+        errorMessage: item.errorMessage,
+        failedAt: (item.failedAt ?? new Date()).toISOString(),
+      }),
+    getDLQItems: async (limit?: number) => {
+      const items = await repo.listDLQItems();
+      return (limit === undefined ? items : items.slice(0, limit)).map((entry) => ({
+        id: entry.id,
+        topic: entry.topic,
+        payload: entry.payload,
+        errorMessage: entry.errorMessage,
+        failedAt: entry.failedAt,
+      }));
+    },
+    deleteDLQItem: (id: string) => repo.deleteDLQItem(id),
+    saveCircuitBreaker: (entry) =>
+      repo.setCircuitBreaker({
+        name: entry.name,
+        state: entry.state,
+        failures: entry.failures ?? 0,
+        lastFailureAt: (entry.lastFailureAt ?? new Date()).toISOString(),
+      }),
+    getCircuitBreakers: () => repo.getCircuitBreakers(),
+  };
+}
 
 export interface ImperiaAppServiceProviderOptions {
   databasePort?: DatabasePort;
@@ -33,7 +71,9 @@ export class ImperiaAppServiceProvider implements ServiceProvider {
     const settingsService = new PlatformSettingsService(postgresRepo);
     const slotResolver = new GovernanceSlotResolver();
     const pluginManager = new ImperiaPluginManagerService();
-    const controlPlaneSupervisor = new ControlPlaneSupervisorService(postgresRepo);
+    const controlPlaneSupervisor = new ControlPlaneSupervisorService(
+      postgresRepo ? toDLQRepository(postgresRepo) : undefined,
+    );
     const migrationGovernance = new MigrationGovernanceService();
     const controlPlaneServer = new ControlPlaneServer();
 
