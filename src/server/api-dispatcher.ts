@@ -15,6 +15,7 @@ import { sendProblemResponse } from "../shell/http-errors.js";
 
 import { handleMaintenanceRoutes } from "./routes/maintenance-routes.js";
 import { handleThemeRoutes } from "./routes/theme-routes.js";
+import { handlePlatformThemeRoutes } from "./routes/platform-theme-routes.js";
 import { handleUserAndSpaceRoutes } from "./routes/user-routes.js";
 import { handleFeatureFlagRoutes } from "./routes/feature-flag-routes.js";
 import { handleCompositionRoutes } from "./routes/composition-routes.js";
@@ -70,6 +71,11 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
     ctx.currentUser.role,
     ctx.compositionOverrideManager,
   ),
+);
+
+// 2b. Platform theme administration (V2.3: admin-owned identity, persisted).
+apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
+  handlePlatformThemeRoutes(req, res, parsedUrl, ctx.currentUser.role),
 );
 
 // 3. User Role & Space switching API

@@ -24,6 +24,7 @@ COPY --chown=node:node --from=install /app/packages ./packages
 COPY --chown=node:node --from=install /app/apps ./apps
 COPY --chown=node:node --from=install /app/plugins ./plugins
 COPY --chown=node:node src ./src
+COPY --chown=node:node themes ./themes
 COPY --chown=node:node config ./config
 COPY --chown=node:node scripts ./scripts
 COPY --chown=node:node pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.json tsconfig.build.json ./

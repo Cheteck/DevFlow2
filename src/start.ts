@@ -47,6 +47,9 @@ import { handleMaintenanceGate } from "./server/middleware/maintenance-gate.js";
 import { dispatchApiRequest } from "./server/api-dispatcher.js";
 import { renderBacPage } from "./shell/pages/bac-page.js";
 import { renderHomePage } from "./shell/pages/home-page.js";
+import { databaseReady } from "./shell/database-bootstrap.js";
+import { getPendingMigrationIds } from "./shell/migrations.js";
+import { applyPersistedPlatformTheme } from "./shell/theme/theme-persistence.js";
 
 // Load `.env` files first (zero-dep): without this, file-only secrets such
 // as MOSAIX_AUTH_JWT_SECRET are invisible and dev falls back to the
@@ -59,6 +62,21 @@ SecurityGuard.enforceProductionConstraints();
 // Canonical env validation (fail-fast, extensible — see @mosaix/core env.schema).
 // Legacy aliases (APP_PORT/PORT, DATABASE_URL...) still accepted with a warning.
 const bootEnv = validateEnv(process.env as Record<string, string | undefined>);
+
+// Database: connect only (driver from DB_CONNECTION / DATABASE_URL, PRAGMAs
+// awaited). Schema comes from versioned migrations applied via the CLI —
+// the boot path never runs DDL or seeds, it verifies and fails fast.
+// Fresh checkout or pending migrations? Run: pnpm mosaix migrate
+// (add --seed for baseline demo data).
+const { dbAdapter } = await databaseReady();
+const pendingMigrations = await getPendingMigrationIds(dbAdapter);
+if (pendingMigrations.length > 0) {
+  throw new Error(
+    `[boot] database not migrated (${pendingMigrations.length} pending: ${pendingMigrations.join(", ")}). ` +
+      `Run "pnpm mosaix migrate" first (Laravel-style: artisan migrate before serve).`,
+  );
+}
+await applyPersistedPlatformTheme();
 
 const PORT = bootEnv.resolvedPort;
 

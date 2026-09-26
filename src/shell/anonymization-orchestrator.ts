@@ -3,7 +3,7 @@
  * Coordinates cascading erasure / irreversible anonymization across all bounded contexts.
  */
 
-import type { SQLiteDatabaseAdapter } from "@mosaix/adapter-database-sqlite";
+import type { DatabasePort } from "@mosaix/ports-database";
 import { initDatabase } from "./database-bootstrap.js";
 
 export interface AnonymizationResult {
@@ -15,7 +15,7 @@ export interface AnonymizationResult {
 }
 
 export class AnonymizationOrchestrator {
-  constructor(private readonly db: SQLiteDatabaseAdapter) {}
+  constructor(private readonly db: DatabasePort) {}
 
   /**
    * Irreversibly anonymizes all personal identifiable information (PII) associated with a user

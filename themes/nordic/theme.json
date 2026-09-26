@@ -1,0 +1,146 @@
+{
+  "type": "theme",
+  "id": "nordic",
+  "name": "Nordic",
+  "version": "1.0.0",
+  "contractVersion": "1.0.0",
+  "tokens": {
+    "colors": {
+      "primary": "#334e68",
+      "primaryHover": "#2b4258",
+      "secondary": "#829ab1",
+      "background": "#f5f7f8",
+      "surface": "#ffffff",
+      "text": "#243b53",
+      "textMuted": "#627d98",
+      "border": "#d9e2ec",
+      "accent": "#486581",
+      "danger": "#c45b58",
+      "success": "#4f8a72",
+      "warning": "#c28b3c"
+    },
+    "typography": {
+      "fontFamily": "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
+      "fontSizeBase": "16px",
+      "fontSizeSm": "14px",
+      "fontSizeLg": "18px",
+      "fontWeightNormal": "400",
+      "fontWeightMedium": "500",
+      "fontWeightBold": "700",
+      "lineHeight": "1.5"
+    },
+    "spacing": {
+      "xs": "4px",
+      "sm": "8px",
+      "md": "16px",
+      "lg": "24px",
+      "xl": "32px"
+    },
+    "radius": {
+      "sm": "6px",
+      "md": "12px",
+      "lg": "16px",
+      "full": "9999px"
+    },
+    "shadows": {
+      "sm": "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+      "md": "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+      "lg": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
+    },
+    "motion": {
+      "durationFast": "150ms",
+      "durationNormal": "300ms",
+      "easing": "cubic-bezier(0.4, 0, 0.2, 1)"
+    },
+    "tailwind": {
+      "surface": "#ffffff",
+      "surface-container-lowest": "#ffffff",
+      "surface-container-low": "#f5f7f8",
+      "surface-container": "#e8ecee",
+      "surface-container-high": "#d9e2ec",
+      "surface-container-highest": "#bec9d5",
+      "surface-variant": "#e8ecee",
+      "on-surface": "#243b53",
+      "on-surface-variant": "#627d98",
+      "primary": "#334e68",
+      "on-primary": "#ffffff",
+      "primary-container": "#ced5db",
+      "secondary": "#829ab1",
+      "tertiary": "#486581",
+      "outline": "#acb8c6",
+      "outline-variant": "#d9e2ec",
+      "background": "#f5f7f8"
+    }
+  },
+  "modes": {
+    "light": {
+      "colors": {
+        "background": "#f5f7f8",
+        "surface": "#ffffff",
+        "text": "#243b53",
+        "textMuted": "#627d98",
+        "border": "#d9e2ec"
+      }
+    },
+    "dark": {
+      "colors": {
+        "primary": "#52697f",
+        "primaryHover": "#708395",
+        "background": "#202020",
+        "surface": "#363637",
+        "text": "#e9ebee",
+        "textMuted": "#99abbc",
+        "border": "#62666a"
+      },
+      "tailwind": {
+        "surface": "#363637",
+        "surface-container-lowest": "#1e1e1e",
+        "surface-container-low": "#2b2b2c",
+        "surface-container": "#434344",
+        "surface-container-high": "#535354",
+        "surface-container-highest": "#68696a",
+        "surface-variant": "#434344",
+        "on-surface": "#e9ebee",
+        "on-surface-variant": "#99abbc",
+        "primary": "#52697f",
+        "on-primary": "#ffffff",
+        "primary-container": "#37414b",
+        "secondary": "#8fa4b9",
+        "tertiary": "#637c94",
+        "outline": "#8b8e92",
+        "outline-variant": "#62666a",
+        "background": "#202020"
+      }
+    },
+    "high-contrast": {
+      "colors": {
+        "primary": "#7a8c9d",
+        "primaryHover": "#99a7b4",
+        "background": "#000000",
+        "surface": "#000000",
+        "text": "#ffffff",
+        "textMuted": "#ffffff",
+        "border": "#ffffff"
+      },
+      "tailwind": {
+        "surface": "#000000",
+        "surface-container-lowest": "#000000",
+        "surface-container-low": "#000000",
+        "surface-container": "#000000",
+        "surface-container-high": "#1a1a1a",
+        "surface-container-highest": "#2a2a2a",
+        "surface-variant": "#1a1a1a",
+        "on-surface": "#ffffff",
+        "on-surface-variant": "#ffffff",
+        "primary": "#7a8c9d",
+        "on-primary": "#000000",
+        "primary-container": "#7a8c9d",
+        "secondary": "#ffffff",
+        "tertiary": "#ffffff",
+        "outline": "#ffffff",
+        "outline-variant": "#ffffff",
+        "background": "#000000"
+      }
+    }
+  }
+}

@@ -20,8 +20,10 @@
     "@mosaix/config": "workspace:*",
     "@mosaix/contracts": "workspace:*",
     "@mosaix/core": "workspace:*",
+    "@mosaix/database": "workspace:*",
     "@mosaix/mcp": "workspace:*",
     "@mosaix/migrations": "workspace:*",
+    "@mosaix/ports-database": "workspace:*",
     "@mosaix/schemas": "workspace:*",
     "@mosaix/types": "workspace:*"
   },

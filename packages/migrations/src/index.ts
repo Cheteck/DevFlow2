@@ -33,6 +33,7 @@ export { MigrationPlanner, computeSourceVersion } from "./planner";
 export { DependencyResolver } from "./dependency-resolver";
 export type { MigrationStore, ExecutedMigration } from "./store";
 export { InMemoryMigrationStore } from "./store";
+export { SqlMigrationStore } from "./sql-store";
 export type { RawMigration } from "./registry";
 export {
   MigrationRegistry,

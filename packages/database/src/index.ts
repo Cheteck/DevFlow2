@@ -57,4 +57,5 @@ export class AppDatabaseResolver {
 export * from "./postgres-schema-grammar.js";
 export * from "./postgres-rls-manager.js";
 export * from "./postgres-bac-schema-migrator.js";
+export * from "./database-manager.js";
 

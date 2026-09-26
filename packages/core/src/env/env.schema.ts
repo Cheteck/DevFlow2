@@ -79,6 +79,20 @@ export const baseEnvSchema = z
     MOSAIX_REDIS_URL: emptyAsUnset(z.string().min(1).optional()),
     REDIS_URL: emptyAsUnset(z.string().min(1).optional()),
 
+    // ── Database driver (Laravel-style `config/database.php`: DB_CONNECTION
+    // selects the driver, per-driver keys configure it). Full resolution
+    // (precedence, URL inference, default path) lives in
+    // `@mosaix/database` `resolveDatabaseConfig()` — this schema only
+    // validates the individual keys.
+    DB_CONNECTION: emptyAsUnset(
+      z.enum(["sqlite", "pgsql", "postgres"]).optional(),
+    ),
+    DB_DATABASE: emptyAsUnset(z.string().min(1).optional()),
+    DB_HOST: emptyAsUnset(z.string().min(1).optional()),
+    DB_PORT: emptyAsUnset(portLike.optional()),
+    DB_USERNAME: emptyAsUnset(z.string().optional()),
+    DB_PASSWORD: emptyAsUnset(z.string().optional()),
+
     // ── HTTP ──
     CORS_ALLOWED_ORIGINS: emptyAsUnset(z.string().optional()),
     TRUST_PROXY: z
@@ -132,6 +146,8 @@ export interface NormalizedEnv extends BaseEnv {
   resolvedDatabaseUrl?: string;
   resolvedRedisUrl?: string;
   resolvedJwtSecret?: string;
+  /** Effective driver: explicit DB_CONNECTION, else inferred from the URL scheme, else `sqlite`. */
+  resolvedDbConnection: "sqlite" | "pgsql";
   isProduction: boolean;
   usedLegacyAliases: string[];
 }
@@ -205,6 +221,18 @@ export function validateEnv(
     env.MOSAIX_DATABASE_URL,
     env.DATABASE_URL,
   );
+
+  // Laravel-style driver resolution (lightweight inference here; full
+  // resolution with paths/DSN lives in `@mosaix/database`).
+  const explicitConnection = (
+    env.DB_CONNECTION === "postgres" ? "pgsql" : env.DB_CONNECTION
+  ) as "sqlite" | "pgsql" | undefined;
+  const inferredConnection = /^postgres(ql)?:\/\//i.test(
+    resolvedDatabaseUrl ?? "",
+  )
+    ? ("pgsql" as const)
+    : undefined;
+  const resolvedDbConnection = explicitConnection ?? inferredConnection ?? "sqlite";
   const resolvedRedisUrl = firstDefined(env.MOSAIX_REDIS_URL, env.REDIS_URL);
   const resolvedJwtSecret = firstDefined(
     env.MOSAIX_AUTH_JWT_SECRET,
@@ -229,6 +257,7 @@ export function validateEnv(
     resolvedDatabaseUrl,
     resolvedRedisUrl,
     resolvedJwtSecret,
+    resolvedDbConnection,
     isProduction,
     usedLegacyAliases,
   };

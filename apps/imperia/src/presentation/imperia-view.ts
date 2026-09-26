@@ -78,6 +78,86 @@ allow {
             </div>
           </div>
         `;
+      } else if (activeTab === "plateforme") {
+        // Platform configuration (V2.3 doctrine: theme identity is
+        // admin-owned). Values load client-side from the admin APIs —
+        // the descriptor stays dependency-free (no shell imports).
+        innerContentHtml = `
+          <div class="space-y-6">
+            <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Thème de la plateforme</h3>
+              <p class="text-[11px] text-on-surface-variant">Choix administrateur : persisté en base (table <span class="font-mono">platform_settings</span>), appliqué à tous les utilisateurs au prochain chargement. Les utilisateurs ne changent que le mode (clair/sombre).</p>
+              <div id="platform-theme-status" class="text-[11px] text-on-surface-variant">Chargement des thèmes…</div>
+              <div id="platform-theme-gallery" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3"></div>
+            </div>
+            <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Configuration effective (lecture seule)</h3>
+              <p class="text-[11px] text-on-surface-variant">Valeurs réellement appliquées : environnement, puis surcharges admin persistées. Les secrets ne sont jamais exposés.</p>
+              <div id="platform-settings-table" class="text-[11px] text-on-surface-variant">Chargement…</div>
+            </div>
+          </div>
+          <script>
+          (function () {
+            function esc(s) {
+              return String(s).replace(/[&<>"']/g, function (c) {
+                return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+              });
+            }
+            var gallery = document.getElementById("platform-theme-gallery");
+            var status = document.getElementById("platform-theme-status");
+            if (!gallery || gallery.dataset.loaded) return;
+            gallery.dataset.loaded = "1";
+            fetch("/api/admin/platform-theme", { headers: { "Accept": "application/json" } })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (!data.success) throw new Error(data.error || "Accès refusé");
+                status.textContent = "Thème actif : " + data.themeId + " — " + data.themes.length + " thèmes disponibles.";
+                gallery.innerHTML = data.themes.map(function (t) {
+                  var active = t.id === data.themeId;
+                  return '<button data-theme-id="' + esc(t.id) + '"' +
+                    ' class="text-left p-3 rounded-xl border transition ' +
+                    (active ? "border-primary" : "border-outline-variant/20 hover:border-primary/60") + '"' +
+                    ' style="background:' + esc(t.backgroundColor) + '">' +
+                    '<span class="block h-8 rounded-lg mb-2" style="background:' + esc(t.primaryColor) + '"></span>' +
+                    '<span class="block text-xs font-bold" style="color:' + esc(t.backgroundColor === "#000000" ? "#ffffff" : "#0f172a") + '">' + esc(t.name) + "</span>" +
+                    '<span class="block text-[10px] font-mono" style="color:' + esc(t.backgroundColor === "#000000" ? "#94a3b8" : "#64748b") + '">' + esc(t.id) + (active ? " ● actif" : "") + "</span>" +
+                    "</button>";
+                }).join("");
+                gallery.querySelectorAll("button[data-theme-id]").forEach(function (btn) {
+                  btn.addEventListener("click", function () {
+                    var id = btn.getAttribute("data-theme-id");
+                    status.textContent = "Application de " + id + "…";
+                    fetch("/api/admin/platform-theme", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ themeId: id }),
+                    })
+                      .then(function (r) { return r.json(); })
+                      .then(function (res) {
+                        if (!res.success) throw new Error(res.error || "Échec");
+                        window.location.reload();
+                      })
+                      .catch(function (e) { status.textContent = "Erreur : " + e.message; });
+                  });
+                });
+              })
+              .catch(function (e) { status.textContent = "Erreur : " + e.message; });
+            var settingsTable = document.getElementById("platform-settings-table");
+            fetch("/api/admin/platform-settings", { headers: { "Accept": "application/json" } })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (!data.success) throw new Error(data.error || "Accès refusé");
+                settingsTable.innerHTML = '<div class="space-y-1">' + data.settings.map(function (s) {
+                  return '<div class="p-2.5 bg-surface-container rounded-xl flex items-center justify-between gap-3">' +
+                    "<div><div class='font-bold text-xs'>" + esc(s.label) + "</div>" +
+                    "<div class='text-[10px] font-mono text-on-surface-variant'>" + esc(s.key) + " · " + esc(s.source) + "</div></div>" +
+                    "<div class='text-xs font-mono'>" + esc(s.value) + "</div></div>";
+                }).join("") + "</div>";
+              })
+              .catch(function (e) { settingsTable.textContent = "Erreur : " + e.message; });
+          })();
+          </script>
+        `;
       } else {
         // Status & Settings Dashboard
         innerContentHtml = `
@@ -122,6 +202,9 @@ allow {
               </a>
               <a href="/imperia?tab=audit" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${activeTab === 'audit' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
                 Journal de Dérive
+              </a>
+              <a href="/imperia?tab=plateforme" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${activeTab === 'plateforme' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+                Plateforme
               </a>
             </div>
           </div>

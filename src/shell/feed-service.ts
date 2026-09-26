@@ -2,7 +2,7 @@
  * @mosaix/shell — Feed Service with Keyset Pagination
  */
 
-import type { SQLiteDatabaseAdapter } from "@mosaix/adapter-database-sqlite";
+import type { DatabasePort } from "@mosaix/ports-database";
 import { initDatabase } from "./database-bootstrap.js";
 
 export interface ShellFeedItem {
@@ -26,7 +26,7 @@ export interface PaginatedFeedResponse {
 }
 
 export class FeedService {
-  constructor(private readonly db: SQLiteDatabaseAdapter) {}
+  constructor(private readonly db: DatabasePort) {}
 
   async addItem(
     item: Omit<ShellFeedItem, "id" | "timestamp" | "likes"> & {
@@ -165,9 +165,3 @@ export class FeedService {
 
 const { dbAdapter } = initDatabase();
 export const feedService = new FeedService(dbAdapter);
-feedService.seedInitialFeedIfEmpty().catch((err: unknown) => {
-  console.error(
-    "[FeedService] Initial seed failed:",
-    err instanceof Error ? err.message : err,
-  );
-});

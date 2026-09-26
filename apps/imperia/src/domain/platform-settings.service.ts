@@ -187,19 +187,36 @@ export const CANONICAL_SETTINGS_DEFINITIONS: SettingDefinition[] = [
   },
 
   // 5. Apparence & Thèmes
+  // NOTE: options synchronised with themes/*/theme.json (2026-09-26).
+  // The live source is GET /api/admin/platform-theme (discovery-driven);
+  // this catalog stays accurate for offline/admin reference.
   {
     key: "MOSAIX_DEFAULT_THEME",
     category: "appearance",
     label: "Thème Shell par Défaut",
-    description: "Palette et style visuel appliqués par défaut à l'ensemble du portail.",
+    description: "Palette et style visuel appliqués par défaut à l'ensemble du portail. Choix admin persisté en base (platform_settings.platform_theme_id).",
     type: "select",
-    defaultValue: "midnight-pulse",
+    defaultValue: "mosaix-default",
     options: [
-      { label: "Midnight Pulse (Violet / Nuit)", value: "midnight-pulse" },
-      { label: "Solara Sunrise (Ambre / Doré)", value: "solara-sunrise" },
-      { label: "Emerald Canopy (Vert Forêt)", value: "emerald-canopy" },
-      { label: "Cyber Neon (Cyan / Futuriste)", value: "cyber-neon" },
-      { label: "Nordic Frost (Bleu Glacé)", value: "nordic-frost" },
+      { label: "MosaiX Default", value: "mosaix-default" },
+      { label: "Arctic", value: "arctic" },
+      { label: "Aurora", value: "aurora" },
+      { label: "Cobalt", value: "cobalt" },
+      { label: "Copper", value: "copper" },
+      { label: "Desert", value: "desert" },
+      { label: "Forest", value: "forest" },
+      { label: "Lime", value: "lime" },
+      { label: "Luxury", value: "luxury" },
+      { label: "Midnight", value: "midnight" },
+      { label: "Midnight Ocean", value: "midnight-ocean" },
+      { label: "Monochrome", value: "monochrome" },
+      { label: "Nordic", value: "nordic" },
+      { label: "Ocean", value: "ocean" },
+      { label: "Paper", value: "paper" },
+      { label: "Plum", value: "plum" },
+      { label: "Sage", value: "sage" },
+      { label: "Sunset", value: "sunset" },
+      { label: "Terracotta", value: "terracotta" },
     ],
   },
   {

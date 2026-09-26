@@ -1,7 +1,30 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
+import type { ThemeManifest } from "@mosaix/contracts";
 import { compile } from "./theme-compiler";
-import { MOSAIX_DEFAULT_THEME } from "../../../../src/shell/theme/mosaix-default-theme";
-import { renderThemeStyleTag, applyThemeMode, initThemeBridge } from "../../../../src/shell/theme/theme-bridge";
+import {
+  renderThemeStyleTag,
+  applyThemeMode,
+  initThemeBridge,
+  getTailwindThemeColors,
+} from "../../../../src/shell/theme/theme-bridge";
+
+// Single source of truth: themes/*.json on disk (never a TS constant).
+const REPO_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "..",
+  "..",
+);
+const MOSAIX_DEFAULT_THEME = JSON.parse(
+  fs.readFileSync(
+    path.join(REPO_ROOT, "themes", "mosaix-default", "theme.json"),
+    "utf-8",
+  ),
+) as ThemeManifest;
 
 describe("Theme Compiler Coercion & Modes", () => {
   it("should not append px to unitless CSS properties (opacity, z-index, line-height)", () => {
@@ -21,7 +44,10 @@ describe("Theme Compiler Coercion & Modes", () => {
       },
     };
 
-    const compiled = compile(customTheme as unknown as Parameters<typeof compile>[0], "light");
+    const compiled = compile(
+      customTheme as unknown as Parameters<typeof compile>[0],
+      "light",
+    );
 
     expect(compiled["--mx-typography-lineHeight"]).toBe("1.5");
     expect(compiled["--mx-typography-fontWeight"]).toBe("600");
@@ -48,9 +74,30 @@ describe("Theme Bridge Integration", () => {
     await applyThemeMode("dark");
     const styleTag = renderThemeStyleTag("dark");
 
-    expect(styleTag).toContain("<style id=\"mosaix-compiled-theme\">");
+    expect(styleTag).toContain('<style id="mosaix-compiled-theme">');
     expect(styleTag).toContain("--mx-color-background: #0f172a;");
-    expect(styleTag).toContain("--color-primary: var(--mx-color-primary, #4f46e5);");
+    expect(styleTag).toContain(
+      "--color-primary: var(--mx-color-primary, #4f46e5);",
+    );
     expect(styleTag).toContain("@media (prefers-reduced-motion: reduce)");
+  });
+
+  it("should derive the Tailwind palette from themes/*.json (zero hardcoded hex)", () => {
+    expect(getTailwindThemeColors("light")).toMatchObject({
+      surface: "#ffffff",
+      primary: "#4f46e5",
+      "on-primary": "#ffffff",
+      background: "#f8fafc",
+    });
+    expect(getTailwindThemeColors("dark")).toMatchObject({
+      surface: "#0b1326",
+      primary: "#d0bcff",
+      "on-primary": "#3c0091",
+      background: "#0b1326",
+    });
+    expect(getTailwindThemeColors("high-contrast")).toMatchObject({
+      surface: "#000000",
+      primary: "#ffff00",
+    });
   });
 });

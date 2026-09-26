@@ -4,6 +4,7 @@ import { lifecycleCommands } from "./commands/lifecycle-commands.js";
 import { discoveryCommands } from "./commands/discovery-commands.js";
 import { diagnosticCommands } from "./commands/diagnostic-commands.js";
 import { migrationCommands } from "./commands/migration-commands.js";
+import { seedCommands } from "./commands/seed-commands.js";
 import { keyCommands } from "./commands/key-commands.js";
 import { installCommands } from "./commands/install-commands.js";
 
@@ -25,6 +26,7 @@ export class MosaixCommandRouter {
       ...discoveryCommands,
       ...diagnosticCommands,
       ...migrationCommands,
+      ...seedCommands,
       ...keyCommands,
       ...installCommands,
     ]);

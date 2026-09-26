@@ -26,12 +26,18 @@ importers:
       '@mosaix/core':
         specifier: workspace:*
         version: link:packages/core
+      '@mosaix/database':
+        specifier: workspace:*
+        version: link:packages/database
       '@mosaix/http':
         specifier: workspace:*
         version: link:packages/http
       '@mosaix/migrations':
         specifier: workspace:*
         version: link:packages/migrations
+      '@mosaix/ports-database':
+        specifier: workspace:*
+        version: link:packages/ports/database
       '@mosaix/ports-feature-flags':
         specifier: workspace:*
         version: link:packages/ports/feature-flags
@@ -1139,12 +1145,18 @@ importers:
       '@mosaix/core':
         specifier: workspace:*
         version: link:../core
+      '@mosaix/database':
+        specifier: workspace:*
+        version: link:../database
       '@mosaix/mcp':
         specifier: workspace:*
         version: link:../mcp
       '@mosaix/migrations':
         specifier: workspace:*
         version: link:../migrations
+      '@mosaix/ports-database':
+        specifier: workspace:*
+        version: link:../ports/database
       '@mosaix/schemas':
         specifier: workspace:*
         version: link:../schemas

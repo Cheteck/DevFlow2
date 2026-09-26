@@ -1,0 +1,146 @@
+{
+  "type": "theme",
+  "id": "midnight",
+  "name": "Midnight",
+  "version": "1.0.0",
+  "contractVersion": "1.0.0",
+  "tokens": {
+    "colors": {
+      "primary": "#6366f1",
+      "primaryHover": "#5457cd",
+      "secondary": "#22d3ee",
+      "background": "#080d1a",
+      "surface": "#111827",
+      "text": "#f1f5f9",
+      "textMuted": "#94a3b8",
+      "border": "#293548",
+      "accent": "#a855f7",
+      "danger": "#f87171",
+      "success": "#34d399",
+      "warning": "#fbbf24"
+    },
+    "typography": {
+      "fontFamily": "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
+      "fontSizeBase": "16px",
+      "fontSizeSm": "14px",
+      "fontSizeLg": "18px",
+      "fontWeightNormal": "400",
+      "fontWeightMedium": "500",
+      "fontWeightBold": "700",
+      "lineHeight": "1.5"
+    },
+    "spacing": {
+      "xs": "4px",
+      "sm": "8px",
+      "md": "16px",
+      "lg": "24px",
+      "xl": "32px"
+    },
+    "radius": {
+      "sm": "6px",
+      "md": "12px",
+      "lg": "16px",
+      "full": "9999px"
+    },
+    "shadows": {
+      "sm": "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+      "md": "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+      "lg": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
+    },
+    "motion": {
+      "durationFast": "150ms",
+      "durationNormal": "300ms",
+      "easing": "cubic-bezier(0.4, 0, 0.2, 1)"
+    },
+    "tailwind": {
+      "surface": "#111827",
+      "surface-container-lowest": "#111827",
+      "surface-container-low": "#080d1a",
+      "surface-container": "#161b27",
+      "surface-container-high": "#293548",
+      "surface-container-highest": "#475263",
+      "surface-variant": "#161b27",
+      "on-surface": "#f1f5f9",
+      "on-surface-variant": "#94a3b8",
+      "primary": "#6366f1",
+      "on-primary": "#ffffff",
+      "primary-container": "#1a1f45",
+      "secondary": "#22d3ee",
+      "tertiary": "#a855f7",
+      "outline": "#5b6574",
+      "outline-variant": "#293548",
+      "background": "#080d1a"
+    }
+  },
+  "modes": {
+    "light": {
+      "colors": {
+        "background": "#080d1a",
+        "surface": "#111827",
+        "text": "#f1f5f9",
+        "textMuted": "#94a3b8",
+        "border": "#293548"
+      }
+    },
+    "dark": {
+      "colors": {
+        "primary": "#7a7df3",
+        "primaryHover": "#9294f5",
+        "background": "#010203",
+        "surface": "#020306",
+        "text": "#fefefe",
+        "textMuted": "#b9c3d1",
+        "border": "#121820"
+      },
+      "tailwind": {
+        "surface": "#020306",
+        "surface-container-lowest": "#010203",
+        "surface-container-low": "#020205",
+        "surface-container": "#141517",
+        "surface-container-high": "#2a2b2e",
+        "surface-container-highest": "#49494b",
+        "surface-variant": "#141517",
+        "on-surface": "#fefefe",
+        "on-surface-variant": "#b9c3d1",
+        "primary": "#7a7df3",
+        "on-primary": "#171614",
+        "primary-container": "#37396f",
+        "secondary": "#38d7f0",
+        "tertiary": "#b56ff8",
+        "outline": "#595d63",
+        "outline-variant": "#121820",
+        "background": "#010203"
+      }
+    },
+    "high-contrast": {
+      "colors": {
+        "primary": "#9a9cf6",
+        "primaryHover": "#b1b3f8",
+        "background": "#000000",
+        "surface": "#000000",
+        "text": "#ffffff",
+        "textMuted": "#ffffff",
+        "border": "#ffffff"
+      },
+      "tailwind": {
+        "surface": "#000000",
+        "surface-container-lowest": "#000000",
+        "surface-container-low": "#000000",
+        "surface-container": "#000000",
+        "surface-container-high": "#1a1a1a",
+        "surface-container-highest": "#2a2a2a",
+        "surface-variant": "#1a1a1a",
+        "on-surface": "#ffffff",
+        "on-surface-variant": "#ffffff",
+        "primary": "#9a9cf6",
+        "on-primary": "#000000",
+        "primary-container": "#9a9cf6",
+        "secondary": "#ffffff",
+        "tertiary": "#ffffff",
+        "outline": "#ffffff",
+        "outline-variant": "#ffffff",
+        "background": "#000000"
+      }
+    }
+  }
+}

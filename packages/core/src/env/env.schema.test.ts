@@ -64,6 +64,39 @@ describe("validateEnv (canonical + aliases, extensible)", () => {
     expect(out.resolvedDatabaseUrl).toBeUndefined();
     expect(out.MOSAIX_AUTH_TOKEN_TTL).toBe(3600);
   });
+
+  it("resolves DB_CONNECTION explicitly (postgres normalized to pgsql)", () => {
+    expect(validateEnv({ DB_CONNECTION: "sqlite" }).resolvedDbConnection).toBe(
+      "sqlite",
+    );
+    expect(
+      validateEnv({
+        DB_CONNECTION: "pgsql",
+        MOSAIX_DATABASE_URL: "sqlite:data/other.sqlite",
+      }).resolvedDbConnection,
+    ).toBe("pgsql");
+    expect(
+      validateEnv({ DB_CONNECTION: "postgres" }).resolvedDbConnection,
+    ).toBe("pgsql");
+  });
+
+  it("infers pgsql from a postgres URL, defaults to sqlite", () => {
+    expect(
+      validateEnv({ MOSAIX_DATABASE_URL: "postgresql://u:p@h:5432/db" })
+        .resolvedDbConnection,
+    ).toBe("pgsql");
+    expect(validateEnv({}).resolvedDbConnection).toBe("sqlite");
+    expect(
+      validateEnv({ MOSAIX_DATABASE_URL: "sqlite:data/x.sqlite" })
+        .resolvedDbConnection,
+    ).toBe("sqlite");
+  });
+
+  it("rejects unknown DB_CONNECTION values fail-fast", () => {
+    expect(() => validateEnv({ DB_CONNECTION: "mysql" })).toThrow(
+      /Invalid environment/,
+    );
+  });
 });
 
 describe("loadEnvFile (zero-dep dotenv)", () => {
