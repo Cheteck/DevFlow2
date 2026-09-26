@@ -152,10 +152,7 @@ describe("loadEnvFile (zero-dep dotenv)", () => {
       path.join(dir, ".env"),
       "MOSAIX_TEST_A=from-file\nMOSAIX_TEST_B=base\n",
     );
-    fs.writeFileSync(
-      path.join(dir, ".env.local"),
-      "MOSAIX_TEST_B=override\n",
-    );
+    fs.writeFileSync(path.join(dir, ".env.local"), "MOSAIX_TEST_B=override\n");
     loadEnvFile([".env", ".env.local"], dir);
     expect(process.env.MOSAIX_TEST_A).toBe("shell-wins");
     expect(process.env.MOSAIX_TEST_B).toBe("override");

@@ -6,9 +6,9 @@
  * DDL. Owner `shell`, module `theme`, SQLite grammar (the shell runs on the
  * local SQLite adapter; Postgres app providers live next to their apps).
  *
- * Executed at boot by `runShellMigrations()` (see `src/shell/migrations.ts`)
- * before any theme read. State is tracked in the `mosaix_migrations` ledger,
- * so this is idempotent across restarts.
+ * Executed from the CLI by `mosaix migrate` (see `src/shell/migrations.ts`
+ * `runShellMigrations()`), verified (never applied) at boot. State is tracked
+ * in the `mosaix_migrations` ledger, so this is idempotent across restarts.
  */
 import {
   SchemaBuilder,

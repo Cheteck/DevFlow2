@@ -50,7 +50,9 @@ export const baseEnvSchema = z
 
     // ── Demo session (usermenu switcher, ?role=, /api/user/switch) ──
     // Empty = auto (enabled everywhere except production).
-    MOSAIX_DEMO_USERS: emptyAsUnset(z.union([z.string(), z.boolean()]).optional()),
+    MOSAIX_DEMO_USERS: emptyAsUnset(
+      z.union([z.string(), z.boolean()]).optional(),
+    ),
 
     // ── Auth / secrets ──
     // Master encryption key (Laravel-style `base64:`). Managed with:
@@ -130,11 +132,7 @@ export const baseEnvSchema = z
 
     // ── Telemetry ──
     MOSAIX_TELEMETRY_OTLP_ENDPOINT: emptyAsUnset(
-      z
-        .string()
-        .url()
-        .optional()
-        .or(z.literal("")),
+      z.string().url().optional().or(z.literal("")),
     ),
   })
   .passthrough();
@@ -232,7 +230,8 @@ export function validateEnv(
   )
     ? ("pgsql" as const)
     : undefined;
-  const resolvedDbConnection = explicitConnection ?? inferredConnection ?? "sqlite";
+  const resolvedDbConnection =
+    explicitConnection ?? inferredConnection ?? "sqlite";
   const resolvedRedisUrl = firstDefined(env.MOSAIX_REDIS_URL, env.REDIS_URL);
   const resolvedJwtSecret = firstDefined(
     env.MOSAIX_AUTH_JWT_SECRET,

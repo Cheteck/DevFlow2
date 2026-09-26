@@ -224,6 +224,76 @@ describe("MosaiX CLI PRD Specification Suite", () => {
     });
   });
 
+  describe("migrate / migrate:status / migrate:rollback / db:seed (Laravel-style database commands)", () => {
+    it("reports pending, migrates, then reports applied", async () => {
+      const router = new MosaixCommandRouter(tmpDir);
+
+      const before = await router.execute("migrate:status", { json: true });
+      expect(before.exitCode).toBe(EXIT_CODES.SUCCESS);
+      const rowsBefore = before.data as Array<{ applied: boolean }>;
+      expect(rowsBefore.length).toBe(2);
+      expect(rowsBefore.every((r) => r.applied === false)).toBe(true);
+
+      const migrated = await router.execute("migrate", { json: true });
+      expect(migrated.exitCode).toBe(EXIT_CODES.SUCCESS);
+      expect(
+        (migrated.data as { applied: readonly string[] }).applied,
+      ).toHaveLength(2);
+
+      const after = await router.execute("migrate:status", { json: true });
+      expect(after.exitCode).toBe(EXIT_CODES.SUCCESS);
+      const rowsAfter = after.data as Array<{ applied: boolean }>;
+      expect(rowsAfter.every((r) => r.applied === true)).toBe(true);
+    });
+
+    it("seeds baseline data once, then skips (idempotent)", async () => {
+      const router = new MosaixCommandRouter(tmpDir);
+      await router.execute("migrate", { json: true });
+
+      const first = await router.execute("db:seed", { json: true });
+      expect(first.exitCode).toBe(EXIT_CODES.SUCCESS);
+      expect(
+        (first.data as { seeded: string[] }).seeded,
+      ).toContain("shell_feed");
+
+      const second = await router.execute("db:seed", { json: true });
+      expect(second.exitCode).toBe(EXIT_CODES.SUCCESS);
+      expect((second.data as { seeded: string[] }).seeded).toEqual([]);
+    });
+
+    it("migrate --seed migrates and seeds in one invocation", async () => {
+      const router = new MosaixCommandRouter(tmpDir);
+      const res = await router.execute("migrate", {
+        json: true,
+        args: ["--seed"],
+      });
+      expect(res.exitCode).toBe(EXIT_CODES.SUCCESS);
+      const data = res.data as {
+        applied: readonly string[];
+        seeded: string[];
+      };
+      expect(data.applied).toHaveLength(2);
+      expect(data.seeded).toContain("shell_feed");
+    });
+
+    it("migrate:rollback undoes the last batch", async () => {
+      const router = new MosaixCommandRouter(tmpDir);
+      await router.execute("migrate", { json: true });
+
+      const rolledBack = await router.execute("migrate:rollback", {
+        json: true,
+      });
+      expect(rolledBack.exitCode).toBe(EXIT_CODES.SUCCESS);
+      expect(
+        (rolledBack.data as { rolledBack: readonly string[] }).rolledBack,
+      ).toHaveLength(2);
+
+      const status = await router.execute("migrate:status", { json: true });
+      const rows = status.data as Array<{ applied: boolean }>;
+      expect(rows.every((r) => r.applied === false)).toBe(true);
+    });
+  });
+
   describe("install (first-time server setup)", () => {
     it("requires .env.example (repo root guard)", async () => {
       const router = new MosaixCommandRouter(tmpDir);

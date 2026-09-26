@@ -91,9 +91,9 @@ describe("resolveDatabaseConfig (Laravel-style driver resolution)", () => {
   });
 
   it("rejects unknown drivers fail-fast", () => {
-    expect(() => resolveDatabaseConfig({ dbConnection: "mysql" }, root)).toThrow(
-      /Unsupported DB_CONNECTION/,
-    );
+    expect(() =>
+      resolveDatabaseConfig({ dbConnection: "mysql" }, root),
+    ).toThrow(/Unsupported DB_CONNECTION/);
   });
 });
 

@@ -35,10 +35,7 @@ export type { MigrationStore, ExecutedMigration } from "./store";
 export { InMemoryMigrationStore } from "./store";
 export { SqlMigrationStore } from "./sql-store";
 export type { RawMigration } from "./registry";
-export {
-  MigrationRegistry,
-  loadMigration,
-} from "./registry";
+export { MigrationRegistry, loadMigration } from "./registry";
 export { FileMigrationProvider } from "./file-provider";
 export { MigrationRunner, newBatchId } from "./runner";
 export type { RunResult } from "./runner";

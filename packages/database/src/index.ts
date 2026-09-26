@@ -2,7 +2,12 @@
  * @mosaix/database — Multi-tenant App Database Resolver
  */
 
-import type { DatabasePort, DatabaseCapabilities, DatabaseConnection, MigrationLock } from "@mosaix/ports-database";
+import type {
+  DatabasePort,
+  DatabaseCapabilities,
+  DatabaseConnection,
+  MigrationLock,
+} from "@mosaix/ports-database";
 
 export class SchemaAwareDatabasePort implements DatabasePort {
   constructor(
@@ -19,7 +24,10 @@ export class SchemaAwareDatabasePort implements DatabasePort {
     return this.base.execute(sql, params);
   }
 
-  async query<T = Record<string, unknown>>(sql: string, params?: readonly unknown[]): Promise<T[]> {
+  async query<T = Record<string, unknown>>(
+    sql: string,
+    params?: readonly unknown[],
+  ): Promise<T[]> {
     await this.base.execute(`SET search_path TO ${this.schema}`);
     return this.base.query<T>(sql, params);
   }
@@ -58,4 +66,3 @@ export * from "./postgres-schema-grammar.js";
 export * from "./postgres-rls-manager.js";
 export * from "./postgres-bac-schema-migrator.js";
 export * from "./database-manager.js";
-

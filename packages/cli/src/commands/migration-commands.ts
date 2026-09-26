@@ -17,6 +17,7 @@ import {
   SqlMigrationStore,
   type DatabasePort,
 } from "../../../migrations/src/index.js";
+import type { DatabaseManager } from "@mosaix/database";
 import { connectCliDatabase } from "./database-command.js";
 // Shell-owned providers (aggregated registry). Relative import follows the
 // existing cross-package style of this file; the long-term home is a
@@ -26,14 +27,16 @@ import { createShellMigrationRegistry } from "../../../../src/shell/migration-re
 async function buildMigrationCli(ctx: CommandContext): Promise<{
   cli: MigrationCLI;
   db: DatabasePort;
+  manager: DatabaseManager;
   connection: string;
 }> {
-  const { db, config } = await connectCliDatabase(ctx);
+  const { db, config, manager } = await connectCliDatabase(ctx);
   const registry = createShellMigrationRegistry();
   const store = new SqlMigrationStore(db);
   return {
     cli: new MigrationCLI(registry, store, db),
     db,
+    manager,
     connection:
       config.connection === "sqlite"
         ? `sqlite:${config.database}`
@@ -46,20 +49,29 @@ export class MigrateCommand implements CliCommand {
   readonly description = "Run pending database schema migrations";
 
   async execute(ctx: CommandContext): Promise<CLIResult> {
-    const { cli, db, connection } = await buildMigrationCli(ctx);
-    const seed = ctx.args.includes("--seed");
-    const result = await cli.migrate();
-    if (seed) {
-      const { runDatabaseSeeds } = await import(
-        "../../../../src/shell/seeders/database-seeder.js"
-      );
-      const seeded = await runDatabaseSeeds(db);
+    const { cli, db, manager, connection } = await buildMigrationCli(ctx);
+    try {
+      const seed = ctx.args.includes("--seed");
+      const result = await cli.migrate();
+      if (seed) {
+        const { runDatabaseSeeds } =
+          await import("../../../../src/shell/seeders/database-seeder.js");
+        const seeded = await runDatabaseSeeds(db);
+        return ctx.respond(
+          `Database migrations executed on [${connection}].`,
+          {
+            ...result,
+            seeded,
+          },
+        );
+      }
       return ctx.respond(
         `Database migrations executed on [${connection}].`,
-        { ...result, seeded },
+        result,
       );
+    } finally {
+      await manager.close();
     }
-    return ctx.respond(`Database migrations executed on [${connection}].`, result);
   }
 }
 
@@ -68,12 +80,16 @@ export class MigrateStatusCommand implements CliCommand {
   readonly description = "Check status of database migrations";
 
   async execute(ctx: CommandContext): Promise<CLIResult> {
-    const { cli, connection } = await buildMigrationCli(ctx);
-    const status = await cli.status();
-    return ctx.respond(
-      `Migration status retrieved on [${connection}].`,
-      status,
-    );
+    const { cli, manager, connection } = await buildMigrationCli(ctx);
+    try {
+      const status = await cli.status();
+      return ctx.respond(
+        `Migration status retrieved on [${connection}].`,
+        status,
+      );
+    } finally {
+      await manager.close();
+    }
   }
 }
 
@@ -82,18 +98,23 @@ export class MigrateRollbackCommand implements CliCommand {
   readonly description = "Rollback database migrations";
 
   async execute(ctx: CommandContext): Promise<CLIResult> {
-    const { cli, connection } = await buildMigrationCli(ctx);
-    const stepsArg = ctx.args
-      .find((a) => a.startsWith("--steps="))
-      ?.slice("--steps=".length);
-    const steps = stepsArg !== undefined ? Number.parseInt(stepsArg, 10) : undefined;
-    const result = await cli.rollback(
-      steps !== undefined && Number.isFinite(steps) ? steps : undefined,
-    );
-    return ctx.respond(
-      `Migration rollback completed on [${connection}].`,
-      result,
-    );
+    const { cli, manager, connection } = await buildMigrationCli(ctx);
+    try {
+      const stepsArg = ctx.args
+        .find((a) => a.startsWith("--steps="))
+        ?.slice("--steps=".length);
+      const steps =
+        stepsArg !== undefined ? Number.parseInt(stepsArg, 10) : undefined;
+      const result = await cli.rollback(
+        steps !== undefined && Number.isFinite(steps) ? steps : undefined,
+      );
+      return ctx.respond(
+        `Migration rollback completed on [${connection}].`,
+        result,
+      );
+    } finally {
+      await manager.close();
+    }
   }
 }
 

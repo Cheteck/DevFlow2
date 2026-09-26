@@ -74,7 +74,9 @@ function normalizeDriver(raw: string | undefined): DatabaseDriver | undefined {
   );
 }
 
-function inferDriver(databaseUrl: string | undefined): DatabaseDriver | undefined {
+function inferDriver(
+  databaseUrl: string | undefined,
+): DatabaseDriver | undefined {
   if (!databaseUrl) return undefined;
   if (POSTGRES_SCHEME.test(databaseUrl)) return "pgsql";
   if (
@@ -87,9 +89,7 @@ function inferDriver(databaseUrl: string | undefined): DatabaseDriver | undefine
   return undefined;
 }
 
-function buildPgsqlConnectionString(
-  input: DatabaseConfigInput,
-): string {
+function buildPgsqlConnectionString(input: DatabaseConfigInput): string {
   if (input.databaseUrl && POSTGRES_SCHEME.test(input.databaseUrl)) {
     return input.databaseUrl;
   }
@@ -224,6 +224,7 @@ export async function applySqlitePragmas(db: DatabasePort): Promise<void> {
     } catch (err: unknown) {
       throw new Error(
         `[database] PRAGMA failed (${sql}): ${err instanceof Error ? err.message : err}`,
+        { cause: err },
       );
     }
   }

@@ -18,15 +18,19 @@ export class DbSeedCommand implements CliCommand {
   readonly description = "Run baseline database seeders (idempotent-if-empty)";
 
   async execute(ctx: CommandContext): Promise<CLIResult> {
-    const { db, config } = await connectCliDatabase(ctx);
-    const seeded = await runDatabaseSeeds(db);
-    const connection =
-      config.connection === "sqlite"
-        ? `sqlite:${config.database}`
-        : `pgsql:${config.connectionString}`;
-    return ctx.respond(`Database seeding completed on [${connection}].`, {
-      seeded,
-    });
+    const { db, manager, config } = await connectCliDatabase(ctx);
+    try {
+      const seeded = await runDatabaseSeeds(db);
+      const connection =
+        config.connection === "sqlite"
+          ? `sqlite:${config.database}`
+          : `pgsql:${config.connectionString}`;
+      return ctx.respond(`Database seeding completed on [${connection}].`, {
+        seeded,
+      });
+    } finally {
+      await manager.close();
+    }
   }
 }
 

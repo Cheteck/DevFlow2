@@ -24,7 +24,9 @@ async function main() {
     config.connection === "sqlite"
       ? `sqlite:${config.database}`
       : `pgsql:${config.connectionString}`;
-  console.log(`✓ Pilote résolu depuis .env [${where}] (WAL, foreign keys, busy timeout)`);
+  console.log(
+    `✓ Pilote résolu depuis .env [${where}] (WAL, foreign keys, busy timeout)`,
+  );
 
   const migrated = await runShellMigrations(dbAdapter);
   console.log(
@@ -54,10 +56,18 @@ async function main() {
   tables.forEach((t) => console.log(`   - ${t.name}`));
 
   // Check counts
-  const feedCount = await dbAdapter.query<{ count: number }>(`SELECT COUNT(*) as count FROM shell_feed`);
-  const prodCount = await dbAdapter.query<{ count: number }>(`SELECT COUNT(*) as count FROM commerce_products`);
-  const portCount = await dbAdapter.query<{ count: number }>(`SELECT COUNT(*) as count FROM portfolio_items`);
-  const spaceCount = await dbAdapter.query<{ count: number }>(`SELECT COUNT(*) as count FROM spaces`);
+  const feedCount = await dbAdapter.query<{ count: number }>(
+    `SELECT COUNT(*) as count FROM shell_feed`,
+  );
+  const prodCount = await dbAdapter.query<{ count: number }>(
+    `SELECT COUNT(*) as count FROM commerce_products`,
+  );
+  const portCount = await dbAdapter.query<{ count: number }>(
+    `SELECT COUNT(*) as count FROM portfolio_items`,
+  );
+  const spaceCount = await dbAdapter.query<{ count: number }>(
+    `SELECT COUNT(*) as count FROM spaces`,
+  );
 
   console.log("\n✓ Enregistrements opérationnels :");
   console.log(`   - Publications Sociales : ${feedCount[0]?.count || 0}`);

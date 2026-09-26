@@ -71,9 +71,12 @@ export class SqlMigrationStore implements MigrationStore {
       checksum: string;
       batch_id: string;
       applied_at: string;
-    }>(this.bind(`SELECT id, owner, checksum, batch_id, applied_at FROM mosaix_migrations WHERE id = ?`), [
-      id,
-    ]);
+    }>(
+      this.bind(
+        `SELECT id, owner, checksum, batch_id, applied_at FROM mosaix_migrations WHERE id = ?`,
+      ),
+      [id],
+    );
     const row = rows[0];
     if (!row) return undefined;
     return {

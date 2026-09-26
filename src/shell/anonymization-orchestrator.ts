@@ -29,34 +29,48 @@ export class AnonymizationOrchestrator {
 
     try {
       // 1. Check columns in identities table
-      const cols = await this.db.query<{ name: string }>(`PRAGMA table_info(identities)`).catch(() => []);
+      const cols = await this.db
+        .query<{ name: string }>(`PRAGMA table_info(identities)`)
+        .catch(() => []);
       const colNames = new Set(cols.map((c) => c.name));
 
       if (colNames.has("display_name")) {
         const identChanges = await this.db.execute(
           `UPDATE identities SET email = ?, display_name = 'Utilisateur Anonymisé' WHERE id = ? OR email = ?`,
-          [`${pseudonym}@gdpr.deleted.local`, userId, userId]
+          [`${pseudonym}@gdpr.deleted.local`, userId, userId],
         );
         details.identitiesUpdated = identChanges;
       } else {
         const identChanges = await this.db.execute(
           `UPDATE identities SET email = ? WHERE id = ? OR email = ?`,
-          [`${pseudonym}@gdpr.deleted.local`, userId, userId]
+          [`${pseudonym}@gdpr.deleted.local`, userId, userId],
         );
         details.identitiesUpdated = identChanges;
       }
 
-      await this.db.execute(`DELETE FROM external_identities WHERE identity_id = ?`, [userId]).catch(() => 0);
-      await this.db.execute(`DELETE FROM credentials WHERE identity_id = ?`, [userId]).catch(() => 0);
-      await this.db.execute(`DELETE FROM tokens WHERE identity_id = ?`, [userId]).catch(() => 0);
-      await this.db.execute(`DELETE FROM sessions WHERE identity_id = ?`, [userId]).catch(() => 0);
+      await this.db
+        .execute(`DELETE FROM external_identities WHERE identity_id = ?`, [
+          userId,
+        ])
+        .catch(() => 0);
+      await this.db
+        .execute(`DELETE FROM credentials WHERE identity_id = ?`, [userId])
+        .catch(() => 0);
+      await this.db
+        .execute(`DELETE FROM tokens WHERE identity_id = ?`, [userId])
+        .catch(() => 0);
+      await this.db
+        .execute(`DELETE FROM sessions WHERE identity_id = ?`, [userId])
+        .catch(() => 0);
       contextsUpdated.push("citadelle");
 
       // 2. Shell Feed / Solara Social items
-      const feedChanges = await this.db.execute(
-        `UPDATE shell_feed SET author = 'Anonyme', content = '[Message supprimé conformément au RGPD]' WHERE author = ? OR author = ?`,
-        [userId, pseudonym]
-      ).catch(() => 0);
+      const feedChanges = await this.db
+        .execute(
+          `UPDATE shell_feed SET author = 'Anonyme', content = '[Message supprimé conformément au RGPD]' WHERE author = ? OR author = ?`,
+          [userId, pseudonym],
+        )
+        .catch(() => 0);
       contextsUpdated.push("social_feed");
       details.feedItemsAnonymized = feedChanges;
 
@@ -68,7 +82,10 @@ export class AnonymizationOrchestrator {
         details,
       };
     } catch (err) {
-      console.error(`[AnonymizationOrchestrator] Error anonymizing user ${userId}:`, err);
+      console.error(
+        `[AnonymizationOrchestrator] Error anonymizing user ${userId}:`,
+        err,
+      );
       return {
         userId,
         success: false,
@@ -81,4 +98,6 @@ export class AnonymizationOrchestrator {
 }
 
 const { dbAdapter } = initDatabase();
-export const anonymizationOrchestrator = new AnonymizationOrchestrator(dbAdapter);
+export const anonymizationOrchestrator = new AnonymizationOrchestrator(
+  dbAdapter,
+);

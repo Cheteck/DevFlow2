@@ -53,7 +53,10 @@ function sqliteFactory(databasePath: string): DatabasePort {
 }
 
 /** Awaited connect hook: fail fast if integrity PRAGMAs cannot apply. */
-async function onConnect(db: DatabasePort, config: DatabaseConfig): Promise<void> {
+async function onConnect(
+  db: DatabasePort,
+  config: DatabaseConfig,
+): Promise<void> {
   if (config.connection !== "sqlite") return;
   await applySqlitePragmas(db);
 }
@@ -89,7 +92,8 @@ export function initDatabase(
   }
 
   const rootDir = options.rootDir ?? process.cwd();
-  const env = options.env ?? (process.env as Record<string, string | undefined>);
+  const env =
+    options.env ?? (process.env as Record<string, string | undefined>);
   const config = readConfig(rootDir, env);
   const manager = new DatabaseManager(
     config,
