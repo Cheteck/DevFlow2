@@ -35,6 +35,7 @@ import {
   applicationProviders,
   type ProviderDescriptor,
 } from "./providers.js";
+import { container } from "@mosaix/container";
 
 export { applicationProviders };
 export type { ProviderDescriptor };
@@ -166,6 +167,9 @@ export class ApplicationBuilder {
       });
       await built.manager.ready();
       db = built;
+      // Register database adapter in global container for theme bridge and other services
+      container.singleton("database", () => built.dbAdapter);
+      container.singleton("databasePort", () => built.dbAdapter);
     }
 
     // 4. Migrations check — verify, never migrate at boot (artisan owns DDL).

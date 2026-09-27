@@ -1,6 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { MemoryFeatureFlagsAdapter } from "@mosaix/adapter-featureflags-memory";
+import { PostgresFeatureFlagsAdapter } from "@mosaix/adapter-featureflags-postgres";
+import type { DatabasePort } from "@mosaix/ports-database";
 import type {
   FeatureFlagDefinition,
   FeatureFlagUserContext,
@@ -151,7 +153,9 @@ export const DEFAULT_PLATFORM_FLAGS: Record<
 };
 
 export class PersistentFeatureFlagsManager {
-  private readonly adapter: MemoryFeatureFlagsAdapter;
+  private readonly adapter:
+    | MemoryFeatureFlagsAdapter
+    | PostgresFeatureFlagsAdapter;
   private readonly flagMetadata = new Map<
     string,
     {
@@ -163,12 +167,21 @@ export class PersistentFeatureFlagsManager {
     }
   >();
 
-  constructor() {
-    this.adapter = new MemoryFeatureFlagsAdapter();
+  constructor(db?: DatabasePort) {
+    if (db) {
+      this.adapter = new PostgresFeatureFlagsAdapter(db);
+    } else {
+      this.adapter = new MemoryFeatureFlagsAdapter();
+    }
     this.init();
   }
 
-  private init() {
+  private async init() {
+    // Initialize Postgres adapter if using it
+    if (this.adapter instanceof PostgresFeatureFlagsAdapter) {
+      await this.adapter.init();
+    }
+
     // 1. Load initial default catalog
     for (const [key, meta] of Object.entries(DEFAULT_PLATFORM_FLAGS)) {
       this.adapter.setFlag(key, meta.value, meta.description, {
@@ -184,51 +197,53 @@ export class PersistentFeatureFlagsManager {
       });
     }
 
-    // 2. Load disk overrides if existing
-    try {
-      if (fs.existsSync(FEATURE_FLAGS_FILE)) {
-        const raw = fs.readFileSync(FEATURE_FLAGS_FILE, "utf-8");
-        const parsed = JSON.parse(raw);
-        if (typeof parsed === "object" && parsed !== null) {
-          for (const [key, flagRecord] of Object.entries(parsed)) {
-            const record = flagRecord as {
-              value?: boolean | string;
-              description?: string;
-              rolesAllowlist?: string[];
-              usersAllowlist?: string[];
-              tenantsAllowlist?: string[];
-              plansAllowlist?: string[];
-              percentageRollout?: number;
-            };
-            const val = record?.value !== undefined ? record.value : flagRecord;
-            if (val !== undefined) {
-              const desc = record?.description;
-              this.adapter.setFlag(key, val as boolean | string, desc);
-              if (typeof flagRecord === "object" && flagRecord !== null) {
-                this.flagMetadata.set(key, {
-                  rolesAllowlist: record.rolesAllowlist,
-                  usersAllowlist: record.usersAllowlist,
-                  tenantsAllowlist: record.tenantsAllowlist,
-                  plansAllowlist: record.plansAllowlist,
-                  percentageRollout: record.percentageRollout,
-                });
+    // 2. Load disk overrides if existing (only for memory adapter)
+    if (this.adapter instanceof MemoryFeatureFlagsAdapter) {
+      try {
+        if (fs.existsSync(FEATURE_FLAGS_FILE)) {
+          const raw = fs.readFileSync(FEATURE_FLAGS_FILE, "utf-8");
+          const parsed = JSON.parse(raw);
+          if (typeof parsed === "object" && parsed !== null) {
+            for (const [key, flagRecord] of Object.entries(parsed)) {
+              const record = flagRecord as {
+                value?: boolean | string;
+                description?: string;
+                rolesAllowlist?: string[];
+                usersAllowlist?: string[];
+                tenantsAllowlist?: string[];
+                plansAllowlist?: string[];
+                percentageRollout?: number;
+              };
+              const val = record?.value !== undefined ? record.value : flagRecord;
+              if (val !== undefined) {
+                const desc = record?.description;
+                this.adapter.setFlag(key, val as boolean | string, desc);
+                if (typeof flagRecord === "object" && flagRecord !== null) {
+                  this.flagMetadata.set(key, {
+                    rolesAllowlist: record.rolesAllowlist,
+                    usersAllowlist: record.usersAllowlist,
+                    tenantsAllowlist: record.tenantsAllowlist,
+                    plansAllowlist: record.plansAllowlist,
+                    percentageRollout: record.percentageRollout,
+                  });
+                }
               }
             }
           }
         }
+      } catch (e) {
+        console.warn(
+          "[FeatureFlags] Failed to read .mosaix/feature-flags.json:",
+          e,
+        );
       }
-    } catch (e) {
-      console.warn(
-        "[FeatureFlags] Failed to read .mosaix/feature-flags.json:",
-        e,
-      );
     }
 
     // 3. Register as global SDK provider
     registerFeatureFlagsProvider(this.adapter);
   }
 
-  public getAdapter(): MemoryFeatureFlagsAdapter {
+  public getAdapter(): MemoryFeatureFlagsAdapter | PostgresFeatureFlagsAdapter {
     return this.adapter;
   }
 
@@ -379,4 +394,36 @@ export class PersistentFeatureFlagsManager {
   }
 }
 
-export const platformFeatureFlags = new PersistentFeatureFlagsManager();
+let platformFeatureFlagsInstance: PersistentFeatureFlagsManager | null = null;
+
+export function getPlatformFeatureFlags(db?: DatabasePort): PersistentFeatureFlagsManager {
+  if (!platformFeatureFlagsInstance) {
+    platformFeatureFlagsInstance = new PersistentFeatureFlagsManager(db);
+  }
+  return platformFeatureFlagsInstance;
+}
+
+// Backward compatibility - lazy initialization without DB (falls back to memory adapter)
+export const platformFeatureFlags = {
+  get isEnabled(): PersistentFeatureFlagsManager["isEnabled"] {
+    return getPlatformFeatureFlags().isEnabled.bind(getPlatformFeatureFlags());
+  },
+  get isEnabledSync(): PersistentFeatureFlagsManager["isEnabledSync"] {
+    return getPlatformFeatureFlags().isEnabledSync.bind(getPlatformFeatureFlags());
+  },
+  get listFlags(): PersistentFeatureFlagsManager["listFlags"] {
+    return getPlatformFeatureFlags().listFlags.bind(getPlatformFeatureFlags());
+  },
+  get setFlag(): PersistentFeatureFlagsManager["setFlag"] {
+    return getPlatformFeatureFlags().setFlag.bind(getPlatformFeatureFlags());
+  },
+  get toggleFlag(): PersistentFeatureFlagsManager["toggleFlag"] {
+    return getPlatformFeatureFlags().toggleFlag.bind(getPlatformFeatureFlags());
+  },
+  get getAllFlagsSnapshot(): PersistentFeatureFlagsManager["getAllFlagsSnapshot"] {
+    return getPlatformFeatureFlags().getAllFlagsSnapshot.bind(getPlatformFeatureFlags());
+  },
+  get getAdapter(): () => PersistentFeatureFlagsManager["getAdapter"] {
+    return () => getPlatformFeatureFlags().getAdapter();
+  },
+} as unknown as PersistentFeatureFlagsManager;

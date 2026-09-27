@@ -100,13 +100,13 @@ export class SolidarityServiceProvider {
 export async function createSolidarityApp(
   kernel: RuntimeKernel,
   tenant: TenantIdentity,
-  _adapters?: SolidarityAdapters
+  adapters?: SolidarityAdapters
 ): Promise<{ container: Container; router: Router; app: MosaixApp }> {
   return createBoundedAppBootstrap({
     manifest: MANIFEST as unknown as ApplicationManifest,
     tenant,
     kernel,
-    provider: new SolidarityServiceProvider(),
+    provider: new SolidarityServiceProvider(adapters),
   });
 }
 

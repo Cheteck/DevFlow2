@@ -14,6 +14,9 @@ export interface ImperiaAuditLog {
   status: "success" | "failure";
   metadata?: Record<string, unknown>;
   createdAt: string;
+  tenantId?: string;
+  resourceId?: string;
+  severity?: string;
 }
 
 export interface ImperiaPolicy {
@@ -71,12 +74,15 @@ export class PostgresImperiaRepository {
     status: "success" | "failure";
     metadata?: Record<string, unknown>;
     createdAt?: Date;
+    tenantId?: string;
+    resourceId?: string;
+    severity?: string;
   }): Promise<void> {
     const id = entry.id ?? `audit_${Date.now()}`;
     const now = entry.createdAt ?? new Date();
     await this.db.query(
-      `INSERT INTO imperia_audit_logs (id, "actorId", action, resource, status, metadata, "createdAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO imperia_audit_logs (id, "actorId", action, resource, status, metadata, "createdAt", "tenantId", "resourceId", severity)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         id,
         entry.actorId,
@@ -85,6 +91,9 @@ export class PostgresImperiaRepository {
         entry.status,
         entry.metadata ? JSON.stringify(entry.metadata) : null,
         now.toISOString(),
+        entry.tenantId ?? null,
+        entry.resourceId ?? null,
+        entry.severity ?? "info",
       ],
     );
   }
@@ -92,7 +101,7 @@ export class PostgresImperiaRepository {
   async getAuditLogs(limit = 100): Promise<ImperiaAuditLog[]> {
     const safeLimit = Math.min(Math.max(limit, 1), 1000);
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT id, "actorId", action, resource, status, metadata, "createdAt"
+      `SELECT id, "actorId", action, resource, status, metadata, "createdAt", "tenantId", "resourceId", severity
        FROM imperia_audit_logs ORDER BY "createdAt" DESC LIMIT $1`,
       [safeLimit],
     );
@@ -106,6 +115,9 @@ export class PostgresImperiaRepository {
         ? { metadata: parseJson<Record<string, unknown>>(r["metadata"], {}) }
         : {}),
       createdAt: asString(r["createdAt"]),
+      tenantId: r["tenantId"] ? asString(r["tenantId"]) : undefined,
+      resourceId: r["resourceId"] ? asString(r["resourceId"]) : undefined,
+      severity: r["severity"] ? asString(r["severity"]) : undefined,
     }));
   }
 

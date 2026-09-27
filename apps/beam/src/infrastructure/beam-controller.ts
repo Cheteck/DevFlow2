@@ -18,7 +18,9 @@ export class BeamMessagingController extends Controller {
       return this.badRequest("title, type and participants are required.");
     }
 
-    const conv = await this.messagingService.createConversation(body.type, body.participants);
+    // `title` est persisté via la colonne `data` JSON (round-trip hydrate),
+    // sans colonne dédiée — voir `PostgresMessagingRepository`.
+    const conv = await this.messagingService.createConversation(body.type, body.participants, body.title);
     return this.created({ message: "Conversation créée avec succès", conversation: conv });
   }
 
@@ -32,13 +34,40 @@ export class BeamMessagingController extends Controller {
   }
 
   async sendMessage(req: HttpRequest): Promise<HttpResponse> {
-    const body = req.body as { conversationId: string; senderId: string; content: string };
+    const body = req.body as {
+      conversationId: string;
+      senderId: string;
+      content: string;
+      replyToMessageId?: string | null;
+      threadId?: string | null;
+      reactions?: Record<string, string[]> | null;
+      attachments?: Array<{
+        id: string;
+        type: "image" | "file" | "audio" | "video";
+        url: string;
+        sizeBytes: number;
+        filename: string;
+      }> | null;
+      encryptedPayload?: {
+        algorithm: "AES-256-GCM";
+        ivHex: string;
+        ciphertextHex: string;
+        authTagHex: string;
+        senderPublicKeyHex: string;
+      } | null;
+    };
     if (!body || !body.conversationId || !body.senderId || !body.content) {
       return this.badRequest("conversationId, senderId and content are required.");
     }
 
     try {
-      const msg = await this.messagingService.sendMessage(body.conversationId, body.senderId, body.content);
+      const msg = await this.messagingService.sendMessage(body.conversationId, body.senderId, body.content, {
+        ...(body.replyToMessageId !== undefined ? { replyToMessageId: body.replyToMessageId } : {}),
+        ...(body.threadId !== undefined ? { threadId: body.threadId } : {}),
+        ...(body.reactions !== undefined ? { reactions: body.reactions } : {}),
+        ...(body.attachments !== undefined ? { attachments: body.attachments } : {}),
+        ...(body.encryptedPayload !== undefined ? { encryptedPayload: body.encryptedPayload } : {}),
+      });
       return this.created({ message: "Message envoyé", sentMessage: msg });
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);

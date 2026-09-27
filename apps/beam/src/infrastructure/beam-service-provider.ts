@@ -4,6 +4,10 @@ import { BeamMessagingService } from "../domain/messaging.model.js";
 import { BeamMessagingController } from "./beam-controller.js";
 import { SendMessageHandler } from "../commands/send-message.command.js";
 import { PostgresMessagingRepository } from "./postgres-messaging-repository.js";
+import {
+  PostgresBeamNotificationRepository,
+  PostgresBeamPushSubscriptionRepository,
+} from "./postgres-beam-notifications-repository.js";
 
 export interface BeamAppServiceProviderOptions {
   databasePort?: DatabasePort;
@@ -17,6 +21,17 @@ export class BeamAppServiceProvider implements ServiceProvider {
     if (this.options.databasePort) {
       postgresRepo = new PostgresMessagingRepository(this.options.databasePort);
       container.instance("postgresMessagingRepository", postgresRepo);
+      // Tables orphelines `beam_notifications` + `beam_push_subscriptions` :
+      // writers Postgres dédiés (pas de pontage avec `BeamPushDispatcher` —
+      // backlog BEAM-PUSH-BRIDGE).
+      container.instance(
+        "postgresBeamNotificationRepository",
+        new PostgresBeamNotificationRepository(this.options.databasePort),
+      );
+      container.instance(
+        "postgresBeamPushSubscriptionRepository",
+        new PostgresBeamPushSubscriptionRepository(this.options.databasePort),
+      );
     }
 
     container.singleton(BeamMessagingService, () => new BeamMessagingService(postgresRepo));

@@ -1,5 +1,5 @@
 import * as crypto from "node:crypto";
-import { OrderModel } from './order.model.js';
+import { OrderModel, type OrderStatus } from './order.model.js';
 import { OrderValidationError, OrderNotFoundError } from './commerce.errors.js';
 import { CheckoutOrderWorkflow, type PaymentPort, type InventoryPort } from '../workflows/checkout-order.workflow.js';
 
@@ -76,5 +76,13 @@ export class OrderService {
 
   async listOrders(): Promise<OrderModel[]> {
     return this.orderRepository.findAll();
+  }
+
+  /** Persisted status transition (e.g. webhook payment confirmation). */
+  async setOrderStatus(id: string, status: OrderStatus): Promise<OrderModel> {
+    const order = await this.getOrderById(id);
+    order.status = status;
+    await this.orderRepository.save(order);
+    return order;
   }
 }

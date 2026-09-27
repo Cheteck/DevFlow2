@@ -48,7 +48,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
 
       if (view === "profile") {
         // --- HIGH FIDELITY FACEBOOK-STYLE PROFILE VIEW ---
-        const userPosts = (await service.listFeedAsync()).filter(p => p.actorId === user.id || p.actorId === "Lord Cheteck" || !p.actorId);
+        const userPosts = (await service.listFeedAsync()).filter(p => p.actorId === user.id || p.actorId === "Administrateur" || !p.actorId);
         
         const userPostsHtml = userPosts.length > 0 ? userPosts.map(p => `
           <article class="glass-card rounded-2xl p-5 space-y-3 border border-outline-variant/20 hover:border-primary/30 transition-all duration-200">
@@ -56,7 +56,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
               <div class="flex items-center gap-3">
                 <img src="/src/assets/images/solara_user_avatar_1790307586946.jpg" alt="Avatar" class="w-10 h-10 rounded-xl object-cover border border-outline-variant/15" />
                 <div>
-                  <h3 class="text-xs font-bold text-on-surface">${escapeHtml(user.id || "Lord Cheteck")}</h3>
+                  <h3 class="text-xs font-bold text-on-surface">${escapeHtml(user.id || "Administrateur")}</h3>
                   <p class="text-[10px] text-on-surface-variant">
                     <span>${new Date(p.createdAt).toLocaleDateString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
                     <span aria-hidden="true" class="text-outline-variant/40"> · </span>
@@ -103,7 +103,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
                   </div>
                   <div class="space-y-1 pb-2">
                     <h2 class="text-xl font-bold text-on-surface flex items-center justify-center md:justify-start gap-2">
-                      <span>${escapeHtml(user.id || "Lord Cheteck")}</span>
+                      <span>${escapeHtml(user.id || "Administrateur")}</span>
                       <span class="material-symbols-outlined text-sm text-primary" title="Compte vérifié">verified</span>
                     </h2>
                     <p class="text-xs text-on-surface-variant font-normal">Gouverneur de la Plateforme & Architecte Logiciel · Jijel, Algérie</p>
@@ -216,7 +216,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
         } else {
           // Default: "for_you" personalized AI recommendation
           rankedPosts = ForYouRecommendationEngine.generateForYouFeed(rawPosts, {
-            userId: user.id || "Lord Cheteck",
+            userId: user.id || "Administrateur",
             followedSpaceIds: ["space-commerce", "space-events"],
             interestTags: ["artisanat", "booking", "musique", "tech"]
           });
@@ -395,7 +395,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
               </div>
 
               <div class="relative">
-                <textarea id="composer-text" rows="3" placeholder="Quoi de neuf aujourd'hui, ${escapeHtml(user.id || 'Lord Cheteck')} ?" class="w-full bg-surface-container-low/60 border border-outline-variant/30 rounded-xl p-3 text-xs text-on-surface focus:outline-none focus:border-primary transition resize-none placeholder:text-on-surface-variant/50"></textarea>
+                <textarea id="composer-text" rows="3" placeholder="Quoi de neuf aujourd'hui, ${escapeHtml(user.id || 'Administrateur')} ?" class="w-full bg-surface-container-low/60 border border-outline-variant/30 rounded-xl p-3 text-xs text-on-surface focus:outline-none focus:border-primary transition resize-none placeholder:text-on-surface-variant/50"></textarea>
               </div>
 
               <div class="flex items-center justify-between pt-1">

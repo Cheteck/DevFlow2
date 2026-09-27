@@ -9,13 +9,11 @@ import { escapeHtml } from "@mosaix/support";
 export function createSpacesDescriptor(): BacDescriptor {
   const SPACES = [
     { id: "spc-01", name: "Chambre d'Agriculture de Jijel (CAJ)", code: "CAJ-JIJEL", members: 18, plan: "Enterprise", status: "Verified" },
-    { id: "spc-02", name: "Espace Solara Lab", code: "SOLARA-LAB", members: 42, plan: "Pro", status: "Verified" },
-    { id: "spc-03", name: "Boutique Bijoux Amel", code: "BIJOUX-AMEL", members: 3, plan: "Free Starter", status: "Verified" },
     { id: "spc-04", name: "Tech Startup Hub", code: "TECH-HUB", members: 7, plan: "Pro", status: "Pending" }
   ];
 
   const MEMBERS = [
-    { name: "Lord Cheteck", email: "lord.cheteck@gmail.com", role: "Propriétaire de l'Espace", avatar: "👤" },
+    { name: "Administrateur", email: "admin@mosaix.network", role: "Propriétaire de l'Espace", avatar: "👤" },
     { name: "Amel", email: "amel@mosaix.io", role: "Designer d'Interface", avatar: "💎" },
     { name: "Ali", email: "ali@mosaix.io", role: "Développeur Principal", avatar: "💻" },
     { name: "Sarah Connor", email: "s.connor@citadelle.io", role: "Administrateur Support", avatar: "🛡️" }
@@ -95,10 +93,10 @@ export function createSpacesDescriptor(): BacDescriptor {
                   </div>
                   <div class="space-y-1 pb-1">
                     <h2 class="text-lg font-bold text-on-surface flex items-center justify-center md:justify-start gap-1.5">
-                      <span>Espace Solara Lab</span>
+                      <span>Espace Collaboratif</span>
                       <span class="material-symbols-outlined text-sm text-primary" title="Organisation certifiée">verified</span>
                     </h2>
-                    <p class="text-xs text-on-surface-variant font-normal">Identifiant unique : <strong class="font-mono text-primary">SOLARA-LAB</strong></p>
+                    <p class="text-xs text-on-surface-variant font-normal">Identifiant unique : <strong class="font-mono text-primary">COLLAB-HUB</strong></p>
                     <p class="text-[10px] text-on-surface-variant/85 mt-0.5">Wilaya de Jijel, Algérie · Forfait Pro</p>
                   </div>
                 </div>
@@ -124,7 +122,7 @@ export function createSpacesDescriptor(): BacDescriptor {
                 <!-- Description Box -->
                 <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-3">
                   <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface">À propos de l'Espace</h3>
-                  <p class="text-xs text-on-surface-variant leading-relaxed">Le Solara Lab est un incubateur d'idées citoyennes et un laboratoire collaboratif pour développer les fonctionnalités souveraines de la plateforme décentralisée MosaiX. Cet espace centralise les efforts de développement, d'ateliers et de commercialisation pour la région de Jijel.</p>
+                  <p class="text-xs text-on-surface-variant leading-relaxed">Un espace collaboratif pour développer des projets citoyens et des fonctionnalités open-source sur la plateforme MosaiX. Cet espace centralise les efforts de développement, d'ateliers et de partage de connaissances.</p>
                 </div>
 
                 <!-- Connected Apps list -->

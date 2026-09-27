@@ -519,7 +519,7 @@ export function renderUserSwitcherWidget(
     : user.roleLabel;
   const userEmail =
     user.role === "admin"
-      ? "lord.cheteck@gmail.com"
+      ? "admin@mosaix.network"
       : `${user.role}@mosaix.network`;
 
   return `

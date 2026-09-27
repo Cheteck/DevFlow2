@@ -18,6 +18,11 @@ import { InMemorySessionStore } from "./infrastructure/in-memory-session-store.j
 import { InMemoryTokenStore } from "./infrastructure/in-memory-token-store.js";
 import { InMemoryCredentialStore } from "./infrastructure/in-memory-credential-store.js";
 import { InMemorySecretsAdapter } from "./infrastructure/in-memory-secrets-adapter.js";
+import {
+  InMemorySocialAccountRepository,
+  type SocialAccountRepository,
+} from "./infrastructure/social-account-repository.js";
+import { RegistrationWizardService } from "./domain/registration-wizard.service.js";
 import { InMemoryGuard } from "@mosaix/support";
 import {
   identityEventPayloadSchemas,
@@ -64,6 +69,10 @@ import { SQLiteTokenStoreAdapter } from "@mosaix/adapter-token-store-sqlite";
 import { SQLiteSessionStoreAdapter } from "@mosaix/adapter-session-store-sqlite";
 
 const defaultAdapters = {
+  // Pas de UserRepository Postgres : le mapping canonique modèle `User` vs
+  // `identities` du shell appartient à la vague citadelle (backlog
+  // DB-BAC-OWNERSHIP) et aucun adapter n'existe dans `packages/` (interdit
+  // d'en créer ici). Reste InMemory par conception, pas par oubli.
   userRepository: () => new InMemoryUserRepository(),
 };
 
@@ -75,6 +84,10 @@ export type CitadelleAdapters = Partial<typeof defaultAdapters> & {
   credentialStore?: CredentialStore;
   /** Override identity store directly (takes precedence over databasePort). */
   identityStore?: IdentityStore;
+  /** Override social-account repository (defaults to in-memory; no Postgres adapter exists yet — backlog). */
+  socialAccountRepository?: SocialAccountRepository;
+  /** Override registration wizard (defaults to a fresh in-memory instance — wizard persistant = backlog). */
+  registrationWizard?: RegistrationWizardService;
 };
 
 export class CitadelleServiceProvider {
@@ -92,6 +105,11 @@ export class CitadelleServiceProvider {
       InMemoryGuard.reportFallback("InMemoryIdentityStore", "missing databasePort in CitadelleAdapters");
     }
 
+    // Postgres : l'auth repose sur les tables shell-owned (`shell.core.v1.001`
+    // → `identities`/`credentials`/`tokens` non préfixées) lues par les
+    // adapters partagés `@mosaix/adapter-*-postgres`. Les tables `citadelle_*`
+    // du provider restent des tables réservées non branchées en attendant
+    // DB-BAC-OWNERSHIP (voir `infrastructure/migrations.ts`).
     const identityStore =
       this.adapters.identityStore ??
       (useDatabase
@@ -100,12 +118,27 @@ export class CitadelleServiceProvider {
           : new PostgresIdentityStoreAdapter(dbPort!))
         : new InMemoryIdentityStore());
 
-    // Persistent stores when explicitly provided or databasePort available
-    const sessionStore =
-      this.adapters.sessionStore ??
-      (useDatabase && isSqlite
-        ? new SQLiteSessionStoreAdapter(dbPort!)
-        : new InMemorySessionStore());
+    // Sessions : aucun PostgresSessionStoreAdapter n'existe dans
+    // `packages/adapters/` (seuls `sqlite` et `redis`), et il est interdit à
+    // cette vague d'en créer un dans `packages/`. Le SQLite adapter n'est PAS
+    // réutilisable sur Postgres (dialecte sqlite, placeurs `?`, table shell
+    // `sessions`) et le Redis adapter exige un client Redis, pas un
+    // DatabasePort. Postgres retombe donc explicitement sur InMemory, gap
+    // tracé (guard + backlog vague citadelle) au lieu d'un ternaire muet.
+    let sessionStore: SessionStore;
+    if (this.adapters.sessionStore) {
+      sessionStore = this.adapters.sessionStore;
+    } else if (useDatabase && isSqlite) {
+      sessionStore = new SQLiteSessionStoreAdapter(dbPort!);
+    } else {
+      if (useDatabase && !isSqlite) {
+        InMemoryGuard.reportFallback(
+          "InMemorySessionStore",
+          "no PostgresSessionStoreAdapter in packages/adapters — sessions stay in-memory on Postgres (backlog)",
+        );
+      }
+      sessionStore = new InMemorySessionStore();
+    }
 
     const tokenStore =
       this.adapters.tokenStore ??
@@ -146,8 +179,18 @@ export class CitadelleServiceProvider {
 
     const controller = new IdentityController(authManager, userService);
 
+    // Wizard + comptes sociaux : branchés en in-memory (alignable sans
+    // nouveau package). Versions persistantes (table `social_accounts`,
+    // wizard persistant, OAuth stocké) = backlog vague citadelle.
+    const socialAccountRepository =
+      this.adapters.socialAccountRepository ?? new InMemorySocialAccountRepository();
+    const registrationWizard =
+      this.adapters.registrationWizard ?? new RegistrationWizardService();
+
     container.instance("userRepository", userRepository);
     container.instance("userService", userService);
+    container.instance("socialAccountRepository", socialAccountRepository);
+    container.instance("registrationWizard", registrationWizard);
     container.instance("authManager", authManager);
     container.instance(IdentityController, controller);
   }

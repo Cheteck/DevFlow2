@@ -1,14 +1,22 @@
 import type { SubscriptionPlan, UserSubscription } from "./subscription.js";
 
+/**
+ * Coupon row — miroir de la table `coupons` possédée par ce BAC
+ * (`SubscriptionPostgresMigrationProvider`) : `discountPercent` XOR
+ * `discountAmountInCents` (colonnes NULLables), `id` exigé par la clé
+ * primaire. Les dates sont des ISO strings (`TIMESTAMP WITH TIME ZONE`).
+ * Aucun lecteur/écrivain hors `CouponRepository` : alignement modèle ↔ DDL
+ * sans risque (zéro usage au moment de l'alignement).
+ */
 export interface Coupon {
+  id: string;
   code: string;
-  discountType: "percent" | "fixed_amount";
-  discountValue: number; // e.g. 20 for 20% or 500 for 5.00€ in cents
-  currency?: string;
-  validUntil?: number;
+  discountPercent?: number | null;
+  discountAmountInCents?: number | null;
   maxRedemptions?: number;
   redemptionsCount: number;
-  firstOrderOnly?: boolean;
+  expiresAt?: string | null;
+  createdAt: string;
 }
 
 export interface ProrationResult {

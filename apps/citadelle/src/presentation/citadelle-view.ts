@@ -8,7 +8,7 @@ import { escapeHtml } from "@mosaix/support";
 
 export function createCitadelleDescriptor(): BacDescriptor {
   const USERS = [
-    { id: "u-001", name: "Lord Cheteck", email: "lord.cheteck@gmail.com", role: "Platform Governor", mfa: "Enabled" },
+    { id: "u-001", name: "Administrateur", email: "admin@mosaix.network", role: "Platform Governor", mfa: "Enabled" },
     { id: "u-002", name: "Sarah Connor", email: "s.connor@citadelle.io", role: "Support Agent", mfa: "Enabled" },
     { id: "u-003", name: "John Doe", email: "j.doe@citizen.dz", role: "Citizen", mfa: "Disabled" },
   ];
@@ -136,11 +136,11 @@ export function createCitadelleDescriptor(): BacDescriptor {
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
                   <span class="text-[10px] text-on-surface-variant uppercase tracking-wider">Nom affiché</span>
-                  <p class="font-bold text-on-surface mt-0.5">${escapeHtml(user.id || "Lord Cheteck")}</p>
+                  <p class="font-bold text-on-surface mt-0.5">${escapeHtml(user.id || "Administrateur")}</p>
                 </div>
                 <div>
                   <span class="text-[10px] text-on-surface-variant uppercase tracking-wider">Adresse Email</span>
-                  <p class="font-bold text-on-surface mt-0.5">${escapeHtml(user.id === 'admin' ? 'lord.cheteck@gmail.com' : 'user@citadelle.io')}</p>
+                  <p class="font-bold text-on-surface mt-0.5">${escapeHtml(user.id === 'admin' ? 'admin@mosaix.network' : 'user@citadelle.io')}</p>
                 </div>
                 <div>
                   <span class="text-[10px] text-on-surface-variant uppercase tracking-wider">Rôle Principal</span>

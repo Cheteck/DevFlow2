@@ -148,6 +148,28 @@ export class SolaraController extends Controller {
     }
   }
 
+  async addReaction(req: HttpRequest): Promise<HttpResponse> {
+    const body = req.body as {
+      targetType: "post" | "comment";
+      targetId: string;
+      actorType: SocialActorType;
+      actorId: string;
+      type: "like" | "love" | "laugh" | "surprised" | "sad" | "angry";
+    };
+
+    if (!body || !body.targetType || !body.targetId || !body.actorType || !body.actorId || !body.type) {
+      return this.badRequest("targetType, targetId, actorType, actorId and type are required.");
+    }
+
+    try {
+      const reaction = await this.socialService.addReaction(body.targetType, body.targetId, body.actorType, body.actorId, body.type);
+      return this.created({ message: "Réaction ajoutée", reaction });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      return this.badRequest(errorMsg);
+    }
+  }
+
   async followActor(req: HttpRequest): Promise<HttpResponse> {
     const body = req.body as {
       followerActorType: SocialActorType;

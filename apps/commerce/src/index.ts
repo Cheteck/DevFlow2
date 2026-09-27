@@ -7,8 +7,9 @@ import { Container, Router, createBoundedAppBootstrap } from "@mosaix/sdk";
 import { MosaixApp, RuntimeKernel, type TenantIdentity } from "@mosaix/sdk";
 import type { ApplicationManifest } from "@mosaix/contracts";
 
-import { OrderRepository } from "./infrastructure/order.repository.js";
-import { OrderService } from "./domain/order.service.js";
+import { InMemoryOrderRepository } from "./infrastructure/postgres-order-repository.js";
+import { OrderService, type OrderRepositoryPort } from "./domain/order.service.js";
+import type { DatabasePort } from "@mosaix/ports-database";
 import { CommerceController } from "./infrastructure/commerce-controller.js";
 import { CommerceAppServiceProvider } from "./infrastructure/commerce-service-provider.js";
 import { commerceEventPayloadSchemas } from "./events/commerce-events.js";
@@ -44,7 +45,8 @@ export const MANIFEST = {
 // SECTION 2 — ADAPTERS
 // =============================================================
 export interface CommerceAdapters {
-  orderRepository?: () => OrderRepository;
+  orderRepository?: () => OrderRepositoryPort;
+  databasePort?: DatabasePort;
 }
 
 // =============================================================
@@ -55,7 +57,8 @@ export class CommerceServiceProvider {
 
   constructor(adapters: CommerceAdapters = {}) {
     this.innerProvider = new CommerceAppServiceProvider(
-      adapters.orderRepository?.()
+      adapters.orderRepository?.(),
+      adapters.databasePort,
     );
   }
 
@@ -112,11 +115,12 @@ export async function createCommerceApp(
 // Legacy Composition Root compatibility
 export function createCommerceComposition(parentContainer?: Container) {
   const container = parentContainer ? parentContainer.createChild() : new Container();
-  const repository = new OrderRepository();
+  const repository = new InMemoryOrderRepository();
   const service = new OrderService(repository);
   const controller = new CommerceController(service);
 
-  container.instance(OrderRepository, repository);
+  container.instance(InMemoryOrderRepository, repository);
+  container.instance("orderRepository", repository);
   container.instance(OrderService, service);
   container.instance(CommerceController, controller);
 
@@ -134,6 +138,6 @@ export * from "./domain/commerce-payment-intent.js";
 export * from "./domain/commerce-offer.model.js";
 export * from "./domain/auction.service.js";
 export * from "./domain/delivery-partner.service.js";
-export * from "./infrastructure/order.repository.js";
+export * from "./infrastructure/postgres-order-repository.js";
 
 

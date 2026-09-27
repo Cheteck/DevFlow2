@@ -19,6 +19,7 @@ const WATCHED_ENV_FILES = [".env", ".env.local"];
 const RESTART_DEBOUNCE_MS = 300;
 
 let child: ChildProcess | null = null;
+let mcpChild: ChildProcess | null = null;
 let restarting = false;
 let stopped = false;
 
@@ -41,6 +42,23 @@ function startChild(): void {
   });
 }
 
+function startMcpServer(): void {
+  if (stopped) return;
+  mcpChild = spawn("pnpm tsx packages/mcp/src/stdio-server.ts", {
+    stdio: ["pipe", "pipe", "inherit"],
+    shell: true,
+    cwd: ROOT,
+    env: process.env,
+  });
+  mcpChild.on("exit", (code, signal) => {
+    mcpChild = null;
+    if (stopped || restarting) return;
+    console.log(
+      `[dev] mcp server exited (code=${code ?? "?"} signal=${signal ?? "?"})`,
+    );
+  });
+}
+
 function restart(reason: string): void {
   if (stopped || restarting || !child) {
     if (!child && !stopped) startChild();
@@ -51,6 +69,7 @@ function restart(reason: string): void {
   child.once("exit", () => {
     restarting = false;
     startChild();
+    startMcpServer();
   });
   child.kill();
 }
@@ -93,6 +112,9 @@ function shutdown(signal: string): void {
   if (child) {
     child.kill(signal as NodeJS.Signals);
   }
+  if (mcpChild) {
+    mcpChild.kill(signal as NodeJS.Signals);
+  }
   // Give the child a moment, then exit even if it hangs (dev-only).
   setTimeout(() => process.exit(0), 1000).unref();
 }
@@ -101,3 +123,4 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 
 startChild();
+startMcpServer();

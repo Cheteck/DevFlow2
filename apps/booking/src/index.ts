@@ -56,8 +56,8 @@ export type BookingAdapters = {
 export class BookingServiceProvider {
   private innerProvider: BookingAppServiceProvider;
 
-  constructor(_adapters: BookingAdapters = {}) {
-    this.innerProvider = new BookingAppServiceProvider();
+  constructor(adapters: BookingAdapters = {}) {
+    this.innerProvider = new BookingAppServiceProvider(adapters);
   }
 
   register(container: Container): void {

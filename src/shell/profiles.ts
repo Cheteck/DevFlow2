@@ -1,5 +1,6 @@
 import type * as http from "node:http";
 import type { URL } from "node:url";
+import type { DatabasePort } from "@mosaix/ports-database";
 
 export interface UserProfile {
   id: string;
@@ -133,47 +134,77 @@ export interface SpaceProfile {
   badge: string;
 }
 
-export const SPACES_LIST: SpaceProfile[] = [
-  {
-    id: "space-bijoux-amel",
-    name: "Bijoux Amel",
-    handle: "@bijoux-amel",
-    avatar: "💍",
-    ownerUserRole: "member",
-    badge: "Business",
-  },
-  {
-    id: "space-solara-lab",
-    name: "Solara Lab",
-    handle: "@solara-lab",
-    avatar: "🧪",
-    ownerUserRole: "moderator",
-    badge: "Non-profit",
-  },
-  {
-    id: "space-imperia-council",
-    name: "Imperia Council",
-    handle: "@imperia-council",
-    avatar: "📜",
-    ownerUserRole: "admin",
-    badge: "Government",
-  },
-];
+let spacesCache: SpaceProfile[] | null = null;
+let spacesCacheTime = 0;
+const SPACES_CACHE_TTL = 60000; // 1 minute
 
-export function getActiveSpaceProfile(
+/**
+ * Sync compatibility view over the DB-backed spaces cache.
+ *
+ * The SSR renderers (`renderer.ts`) resolve a space id synchronously, so
+ * they cannot await `getAvailableSpaces()`. This array is kept in sync on
+ * every cache fill; `getActiveSpaceProfile()` (called before rendering in
+ * `src/start.ts`) populates it, so id lookups keep working without a
+ * second query. Treat as read-only outside this module.
+ */
+export const SPACES_LIST: SpaceProfile[] = [];
+
+function syncSpacesList(spaces: SpaceProfile[]): void {
+  SPACES_LIST.length = 0;
+  SPACES_LIST.push(...spaces);
+}
+
+async function loadSpacesFromDatabase(db: DatabasePort): Promise<SpaceProfile[]> {
+  const rows = await db.query<Record<string, unknown>>(
+    `SELECT id, name, description, owner_role, badge, avatar, members_count, is_private, created_at FROM spaces`,
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    name: String(row.name),
+    handle: `@${String(row.name).toLowerCase().replace(/\s+/g, "-")}`,
+    avatar: row.avatar ? String(row.avatar) : "📁",
+    ownerUserRole: (row.owner_role as "member" | "moderator" | "admin") || "member",
+    badge: row.badge ? String(row.badge) : "Space",
+  }));
+}
+
+export async function getAvailableSpaces(
+  db: DatabasePort,
+): Promise<SpaceProfile[]> {
+  const now = Date.now();
+  if (spacesCache && now - spacesCacheTime < SPACES_CACHE_TTL) {
+    return spacesCache;
+  }
+
+  try {
+    spacesCache = await loadSpacesFromDatabase(db);
+    spacesCacheTime = now;
+    syncSpacesList(spacesCache);
+  } catch {
+    spacesCache = [];
+    syncSpacesList(spacesCache);
+  }
+
+  return spacesCache;
+}
+
+export async function getActiveSpaceProfile(
   req: http.IncomingMessage,
   parsedUrl: URL,
-): SpaceProfile | null {
+  db: DatabasePort,
+): Promise<SpaceProfile | null> {
   const spaceQuery = parsedUrl.searchParams.get("spaceId");
+  const spaces = await getAvailableSpaces(db);
+
   if (spaceQuery) {
-    const space = SPACES_LIST.find((s) => s.id === spaceQuery);
+    const space = spaces.find((s) => s.id === spaceQuery);
     if (space) return space;
   }
 
   const cookieHeader = req.headers.cookie || "";
   const match = cookieHeader.match(/mosaix_active_space=([a-zA-Z0-9_-]+)/);
   if (match) {
-    const space = SPACES_LIST.find((s) => s.id === match[1]);
+    const space = spaces.find((s) => s.id === match[1]);
     if (space) return space;
   }
 

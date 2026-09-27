@@ -9,9 +9,7 @@ import type * as http from "node:http";
 import type { URL } from "node:url";
 import {
   AssetLinksService,
-  DeviceRegistry,
   PkceValidator,
-  RefreshTokenRotator,
   DeltaSyncEngine,
   MobileOpenApiExporter,
   FcmPushAdapter,
@@ -19,11 +17,15 @@ import {
 } from "../../../packages/mobile-bridge/src/index.js";
 import type { UserProfile } from "../../shell/profiles.js";
 import type { FeedService } from "../../shell/feed-service.js";
+import type { DatabasePort } from "@mosaix/ports-database";
+import {
+  AuthCodeStoreAdapter,
+  type AuthCodeRecord,
+} from "../../../packages/mobile-bridge/src/auth/auth-code-store.js";
+import { DeviceRegistryAdapter, type MobileDeviceRegistration } from "../../../packages/mobile-bridge/src/push/device-registry-adapter.js";
+import { RefreshTokenStoreAdapter } from "../../../packages/mobile-bridge/src/auth/refresh-token-store.js";
 
 const fcmAdapter = new FcmPushAdapter();
-
-// In-memory auth codes store for OAuth 2.1 PKCE demo flow
-const authCodes = new Map<string, { userId: string; codeChallenge: string; method: "S256"; expiresAt: number }>();
 
 function readJsonBody(req: http.IncomingMessage, maxBytes: number = 512 * 1024): Promise<Record<string, unknown>> {
   return new Promise((resolve) => {
@@ -63,8 +65,12 @@ export async function handleMobileRoutes(
   res: http.ServerResponse,
   parsedUrl: URL,
   currentUser: UserProfile,
-  feedService: FeedService
+  feedService: FeedService,
+  db: DatabasePort
 ): Promise<boolean> {
+  const authCodeStore = new AuthCodeStoreAdapter(db);
+  const deviceRegistry = new DeviceRegistryAdapter(db);
+  const refreshTokenStore = new RefreshTokenStoreAdapter(db);
   const pathname = parsedUrl.pathname;
 
   // 1. Android Digital Asset Links (RFC & Google App Links Standard)
@@ -102,8 +108,8 @@ export async function handleMobileRoutes(
       return true;
     }
 
-    const registration = DeviceRegistry.register({
-      userId: currentUser.id || "Lord Cheteck",
+    const registration = await deviceRegistry.register({
+      userId: currentUser.id || "Administrateur",
       deviceId,
       fcmToken,
       platform,
@@ -143,12 +149,15 @@ export async function handleMobileRoutes(
 
     // Cryptographically secure authorization code (256 bits entropy)
     const code = `auth_code_${crypto.randomBytes(32).toString("hex")}`;
-    authCodes.set(code, {
-      userId: currentUser.id || "Lord Cheteck",
+    const authCodeRecord: AuthCodeRecord = {
+      id: code,
+      userId: currentUser.id || "Administrateur",
       codeChallenge,
-      method: "S256",
+      codeChallengeMethod: "S256",
       expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
-    });
+      createdAt: Date.now(),
+    };
+    await authCodeStore.save(authCodeRecord);
 
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ success: true, code, expiresInSeconds: 300 }));
@@ -165,7 +174,7 @@ export async function handleMobileRoutes(
       const code = String(body.code || "");
       const codeVerifier = String(body.codeVerifier || "");
 
-      const storedCode = authCodes.get(code);
+      const storedCode = await authCodeStore.findById(code);
       if (!storedCode || storedCode.expiresAt < Date.now()) {
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "invalid_grant", message: "Code d'autorisation expiré ou invalide." }));
@@ -173,8 +182,8 @@ export async function handleMobileRoutes(
       }
 
       // Verify PKCE verifier against stored challenge
-      const isValid = PkceValidator.verify(codeVerifier, storedCode.codeChallenge, storedCode.method);
-      authCodes.delete(code); // One-time use
+      const isValid = PkceValidator.verify(codeVerifier, storedCode.codeChallenge, storedCode.codeChallengeMethod);
+      await authCodeStore.deleteById(code); // One-time use
 
       if (!isValid) {
         res.writeHead(400, { "Content-Type": "application/json" });
@@ -182,7 +191,7 @@ export async function handleMobileRoutes(
         return true;
       }
 
-      const session = RefreshTokenRotator.createSession(storedCode.userId, deviceId);
+      const session = await refreshTokenStore.createSession(storedCode.userId, deviceId);
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(session));
       return true;
@@ -190,7 +199,7 @@ export async function handleMobileRoutes(
 
     if (grantType === "refresh_token") {
       const refreshToken = String(body.refreshToken || "");
-      const rotationResult = RefreshTokenRotator.rotate(refreshToken);
+      const rotationResult = await refreshTokenStore.rotate(refreshToken);
 
       if (!rotationResult.success) {
         res.writeHead(401, { "Content-Type": "application/json" });

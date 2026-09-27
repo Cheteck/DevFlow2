@@ -6,7 +6,10 @@
 
 export * from "./auth/pkce-validator";
 export * from "./auth/refresh-token-rotator";
+export * from "./auth/auth-code-store";
+export * from "./auth/refresh-token-store";
 export * from "./push/device-registry";
+export * from "./push/device-registry-adapter";
 export * from "./push/push-notification-port";
 export * from "./push/fcm-push-adapter";
 export * from "./links/assetlinks-service";

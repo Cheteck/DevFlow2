@@ -155,7 +155,8 @@ export interface FollowerRelation {
 
 export interface SocialReaction {
   id: string;
-  postId: string;
+  targetType: "post" | "comment";
+  targetId: string;
   actorType?: SocialActorType;
   actorId: string;
   type: string;
@@ -170,8 +171,10 @@ export interface SocialRepositoryPort {
   getComments(postId: string): Promise<Comment[]>;
   addFollower(targetActorId: string, follower: FollowerRelation): Promise<void>;
   getFollowers(targetActorId: string): Promise<FollowerRelation[]>;
-  saveReaction(postId: string, reaction: SocialReaction): Promise<void>;
-  getReactions(postId: string): Promise<SocialReaction[]>;
+  saveReaction(targetType: "post" | "comment", targetId: string, reaction: SocialReaction): Promise<void>;
+  getReactions(targetType: "post" | "comment", targetId: string): Promise<SocialReaction[]>;
+  incrementLikeCount(postId: string, delta: number): Promise<void>;
+  incrementCommentsCount(postId: string, delta: number): Promise<void>;
 }
 
 export type SolaraContentHook = (
@@ -337,6 +340,7 @@ export class SolaraSocialService {
 
     if (this.repository) {
       await this.repository.saveComment(postId, comment);
+      await this.repository.incrementCommentsCount(postId, 1);
     }
 
     return comment;
@@ -409,17 +413,26 @@ export class SolaraSocialService {
     return this.getFollowers(targetActorType, targetActorId);
   }
 
-  async addReaction(postId: string, actorType: SocialActorType, actorId: string, type: ReactionModel["type"]): Promise<SocialReaction> {
+  async addReaction(targetType: "post" | "comment", targetId: string, actorType: SocialActorType, actorId: string, type: ReactionModel["type"]): Promise<SocialReaction> {
     const reaction: SocialReaction = {
       id: `react-${crypto.randomUUID()}`,
-      postId,
+      targetType,
+      targetId,
       actorType,
       actorId,
       type,
       createdAt: new Date(),
     };
     if (this.repository) {
-      await this.repository.saveReaction(postId, reaction);
+      await this.repository.saveReaction(targetType, targetId, reaction);
+      if (targetType === "post") {
+        await this.repository.incrementLikeCount(targetId, 1);
+        // Also update in-memory post
+        const post = this.posts.get(targetId);
+        if (post) {
+          post.likeCount++;
+        }
+      }
     }
     return reaction;
   }

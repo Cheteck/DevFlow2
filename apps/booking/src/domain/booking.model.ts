@@ -85,6 +85,42 @@ export interface CreateReservationInput {
   idempotencyKey?: string;
 }
 
+/**
+ * Miroirs structurels (sans import runtime) de `WaitlistEntry`
+ * (booking-calendar-sync.ts) et `BookingReminder` (booking-portal-resources.ts).
+ * Évite un cycle runtime booking.model ↔ calendar-sync (qui importe déjà les
+ * types du modèle) ; le repo mappe ces formes vers les colonnes typées.
+ */
+export interface WaitlistEntryLike {
+  id: string;
+  slotId: string;
+  customerId: string;
+  customerName: string;
+  customerEmail: string;
+  joinedAt: Date | string;
+  status: "waiting" | "promoted" | "expired";
+}
+
+export interface ReminderInputLike {
+  id: string;
+  slotId: string;
+  userId: string;
+  triggerTime: Date | string;
+  type?: "T_MINUS_24H" | "T_MINUS_1H";
+  reservationId?: string;
+  status?: string;
+}
+
+export interface PersistedReminderLike {
+  id: string;
+  slotId: string;
+  userId: string;
+  triggerTime: string;
+  type?: "T_MINUS_24H" | "T_MINUS_1H";
+  reservationId: string;
+  status: string;
+}
+
 export class BookingStateMachine {
   private static readonly VALID_TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
     draft: ["pending", "held", "confirmed", "cancelled"],
@@ -160,6 +196,8 @@ export class BookingService {
   private reservations = new Map<string, Reservation>();
   private idempotencyStore = new Map<string, string>();
   private domainEvents: BookingDomainEvent[] = [];
+  private waitlistFallback = new Map<string, WaitlistEntryLike[]>();
+  private reminderFallback = new Map<string, ReminderInputLike & { createdAt: string }>();
 
   private postgresRepo?: {
     saveSlot(slot: BookingSlot): Promise<void>;
@@ -168,11 +206,15 @@ export class BookingService {
     saveReservation(res: Reservation): Promise<void>;
     getReservation(id: string): Promise<Reservation | null>;
     listReservations(slotId?: string, customerId?: string): Promise<Reservation[]>;
+    getReservationByIdempotencyKey?(key: string): Promise<Reservation | null>;
+    saveWaitlistEntry?(entry: WaitlistEntryLike, position?: number): Promise<void>;
+    listWaitlistBySlot?(slotId: string): Promise<WaitlistEntryLike[]>;
+    saveReminder?(input: ReminderInputLike): Promise<void>;
+    listPendingReminders?(now?: Date | string): Promise<PersistedReminderLike[]>;
   };
 
   constructor(postgresRepo?: NonNullable<BookingService["postgresRepo"]>) {
     this.postgresRepo = postgresRepo;
-    this.seedDefaultSlots();
   }
 
   getRecordedEvents(): readonly BookingDomainEvent[] {
@@ -183,64 +225,22 @@ export class BookingService {
     this.domainEvents.push(event);
   }
 
-  async seedDefaultSlots(): Promise<void> {
-    const defaultSlots: BookingSlot[] = [
-      {
-        id: "slot-001",
-        providerId: "provider-amel",
-        serviceName: "Consultation Joaillerie & Sur-mesure",
-        startTime: new Date(Date.now() + 86400000).toISOString(),
-        endTime: new Date(Date.now() + 90000000).toISOString(),
-        timezone: "Europe/Paris",
-        capacity: 1,
-        reservedCount: 0,
-        status: "available",
-        location: "Showroom Bijoux Amel, Paris",
-        price: 85,
-        currency: "EUR",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "slot-002",
-        providerId: "provider-solara",
-        serviceName: "Atelier Collaboratif — Économie Circulaire",
-        startTime: new Date(Date.now() + 172800000).toISOString(),
-        endTime: new Date(Date.now() + 180000000).toISOString(),
-        timezone: "Europe/Paris",
-        capacity: 10,
-        reservedCount: 3,
-        status: "available",
-        location: "Espace Solara Lab, Lyon",
-        price: 0,
-        currency: "EUR",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "slot-003",
-        providerId: "provider-imperia",
-        serviceName: "Audition de Conformité & Audit Gouvernance",
-        startTime: new Date(Date.now() + 259200000).toISOString(),
-        endTime: new Date(Date.now() + 266400000).toISOString(),
-        timezone: "Europe/Paris",
-        capacity: 4,
-        reservedCount: 4,
-        status: "fully_booked",
-        location: "Chambre MosaiX Imperia (Visio)",
-        price: 250,
-        currency: "EUR",
-        createdAt: new Date().toISOString(),
-      },
-    ];
-
-    for (const slot of defaultSlots) {
-      this.slots.set(slot.id, slot);
-      if (this.postgresRepo) {
-        await this.postgresRepo.saveSlot(slot);
-      }
-    }
-  }
-
   async createSlot(input: CreateSlotInput): Promise<BookingSlot> {
+    // Validation domaine startTime < endTime (tâche BAC booking #7).
+    // Volontairement applicative : la grammaire ne compile pas les CHECK
+    // natifs (PostgresGrammar n'émet des CHECK que pour les ENUM).
+    const start = new Date(input.startTime);
+    const end = new Date(input.endTime);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new Error(
+        "Créneau invalide : startTime et endTime doivent être des dates ISO valides."
+      );
+    }
+    if (start.getTime() >= end.getTime()) {
+      throw new Error(
+        "Créneau invalide : startTime doit être strictement antérieur à endTime."
+      );
+    }
     const capacity = input.capacity && input.capacity > 0 ? input.capacity : 1;
     const now = new Date().toISOString();
     const slot: BookingSlot = {
@@ -314,11 +314,22 @@ export class BookingService {
   }
 
   private async executeCreateReservation(input: CreateReservationInput): Promise<Reservation> {
-    // Idempotency check
+    // Idempotency check — mémoire d'abord, puis colonne persistée
+    // (lookup avant create, tâche BAC booking #8 : la Map volatile ne
+    // suffisait pas après redémarrage).
     if (input.idempotencyKey && this.idempotencyStore.has(input.idempotencyKey)) {
       const existingId = this.idempotencyStore.get(input.idempotencyKey)!;
       const existing = await this.getReservation(existingId);
       if (existing) return existing;
+    }
+    if (input.idempotencyKey && this.postgresRepo?.getReservationByIdempotencyKey) {
+      const persisted = await this.postgresRepo.getReservationByIdempotencyKey(
+        input.idempotencyKey
+      );
+      if (persisted) {
+        this.idempotencyStore.set(input.idempotencyKey, persisted.id);
+        return persisted;
+      }
     }
 
     const slot = await this.getSlot(input.slotId);
@@ -459,5 +470,65 @@ export class BookingService {
       list = list.filter((r) => r.customerId === filters.customerId);
     }
     return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  /**
+   * Waitlist — délégation repo (tables `booking_waitlists` branchées, tâche
+   * BAC booking #2) avec fallback mémoire quand aucun repo n'est injecté.
+   */
+  async saveWaitlistEntry(entry: WaitlistEntryLike, position?: number): Promise<void> {
+    if (this.postgresRepo?.saveWaitlistEntry) {
+      await this.postgresRepo.saveWaitlistEntry(entry, position);
+      return;
+    }
+    const list = this.waitlistFallback.get(entry.slotId) ?? [];
+    const idx = list.findIndex((e) => e.id === entry.id);
+    if (idx >= 0) list[idx] = entry;
+    else list.push(entry);
+    this.waitlistFallback.set(entry.slotId, list);
+  }
+
+  async listWaitlistBySlot(slotId: string): Promise<WaitlistEntryLike[]> {
+    if (this.postgresRepo?.listWaitlistBySlot) {
+      return this.postgresRepo.listWaitlistBySlot(slotId);
+    }
+    return [...(this.waitlistFallback.get(slotId) ?? [])];
+  }
+
+  /**
+   * Reminders — délégation repo (table `booking_reminders` branchée, tâche
+   * BAC booking #2) avec fallback mémoire. Mapping domaine → colonnes dans
+   * `PostgresBookingRepository.saveReminder`.
+   */
+  async saveReminder(input: ReminderInputLike): Promise<void> {
+    if (this.postgresRepo?.saveReminder) {
+      await this.postgresRepo.saveReminder(input);
+      return;
+    }
+    this.reminderFallback.set(input.id, {
+      ...input,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  async listPendingReminders(now: Date | string = new Date()): Promise<PersistedReminderLike[]> {
+    if (this.postgresRepo?.listPendingReminders) {
+      return this.postgresRepo.listPendingReminders(now);
+    }
+    const cursor = (now instanceof Date ? now : new Date(now)).getTime();
+    return Array.from(this.reminderFallback.values())
+      .filter((r) => (r.status ?? "Scheduled") === "Scheduled")
+      .filter((r) => new Date(r.triggerTime).getTime() <= cursor)
+      .map((r) => ({
+        id: r.id,
+        slotId: r.slotId,
+        userId: r.userId,
+        triggerTime:
+          r.triggerTime instanceof Date ? r.triggerTime.toISOString() : r.triggerTime,
+        type: r.type ?? "T_MINUS_24H",
+        reservationId: r.reservationId ?? r.slotId,
+        status: r.status ?? "Scheduled",
+      }))
+      .sort((a, b) => new Date(a.triggerTime).getTime() - new Date(b.triggerTime).getTime());
   }
 }

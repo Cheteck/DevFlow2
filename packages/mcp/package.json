@@ -10,7 +10,8 @@
     "dev": "tsc --build --watch",
     "build": "tsc --build",
     "clean": "rimraf dist",
-    "test": "vitest run"
+    "test": "vitest run",
+    "stdio": "tsx src/stdio-server.ts"
   },
   "files": [
     "dist"

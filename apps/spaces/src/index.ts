@@ -120,13 +120,13 @@ export class SpacesServiceProvider {
 export async function createSpacesApp(
   kernel: RuntimeKernel,
   tenant: TenantIdentity,
-  _adapters?: SpacesAdapters
+  adapters?: SpacesAdapters
 ): Promise<{ container: Container; router: Router; app: MosaixApp }> {
   return createBoundedAppBootstrap({
     manifest: MANIFEST as unknown as ApplicationManifest,
     tenant,
     kernel,
-    provider: new SpacesServiceProvider(),
+    provider: new SpacesServiceProvider(adapters),
   });
 }
 

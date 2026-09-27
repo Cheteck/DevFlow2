@@ -15,11 +15,13 @@ export class CommercePostgresMigrationProvider implements MigrationProvider {
     const builder = new SchemaBuilder();
     const grammar = new PostgresGrammar();
 
-    // 1. Orders
+    // 1. Orders — 15 colonnes, camelCase. Aligned with OrderModel:
+    // vendableId REQUIRED (OrderService validates non-empty), customerId kept
+    // nullable as reserved extension (no domain pendant yet — see backlog).
     builder.createTable("commerce_orders", (table) => {
       table.string("id").primary();
       table.string("userId");
-      table.string("vendableId").nullable();
+      table.string("vendableId");
       table.string("customerId").nullable();
       table.enum("status", [
         "Pending",
@@ -37,7 +39,6 @@ export class CommercePostgresMigrationProvider implements MigrationProvider {
       table.json("shippingAddress").nullable();
       table.json("billingAddress").nullable();
       table.json("lineItems").nullable();
-      table.json("items").nullable();
       table.timestamp("createdAt");
       table.timestamp("updatedAt");
       table.timestamp("deletedAt").nullable();
@@ -56,7 +57,9 @@ export class CommercePostgresMigrationProvider implements MigrationProvider {
       table.string("currency").default("EUR");
       table.integer("commissionRateBps").default(500);
       table.integer("stockQuantity").default(1);
-      table.enum("status", ["Active", "Inactive", "SoldOut", "Archived"]);
+      // Aligned with CommerceOfferStatus (commerce-offer.model.ts):
+      // DRAFT / ACTIVE / PAUSED / ARCHIVED.
+      table.enum("status", ["DRAFT", "ACTIVE", "PAUSED", "ARCHIVED"]);
       table.timestamp("createdAt");
       table.timestamp("updatedAt");
       table.index("idx_offers_vendable", ["vendableId"]);
@@ -90,7 +93,10 @@ export class CommercePostgresMigrationProvider implements MigrationProvider {
       table.integer("startingPriceInCents");
       table.integer("reservePriceInCents").nullable();
       table.integer("currentHighBidInCents").default(0);
-      table.enum("status", ["Draft", "Active", "Extended", "Closed", "Cancelled"]);
+      // Aligned with AuctionStatus (auction.service.ts): lowercase
+      // draft / active / closed / cancelled (no "extended" — anti-sniping
+      // extends endTime, status stays "active").
+      table.enum("status", ["draft", "active", "closed", "cancelled"]);
       table.timestamp("startTime");
       table.timestamp("endTime");
       table.boolean("antiSnipingTriggered").default(false);

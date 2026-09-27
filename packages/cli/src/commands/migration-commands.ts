@@ -5,6 +5,10 @@
  *   persistent `mosaix_migrations` ledger and apply the delta.
  * - `mosaix migrate:status` — desired vs applied state per migration.
  * - `mosaix migrate:rollback [--steps=N]` — undo the last batch (or N steps).
+ * - `mosaix migrate:fresh` — drop all tables and re-run all migrations.
+ * - `mosaix migrate:install` — create the migration repository table.
+ * - `mosaix migrate:reset` — rollback all migrations.
+ * - `mosaix migrate:mark <id>` — mark a migration as applied without running it.
  *
  * All commands resolve the driver from `.env` through the shared CLI
  * database wiring (`database-command.ts`): `DB_CONNECTION` selects
@@ -118,8 +122,100 @@ export class MigrateRollbackCommand implements CliCommand {
   }
 }
 
+export class MigrateFreshCommand implements CliCommand {
+  readonly name = "migrate:fresh";
+  readonly description = "Drop all tables and re-run all migrations";
+
+  async execute(ctx: CommandContext): Promise<CLIResult> {
+    const { cli, db, manager, connection } = await buildMigrationCli(ctx);
+    try {
+      await db.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
+      const result = await cli.migrate();
+      return ctx.respond(
+        `Database migrated fresh on [${connection}].`,
+        result,
+      );
+    } finally {
+      await manager.close();
+    }
+  }
+}
+
+export class MigrateInstallCommand implements CliCommand {
+  readonly name = "migrate:install";
+  readonly description = "Create the migration repository table";
+
+  async execute(ctx: CommandContext): Promise<CLIResult> {
+    const { db, manager, connection } = await connectCliDatabase(ctx);
+    try {
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS mosaix_migrations (
+          id TEXT PRIMARY KEY,
+          owner TEXT NOT NULL,
+          checksum TEXT NOT NULL,
+          batch_id TEXT NOT NULL,
+          applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
+      `);
+      return ctx.respond(
+        `Migration table created on [${connection}].`,
+        { success: true },
+      );
+    } finally {
+      await manager.close();
+    }
+  }
+}
+
+export class MigrateResetCommand implements CliCommand {
+  readonly name = "migrate:reset";
+  readonly description = "Rollback all database migrations";
+
+  async execute(ctx: CommandContext): Promise<CLIResult> {
+    const { cli, manager, connection } = await buildMigrationCli(ctx);
+    try {
+      const result = await cli.rollback({ kind: "all" });
+      return ctx.respond(
+        `All migrations rolled back on [${connection}].`,
+        result,
+      );
+    } finally {
+      await manager.close();
+    }
+  }
+}
+
+export class MigrateMarkCommand implements CliCommand {
+  readonly name = "migrate:mark";
+  readonly description = "Mark a migration as applied without running it (usage: migrate:mark <migration-id>)";
+
+  async execute(ctx: CommandContext): Promise<CLIResult> {
+    const { db, manager, connection } = await connectCliDatabase(ctx);
+    try {
+      const migrationId = ctx.args.find(a => !a.startsWith("--"));
+      if (!migrationId) {
+        return ctx.respond("Usage: mosaix migrate:mark <migration-id>", { error: "Missing migration ID" });
+      }
+      await db.execute(
+        `INSERT INTO mosaix_migrations (id, owner, checksum, batch_id, applied_at) VALUES ($1, 'manual', 'manual', 'manual-' || gen_random_uuid(), now()) ON CONFLICT (id) DO NOTHING`,
+        [migrationId]
+      );
+      return ctx.respond(
+        `Migration [${migrationId}] marked as applied on [${connection}].`,
+        { success: true, migrationId },
+      );
+    } finally {
+      await manager.close();
+    }
+  }
+}
+
 export const migrationCommands: CliCommand[] = [
   new MigrateCommand(),
   new MigrateStatusCommand(),
   new MigrateRollbackCommand(),
+  new MigrateFreshCommand(),
+  new MigrateInstallCommand(),
+  new MigrateResetCommand(),
+  new MigrateMarkCommand(),
 ];

@@ -12,6 +12,7 @@ export interface SolidarityRepositoryPort {
   getResources(): Promise<Resource[]>;
   saveHub(hub: Hub): Promise<void>;
   getHubs(): Promise<Hub[]>;
+  findDefaultHub(): Promise<Hub | null>;
   saveMission(mission: Mission): Promise<void>;
   getMissions(): Promise<Mission[]>;
   saveDistribution(distribution: Distribution): Promise<void>;
@@ -57,7 +58,7 @@ export class SolidarityService {
     return need;
   }
 
-  async submitDonation(data: Omit<Donation, 'id' | 'verificationStatus' | 'createdAt'>): Promise<Donation> {
+  async submitDonation(data: Omit<Donation, 'id' | 'verificationStatus' | 'createdAt'> & { hubId?: string }): Promise<Donation> {
     const donation: Donation = {
       ...data,
       id: `DON-${crypto.randomUUID()}`,
@@ -65,6 +66,32 @@ export class SolidarityService {
       createdAt: new Date().toISOString()
     };
     this.donations.set(donation.id, donation);
+
+    // Determine hubId: use provided, else find/create default
+    let hubId = data.hubId;
+    if (!hubId && this.repository) {
+      const defaultHub = await this.repository.findDefaultHub();
+      if (defaultHub) {
+        hubId = defaultHub.id;
+      } else {
+        // Create a default hub as fallback
+        const fallbackHub: Hub = {
+          id: `HUB-${crypto.randomUUID()}`,
+          spaceId: 'DEFAULT-SPACE',
+          name: 'Default Hub',
+          type: 'WAREHOUSE',
+          capacityM3: 1000,
+          trustLevel: 'UNVERIFIED',
+          geoZone: 'DEFAULT'
+        };
+        hubId = fallbackHub.id;
+        this.hubs.set(fallbackHub.id, fallbackHub);
+        await this.repository.saveHub(fallbackHub);
+      }
+    }
+    if (!hubId) {
+      hubId = 'HUB-DEFAULT';
+    }
 
     // Auto-create Resource
     const resource: Resource = {
@@ -74,7 +101,7 @@ export class SolidarityService {
       type: donation.itemType,
       totalQuantity: donation.quantity,
       availableQuantity: donation.quantity,
-      hubId: 'HUB-DEFAULT',
+      hubId,
       status: 'AVAILABLE'
     };
     this.resources.set(resource.id, resource);
@@ -228,5 +255,47 @@ export class SolidarityService {
       }
     }
     return this.getMissions();
+  }
+
+  getResources(): Resource[] {
+    return Array.from(this.resources.values());
+  }
+
+  async getResourcesAsync(): Promise<Resource[]> {
+    if (this.repository) {
+      try {
+        const fromDb = await this.repository.getResources();
+        if (fromDb.length > 0) {
+          for (const r of fromDb) {
+            this.resources.set(r.id, r);
+          }
+          return fromDb;
+        }
+      } catch (err: unknown) {
+        console.error("[Solidarity] Failed to fetch resources:", err);
+      }
+    }
+    return this.getResources();
+  }
+
+  getDistributions(): Distribution[] {
+    return Array.from(this.distributions.values());
+  }
+
+  async getDistributionsAsync(): Promise<Distribution[]> {
+    if (this.repository) {
+      try {
+        const fromDb = await this.repository.getDistributions();
+        if (fromDb.length > 0) {
+          for (const d of fromDb) {
+            this.distributions.set(d.id, d);
+          }
+          return fromDb;
+        }
+      } catch (err: unknown) {
+        console.error("[Solidarity] Failed to fetch distributions:", err);
+      }
+    }
+    return this.getDistributions();
   }
 }

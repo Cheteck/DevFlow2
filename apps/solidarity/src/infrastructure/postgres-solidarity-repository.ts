@@ -141,6 +141,15 @@ export class PostgresSolidarityRepository {
       .filter((h): h is Hub => h !== null);
   }
 
+  async findDefaultHub(): Promise<Hub | null> {
+    const rows = await this.db.query<Record<string, unknown>>(
+      `SELECT data FROM solidarity_hubs WHERE name = 'Default Hub' LIMIT 1`
+    );
+    if (rows.length === 0) return null;
+    const raw = rows[0]["data"];
+    return raw === undefined ? null : hydrate<Hub>(raw);
+  }
+
   async saveMission(mission: Mission): Promise<void> {
     await this.db.query(
       `INSERT INTO solidarity_missions (id, "originHubId", status, data)

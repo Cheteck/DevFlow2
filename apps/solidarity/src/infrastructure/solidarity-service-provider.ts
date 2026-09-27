@@ -48,5 +48,13 @@ export class SolidarityAppServiceProvider implements ServiceProvider {
       const data = await service.getMissionsAsync();
       return { statusCode: 200, body: data };
     });
+    router.get("/solidarity/resources", async (_req: HttpRequest): Promise<HttpResponse> => {
+      const data = await service.getResourcesAsync();
+      return { statusCode: 200, body: data };
+    });
+    router.get("/solidarity/distributions", async (_req: HttpRequest): Promise<HttpResponse> => {
+      const data = await service.getDistributionsAsync();
+      return { statusCode: 200, body: data };
+    });
   }
 }

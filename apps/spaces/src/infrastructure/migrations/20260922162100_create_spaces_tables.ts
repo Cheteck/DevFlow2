@@ -14,6 +14,7 @@ builder.createTable("spaces_spaces", (table) => {
   table.string("tenantId").nullable();
   table.integer("followersCount").default(0);
   table.string("customDomain").nullable();
+  table.string("subscriptionPlan").nullable();
   table.json("enabledCapabilities").nullable();
   table.json("publicNavigation").nullable();
   table.json("team").nullable();
@@ -21,9 +22,9 @@ builder.createTable("spaces_spaces", (table) => {
   table.timestamp("createdAt");
   table.timestamp("updatedAt").nullable();
   table.unique("uniq_spaces_slug", ["slug"]);
+  table.unique("uniq_spaces_custom_domain", ["customDomain"]);
   table.index("idx_spaces_owner", ["ownerId"]);
   table.index("idx_spaces_tenant", ["tenantId"]);
-  table.index("idx_spaces_domain", ["customDomain"]);
 });
 
 // 2. Permissions Table

@@ -11,6 +11,7 @@ import type { UserProfile } from "../shell/profiles.js";
 import type { FeedService } from "../shell/feed-service.js";
 import type { DistributedEventBackplane } from "../shell/event-backplane.js";
 import type { AnonymizationOrchestrator } from "../shell/anonymization-orchestrator.js";
+import type { DatabasePort } from "@mosaix/ports-database";
 import { sendProblemResponse } from "../shell/http-errors.js";
 
 import { handleMaintenanceRoutes } from "./routes/maintenance-routes.js";
@@ -33,6 +34,7 @@ export interface ApiDispatcherContext {
   feedService: FeedService;
   eventBackplane: DistributedEventBackplane;
   anonymizationOrchestrator: AnonymizationOrchestrator;
+  db: DatabasePort;
 }
 
 export type ApiRouteHandler = (
@@ -129,9 +131,9 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
 );
 
 // 9. Mobile Bridge (PKCE, FCM Push, Delta Sync, Codegen)
-apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
-  handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.feedService),
-);
+  apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
+    handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.feedService, ctx.db),
+  );
 
 export async function dispatchApiRequest(
   req: http.IncomingMessage,
@@ -177,6 +179,7 @@ export async function dispatchApiRequest(
       parsedUrl,
       context.currentUser,
       context.feedService,
+      context.db,
     );
   }
 

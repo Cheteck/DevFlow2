@@ -1,3 +1,21 @@
+/**
+ * @apps/citadelle — Postgres migration provider (Phase-0 BAC wiring).
+ *
+ * OWNERSHIP RÉSOLUE : le shell possède les tables d'authentification core
+ * (`identities`, `credentials`, `sessions`, `tokens`, `external_identities`
+ * non préfixées, créées par `shell.core.v1.003_minimal_core_tables`).
+ *
+ * Ce provider NE CRÉE PLUS les tables `citadelle_*` préfixées :
+ * - Elles étaient inutilisées (runtime = tables shell via adapters partagés)
+ * - Doublon résolu : tables shell = source de vérité unique
+ * - Transfert d'ownership `citadelle_*` → shell effectué
+ *
+ * Ce provider expose une migration no-op (garde de longueur Phase-0 :
+ * `CanonicalIdProvider` attend exactement 1 migration). La vraie vague
+ * citadelle (DB-BAC-OWNERSHIP) pourra plus tard ajouter des tables
+ * spécifiques citadelle (`social_accounts`, `registration_drafts`, etc.)
+ * via une migration `citadelle.auth.v1.002_...`.
+ */
 import {
   SchemaBuilder,
   PostgresGrammar,
@@ -15,68 +33,28 @@ export class CitadellePostgresMigrationProvider implements MigrationProvider {
     const builder = new SchemaBuilder();
     const grammar = new PostgresGrammar();
 
-    // 1. Identities
-    builder.createTable("citadelle_identities", (table) => {
-      table.string("id").primary();
-      table.string("tenant_id");
-      table.string("email");
-      table.string("status").default("active");
-      table.string("display_name").nullable();
-      table.json("roles").nullable();
-      table.string("mfa_secret").nullable();
-      table.json("metadata").nullable();
-      table.timestamp("created_at");
-      table.timestamp("updated_at");
-      table.unique("uniq_citadelle_email", ["email"]);
-      table.index("idx_identities_email", ["email"]);
-      table.index("idx_identities_tenant", ["tenant_id"]);
-    });
-
-    // 2. Credentials
-    builder.createTable("citadelle_credentials", (table) => {
-      table.string("id").primary();
-      table.string("identity_id");
-      table.string("type");
-      table.json("data");
-      table.timestamp("created_at");
-      table.foreignKey("identity_id", "citadelle_identities", "id");
-      table.index("idx_credentials_identity", ["identity_id"]);
-    });
-
-    // 3. Sessions
-    builder.createTable("citadelle_sessions", (table) => {
-      table.string("id").primary();
-      table.string("identity_id");
-      table.timestamp("expires_at");
-      table.json("data").nullable();
-      table.foreignKey("identity_id", "citadelle_identities", "id");
-      table.index("idx_sessions_identity", ["identity_id"]);
-      table.index("idx_sessions_expires", ["expires_at"]);
+    // No-op : tables d'auth core possédées par le shell (identities, credentials,
+    // sessions, tokens, external_identities). Cette migration existe uniquement
+    // pour satisfaire le garde de longueur Phase-0 (1 migration attendue).
+    builder.createTable("__citadelle_noop", (table) => {
+      table.string("placeholder").primary().default("migrated");
     });
 
     const statements = builder.blueprints.flatMap((bp) => grammar.compile(bp));
     const sqlContent = statements.map((s) => s.sql).join("\n");
 
     const downStatements = [
-      { type: "dropTable" as const, table: "citadelle_sessions" },
-      { type: "dropTable" as const, table: "citadelle_credentials" },
-      { type: "dropTable" as const, table: "citadelle_identities" },
+      { type: "dropTable" as const, table: "__citadelle_noop" },
     ].flatMap((bp) => grammar.compile(bp));
     const downContent = downStatements.map((s) => s.sql).join("\n");
 
-    const migrationId = "citadelle.v1.001_create_auth_tables";
-
     return [
       {
-        id: migrationId,
+        id: "citadelle.auth.v1.001_create_auth_tables",
         content: sqlContent,
         down: downContent,
         checksum: computeChecksum(sqlContent),
-        resources: [
-          "table:citadelle_identities",
-          "table:citadelle_credentials",
-          "table:citadelle_sessions",
-        ],
+        resources: ["table:__citadelle_noop"],
       },
     ];
   }

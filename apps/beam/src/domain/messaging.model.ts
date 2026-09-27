@@ -1,11 +1,22 @@
 import * as crypto from "node:crypto";
 import { featureAsync } from "@mosaix/sdk";
+import type { EncryptedMessagePayload } from "./beam-e2e-crypto.js";
 
 export interface ConversationModel {
   id: string;
   type: "direct" | "group";
   participants: string[];
   createdAt: string;
+  /** Titre fonctionnel persisté dans la colonne `data` JSON (pas de colonne dédiée). */
+  title?: string;
+}
+
+export interface MessageAttachment {
+  id: string;
+  type: "image" | "file" | "audio" | "video";
+  url: string;
+  sizeBytes: number;
+  filename: string;
 }
 
 export interface MessageModel {
@@ -14,6 +25,22 @@ export interface MessageModel {
   senderId: string;
   content: string;
   sentAt: string;
+  replyToMessageId?: string | null;
+  threadId?: string | null;
+  reactions?: Record<string, string[]> | null;
+  attachments?: MessageAttachment[] | null;
+  encryptedPayload?: EncryptedMessagePayload | null;
+  editedAt?: string | null;
+  deletedAt?: string | null;
+}
+
+/** Options d'envoi rétrocompatibles (4e paramètre optionnel de `sendMessage`). */
+export interface SendMessageOptions {
+  replyToMessageId?: string | null;
+  threadId?: string | null;
+  reactions?: Record<string, string[]> | null;
+  attachments?: MessageAttachment[] | null;
+  encryptedPayload?: EncryptedMessagePayload | null;
 }
 
 export interface BeamMessagingRepositoryPort {
@@ -30,7 +57,7 @@ export class BeamMessagingService {
 
   constructor(private readonly repository?: BeamMessagingRepositoryPort) {}
 
-  async createConversation(type: "direct" | "group", participants: string[]): Promise<ConversationModel> {
+  async createConversation(type: "direct" | "group", participants: string[], title?: string): Promise<ConversationModel> {
     // P1 Feature Flag: beam.messaging.group_chats (default: true)
     if (type === "group") {
       const groupChatsEnabled = await featureAsync("beam.messaging.group_chats", true);
@@ -44,6 +71,7 @@ export class BeamMessagingService {
       type,
       participants,
       createdAt: new Date().toISOString(),
+      ...(title !== undefined ? { title } : {}),
     };
     this.conversations.set(conv.id, conv);
 
@@ -69,7 +97,7 @@ export class BeamMessagingService {
     return this.conversations.get(id) ?? null;
   }
 
-  async sendMessage(conversationId: string, senderId: string, content: string): Promise<MessageModel> {
+  async sendMessage(conversationId: string, senderId: string, content: string, options: SendMessageOptions = {}): Promise<MessageModel> {
     const conv = await this.getConversationAsync(conversationId);
     if (!conv) {
       throw new Error(`Conversation [${conversationId}] not found.`);
@@ -81,6 +109,11 @@ export class BeamMessagingService {
       senderId,
       content,
       sentAt: new Date().toISOString(),
+      ...(options.replyToMessageId !== undefined ? { replyToMessageId: options.replyToMessageId } : {}),
+      ...(options.threadId !== undefined ? { threadId: options.threadId } : {}),
+      ...(options.reactions !== undefined ? { reactions: options.reactions } : {}),
+      ...(options.attachments !== undefined ? { attachments: options.attachments } : {}),
+      ...(options.encryptedPayload !== undefined ? { encryptedPayload: options.encryptedPayload } : {}),
     };
     this.messages.push(msg);
 

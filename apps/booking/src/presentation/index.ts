@@ -163,7 +163,7 @@ export const BookingPageView = {
                 </div>
                 <div>
                   <h3 class="text-xs font-bold text-on-surface">Consultation Joaillerie & Sur-mesure</h3>
-                  <p class="text-[10px] text-on-surface-variant mt-0.5">📍 Showroom Bijoux Amel, Paris</p>
+                  <p class="text-[10px] text-on-surface-variant mt-0.5">📍 Showroom Artisanal, Paris</p>
                   <p class="text-[10px] text-on-surface-variant">🕒 Demain · 14:00 - 15:00 (Europe/Paris)</p>
                 </div>
               </div>
@@ -178,7 +178,7 @@ export const BookingPageView = {
                 </div>
                 <div>
                   <h3 class="text-xs font-bold text-on-surface">Atelier Collaboratif — Économie Circulaire</h3>
-                  <p class="text-[10px] text-on-surface-variant mt-0.5">📍 Espace Solara Lab, Lyon</p>
+                  <p class="text-[10px] text-on-surface-variant mt-0.5">📍 Espace Collaboratif, Lyon</p>
                   <p class="text-[10px] text-on-surface-variant">🕒 Dans 2 jours · 10:00 - 12:00</p>
                 </div>
               </div>
@@ -215,7 +215,7 @@ export const BookingPageView = {
                 </div>
                 <div>
                   <h3 class="text-xs font-bold text-on-surface">Consultation Joaillerie & Sur-mesure</h3>
-                  <p class="text-[10px] text-on-surface-variant mt-0.5">Client : Lord Cheteck · Paiement Validé via Commerce</p>
+                  <p class="text-[10px] text-on-surface-variant mt-0.5">Client : Administrateur · Paiement Validé via Commerce</p>
                 </div>
               </div>
               <div class="flex gap-2 text-xs font-semibold">

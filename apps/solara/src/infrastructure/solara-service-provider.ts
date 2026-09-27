@@ -58,6 +58,7 @@ export class SolaraAppServiceProvider implements ServiceProvider {
       return await controller.createPost(req);
     };
     const handleComment = async (req: HttpRequest) => await controller.addComment(req);
+    const handleReaction = async (req: HttpRequest) => await controller.addReaction(req);
     const handleFollowers = async (req: HttpRequest) => await controller.followActor(req);
     const handleAdTelemetry = async (req: HttpRequest) => await controller.trackAdTelemetry(req);
 
@@ -73,6 +74,9 @@ export class SolaraAppServiceProvider implements ServiceProvider {
 
     router.post("/api/solara/comments", handleComment);
     router.post("/solara/comments", handleComment);
+
+    router.post("/api/solara/reactions", handleReaction);
+    router.post("/solara/reactions", handleReaction);
 
     router.post("/api/solara/followers", handleFollowers);
     router.post("/solara/followers", handleFollowers);

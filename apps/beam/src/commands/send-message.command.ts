@@ -1,11 +1,12 @@
 import type { Command, CommandHandler } from "@mosaix/commands";
-import type { MessageModel } from "../domain/messaging.model.js";
+import type { MessageModel, SendMessageOptions } from "../domain/messaging.model.js";
 import { BeamMessagingService } from "../domain/messaging.model.js";
 
 export interface SendMessagePayload {
   conversationId: string;
   senderId: string;
   content: string;
+  options?: SendMessageOptions;
 }
 
 export class SendMessageCommand implements Command<SendMessagePayload> {
@@ -19,7 +20,7 @@ export class SendMessageHandler implements CommandHandler<SendMessageCommand, Me
   constructor(private readonly messagingService: BeamMessagingService) {}
 
   async handle(command: SendMessageCommand): Promise<MessageModel> {
-    const { conversationId, senderId, content } = command.payload;
-    return this.messagingService.sendMessage(conversationId, senderId, content);
+    const { conversationId, senderId, content, options } = command.payload;
+    return this.messagingService.sendMessage(conversationId, senderId, content, options ?? {});
   }
 }

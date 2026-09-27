@@ -318,6 +318,13 @@ export interface SettingsRepositoryPort {
   getSettings(): Promise<Record<string, string>>;
 }
 
+/**
+ * Ownership note: `imperia_settings` (this app) vs `platform_settings` (shell/platform).
+ * BOUND-03: Do not unify. `imperia_settings` holds Imperia-specific governance overrides
+ * (audit retention, DLQ policies, circuit-breaker thresholds). `platform_settings` (owned by
+ * the shell/platform layer) holds cross-cutting cluster settings (theme, CORS, MFA, quotas).
+ * The divergence is intentional — each bounded context owns its settings namespace.
+ */
 export class PlatformSettingsService {
   private overrides = new Map<string, string>();
   private definitions = new Map<string, SettingDefinition>();

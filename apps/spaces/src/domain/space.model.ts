@@ -3,7 +3,7 @@ import { Model } from "@mosaix/sdk";
 import { SpaceTemplateRegistry, type SpaceTemplateType } from "./space-template";
 
 export class SpaceModel extends Model {
-  static override tableName = "spaces";
+  static override tableName = "spaces_spaces";
 
   name!: string;
   slug!: string;
@@ -11,9 +11,11 @@ export class SpaceModel extends Model {
   template!: SpaceTemplateType;
   ownerId!: string;
   tenantId!: string;
+  subscriptionPlan?: "free" | "pro" | "enterprise";
   followersCount!: number;
   customDomain?: string;
   enabledCapabilities!: string[];
+  updatedAt?: Date;
 }
 
 export interface SpaceTeamMember {
@@ -34,10 +36,20 @@ export interface Space {
   subscriptionPlan: "free" | "pro" | "enterprise";
   followersCount: number;
   customDomain?: string;
+  /**
+   * OWNERSHIP — vague rôles dédiée (NE PAS TRANCHER ICI) :
+   * `team` (JSON embarqué, source de vérité runtime actuelle) coexiste avec
+   * la table `space_members` (DDL orpheline, zéro writer). Le choix entre
+   * "JSON embarqué" vs "table relationnelle" (memberships, invitations,
+   * writers RBAC, acting-as) sera tranché par la vague rôles dédiée.
+   * En attendant : toute mutation de `team` persiste le JSON via
+   * `PostgresSpaceRepository` et ne touche PAS à `space_members`.
+   */
   team: SpaceTeamMember[];
   enabledCapabilities: string[];
   publicNavigation: string[];
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 export interface SpaceRepositoryPort {

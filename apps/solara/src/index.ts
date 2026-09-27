@@ -64,7 +64,7 @@ export class SolaraServiceProvider {
     await this.innerProvider.register(container);
   }
 
-  async boot(container: Container, router: Router): Promise<MosaixApp> {
+  boot(container: Container, router: Router): void {
     this.innerProvider.boot(container, router);
 
     const kernel = container.resolve<RuntimeKernel>("kernel");
@@ -88,8 +88,6 @@ export class SolaraServiceProvider {
     app.provideCapability("solara.feed.read", async () => {
       return socialService.listFeed("feed", "", undefined);
     });
-
-    return app;
   }
 
   shutdown(container: Container): void {
@@ -103,13 +101,13 @@ export class SolaraServiceProvider {
 export async function createSolaraApp(
   kernel: RuntimeKernel,
   tenant: TenantIdentity,
-  _adapters?: SolaraAdapters
+  adapters?: SolaraAdapters
 ): Promise<{ container: Container; router: Router; app: MosaixApp }> {
   return createBoundedAppBootstrap({
     manifest: MANIFEST as unknown as ApplicationManifest,
     tenant,
     kernel,
-    provider: new SolaraServiceProvider(_adapters),
+    provider: new SolaraServiceProvider(adapters),
   });
 }
 
@@ -121,5 +119,3 @@ export * from "./domain/solara-moderation-pipeline.js";
 export * from "./domain/solara-feed-realtime.js";
 export * from "./domain/social-auto-share-plugin.js";
 export * from "./presentation/solara-view.js";
-
-

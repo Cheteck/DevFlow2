@@ -78,8 +78,17 @@ export class BeamServiceProvider {
 
     const messagingService = container.resolve(BeamMessagingService);
     app.provideCapability("beam.message.send", async (input) => {
-      const inp = input as { conversationId: string; senderId: string; content: string };
-      return messagingService.sendMessage(inp.conversationId, inp.senderId, inp.content);
+      const inp = input as {
+        conversationId: string;
+        senderId: string;
+        content: string;
+        options?: {
+          replyToMessageId?: string | null;
+          threadId?: string | null;
+          reactions?: Record<string, string[]> | null;
+        };
+      };
+      return messagingService.sendMessage(inp.conversationId, inp.senderId, inp.content, inp.options ?? {});
     });
 
     app.provideCapability("beam.conversation.list", async (input) => {
@@ -101,13 +110,13 @@ export class BeamServiceProvider {
 export async function createBeamApp(
   kernel: RuntimeKernel,
   tenant: TenantIdentity,
-  _adapters?: BeamAdapters
+  adapters?: BeamAdapters
 ): Promise<{ container: Container; router: Router; app: MosaixApp }> {
   return createBoundedAppBootstrap({
     manifest: MANIFEST as unknown as ApplicationManifest,
     tenant,
     kernel,
-    provider: new BeamServiceProvider(_adapters),
+    provider: new BeamServiceProvider(adapters),
   });
 }
 

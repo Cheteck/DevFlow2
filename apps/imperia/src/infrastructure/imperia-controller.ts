@@ -28,7 +28,7 @@ export class ImperiaGovernanceController extends Controller {
     super();
   }
 
-  private recordAuditLog(actorId: string, action: string, resource: string, status: "success" | "failure", metadata?: Record<string, unknown>): AuditLogModel {
+  private recordAuditLog(actorId: string, action: string, resource: string, status: "success" | "failure", metadata?: Record<string, unknown>, tenantId?: string, resourceId?: string, severity?: string): AuditLogModel {
     const log = new AuditLogModel();
     log.actorId = actorId;
     log.action = action;
@@ -51,6 +51,9 @@ export class ImperiaGovernanceController extends Controller {
         status,
         metadata,
         createdAt: log.createdAt,
+        tenantId,
+        resourceId,
+        severity,
       }).catch((err: unknown) => {
         console.error("[Imperia] Failed to persist audit log to Postgres:", err);
       });
@@ -105,7 +108,22 @@ export class ImperiaGovernanceController extends Controller {
       this.recordAuditLog(this.actorId(req), "CREATE_POLICY", body?.id ?? "unknown", "failure", { reason: "Missing id or name" });
       return this.badRequest("Policy id and name are required.");
     }
-    this.policyRegistry.registerPolicy({ ...body, enabled: body.enabled ?? true });
+    const policy = { ...body, enabled: body.enabled ?? true };
+    this.policyRegistry.registerPolicy(policy);
+    if (this.postgresRepo) {
+      try {
+        await this.postgresRepo.savePolicy({
+          id: policy.id,
+          name: policy.name,
+          description: policy.description,
+          rules: policy.rules,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (err: unknown) {
+        console.error("[Imperia] Failed to persist policy to Postgres:", err);
+      }
+    }
     this.recordAuditLog(this.actorId(req), "CREATE_POLICY", body.id, "success", { policyName: body.name });
     return this.created({ message: "Policy registered successfully", policy: body });
   }

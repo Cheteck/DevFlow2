@@ -35,6 +35,7 @@ import {
   getResolvedTheme,
 } from "./shell/theme/theme-bridge.js";
 import { renderBacAdminSafely } from "./shell/renderer.js";
+import { getPlatformFeatureFlags } from "./shell/feature-flags.js";
 
 // Server decoupling modules
 import { handleMaintenanceGate } from "./server/middleware/maintenance-gate.js";
@@ -51,6 +52,9 @@ import { renderHomePage } from "./shell/pages/home-page.js";
 const app = await createApplication();
 const { compositionOverrideManager } = app;
 const PORT = app.env.resolvedPort;
+
+// Initialize platform feature flags with database adapter for persistent storage
+await getPlatformFeatureFlags(app.dbAdapter);
 
 // Static MIME types (module-level: never rebuilt per request).
 const STATIC_MIME_TYPES: Record<string, string> = {
@@ -160,7 +164,7 @@ const server = http.createServer(async (req, res) => {
     // demo credential — never a trust boundary; production gates live in
     // SecurityGuard + isDemoMode().
     const currentUser: UserProfile = getActiveUserProfile(req, parsedUrl);
-    const activeSpaceProfile = getActiveSpaceProfile(req, parsedUrl);
+    const activeSpaceProfile = await getActiveSpaceProfile(req, parsedUrl, app.dbAdapter);
     const currentSpace = activeSpaceProfile ? activeSpaceProfile.id : null;
     const themeCookie = (req.headers.cookie || "").match(
       /mosaix_theme_mode=([a-z-]+)/,
@@ -196,6 +200,7 @@ const server = http.createServer(async (req, res) => {
       feedService: getFeedService(app.dbAdapter),
       eventBackplane: distributedEventBackplane,
       anonymizationOrchestrator: getAnonymizationOrchestrator(app.dbAdapter),
+      db: app.dbAdapter,
     });
     if (isApiHandled) {
       return;

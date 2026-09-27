@@ -17,6 +17,9 @@ importers:
       '@mosaix/adapter-featureflags-memory':
         specifier: workspace:*
         version: link:packages/adapters/featureflags-memory
+      '@mosaix/adapter-featureflags-postgres':
+        specifier: workspace:*
+        version: link:packages/adapters/featureflags-postgres
       '@mosaix/adapter-identity-store-postgres':
         specifier: workspace:*
         version: link:packages/adapters/identity-store-postgres
@@ -26,6 +29,9 @@ importers:
       '@mosaix/cli':
         specifier: workspace:*
         version: link:packages/cli
+      '@mosaix/container':
+        specifier: workspace:*
+        version: link:packages/container
       '@mosaix/contracts':
         specifier: workspace:*
         version: link:packages/contracts
@@ -786,6 +792,18 @@ importers:
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/node@25.9.7)(tsx@4.23.13)
+
+  packages/adapters/featureflags-postgres:
+    devDependencies:
+      '@mosaix/ports-database':
+        specifier: workspace:*
+        version: link:../../ports/database
+      '@mosaix/ports-feature-flags':
+        specifier: workspace:*
+        version: link:../../ports/feature-flags
       vitest:
         specifier: ^3.0.0
         version: 3.2.7(@types/node@25.9.7)(tsx@4.23.13)

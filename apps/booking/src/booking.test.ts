@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { BookingService } from "./domain/booking.model.js";
+import { BookingService, seedDefaultSlots } from "./domain/booking.model.js";
 import { BookingServiceProvider, MANIFEST } from "./index.js";
 import { RuntimeKernel, Container, Router } from "@mosaix/sdk";
 
 describe("Booking Application Module", () => {
-  it("should initialize default demo slots", async () => {
+  it("should initialize default demo slots when explicitly seeded", async () => {
     const service = new BookingService();
+    await seedDefaultSlots(service);
     const slots = await service.listSlots();
     expect(slots.length).toBeGreaterThanOrEqual(3);
   });
@@ -29,11 +30,12 @@ describe("Booking Application Module", () => {
 
   it("should create reservations and update slot capacity", async () => {
     const service = new BookingService();
+    const now = Date.now();
     const slot = await service.createSlot({
       providerId: "provider-single",
       serviceName: "Consultation Express",
-      startTime: new Date().toISOString(),
-      endTime: new Date().toISOString(),
+      startTime: new Date(now + 100000).toISOString(),
+      endTime: new Date(now + 200000).toISOString(),
       capacity: 1,
     });
 
@@ -64,11 +66,12 @@ describe("Booking Application Module", () => {
 
   it("should allow cancelling a reservation and free up slot capacity", async () => {
     const service = new BookingService();
+    const now = Date.now();
     const slot = await service.createSlot({
       providerId: "provider-cancel",
       serviceName: "Atelier",
-      startTime: new Date().toISOString(),
-      endTime: new Date().toISOString(),
+      startTime: new Date(now + 100000).toISOString(),
+      endTime: new Date(now + 200000).toISOString(),
       capacity: 1,
     });
 
@@ -108,11 +111,12 @@ describe("Booking Application Module", () => {
     );
 
     // Verify capability execution
+    const now = Date.now();
     const slotResult = (await app.executeCapability("booking.slot.create", {
       providerId: "prov-kernel",
       serviceName: "Test Kernel Booking",
-      startTime: new Date().toISOString(),
-      endTime: new Date().toISOString(),
+      startTime: new Date(now + 100000).toISOString(),
+      endTime: new Date(now + 200000).toISOString(),
       capacity: 5,
     })) as { id: string; serviceName: string };
 

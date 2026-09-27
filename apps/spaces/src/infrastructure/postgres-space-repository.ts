@@ -12,11 +12,15 @@ export class PostgresSpaceRepository {
   async createSpace(space: Space): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx.query(
-        `INSERT INTO spaces_spaces (id, name, slug, category, template, "ownerId", "tenantId", "followersCount", "customDomain", "enabledCapabilities", "publicNavigation", "createdAt", team, data)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        `INSERT INTO spaces_spaces (id, name, slug, category, template, "ownerId", "tenantId", "followersCount", "customDomain", "enabledCapabilities", "publicNavigation", "createdAt", team, data, "subscriptionPlan")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
          ON CONFLICT (id) DO UPDATE SET
-           name = $2, slug = $3, category = $4, "ownerId" = $6, "updatedAt" = $12,
-           "followersCount" = $8, team = $13, data = $14`,
+           name = EXCLUDED.name, slug = EXCLUDED.slug, category = EXCLUDED.category,
+           template = EXCLUDED.template, "ownerId" = EXCLUDED."ownerId", "tenantId" = EXCLUDED."tenantId",
+           "followersCount" = EXCLUDED."followersCount", "customDomain" = EXCLUDED."customDomain",
+           "enabledCapabilities" = EXCLUDED."enabledCapabilities", "publicNavigation" = EXCLUDED."publicNavigation",
+           team = EXCLUDED.team, data = EXCLUDED.data, "subscriptionPlan" = EXCLUDED."subscriptionPlan",
+           "updatedAt" = $16`,
         [
           space.id,
           space.name,
@@ -32,6 +36,8 @@ export class PostgresSpaceRepository {
           new Date().toISOString(),
           JSON.stringify(space.team),
           JSON.stringify(space),
+          space.subscriptionPlan,
+          new Date().toISOString(),
         ],
       );
     });
@@ -93,18 +99,22 @@ export class PostgresSpaceRepository {
     return this.mutateSpace(spaceId, (space) => {
       space.customDomain = domain;
       return space;
-    }, domain);
+    });
   }
 
   /**
    * Read-modify-write inside a single transaction so concurrent writers
    * serialize on the row lock (SELECT ... FOR UPDATE is only meaningful
    * inside the transaction — previously each SELECT ran outside any tx).
+   *
+   * The UPDATE re-synchronises every mutable derived column from the mutated
+   * aggregate (`customDomain`, `enabledCapabilities`, `team`,
+   * `publicNavigation`, `subscriptionPlan`, `followersCount`) together with
+   * the `data` JSON blob and `updatedAt` — no column is left stale.
    */
   private async mutateSpace(
     spaceId: string,
     mutate: (space: Space) => Space,
-    customDomain?: string,
   ): Promise<Space | null> {
     let result: Space | null = null;
     await this.db.transaction(async (tx) => {
@@ -122,32 +132,69 @@ export class PostgresSpaceRepository {
         return;
       }
       const space = mutate(this.hydrate(raw as Record<string, unknown> | string));
-      if (customDomain !== undefined) {
-        await tx.query(
-          `UPDATE spaces_spaces SET data = $1::jsonb, "customDomain" = $2, "updatedAt" = $3 WHERE id = $4`,
-          [JSON.stringify(space), customDomain, new Date().toISOString(), spaceId],
-        );
-      } else {
-        await tx.query(
-          `UPDATE spaces_spaces SET data = $1::jsonb, "updatedAt" = $2 WHERE id = $3`,
-          [JSON.stringify(space), new Date().toISOString(), spaceId],
-        );
-      }
+      await tx.query(
+        `UPDATE spaces_spaces SET data = $1::jsonb, "customDomain" = $2, "enabledCapabilities" = $3, team = $4, "publicNavigation" = $5, "subscriptionPlan" = $6, "followersCount" = $7, "updatedAt" = $8 WHERE id = $9`,
+        [
+          JSON.stringify(space),
+          space.customDomain ?? null,
+          JSON.stringify(space.enabledCapabilities),
+          JSON.stringify(space.team),
+          JSON.stringify(space.publicNavigation),
+          space.subscriptionPlan,
+          space.followersCount,
+          new Date().toISOString(),
+        ].concat([spaceId]),
+      );
       result = space;
     });
     return result;
   }
 
   async followSpace(spaceId: string): Promise<number> {
-    const result = await this.db.query<Record<string, unknown>>(
-      `UPDATE spaces_spaces SET "followersCount" = "followersCount" + 1 WHERE id = $1 RETURNING "followersCount"`,
-      [spaceId],
-    );
-    const count = result[0]?.["followersCount"];
-    return typeof count === "number" ? count : 0;
+    const space = await this.mutateSpace(spaceId, (current) => {
+      current.followersCount += 1;
+      return current;
+    });
+    return space?.followersCount ?? 0;
   }
 
   private hydrate(data: Record<string, unknown> | string): Space {
-    return (typeof data === "string" ? JSON.parse(data) : data) as Space;
+    const raw = (typeof data === "string" ? JSON.parse(data) : data) as Record<string, unknown>;
+    const asStringArray = (value: unknown): string[] =>
+      Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+    const asTeam = (value: unknown): SpaceTeamMember[] =>
+      Array.isArray(value) ? (value as SpaceTeamMember[]) : [];
+    const asDate = (value: unknown, fallback: Date): Date => {
+      if (value instanceof Date) return value;
+      if (typeof value === "string" || typeof value === "number") {
+        const parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) return parsed;
+      }
+      return fallback;
+    };
+    const plan = raw["subscriptionPlan"];
+    const now = new Date();
+    return {
+      id: String(raw["id"] ?? ""),
+      name: String(raw["name"] ?? ""),
+      slug: String(raw["slug"] ?? ""),
+      category: String(raw["category"] ?? ""),
+      template: (raw["template"] ?? "business") as Space["template"],
+      ownerId: String(raw["ownerId"] ?? ""),
+      tenantId: String(raw["tenantId"] ?? ""),
+      subscriptionPlan:
+        plan === "free" || plan === "pro" || plan === "enterprise" ? plan : "free",
+      followersCount: typeof raw["followersCount"] === "number" ? raw["followersCount"] : 0,
+      ...(raw["customDomain"] !== undefined && raw["customDomain"] !== null
+        ? { customDomain: String(raw["customDomain"]) }
+        : {}),
+      team: asTeam(raw["team"]),
+      enabledCapabilities: asStringArray(raw["enabledCapabilities"]),
+      publicNavigation: asStringArray(raw["publicNavigation"]),
+      createdAt: asDate(raw["createdAt"], now),
+      ...(raw["updatedAt"] !== undefined && raw["updatedAt"] !== null
+        ? { updatedAt: asDate(raw["updatedAt"], now) }
+        : {}),
+    };
   }
 }

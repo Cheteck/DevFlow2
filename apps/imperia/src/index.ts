@@ -142,6 +142,22 @@ export function createImperiaComposition(parentContainer?: Container, adapters?:
   };
 }
 
+/**
+ * Creates an Imperia composition with explicit database port forwarding.
+ * This ensures the `databasePort` adapter is properly wired to the
+ * `ImperiaAppServiceProvider` which instantiates `PostgresImperiaRepository`.
+ */
+export function createImperiaCompositionWithDatabase(
+  parentContainer: Container | undefined,
+  databasePort: DatabasePort,
+  featureFlagsPort?: FeatureFlagsPort
+) {
+  return createImperiaComposition(parentContainer, {
+    databasePort,
+    featureFlagsPort,
+  });
+}
+
 // =============================================================
 // SECTION 5 — DOMAIN EXPORTS
 // =============================================================

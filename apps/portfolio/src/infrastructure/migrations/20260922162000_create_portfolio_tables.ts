@@ -8,9 +8,13 @@ builder.createTable("portfolio_vendables", (table) => {
   table.string("id").primary();
   table.string("reference");
   table.enum("type", ["Product", "Service", "DigitalProduct", "Experience"]);
-  table.enum("status", ["Draft", "In Review", "Published", "Archived"]);
+  table.enum("status", ["Draft", "In Review", "NeedsApproval", "Scheduled", "Validated", "Published", "Expired", "Archived"]);
   table.json("content").nullable();
+  table.json("characteristics").nullable();
   table.json("classification").nullable();
+  table.json("media").nullable();
+  table.json("variants").nullable();
+  table.json("relations").nullable();
   table.json("quality").nullable();
   table.timestamp("createdAt");
   table.timestamp("updatedAt");
@@ -174,11 +178,33 @@ builder.createTable("portfolio_variation_group_features", (table) => {
 });
 
 const statements = builder.blueprints.flatMap((bp) => grammar.compile(bp));
+const sqlContent = statements.map((s) => s.sql).join("\n");
+
+// Down: drop the 14 tables in reverse creation order so FK references resolve.
+const downStatements = [
+  "portfolio_variation_group_features",
+  "portfolio_variation_groups",
+  "portfolio_variant_features",
+  "portfolio_vendable_features",
+  "portfolio_feature_variants",
+  "portfolio_features",
+  "portfolio_feature_groups",
+  "portfolio_media_assets",
+  "portfolio_relations",
+  "portfolio_translations",
+  "portfolio_variants",
+  "portfolio_vendable_categories",
+  "portfolio_categories",
+  "portfolio_vendables",
+]
+  .map((table) => ({ type: "dropTable" as const, table }))
+  .flatMap((bp) => grammar.compile(bp));
 
 export const migration: Migration = {
   id: "20260922162000_create_portfolio_tables",
-  content: statements.map((s) => s.sql).join("\n"),
-  checksum: computeChecksum(statements.map((s) => s.sql).join("\n")),
+  content: sqlContent,
+  down: downStatements.map((s) => s.sql).join("\n"),
+  checksum: computeChecksum(sqlContent),
   resources: [
     "table:portfolio_vendables",
     "table:portfolio_categories",

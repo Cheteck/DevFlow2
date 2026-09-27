@@ -38,6 +38,7 @@ export class SolidarityPostgresMigrationProvider implements MigrationProvider {
       table.json("data");
       table.index("idx_needs_incident", ["incidentId"]);
       table.index("idx_needs_status", ["status"]);
+      table.foreignKey("incidentId", "solidarity_incidents", "id");
     });
 
     builder.createTable("solidarity_donations", (table) => {
@@ -72,6 +73,7 @@ export class SolidarityPostgresMigrationProvider implements MigrationProvider {
       table.string("status");
       table.json("data");
       table.foreignKey("hubId", "solidarity_hubs", "id");
+      table.foreignKey("donationId", "solidarity_donations", "id");
       table.index("idx_resources_hub", ["hubId"]);
     });
 
@@ -92,6 +94,8 @@ export class SolidarityPostgresMigrationProvider implements MigrationProvider {
       table.json("data");
       table.foreignKey("missionId", "solidarity_missions", "id");
       table.foreignKey("hubId", "solidarity_hubs", "id");
+      table.index("idx_distributions_mission", ["missionId"]);
+      table.index("idx_distributions_hub", ["hubId"]);
     });
 
     const statements = builder.blueprints.flatMap((bp) => grammar.compile(bp));

@@ -79,7 +79,7 @@ export class CommerceController extends Controller {
       if (body.type === "payment_intent.succeeded" || body.type === "checkout.session.completed") {
         const order = await this.orderService.getOrderById(body.orderId);
         if (order) {
-          order.status = "Paid";
+          await this.orderService.setOrderStatus(String(order.id), "Paid");
         }
         return this.json({ received: true, orderId: body.orderId, status: "Paid" }, 200);
       }

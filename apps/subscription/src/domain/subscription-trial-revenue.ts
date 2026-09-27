@@ -3,7 +3,15 @@ import * as crypto from "node:crypto";
 /**
  * Minimal subscription view for trial/revenue analytics.
  * Status vocabulary here is `ACTIVE`/`CANCELLED` (billing analytics),
- * distinct from `UserSubscription`'s lifecycle statuses.
+ * distinct from `UserSubscription`'s lifecycle statuses
+ * (`./subscription.ts` : `active | trialing | past_due | canceled | paused`).
+ *
+ * Unification reportée (sans risque uniquement si comportement préservé) :
+ * `RevenueRecognitionEngine.computeMetrics` filtre sur les chaînes
+ * `ACTIVE`/`CANCELLED` et `SubscriptionWebhookDispatcher` expose
+ * `tenantId` + `status: string` dans son payload — aligner les types
+ * exigerait de changer la logique métier et le format webhook, donc une
+ * décision vague dédiée (backlog), pas un renommage opportuniste.
  */
 export interface Subscription {
   id: string;

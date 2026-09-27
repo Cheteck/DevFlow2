@@ -18,16 +18,26 @@ export class SolaraPostgresMigrationProvider implements MigrationProvider {
     builder.createTable("solara_posts", (table) => {
       table.string("id").primary();
       table.string("actorId");
+      table.string("actorType").default("user");
       table.string("publicationType");
-      table.json("data");
+      table.string("targetType").default("feed");
+      table.string("targetId").nullable();
+      table.string("content");
+      table.json("mediaUrls").nullable();
+      table.json("metadata").nullable();
+      table.integer("likeCount").default(0);
+      table.integer("commentsCount").default(0);
+      table.timestamp("createdAt");
       table.index("idx_solara_posts_actor", ["actorId"]);
       table.index("idx_solara_posts_type", ["publicationType"]);
+      table.index("idx_solara_posts_created_at", ["createdAt"]);
     });
 
     builder.createTable("solara_comments", (table) => {
       table.string("id").primary();
       table.string("postId");
       table.string("actorId");
+      table.string("actorType").default("user");
       table.string("content");
       table.timestamp("createdAt");
       table.foreignKey("postId", "solara_posts", "id");
@@ -36,22 +46,28 @@ export class SolaraPostgresMigrationProvider implements MigrationProvider {
     });
 
     builder.createTable("solara_followers", (table) => {
+      table.string("id").primary();
       table.string("followerActorId");
+      table.string("followerActorType").default("user");
       table.string("targetActorId");
+      table.string("targetActorType").default("user");
       table.timestamp("createdAt");
       table.unique("uniq_solara_followers", ["followerActorId", "targetActorId"]);
       table.index("idx_solara_followers_target", ["targetActorId"]);
+      table.index("idx_solara_followers_covering", ["followerActorId", "targetActorId", "followerActorType", "targetActorType"]);
     });
 
     builder.createTable("solara_reactions", (table) => {
       table.string("id").primary();
-      table.string("postId");
+      table.string("targetType");
+      table.string("targetId");
       table.string("actorId");
+      table.string("actorType").default("user");
       table.string("type");
       table.timestamp("createdAt");
-      table.foreignKey("postId", "solara_posts", "id");
-      table.index("idx_reactions_post", ["postId"]);
+      table.index("idx_reactions_target", ["targetType", "targetId"]);
       table.index("idx_reactions_actor", ["actorId"]);
+      table.index("idx_reactions_target_actor", ["targetType", "targetId", "actorId"]);
     });
 
     builder.createTable("solara_categories", (table) => {

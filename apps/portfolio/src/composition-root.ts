@@ -5,10 +5,13 @@
  * instantiates Saga Workflow Engine, and mounts HTTP routes.
  */
 import { Container, Router } from "@mosaix/sdk";
+import type { DatabasePort } from "@mosaix/ports-database";
+import { InMemoryGuard } from "@mosaix/support";
 import type { Vendable } from "./domain/vendable.js";
 import type { VendableRepository } from "./domain/vendable-repository.js";
 import { VendableWorkflow } from "./vendable-workflow.js";
 import { InMemoryVendableRepository } from "./infrastructure/in-memory-vendable-repository.js";
+import { PostgresVendableRepository } from "./infrastructure/postgres-vendable-repository.js";
 
 export interface PortfolioAppComposition {
   container: Container;
@@ -108,14 +111,34 @@ export function mountPortfolioRoutes(
 /**
  * Legacy sync composition root (kept for conformance + backward compat).
  * Delegates route wiring to `mountPortfolioRoutes` — no duplicated strings.
+ *
+ * Repository selection mirrors `PortfolioServiceProvider.register`
+ * (src/index.ts): explicit factory wins, else Postgres when a DatabasePort
+ * is provided, else InMemory fallback (legacy callers pass no adapters).
  */
-export function createPortfolioComposition(parentContainer?: Container): PortfolioAppComposition {
+export interface PortfolioCompositionAdapters {
+  vendableRepository?: () => VendableRepository;
+  databasePort?: DatabasePort;
+}
+
+export function createPortfolioComposition(
+  parentContainer?: Container,
+  adapters: PortfolioCompositionAdapters = {},
+): PortfolioAppComposition {
   const container = parentContainer ? parentContainer.createChild() : new Container();
 
   const vendableWorkflow = new VendableWorkflow();
   container.instance(VendableWorkflow, vendableWorkflow);
 
-  const vendableRepository = new InMemoryVendableRepository();
+  let vendableRepository: VendableRepository;
+  if (adapters.vendableRepository) {
+    vendableRepository = adapters.vendableRepository();
+  } else if (adapters.databasePort) {
+    vendableRepository = new PostgresVendableRepository(adapters.databasePort);
+  } else {
+    InMemoryGuard.reportFallback("InMemoryVendableRepository", "missing DatabasePort in createPortfolioComposition");
+    vendableRepository = new InMemoryVendableRepository();
+  }
 
   const router = new Router();
   mountPortfolioRoutes(router, { vendableRepository, vendableWorkflow });
