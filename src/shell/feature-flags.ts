@@ -8,6 +8,7 @@ import type {
   FeatureFlagUserContext,
 } from "@mosaix/ports-feature-flags";
 import { registerFeatureFlagsProvider } from "@mosaix/sdk";
+import { isDemoMode } from "./profiles.js";
 
 const FEATURE_FLAGS_FILE = path.resolve(
   process.cwd(),
@@ -170,6 +171,15 @@ export class PersistentFeatureFlagsManager {
   constructor(db?: DatabasePort) {
     if (db) {
       this.adapter = new PostgresFeatureFlagsAdapter(db);
+    } else if (!isDemoMode()) {
+      // No silent in-memory persistence when demo mode is off
+      // (MOSAIX_DEMO_USERS=false): flags must live in the database.
+      // Volatile memory storage would silently lose flag state.
+      throw new Error(
+        "[FeatureFlags] Refused: no DatabasePort and demo mode is off " +
+          "(MOSAIX_DEMO_USERS=false). Pass the database adapter — " +
+          "in-memory flag storage is demo-only.",
+      );
     } else {
       this.adapter = new MemoryFeatureFlagsAdapter();
     }

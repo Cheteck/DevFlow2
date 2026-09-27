@@ -56,4 +56,21 @@ describe("migrate + seed flow (CLI-only)", () => {
 
     await expect(runDatabaseSeeds(db)).resolves.toEqual([]);
   });
+
+  it("refuses to seed when demo mode is off (MOSAIX_DEMO_USERS=false)", async () => {
+    const db = await freshDb();
+    await runShellMigrations(db);
+    const prev = process.env.MOSAIX_DEMO_USERS;
+    process.env.MOSAIX_DEMO_USERS = "false";
+    try {
+      await expect(runDatabaseSeeds(db)).rejects.toThrow(/demo mode is off/);
+      const feed = await db.query<{ count: number }>(
+        `SELECT COUNT(*) as count FROM shell_feed`,
+      );
+      expect(Number(feed[0]?.count ?? 0)).toBe(0);
+    } finally {
+      if (prev === undefined) delete process.env.MOSAIX_DEMO_USERS;
+      else process.env.MOSAIX_DEMO_USERS = prev;
+    }
+  });
 });

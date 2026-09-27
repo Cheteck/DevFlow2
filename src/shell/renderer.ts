@@ -517,10 +517,14 @@ export function renderUserSwitcherWidget(
   const displayLabel = activeSpace
     ? `${activeSpace.badge} Space`
     : user.roleLabel;
-  const userEmail =
-    user.role === "admin"
+  // Demo-only fabricated address: with demo mode off
+  // (MOSAIX_DEMO_USERS=false) no fake identity is displayed — the neutral
+  // local profile shows a plain state label instead.
+  const userEmail = isDemoMode()
+    ? user.role === "admin"
       ? "admin@mosaix.network"
-      : `${user.role}@mosaix.network`;
+      : `${user.role}@mosaix.network`
+    : "accès local";
 
   return `
     <div class="relative" id="user-menu-container">

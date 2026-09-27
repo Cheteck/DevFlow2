@@ -10,6 +10,7 @@
  * seeder serves every driver behind `DatabasePort`.
  */
 import type { DatabasePort } from "@mosaix/ports-database";
+import { isDemoMode } from "../profiles.js";
 
 function bind(db: DatabasePort, sql: string): string {
   if (db.capabilities.dialect !== "postgres") return sql;
@@ -28,8 +29,20 @@ async function tableCount(db: DatabasePort, table: string): Promise<number> {
 /**
  * Run all baseline seeds. Safe to re-run: tables that already hold rows
  * are skipped.
+ *
+ * Demo content (mock feed posts, products, spaces…) is only inserted when
+ * demo mode is on. With `MOSAIX_DEMO_USERS=false` (or production) seeding
+ * is refused fail-fast so no mock data can ever land in a real database —
+ * run migrations only (`mosaix migrate` without `--seed`).
  */
 export async function runDatabaseSeeds(db: DatabasePort): Promise<string[]> {
+  if (!isDemoMode()) {
+    throw new Error(
+      "[seed] Refused: baseline seeds are demo content (mock posts, products, spaces) " +
+        "and demo mode is off (MOSAIX_DEMO_USERS=false). " +
+        "Set MOSAIX_DEMO_USERS=true to seed, or run `mosaix migrate` without `--seed`.",
+    );
+  }
   const seeded: string[] = [];
 
   // 1. Initial feed posts

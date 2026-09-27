@@ -6,6 +6,7 @@ import type * as http from "node:http";
 import type { URL } from "node:url";
 import { escapeHtml } from "@mosaix/support";
 import { feedStore, type FeedPost } from "../../shell/feed-store.js";
+import { isDemoMode } from "../../shell/profiles.js";
 import type { FeedService } from "../../shell/feed-service.js";
 import type { DistributedEventBackplane } from "../../shell/event-backplane.js";
 import type { UserProfile } from "../../shell/profiles.js";
@@ -36,8 +37,12 @@ export async function handleFeedRoutes(
             timestamp: "À l'instant",
             likes: 0,
           };
-          feedStore.unshift(newPost);
-          void feedStore;
+          // Demo-only mirror: the in-memory feedStore (seeded with mock
+          // posts) is disabled when demo mode is off
+          // (MOSAIX_DEMO_USERS=false) — persistence goes to the database.
+          if (isDemoMode()) {
+            feedStore.unshift(newPost);
+          }
 
           // Persist with FeedService
           await feedService
@@ -98,8 +103,11 @@ export async function handleFeedRoutes(
       return true;
     }
 
+    // Empty database: serve the in-memory mock posts ONLY in demo mode.
+    // With MOSAIX_DEMO_USERS=false the API returns an empty feed instead
+    // of mock content.
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ posts: feedStore, hasMore: false }));
+    res.end(JSON.stringify({ posts: isDemoMode() ? feedStore : [], hasMore: false }));
     return true;
   }
 

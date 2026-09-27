@@ -9,6 +9,7 @@
 import { createCliApplication } from "../bootstrap/index.js";
 import { runShellMigrations } from "../src/shell/migrations.js";
 import { runDatabaseSeeds } from "../src/shell/seeders/database-seeder.js";
+import { isDemoMode } from "../src/shell/profiles.js";
 
 async function main() {
   const app = await createCliApplication({
@@ -36,12 +37,20 @@ async function main() {
       : "✓ Migrations à jour (rien à appliquer)",
   );
 
-  const seeded = await runDatabaseSeeds(dbAdapter);
-  console.log(
-    seeded.length > 0
-      ? `✓ Seeds insérés : ${seeded.join(", ")}`
-      : "✓ Seeds à jour (tables non vides, rien à insérer)",
-  );
+  // Baseline seeds are demo content: skipped when demo mode is off
+  // (MOSAIX_DEMO_USERS=false) so setup never writes mock data.
+  if (!isDemoMode()) {
+    console.log(
+      "✓ Seeds ignorés (mode démo inactif : MOSAIX_DEMO_USERS=false — aucune donnée mock insérée)",
+    );
+  } else {
+    const seeded = await runDatabaseSeeds(dbAdapter);
+    console.log(
+      seeded.length > 0
+        ? `✓ Seeds insérés : ${seeded.join(", ")}`
+        : "✓ Seeds à jour (tables non vides, rien à insérer)",
+    );
+  }
 
   // Verify tables
   const tables =

@@ -4,14 +4,19 @@
  */
 
 import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
-import { escapeHtml } from "@mosaix/support";
+import { escapeHtml, isDemoMode } from "@mosaix/support";
 
 export function createCitadelleDescriptor(): BacDescriptor {
-  const USERS = [
-    { id: "u-001", name: "Administrateur", email: "admin@mosaix.network", role: "Platform Governor", mfa: "Enabled" },
-    { id: "u-002", name: "Sarah Connor", email: "s.connor@citadelle.io", role: "Support Agent", mfa: "Enabled" },
-    { id: "u-003", name: "John Doe", email: "j.doe@citizen.dz", role: "Citizen", mfa: "Disabled" },
-  ];
+  // Demo-only registry content: hardcoded mock users are served exclusively
+  // in demo mode. With MOSAIX_DEMO_USERS=false the registry renders from
+  // real data only (empty until identities are registered).
+  const USERS = isDemoMode()
+    ? [
+        { id: "u-001", name: "Administrateur", email: "admin@mosaix.network", role: "Platform Governor", mfa: "Enabled" },
+        { id: "u-002", name: "Sarah Connor", email: "s.connor@citadelle.io", role: "Support Agent", mfa: "Enabled" },
+        { id: "u-003", name: "John Doe", email: "j.doe@citizen.dz", role: "Citizen", mfa: "Disabled" },
+      ]
+    : [];
 
   return {
     id: "@apps/citadelle",
@@ -72,7 +77,12 @@ export function createCitadelleDescriptor(): BacDescriptor {
                   </tr>
                 </thead>
                 <tbody>
-                  ${rowsHtml}
+                  ${rowsHtml || `
+                  <tr>
+                    <td colspan="5" class="p-6 text-center text-xs text-on-surface-variant/70 italic">
+                      Aucun utilisateur enregistré. Le registre se remplit à l'inscription des identités réelles.
+                    </td>
+                  </tr>`}
                 </tbody>
               </table>
             </div>
@@ -110,6 +120,7 @@ export function createCitadelleDescriptor(): BacDescriptor {
                 </div>
               </div>
               <div class="space-y-2">
+                ${isDemoMode() ? `
                 <div class="p-3 rounded-xl bg-surface-container-lowest/50 border border-outline-variant/10 flex justify-between items-center text-xs">
                   <div>
                     <h4 class="font-bold">Chrome (Session Actuelle)</h4>
@@ -117,6 +128,9 @@ export function createCitadelleDescriptor(): BacDescriptor {
                   </div>
                   <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Actif</span>
                 </div>
+                ` : `
+                <p class="p-3 text-center text-xs text-on-surface-variant/70 italic">Aucune session active.</p>
+                `}
               </div>
               <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-rose-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Sessions révoquées'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="w-full py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 text-xs font-bold text-rose-400 transition cursor-pointer">
                 Révoquer toutes les autres sessions

@@ -1,5 +1,7 @@
 # MosaiX / IJIDeals Platform — Feuille de Route & Horizons Futurs
 
+> Track sécurité en cours : voir **`roadmap-auth.md`** (kill-switch démo MOSAIX_DEMO_USERS=false + auth/session réelle ADR-0017, Phase 0 terminée).
+
 - [x] **Phase 1 : Setup & Infrastructure**
     - [x] Initial Audit & Conformance Tests.
     - [x] Project tracking setup & governance.

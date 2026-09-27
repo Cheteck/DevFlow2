@@ -5,6 +5,7 @@ import * as crypto from "node:crypto";
 
 import type { DatabasePort } from "@mosaix/ports-database";
 import { initDatabase } from "./database-bootstrap.js";
+import { isDemoMode } from "./profiles.js";
 
 export interface ShellFeedItem {
   id: string;
@@ -118,6 +119,9 @@ export class FeedService {
   }
 
   async seedInitialFeedIfEmpty(): Promise<void> {
+    // Demo content only: never inject mock posts when demo mode is off
+    // (MOSAIX_DEMO_USERS=false) — an empty database must stay empty.
+    if (!isDemoMode()) return;
     const countResult = await this.db.query<{ count: number }>(
       `SELECT count(*) as count FROM shell_feed`,
     );

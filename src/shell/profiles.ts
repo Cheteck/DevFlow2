@@ -1,6 +1,7 @@
 import type * as http from "node:http";
 import type { URL } from "node:url";
 import type { DatabasePort } from "@mosaix/ports-database";
+import { isDemoMode } from "@mosaix/support";
 
 export interface UserProfile {
   id: string;
@@ -134,6 +135,44 @@ export interface SpaceProfile {
   badge: string;
 }
 
+/**
+ * Neutral local identity used when demo mode is off
+ * (`MOSAIX_DEMO_USERS=false` or production).
+ *
+ * This is NOT a persona: no fake name, no fake handle. Access level is
+ * identical to the `member` demo profile (the platform has no real session
+ * resolution yet — see AUTH-REAL backlog), but nothing person-like is
+ * displayed in the UI (usermenu, sidebar, greeting).
+ */
+export const LOCAL_USER_PROFILE: UserProfile = {
+  id: "local-user",
+  name: "Utilisateur local",
+  handle: "@local",
+  role: "member",
+  roleLabel: "Membre",
+  badgeClass: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  avatar: "👤",
+  allowedBacs: [
+    "identity",
+    "solara",
+    "spaces",
+    "portfolio",
+    "booking",
+    "beam",
+    "subscription",
+  ],
+  permissions: [
+    "identity:view:profile",
+    "solara:read:feed",
+    "solara:create:post",
+    "spaces:view:dashboard",
+    "portfolio:view:catalog",
+    "booking:reservation:create:tenant",
+    "booking:slot:read:tenant",
+    "beam:send:message",
+  ],
+};
+
 let spacesCache: SpaceProfile[] | null = null;
 let spacesCacheTime = 0;
 const SPACES_CACHE_TTL = 60000; // 1 minute
@@ -224,6 +263,15 @@ export function getActiveUserProfile(
     }
   }
 
+  // The role cookie is a demo credential (set by `/api/user/switch`, which
+  // is itself demo-gated). When demo mode is off (`MOSAIX_DEMO_USERS=false`
+  // or production) the cookie is ignored so a forged `mosaix_role=admin`
+  // cookie can never escalate privileges — everyone resolves to the
+  // neutral local profile until real session resolution lands (AUTH-REAL).
+  if (!isDemoMode()) {
+    return LOCAL_USER_PROFILE;
+  }
+
   const cookieHeader = req.headers.cookie || "";
   const match = cookieHeader.match(/mosaix_role=([a-z_]+)/);
   if (match && USER_PROFILES[match[1]]) {
@@ -235,19 +283,8 @@ export function getActiveUserProfile(
 
 /**
  * Demo session switcher flag (usermenu "Aperçu Démo", `?role=`,
- * `/api/user/switch`). Explicit `MOSAIX_DEMO_USERS` wins; otherwise the
- * switcher is enabled everywhere except production.
+ * `/api/user/switch`). Canonical implementation lives in
+ * `@mosaix/support` (shared with BACs); re-exported here for
+ * backward compatibility.
  */
-export function isDemoMode(
-  source: Record<string, string | undefined> = typeof process !== "undefined"
-    ? (process.env as Record<string, string | undefined>)
-    : {},
-): boolean {
-  const raw = source.MOSAIX_DEMO_USERS;
-  if (raw !== undefined && raw !== "") {
-    const v = raw.toLowerCase().trim();
-    return v === "true" || v === "1" || v === "yes" || v === "on";
-  }
-  const env = source.MOSAIX_ENV ?? source.NODE_ENV ?? "development";
-  return env !== "production";
-}
+export { isDemoMode };

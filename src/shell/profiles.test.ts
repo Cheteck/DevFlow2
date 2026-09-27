@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type * as http from "node:http";
-import type { URL } from "node:url";
-import { isDemoMode, getActiveUserProfile, USER_PROFILES } from "./profiles";
+import { URL } from "node:url";
+import { isDemoMode, getActiveUserProfile, USER_PROFILES, LOCAL_USER_PROFILE } from "./profiles";
 
 describe("demo mode", () => {
   const originalEnv = process.env;
@@ -43,13 +43,33 @@ describe("demo mode", () => {
     process.env.NODE_ENV = "production";
     const req = { headers: { cookie: "" } } as unknown as http.IncomingMessage;
     const url = new URL("http://localhost/?role=admin");
-    expect(getActiveUserProfile(req, url)).toBe(USER_PROFILES.member);
+    expect(getActiveUserProfile(req, url)).toBe(LOCAL_USER_PROFILE);
 
     process.env.MOSAIX_DEMO_USERS = "true";
     expect(getActiveUserProfile(req, url)).toBe(USER_PROFILES.admin);
   });
 
-  it("still honors the role cookie when demo is off", () => {
+  it("ignores the role cookie when demo is off", () => {
+    process.env.NODE_ENV = "production";
+    const req = {
+      headers: { cookie: "mosaix_role=moderator" },
+    } as unknown as http.IncomingMessage;
+    const url = new URL("http://localhost/");
+    expect(getActiveUserProfile(req, url)).toBe(LOCAL_USER_PROFILE);
+  });
+
+  it("neutral local profile carries member-level access without a persona", () => {
+    expect(LOCAL_USER_PROFILE.name).not.toMatch(/Alex|Sarah|Imperia/);
+    expect(LOCAL_USER_PROFILE.role).toBe("member");
+    expect(LOCAL_USER_PROFILE.allowedBacs).toEqual(
+      USER_PROFILES.member.allowedBacs,
+    );
+    expect(LOCAL_USER_PROFILE.permissions).toEqual(
+      USER_PROFILES.member.permissions,
+    );
+  });
+
+  it("honors the role cookie when demo is on", () => {
     const req = {
       headers: { cookie: "mosaix_role=moderator" },
     } as unknown as http.IncomingMessage;
