@@ -10,7 +10,6 @@
 import { MigrationRegistry } from "@mosaix/migrations";
 import { ShellThemeMigrationProvider } from "./theme/theme-migrations.js";
 import { ShellCoreMigrationProvider } from "./database/core-migration.js";
-import { ShellPostgresPatchProvider } from "./database/postgres-patches.js";
 import { MinimalCoreMigrationProvider } from "./database/minimal-core-migration.js";
 import { MobileBridgeMigrationProvider } from "./database/mobile-bridge-migration.js";
 import { FeatureFlagsMigrationProvider } from "./database/feature-flags-migration.js";

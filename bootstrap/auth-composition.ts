@@ -19,9 +19,8 @@ let sharedAuthInstance: AuthManager | null = null;
 export function initSharedAuth(options: SharedAuthCompositionOptions = {}): AuthManager {
   if (sharedAuthInstance) return sharedAuthInstance;
 
-  let db: DatabasePort | undefined = options.dbAdapter;
-  if (!db && container.has("databasePort")) {
-    db = container.resolve<DatabasePort>("databasePort");
+  if (!options.dbAdapter && container.has("databasePort")) {
+    container.resolve<DatabasePort>("databasePort");
   }
 
   const jwtSecret =

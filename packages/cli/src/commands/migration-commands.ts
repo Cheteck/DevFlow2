@@ -21,7 +21,6 @@ import {
   SqlMigrationStore,
   type DatabasePort,
 } from "../../../migrations/src/index.js";
-import type { DatabaseManager } from "@mosaix/database";
 import { connectCliDatabase } from "./database-command.js";
 // Shell-owned providers (aggregated registry). Relative import follows the
 // existing cross-package style of this file; the long-term home is a

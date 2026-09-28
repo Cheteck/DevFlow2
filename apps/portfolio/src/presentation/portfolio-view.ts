@@ -254,8 +254,8 @@ export function createPortfolioDescriptor(): BacDescriptor {
             <p class="text-xs text-on-surface-variant">Conforme aux validations PortfolioService &amp; CS-Cart Features.</p>
             <div class="p-4 border-2 border-dashed border-outline-variant/30 rounded-xl text-center space-y-2">
               <span class="text-2xl">📄</span>
-              <p class="text-xs font-bold text-on-surface">${view === 'import' ? 'Glissez-déposez un fichier CSV ou JSON' : 'Sélectionnez le format d'exportation'}</p>
-              <button onclick="alert('Action d'import/export exécutée !')" class="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs cursor-pointer">${view === 'import' ? 'Parcourir les fichiers' : 'Télécharger CSV'}</button>
+              <p class="text-xs font-bold text-on-surface">${view === 'import' ? 'Glissez-déposez un fichier CSV ou JSON' : 'Sélectionnez le format d\'exportation'}</p>
+              <button onclick="alert('Action d''import/export exécutée !')" class="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs cursor-pointer">${view === 'import' ? 'Parcourir les fichiers' : 'Télécharger CSV'}</button>
             </div>
           </div>
         `;

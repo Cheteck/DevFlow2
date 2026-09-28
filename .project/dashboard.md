@@ -1,4 +1,5 @@
 # MosaiX Dashboard
+**Rapport de Gap Analysis :** `.project/reports/gap-analysis-report-2026-09-28.md`
 **Dernière mise à jour :** 2026-09-25 — Remédiation d'Audit de Sécurité SEC-01 (VULN-01 à VULN-08 traitées) + Pull `ac99009`/`0ebe478`/`356422d`  
 **Statut Global :** 🟢 Système Nominal & Sécurisé — Moteur d'Autorisation v2, 14 tables Portfolio CS-Cart, `portfolio_proposals` + `ProposalService` (`PRD-0010` v1.3), `Money`/`Timestamp`, 8 Vulnérabilités de Sécurité résolues ; reste `DATA-07` + `PRD-0011` 19 pages UI
 

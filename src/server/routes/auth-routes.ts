@@ -39,7 +39,7 @@ export async function handleAuthRoutes(
       }
 
       const sessionId = "sess-" + Date.now();
-      const isSecure = req.socket && (req.socket as any).encrypted;
+      const isSecure = Boolean(req.socket && "encrypted" in req.socket && req.socket.encrypted);
       const cookieName = isSecure ? "__Host-mosaix_session" : "mosaix_session";
       const cookieHeader = `${cookieName}=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400` + (isSecure ? "; Secure" : "");
 
@@ -58,7 +58,7 @@ export async function handleAuthRoutes(
 
   // AUTH-06: Session Logout Endpoint
   if (pathname === "/api/auth/logout" && (req.method === "POST" || req.method === "GET")) {
-    const isSecure = req.socket && (req.socket as any).encrypted;
+    const isSecure = Boolean(req.socket && "encrypted" in req.socket && req.socket.encrypted);
     const cookieName = isSecure ? "__Host-mosaix_session" : "mosaix_session";
     const cookieHeader = `${cookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0` + (isSecure ? "; Secure" : "");
 

@@ -22,7 +22,7 @@ import {
   AuthCodeStoreAdapter,
   type AuthCodeRecord,
 } from "../../../packages/mobile-bridge/src/auth/auth-code-store.js";
-import { DeviceRegistryAdapter, type MobileDeviceRegistration } from "../../../packages/mobile-bridge/src/push/device-registry-adapter.js";
+import { DeviceRegistryAdapter } from "../../../packages/mobile-bridge/src/push/device-registry-adapter.js";
 import { RefreshTokenStoreAdapter } from "../../../packages/mobile-bridge/src/auth/refresh-token-store.js";
 
 const fcmAdapter = new FcmPushAdapter();

@@ -38,7 +38,7 @@ async function main() {
         const request = JSON.parse(line);
         const response = await gateway.handleRequest(request);
         process.stdout.write(JSON.stringify(response) + "\n");
-      } catch (err) {
+      } catch (_err) {
         const errorResponse = {
           jsonrpc: "2.0",
           id: null,

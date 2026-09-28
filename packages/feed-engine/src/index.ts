@@ -1,5 +1,5 @@
 /**
- * @mosaix/feed-engine ÔÇö Shared Extensible Feed & Publication Pipeline
+ * @mosaix/feed-engine — Shared Extensible Feed & Publication Pipeline
  * Decoupled from any specific BAC, provides ActivityStreams-like structures,
  * component resolvers, render interceptors, high-performance feed aggregators,
  * activity grouping, event publishing, caching interfaces, pagination,
@@ -955,8 +955,8 @@ export class ActivityStreamsConverter {
 export interface SponsoredPost extends FeedPost {
   isSponsored: true;
   sponsorName: string;
-  sponsorBadge?: string; // e.g., "Sponsoris├®", "Sponsoris├® par MosaiX"
-  ctaText?: string; // e.g., "D├®couvrir l'offre", "R├®server un cr├®neau"
+  sponsorBadge?: string;
+  ctaText?: string;
   ctaUrl?: string;
   campaignId: string;
 }
@@ -977,10 +977,10 @@ export function isSponsoredPost(post: unknown): post is SponsoredPost {
  * 14. Algorithmic Feed Ranking & Scoring Engine
  */
 export interface FeedRankingWeights {
-  recencyWeight?: number; // default: 0.4
-  engagementWeight?: number; // default: 0.3
-  affinityWeight?: number; // default: 0.3
-  timeDecayHalfLifeHours?: number; // default: 24h
+  recencyWeight?: number;
+  engagementWeight?: number;
+  affinityWeight?: number;
+  timeDecayHalfLifeHours?: number;
 }
 
 export interface FeedRankingContext {
@@ -1003,7 +1003,6 @@ export class FeedRanker {
       timeDecayHalfLifeHours: context.weights?.timeDecayHalfLifeHours ?? 24,
     };
 
-    // A. Recency Decay (exponential decay)
     const ageInHours = Math.max(
       0,
       (Date.now() - post.createdAt.getTime()) / (1000 * 60 * 60),
@@ -1013,12 +1012,10 @@ export class FeedRanker {
       ageInHours / weights.timeDecayHalfLifeHours,
     );
 
-    // B. Engagement Score (logarithmic scaling for reactions and comments)
     const totalEngagements =
       (post.likeCount || 0) * 1 + (post.commentsCount || 0) * 2;
     const engagementScore = Math.min(1, Math.log10(totalEngagements + 1) / 3);
 
-    // C. Affinity Score
     const isFollowedSpace =
       context.currentUserFollowedSpaces?.includes(post.targetId) ?? false;
     const affinityScore = isFollowedSpace ? 1.0 : 0.2;
@@ -1030,9 +1027,6 @@ export class FeedRanker {
     );
   }
 
-  /**
-   * Ranks an array of feed posts dynamically based on calculated score.
-   */
   public static rank(
     posts: FeedPost[],
     context: FeedRankingContext = {},
@@ -1048,14 +1042,11 @@ export class FeedRanker {
  * 15. Sponsored Publications Injection Engine
  */
 export interface SponsorshipInjectionOptions {
-  interval?: number; // insert 1 sponsored post every N organic posts (default: 5)
-  maxSponsoredPosts?: number; // max sponsored posts per feed view (default: 3)
+  interval?: number;
+  maxSponsoredPosts?: number;
 }
 
 export class SponsoredPostInjector {
-  /**
-   * Interjects sponsored publications into organic feeds at configured intervals.
-   */
   public static inject(
     organicPosts: FeedPost[],
     sponsoredPool: SponsoredPost[],
@@ -1101,16 +1092,11 @@ export interface UserRecommendationProfile {
 }
 
 export class ForYouRecommendationEngine {
-  /**
-   * Generates a personalized "Pour Toi" feed with interest tag matching,
-   * serendipity discovery boosting, and noise exclusion (muted actors / hidden posts).
-   */
   public static generateForYouFeed(
     allPosts: FeedPost[],
     profile: UserRecommendationProfile,
     options: { weights?: FeedRankingWeights } = {},
   ): FeedPost[] {
-    // A. Filter out muted actors & hidden posts
     const mutedSet = new Set(profile.mutedActorIds || []);
     const hiddenSet = new Set(profile.hiddenPostIds || []);
 
@@ -1120,15 +1106,12 @@ export class ForYouRecommendationEngine {
       return true;
     });
 
-    // B. Calculate personalized recommendation score
     const scoredPosts = eligiblePosts.map((post) => {
-      // Base algorithmic ranking score
       const baseScore = FeedRanker.calculateScore(post, {
         currentUserFollowedSpaces: profile.followedSpaceIds,
         weights: options.weights,
       });
 
-      // Interest tag match bonus
       let interestBonus = 0;
       if (
         profile.interestTags &&
@@ -1144,7 +1127,6 @@ export class ForYouRecommendationEngine {
         interestBonus = matchingTags.length * 0.25;
       }
 
-      // Serendipity bonus for highly engaging trending posts outside followed spaces
       const isUnfollowedSpace =
         !profile.followedSpaceIds.includes(post.targetId) &&
         post.targetType === "space";
@@ -1157,184 +1139,21 @@ export class ForYouRecommendationEngine {
       };
     });
 
-    // C. Sort descending by final recommendation score
     scoredPosts.sort((a, b) => b.finalScore - a.finalScore);
 
     return scoredPosts.map((item) => item.post);
   }
 }
 
-/**
- * 17. Trending & Viral Velocity Algorithm (Inspired by HackerNews / Reddit / Phoenix)
- * Velocity = (Engagements) / (Age + 2)^gravity
- */
-export class TrendingVelocityRanker {
-  public static calculateVelocity(post: FeedPost, gravity = 1.6): number {
-    const ageInHours = Math.max(
-      0,
-      (Date.now() - post.createdAt.getTime()) / (1000 * 60 * 60),
-    );
-    const rawEngagements =
-      (post.likeCount || 0) * 2 + (post.commentsCount || 0) * 4;
-    return rawEngagements / Math.pow(ageInHours + 2, gravity);
-  }
-
-  public static rankByTrending(posts: FeedPost[], gravity = 1.6): FeedPost[] {
-    return [...posts].sort(
-      (a, b) =>
-        this.calculateVelocity(b, gravity) - this.calculateVelocity(a, gravity),
-    );
-  }
-}
-
-/**
- * 18. Content Safety & Quality Moderation Engine
- * Evaluates spam, abusive patterns, repetition, and assigns a quality score.
- */
-export interface QualityReport {
-  score: number; // 0.0 to 1.0 (1.0 is pristine quality)
-  isSafe: boolean;
-  flags: string[];
-}
-
-export class ContentSafetyFilter {
-  private static SPAM_KEYWORDS = [
-    "viagra",
-    "crypto giveaway",
-    "free money",
-    "gagnez 10000Ôé¼",
-    "double your coins",
-    "whatsapp me",
-    "click here fast",
-    "earn from home fast",
-  ];
-
-  public static evaluate(post: FeedPost): QualityReport {
-    const flags: string[] = [];
-    let penalty = 0;
-    const content = (post.content || "").toLowerCase();
-
-    // 1. Spam keyword analysis
-    for (const kw of this.SPAM_KEYWORDS) {
-      if (content.includes(kw)) {
-        flags.push(`spam_keyword:${kw}`);
-        penalty += 0.4;
-      }
-    }
-
-    // 2. Character repetition check (e.g. "aaaaaaa!!!!")
-    if (/(.)\1{5,}/.test(content)) {
-      flags.push("excessive_character_repetition");
-      penalty += 0.2;
-    }
-
-    // 3. Excessive uppercase check
-    const uppercaseCount = (post.content.match(/[A-Z]/g) || []).length;
-    if (
-      post.content.length > 20 &&
-      uppercaseCount / post.content.length > 0.6
-    ) {
-      flags.push("excessive_caps");
-      penalty += 0.15;
-    }
-
-    // 4. Short / Low Effort content
-    if (
-      post.content.trim().length < 5 &&
-      (!post.mediaUrls || post.mediaUrls.length === 0)
-    ) {
-      flags.push("low_effort");
-      penalty += 0.1;
-    }
-
-    const score = Math.max(0, Math.min(1, 1.0 - penalty));
-    const isSafe =
-      score >= 0.5 && !flags.some((f) => f.startsWith("spam_keyword"));
-
-    return { score, isSafe, flags };
-  }
-
-  public static filterUnsafe(posts: FeedPost[]): FeedPost[] {
-    return posts.filter((post) => this.evaluate(post).isSafe);
-  }
-}
-
-/**
- * 19. Sponsored Ads Telemetry & Impression Tracker
- * High-precision attribution for impressions, clicks, and CTR calculation.
- */
-export interface AdTelemetryEvent {
-  campaignId: string;
-  postId: string;
-  viewerActorId: string;
-  eventType: "impression" | "click" | "cta_conversion";
-  timestamp: Date;
-}
-
-export class SponsorshipTelemetry {
-  private static events: AdTelemetryEvent[] = [];
-
-  public static track(event: AdTelemetryEvent): void {
-    this.events.push(event);
-  }
-
-  public static getMetrics(campaignId: string): {
-    impressions: number;
-    clicks: number;
-    conversions: number;
-    ctr: number;
-  } {
-    const campaignEvents = this.events.filter(
-      (e) => e.campaignId === campaignId,
-    );
-    const impressions = campaignEvents.filter(
-      (e) => e.eventType === "impression",
-    ).length;
-    const clicks = campaignEvents.filter((e) => e.eventType === "click").length;
-    const conversions = campaignEvents.filter(
-      (e) => e.eventType === "cta_conversion",
-    ).length;
-    const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
-
-    return {
-      impressions,
-      clicks,
-      conversions,
-      ctr: parseFloat(ctr.toFixed(2)),
-    };
-  }
-}
-
-/**
- * 20. AT Protocol-inspired Custom Feed Generators
- */
-export type CustomFeedAlgorithm = (
-  posts: FeedPost[],
-  context: Record<string, unknown>,
-) => FeedPost[];
-
-export class FeedGeneratorRegistry {
-  private static generators = new Map<string, CustomFeedAlgorithm>();
-
-  public static register(name: string, algorithm: CustomFeedAlgorithm): void {
-    this.generators.set(name, algorithm);
-  }
-
-  public static resolve(name: string): CustomFeedAlgorithm | undefined {
-    return this.generators.get(name);
-  }
-
-  public static listAvailable(): string[] {
-    return Array.from(this.generators.keys());
-  }
-}
-
-// Pre-register standard platform algorithms
-FeedGeneratorRegistry.register("trending", (posts) =>
-  TrendingVelocityRanker.rankByTrending(posts),
-);
-FeedGeneratorRegistry.register("media_only", (posts) =>
-  posts.filter((p) => p.mediaUrls && p.mediaUrls.length > 0),
-);
+// Re-export extracted velocity & moderation utilities from velocity-calculator.js
+export {
+  TrendingVelocityRanker,
+  ContentSafetyFilter,
+  SponsorshipTelemetry,
+  FeedGeneratorRegistry,
+  type QualityReport,
+  type AdTelemetryEvent,
+  type CustomFeedAlgorithm,
+} from "./velocity-calculator.js";
 
 export { SQLiteFeedStore, type Queryable } from "./feed-store.js";
