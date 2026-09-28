@@ -46,3 +46,6 @@ export * from "./oauth/providers/apple-provider";
 export * from "./oauth/providers/microsoft-provider";
 export * from "./oauth/providers/github-provider";
 export * from "./oauth/providers/facebook-provider";
+
+export { PlatformSessionResolver } from "./session-resolver";
+export type { SessionResolver, PlatformSessionContext } from "./session-resolver";

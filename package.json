@@ -86,6 +86,17 @@
     "@mosaix/sdk": "workspace:*",
     "@mosaix/security": "workspace:*",
     "@mosaix/support": "workspace:*",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "@mosaix/adapter-auth-local": "workspace:*",
+    "@mosaix/adapter-credential-store-postgres": "workspace:*",
+    "@mosaix/adapter-credential-store-sqlite": "workspace:*",
+    "@mosaix/adapter-id-uuid": "workspace:*",
+    "@mosaix/adapter-session-store-sqlite": "workspace:*",
+    "@mosaix/adapter-token-store-postgres": "workspace:*",
+    "@mosaix/adapter-token-store-sqlite": "workspace:*",
+    "@mosaix/auth": "workspace:*",
+    "@mosaix/ports-credential-store": "workspace:*",
+    "@mosaix/ports-session-store": "workspace:*",
+    "@mosaix/ports-token-store": "workspace:*"
   }
 }

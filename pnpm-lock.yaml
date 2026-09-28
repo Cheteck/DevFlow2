@@ -8,6 +8,15 @@ importers:
 
   .:
     dependencies:
+      '@mosaix/adapter-auth-local':
+        specifier: workspace:*
+        version: link:packages/adapters/auth-local
+      '@mosaix/adapter-credential-store-postgres':
+        specifier: workspace:*
+        version: link:packages/adapters/credential-store-postgres
+      '@mosaix/adapter-credential-store-sqlite':
+        specifier: workspace:*
+        version: link:packages/adapters/credential-store-sqlite
       '@mosaix/adapter-database-postgres':
         specifier: workspace:*
         version: link:packages/adapters/database-postgres
@@ -17,12 +26,27 @@ importers:
       '@mosaix/adapter-featureflags-memory':
         specifier: workspace:*
         version: link:packages/adapters/featureflags-memory
+      '@mosaix/adapter-id-uuid':
+        specifier: workspace:*
+        version: link:packages/adapters/id-uuid
       '@mosaix/adapter-identity-store-postgres':
         specifier: workspace:*
         version: link:packages/adapters/identity-store-postgres
       '@mosaix/adapter-identity-store-sqlite':
         specifier: workspace:*
         version: link:packages/adapters/identity-store-sqlite
+      '@mosaix/adapter-session-store-sqlite':
+        specifier: workspace:*
+        version: link:packages/adapters/session-store-sqlite
+      '@mosaix/adapter-token-store-postgres':
+        specifier: workspace:*
+        version: link:packages/adapters/token-store-postgres
+      '@mosaix/adapter-token-store-sqlite':
+        specifier: workspace:*
+        version: link:packages/adapters/token-store-sqlite
+      '@mosaix/auth':
+        specifier: workspace:*
+        version: link:packages/auth
       '@mosaix/cli':
         specifier: workspace:*
         version: link:packages/cli
@@ -41,6 +65,9 @@ importers:
       '@mosaix/migrations':
         specifier: workspace:*
         version: link:packages/migrations
+      '@mosaix/ports-credential-store':
+        specifier: workspace:*
+        version: link:packages/ports/credential-store
       '@mosaix/ports-database':
         specifier: workspace:*
         version: link:packages/ports/database
@@ -50,6 +77,12 @@ importers:
       '@mosaix/ports-identity-store':
         specifier: workspace:*
         version: link:packages/ports/identity-store
+      '@mosaix/ports-session-store':
+        specifier: workspace:*
+        version: link:packages/ports/session-store
+      '@mosaix/ports-token-store':
+        specifier: workspace:*
+        version: link:packages/ports/token-store
       '@mosaix/schemas':
         specifier: workspace:*
         version: link:packages/schemas

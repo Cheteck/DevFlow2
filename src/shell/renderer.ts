@@ -504,6 +504,14 @@ export function renderUserSwitcherWidget(
   user: UserProfile,
   activeSpace?: SpaceProfile | string | null,
 ): string {
+  if (user.id === "guest") {
+    return `
+      <div class="flex items-center gap-2 select-none">
+        <a href="/identity" class="px-3.5 py-1.5 rounded-xl bg-surface-container hover:bg-surface-variant text-xs font-bold text-on-surface border border-outline-variant/30 transition">Connexion</a>
+        <a href="/identity" class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-xs font-bold text-on-primary transition shadow-sm">Inscription</a>
+      </div>
+    `;
+  }
   if (typeof activeSpace === "string") {
     activeSpace = SPACES_LIST.find((s) => s.id === activeSpace) ?? null;
   }

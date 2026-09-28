@@ -1,5 +1,6 @@
 import type * as http from "node:http";
 import type { URL } from "node:url";
+import type { PlatformAuthComposition } from "../../bootstrap/auth-composition.js";
 
 export interface UserProfile {
   id: string;
@@ -12,6 +13,18 @@ export interface UserProfile {
   allowedBacs: string[]; // BAC IDs visible in Primary Sidebar
   permissions: string[]; // Specific permission strings
 }
+
+export const GUEST_USER_PROFILE: UserProfile = {
+  id: "guest",
+  name: "Visiteur",
+  handle: "@guest",
+  role: "member",
+  roleLabel: "Invité non connecté",
+  badgeClass: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+  avatar: "👤",
+  allowedBacs: ["identity", "solara", "portfolio"],
+  permissions: ["solara:read:feed", "portfolio:view:catalog"],
+};
 
 export const USER_PROFILES: Record<string, UserProfile> = {
   member: {
@@ -164,6 +177,10 @@ export function getActiveSpaceProfile(
   req: http.IncomingMessage,
   parsedUrl: URL,
 ): SpaceProfile | null {
+  if (!isDemoMode()) {
+    return null;
+  }
+
   const spaceQuery = parsedUrl.searchParams.get("spaceId");
   if (spaceQuery) {
     const space = SPACES_LIST.find((s) => s.id === spaceQuery);
@@ -180,26 +197,56 @@ export function getActiveSpaceProfile(
   return null;
 }
 
-export function getActiveUserProfile(
+export async function getActiveUserProfile(
   req: http.IncomingMessage,
   parsedUrl: URL,
-): UserProfile {
-  // Query-param override is a demo convenience — never in production.
+  authComposition?: PlatformAuthComposition,
+): Promise<UserProfile> {
+  // Query-param or cookie override is a demo convenience — strictly disabled when demo mode is off (MOSAIX_DEMO_USERS=false).
   if (isDemoMode()) {
     const roleQuery =
       parsedUrl.searchParams.get("role") || parsedUrl.searchParams.get("user");
     if (roleQuery && USER_PROFILES[roleQuery]) {
       return USER_PROFILES[roleQuery];
     }
+
+    const cookieHeader = req.headers.cookie || "";
+    const match = cookieHeader.match(/mosaix_role=([a-z_]+)/);
+    if (match && USER_PROFILES[match[1]]) {
+      return USER_PROFILES[match[1]];
+    }
+
+    return USER_PROFILES.member;
   }
 
-  const cookieHeader = req.headers.cookie || "";
-  const match = cookieHeader.match(/mosaix_role=([a-z_]+)/);
-  if (match && USER_PROFILES[match[1]]) {
-    return USER_PROFILES[match[1]];
+  // Demo mode is OFF (MOSAIX_DEMO_USERS=false or production):
+  // Resolve real platform session if authComposition is available
+  if (authComposition) {
+    const cookieHeader = req.headers.cookie || "";
+    const match = cookieHeader.match(/(?:__Host-mosaix_session|mosaix_session)=([a-zA-Z0-9_-]+)/);
+    if (match) {
+      const sessionId = match[1];
+      const sessionCtx = await authComposition.sessionResolver.resolve(sessionId);
+      if (sessionCtx) {
+        const identity = await authComposition.identityStore.findById(sessionCtx.userId);
+        if (identity) {
+          const role = (identity.attributes?.role as "member" | "moderator" | "admin") || "member";
+          const template = USER_PROFILES[role] || USER_PROFILES.member;
+          const email = identity.email || "";
+          const name = identity.displayName || (email ? email.split("@")[0] : "Utilisateur");
+          const handle = email ? `@${email.split("@")[0]}` : `@${identity.id}`;
+          return {
+            ...template,
+            id: identity.id,
+            name,
+            handle,
+          };
+        }
+      }
+    }
   }
 
-  return USER_PROFILES.member;
+  return GUEST_USER_PROFILE;
 }
 
 /**

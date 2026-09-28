@@ -140,7 +140,7 @@ export function createHttpRequestHandler(services: ApplicationServices) {
       }
 
       // 2. Resolve User, Active Space & Theme Mode context
-      const currentUser: UserProfile = getActiveUserProfile(req, parsedUrl);
+      const currentUser: UserProfile = await getActiveUserProfile(req, parsedUrl, services.authComposition);
       const activeSpaceProfile = getActiveSpaceProfile(req, parsedUrl);
       const currentSpace = activeSpaceProfile ? activeSpaceProfile.id : null;
       const themeCookie = (req.headers.cookie || "").match(
@@ -174,6 +174,7 @@ export function createHttpRequestHandler(services: ApplicationServices) {
         activeMode: currentThemeMode,
         currentUser,
         compositionOverrideManager: services.compositionOverrideManager,
+        authComposition: services.authComposition,
         feedService: services.getFeedService(),
         eventBackplane: services.eventBackplane,
         anonymizationOrchestrator: services.getAnonymizationOrchestrator(),

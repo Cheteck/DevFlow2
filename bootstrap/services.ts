@@ -12,9 +12,11 @@ import { loadSavedCompositionOverrides } from "../src/shell/editor.js";
 import { getFeedService } from "../src/shell/feed-service.js";
 import { distributedEventBackplane } from "../src/shell/event-backplane.js";
 import { getAnonymizationOrchestrator } from "../src/shell/anonymization-orchestrator.js";
+import { createPlatformAuthComposition, type PlatformAuthComposition } from "./auth-composition.js";
 
 export interface ApplicationServices {
   compositionOverrideManager: CompositionOverrideManager;
+  authComposition: PlatformAuthComposition;
   getFeedService: typeof getFeedService;
   eventBackplane: typeof distributedEventBackplane;
   getAnonymizationOrchestrator: typeof getAnonymizationOrchestrator;
@@ -39,8 +41,12 @@ export async function registerServices(): Promise<ApplicationServices> {
   const compositionOverrideManager = new CompositionOverrideManager();
   loadSavedCompositionOverrides(compositionOverrideManager);
 
+  // Platform Authentication & Identity Composition Root
+  const authComposition = createPlatformAuthComposition(dbAdapter);
+
   return {
     compositionOverrideManager,
+    authComposition,
     getFeedService,
     eventBackplane: distributedEventBackplane,
     getAnonymizationOrchestrator,

@@ -41,3 +41,10 @@ We establish the immutable architectural rule:
 - Applications cannot create independent authentication sessions.
 - Zero-trust token validation is unified across the `Gateway` and Bounded Applications via `Platform Auth`.
 - `Identity` becomes an ergonomic workflow provider for establishing platform sessions, avoiding circular dependencies between the Kernel/SDK and IAM domain apps.
+
+---
+
+## Erratum (September 2026)
+
+- Replaced historical repository path reference `apps/identity` with canonical Bounded Application Context `apps/citadelle` (`@apps/citadelle`).
+- Core decision remains unchanged: Platform Auth (`@mosaix/auth`) owns platform sessions and tokens, while Citadelle owns user identities and credential workflows.

@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type * as http from "node:http";
-import type { URL } from "node:url";
-import { isDemoMode, getActiveUserProfile, USER_PROFILES } from "./profiles";
+import { URL } from "node:url";
+import { isDemoMode, getActiveUserProfile, getActiveSpaceProfile, USER_PROFILES, GUEST_USER_PROFILE } from "./profiles.js";
+import { renderUserSwitcherWidget } from "./renderer.js";
+import { InMemoryGuard } from "@mosaix/support";
 
 describe("demo mode", () => {
   const originalEnv = process.env;
@@ -11,6 +13,10 @@ describe("demo mode", () => {
     delete process.env.MOSAIX_DEMO_USERS;
     delete process.env.MOSAIX_ENV;
     delete process.env.NODE_ENV;
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
   });
 
   it("is enabled by default outside production", () => {
@@ -39,21 +45,35 @@ describe("demo mode", () => {
     ).toBe(true);
   });
 
-  it("ignores ?role= query override when demo is off", () => {
-    process.env.NODE_ENV = "production";
+  it("returns guest profile when demo is off and no session exists", async () => {
+    process.env.MOSAIX_DEMO_USERS = "false";
     const req = { headers: { cookie: "" } } as unknown as http.IncomingMessage;
     const url = new URL("http://localhost/?role=admin");
-    expect(getActiveUserProfile(req, url)).toBe(USER_PROFILES.member);
+    const user = await getActiveUserProfile(req, url);
 
-    process.env.MOSAIX_DEMO_USERS = "true";
-    expect(getActiveUserProfile(req, url)).toBe(USER_PROFILES.admin);
+    expect(user).toBe(GUEST_USER_PROFILE);
+    expect(user.id).toBe("guest");
+
+    const widgetHtml = renderUserSwitcherWidget(user);
+    expect(widgetHtml).toContain("Connexion");
+    expect(widgetHtml).toContain("Inscription");
   });
 
-  it("still honors the role cookie when demo is off", () => {
+  it("ignores role cookie and space profile when MOSAIX_DEMO_USERS=false", async () => {
+    process.env.MOSAIX_DEMO_USERS = "false";
     const req = {
-      headers: { cookie: "mosaix_role=moderator" },
+      headers: { cookie: "mosaix_role=moderator; mosaix_active_space=space-bijoux-amel" },
     } as unknown as http.IncomingMessage;
     const url = new URL("http://localhost/");
-    expect(getActiveUserProfile(req, url)).toBe(USER_PROFILES.moderator);
+
+    expect(await getActiveUserProfile(req, url)).toBe(GUEST_USER_PROFILE);
+    expect(getActiveSpaceProfile(req, url)).toBeNull();
+  });
+
+  it("throws error in InMemoryGuard when MOSAIX_DEMO_USERS=false", () => {
+    process.env.MOSAIX_DEMO_USERS = "false";
+    expect(() => InMemoryGuard.reportFallback("TestAdapter")).toThrow(
+      "[InMemoryForbidden] In-memory storage/adapter \"TestAdapter\" and mock data are strictly forbidden when MOSAIX_DEMO_USERS=false"
+    );
   });
 });

@@ -11,6 +11,7 @@ import type { UserProfile } from "../shell/profiles.js";
 import type { FeedService } from "../shell/feed-service.js";
 import type { DistributedEventBackplane } from "../shell/event-backplane.js";
 import type { AnonymizationOrchestrator } from "../shell/anonymization-orchestrator.js";
+import type { PlatformAuthComposition } from "../../bootstrap/auth-composition.js";
 import { sendProblemResponse } from "../shell/http-errors.js";
 
 import { handleMaintenanceRoutes } from "./routes/maintenance-routes.js";
@@ -25,11 +26,10 @@ import { handleComplianceAndSystemRoutes } from "./routes/compliance-routes.js";
 import { handleMobileRoutes } from "./routes/mobile-routes.js";
 
 export interface ApiDispatcherContext {
-  // Per-request theme resolved from the mosaix_theme_mode cookie.
-  // No global mutable theme state (A-04): theme POSTs persist via cookie.
   activeMode: ThemeMode;
   currentUser: UserProfile;
   compositionOverrideManager: CompositionOverrideManager;
+  authComposition?: PlatformAuthComposition;
   feedService: FeedService;
   eventBackplane: DistributedEventBackplane;
   anonymizationOrchestrator: AnonymizationOrchestrator;
@@ -56,12 +56,12 @@ export class ApiRouteRegistry {
 
 export const apiRouteRegistry = new ApiRouteRegistry();
 
-// 1. Maintenance API (FEAT-01)
+// 1. Maintenance API
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   handleMaintenanceRoutes(req, res, parsedUrl, ctx.currentUser),
 );
 
-// 2. Theme Switching & Preset Export/Import (THEME-14 / GAP-IHM-03)
+// 2. Theme Switching & Preset Export/Import
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   handleThemeRoutes(
     req,
@@ -73,7 +73,7 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   ),
 );
 
-// 2b. Platform theme administration (V2.3: admin-owned identity, persisted).
+// 2b. Platform theme administration
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   handlePlatformThemeRoutes(req, res, parsedUrl, ctx.currentUser.role),
 );
@@ -99,10 +99,13 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   ),
 );
 
-// 6. Auth & Wizard API
-apiRouteRegistry.register((req, res, parsedUrl) =>
-  handleAuthRoutes(req, res, parsedUrl),
-);
+// 6. Platform Auth & Identity API
+apiRouteRegistry.register((req, res, parsedUrl, ctx) => {
+  if (ctx.authComposition) {
+    return handleAuthRoutes(req, res, parsedUrl, ctx.authComposition);
+  }
+  return false;
+});
 
 // 7. Feed & Realtime Posts API
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
@@ -116,7 +119,7 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   ),
 );
 
-// 8. Compliance (PSP, GDPR, SSE)
+// 8. Compliance
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   handleComplianceAndSystemRoutes(
     req,
@@ -128,7 +131,7 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   ),
 );
 
-// 9. Mobile Bridge (PKCE, FCM Push, Delta Sync, Codegen)
+// 9. Mobile Bridge
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.feedService),
 );
@@ -141,7 +144,6 @@ export async function dispatchApiRequest(
 ): Promise<boolean> {
   const pathname = parsedUrl.pathname;
 
-  // Standard Container Liveness Probe (Kubernetes / Cloud Run)
   if (pathname === "/healthz") {
     res.writeHead(200, {
       "Content-Type": "application/json; charset=utf-8",
@@ -153,9 +155,8 @@ export async function dispatchApiRequest(
     return true;
   }
 
-  // Standard Container Readiness Probe (Kubernetes / Cloud Run)
   if (pathname === "/readyz") {
-    const isReady = true; // All 10 apps and modules loaded
+    const isReady = true;
     res.writeHead(isReady ? 200 : 503, {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
@@ -169,7 +170,6 @@ export async function dispatchApiRequest(
     return true;
   }
 
-  // Android App Links verification standard endpoint
   if (pathname === "/.well-known/assetlinks.json") {
     return await handleMobileRoutes(
       req,
@@ -180,7 +180,6 @@ export async function dispatchApiRequest(
     );
   }
 
-  // System diagnostic endpoint is at /__mosaix
   if (pathname === "/__mosaix") {
     return await handleComplianceAndSystemRoutes(
       req,
@@ -203,7 +202,6 @@ export async function dispatchApiRequest(
     }
   }
 
-  // Unhandled API route fallback with RFC 7807 Problem Details
   sendProblemResponse(
     res,
     404,
