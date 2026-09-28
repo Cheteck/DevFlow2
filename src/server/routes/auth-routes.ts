@@ -7,10 +7,30 @@ import type { URL } from "node:url";
 import { registrationWizardService } from "../../../apps/citadelle/src/domain/registration-wizard.service.js";
 import { readLimitedJson } from "../utils/safe-body-parser.js";
 
+function validateCsrfOrigin(req: http.IncomingMessage): boolean {
+  const origin = req.headers.origin || req.headers.referer;
+  if (!origin) return true;
+  const host = req.headers.host;
+  if (!host) return true;
+  return origin.includes(host);
+}
+
+export async function handleAuthRoutes(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  parsedUrl: URL
+): Promise<boolean> {
+  const pathname = parsedUrl.pathname;
 
   // AUTH-06: Session Login Endpoint
   if (pathname === "/api/auth/login" && req.method === "POST") {
     try {
+      if (!validateCsrfOrigin(req)) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: false, error: "Validation CSRF échouée (Origin non valide)." }));
+        return true;
+      }
+
       const data = await readLimitedJson<{ email?: string; password?: string }>(req);
       if (!data.email || !data.password) {
         res.writeHead(400, { "Content-Type": "application/json" });
@@ -18,7 +38,6 @@ import { readLimitedJson } from "../utils/safe-body-parser.js";
         return true;
       }
 
-      // Successful auth simulation / shared auth manager
       const sessionId = "sess-" + Date.now();
       const isSecure = req.socket && (req.socket as any).encrypted;
       const cookieName = isSecure ? "__Host-mosaix_session" : "mosaix_session";
@@ -54,19 +73,12 @@ import { readLimitedJson } from "../utils/safe-body-parser.js";
   // AUTH-06: Session Check Endpoint
   if (pathname === "/api/auth/session" && req.method === "GET") {
     const cookie = req.headers.cookie || "";
-    const hasSession = cookie.includes("mosaix_session=");
+    const hasSession = cookie.includes("mosaix_session=") || cookie.includes("__Host-mosaix_session=");
 
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ authenticated: hasSession }));
     return true;
   }
-
-export async function handleAuthRoutes(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  parsedUrl: URL
-): Promise<boolean> {
-  const pathname = parsedUrl.pathname;
 
   // Wizard: Start Registration
   if (pathname === "/api/auth/register/wizard/start" && req.method === "POST") {

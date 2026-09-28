@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS external_identities (
   external_id TEXT NOT NULL,
   linked_at TEXT NOT NULL,
   attributes TEXT,
-  PRIMARY KEY (identity_id, provider, external_id)
+  PRIMARY KEY (identity_id, provider, external_id),
+  FOREIGN KEY (identity_id) REFERENCES identities(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS credentials (
@@ -50,7 +51,8 @@ CREATE TABLE IF NOT EXISTS credentials (
   updated_at TEXT,
   expires_at TEXT,
   revoked_at TEXT,
-  data TEXT
+  data TEXT,
+  FOREIGN KEY (identity_id) REFERENCES identities(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -61,7 +63,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   revoked_at TEXT,
-  attributes TEXT
+  attributes TEXT,
+  FOREIGN KEY (identity_id) REFERENCES identities(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS tokens (
@@ -71,7 +74,8 @@ CREATE TABLE IF NOT EXISTS tokens (
   type TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   revoked_at TEXT,
-  attributes TEXT
+  attributes TEXT,
+  FOREIGN KEY (identity_id) REFERENCES identities(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS shell_feed (
