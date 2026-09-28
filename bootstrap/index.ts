@@ -20,3 +20,9 @@ export {
   type BootStep,
   type ProviderDescriptor,
 } from "./app.js";
+
+export {
+  initSharedAuth,
+  getSharedAuthManager,
+  resetSharedAuth,
+} from "./auth-composition.js";

@@ -18,7 +18,7 @@ export class DbSeedCommand implements CliCommand {
   readonly description = "Run baseline database seeders (idempotent-if-empty)";
 
   async execute(ctx: CommandContext): Promise<CLIResult> {
-    const { db, manager, config } = await connectCliDatabase(ctx);
+    const { db, close, config } = await connectCliDatabase(ctx);
     try {
       const seeded = await runDatabaseSeeds(db);
       const connection =
@@ -29,7 +29,7 @@ export class DbSeedCommand implements CliCommand {
         seeded,
       });
     } finally {
-      await manager.close();
+      await close();
     }
   }
 }

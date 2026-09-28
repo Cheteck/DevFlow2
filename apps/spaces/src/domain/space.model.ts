@@ -218,12 +218,17 @@ export class SpaceService {
   }
 
   async followSpace(spaceId: string): Promise<number> {
+    if (this.repository) {
+      const newCount = await this.repository.followSpace(spaceId);
+      const space = this.spaces.get(spaceId);
+      if (space) {
+        space.followersCount = newCount;
+      }
+      return newCount;
+    }
     const space = this.getSpace(spaceId);
     if (!space) throw new Error(`Space [${spaceId}] non trouvé.`);
     space.followersCount++;
-    if (this.repository) {
-      await this.repository.followSpace(spaceId);
-    }
     return space.followersCount;
   }
 }

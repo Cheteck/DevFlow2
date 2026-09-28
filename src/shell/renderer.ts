@@ -731,15 +731,30 @@ export function renderUserSwitcherWidget(
           </button>
         </div>
 
-        <!-- SECTION 5: Log Out Action -->
+        <!-- SECTION 5: Log Out Action or Login/Register -->
         <div class="pt-1">
-          <button 
-            onclick="handleLogout()" 
-            class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 transition text-xs font-bold cursor-pointer"
-          >
-            <span class="material-symbols-outlined text-sm">logout</span>
-            <span>Déconnexion de la Session</span>
-          </button>
+          ${
+            !isDemoMode() && user.role === "member"
+              ? `
+              <div class="flex gap-2">
+                <a href="/identity" class="flex-1 py-2 text-center rounded-xl bg-primary text-on-primary font-bold text-xs hover:bg-primary/90 transition">
+                  Se Connecter
+                </a>
+                <a href="/api/auth/register/wizard/start" class="flex-1 py-2 text-center rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-on-surface font-bold text-xs transition">
+                  S'inscrire
+                </a>
+              </div>
+              `
+              : `
+              <button
+                onclick="handleLogout()"
+                class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 transition text-xs font-bold cursor-pointer"
+              >
+                <span class="material-symbols-outlined text-sm">logout</span>
+                <span>Déconnexion de la Session</span>
+              </button>
+              `
+          }
         </div>
 
         </div>

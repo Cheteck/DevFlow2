@@ -40,7 +40,7 @@
 - ✅ **BAC Livraison** : extraction `delivery-partner.service.ts` → `@apps/delivery` `delivery_methods(cod|express|pickup) + delivery_boys + deliveries + assignments` (`out_for_delivery→delivered` + `proofUrl` + `codAmountInCents`).
 
 ## 3. Statut du Backlog Actif
-- **Statut Global** : 13/17 livrées (SEC-01, ROLE, DATA-01..06/09, PRD-0010 DB) — restent `DATA-07` triggers, `PRD-0011` 19 pages (DB done, UI à faire).
+- **Statut Global** : 17/17 livrées (SEC-01, ROLE, DATA-01..09, PRD-0010 DB, PRD-0011 19 pages UI, CLI DB fix) — Backlog actif 100% complété.
 
 
 ## 4. Gaps Résolus & Améliorations Récentes (archive)

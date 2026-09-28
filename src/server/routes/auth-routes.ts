@@ -7,6 +7,60 @@ import type { URL } from "node:url";
 import { registrationWizardService } from "../../../apps/citadelle/src/domain/registration-wizard.service.js";
 import { readLimitedJson } from "../utils/safe-body-parser.js";
 
+
+  // AUTH-06: Session Login Endpoint
+  if (pathname === "/api/auth/login" && req.method === "POST") {
+    try {
+      const data = await readLimitedJson<{ email?: string; password?: string }>(req);
+      if (!data.email || !data.password) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: false, error: "Email et mot de passe requis." }));
+        return true;
+      }
+
+      // Successful auth simulation / shared auth manager
+      const sessionId = "sess-" + Date.now();
+      const isSecure = req.socket && (req.socket as any).encrypted;
+      const cookieName = isSecure ? "__Host-mosaix_session" : "mosaix_session";
+      const cookieHeader = `${cookieName}=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400` + (isSecure ? "; Secure" : "");
+
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Set-Cookie": cookieHeader,
+      });
+      res.end(JSON.stringify({ success: true, sessionId, message: "Connexion réussie." }));
+      return true;
+    } catch (err) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: false, error: String(err) }));
+      return true;
+    }
+  }
+
+  // AUTH-06: Session Logout Endpoint
+  if (pathname === "/api/auth/logout" && (req.method === "POST" || req.method === "GET")) {
+    const isSecure = req.socket && (req.socket as any).encrypted;
+    const cookieName = isSecure ? "__Host-mosaix_session" : "mosaix_session";
+    const cookieHeader = `${cookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0` + (isSecure ? "; Secure" : "");
+
+    res.writeHead(200, {
+      "Content-Type": "application/json",
+      "Set-Cookie": cookieHeader,
+    });
+    res.end(JSON.stringify({ success: true, message: "Déconnexion effectuée." }));
+    return true;
+  }
+
+  // AUTH-06: Session Check Endpoint
+  if (pathname === "/api/auth/session" && req.method === "GET") {
+    const cookie = req.headers.cookie || "";
+    const hasSession = cookie.includes("mosaix_session=");
+
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ authenticated: hasSession }));
+    return true;
+  }
+
 export async function handleAuthRoutes(
   req: http.IncomingMessage,
   res: http.ServerResponse,
