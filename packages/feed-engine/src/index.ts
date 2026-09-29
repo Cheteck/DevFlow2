@@ -3,8 +3,11 @@
  * Decoupled from any specific BAC, provides ActivityStreams-like structures,
  * component resolvers, render interceptors, high-performance feed aggregators,
  * activity grouping, event publishing, caching interfaces, pagination,
- * relevance scoring, and ActivityStreams 2.0 serialization.
+ * relevance scoring, ActivityStreams 2.0 serialization, MMR diversity reranking,
+ * and feed metrics.
  */
+
+import { DiversityReranker, type DiversityRerankerOptions } from "./velocity-calculator.js";
 
 export type SocialActorType = "user" | "space" | "organization" | "system";
 
@@ -114,7 +117,6 @@ export interface FeedCardContext {
 
 /**
  * Trait 1: Feedable
- * Implemented by domain entities to declare their ability to project themselves into a feed.
  */
 export interface FeedProjection {
   publicationType: PublicationType;
@@ -132,9 +134,6 @@ export interface Feedable {
   toFeedProjection(): FeedProjection;
 }
 
-/**
- * Type Guard for Feedable trait
- */
 export function isFeedable(entity: unknown): entity is Feedable {
   return (
     typeof entity === "object" &&
@@ -146,7 +145,6 @@ export function isFeedable(entity: unknown): entity is Feedable {
 
 /**
  * Trait 2: Engageable
- * Implemented by entities to declare social engagement rules (reactions, comments).
  */
 export type ReactionType =
   "like" | "love" | "laugh" | "surprised" | "sad" | "angry";
@@ -165,9 +163,6 @@ export interface Engageable {
   getEngagementPolicy?(): EngagementPolicy;
 }
 
-/**
- * Type Guard for Engageable trait
- */
 export function isEngageable(entity: unknown): entity is Engageable {
   return (
     typeof entity === "object" &&
@@ -177,9 +172,6 @@ export function isEngageable(entity: unknown): entity is Engageable {
   );
 }
 
-/**
- * Reaction & Comment Data Contracts
- */
 export interface FeedReaction {
   id: string;
   targetType: "post" | "comment" | "custom";
@@ -208,9 +200,6 @@ export interface StructuredFeedCard {
   fallbackHtml: string;
 }
 
-/**
- * 1. Component Renderer Interfaces
- */
 export interface FeedComponentRenderer {
   publicationType: PublicationType;
   render(post: FeedPost, context: FeedCardContext): string;
@@ -224,9 +213,6 @@ export interface FeedStructuredRenderer {
   ): StructuredFeedCard;
 }
 
-/**
- * 2. Feed Post Interceptor (Middleware Pipeline)
- */
 export interface FeedPostInterceptor {
   name?: string;
   priority: number;
@@ -235,9 +221,6 @@ export interface FeedPostInterceptor {
   batchIntercept?(posts: FeedPost[]): Promise<FeedPost[]>;
 }
 
-/**
- * 3. Stateful FeedEngine Instance
- */
 export class FeedEngine {
   private renderers = new Map<string, FeedComponentRenderer>();
   private structuredRenderers = new Map<string, FeedStructuredRenderer>();
@@ -379,9 +362,6 @@ export class FeedEngine {
   }
 }
 
-/**
- * 4. Static Proxy Registry
- */
 export class FeedEngineRegistry {
   private static defaultInstance = new FeedEngine();
 
@@ -435,9 +415,6 @@ export class FeedEngineRegistry {
   }
 }
 
-/**
- * 5. Feed Aggregation Utility
- */
 export interface FeedAggregationOptions {
   followedSpaceIds?: string[];
   followedGroupIds?: string[];
@@ -568,10 +545,6 @@ export class FeedAggregator {
   }
 }
 
-/**
- * 6. Activity Grouper / Aggregation Utility
- * Groups notification-like repetitive activities (e.g., "Alice, Bob and 3 others liked your post")
- */
 export class ActivityGrouper {
   public static groupActivities(
     posts: FeedPost[],
@@ -624,18 +597,12 @@ export class ActivityGrouper {
   }
 }
 
-/**
- * 7. Feed Event Publisher Port Integration
- */
 export interface FeedEventPublisher {
   publishPostCreated(post: FeedPost): Promise<void>;
   publishPostUpdated(post: FeedPost): Promise<void>;
   publishPostDeleted(postId: string): Promise<void>;
 }
 
-/**
- * 8. Feed Cache Port Interface
- */
 export interface FeedCachePort {
   getFeed(feedKey: string): Promise<FeedPost[] | null>;
   setFeed(
@@ -646,9 +613,6 @@ export interface FeedCachePort {
   invalidateFeed(feedKey: string): Promise<void>;
 }
 
-/**
- * 9. Feed Relevance Scorer
- */
 export class FeedScorer {
   public static calculateScore(
     post: FeedPost,
@@ -669,9 +633,6 @@ export class FeedScorer {
   }
 }
 
-/**
- * 10. Feed Cursor-Based Paginator
- */
 export interface PaginationOptions {
   limit?: number;
   cursor?: string;
@@ -679,7 +640,7 @@ export interface PaginationOptions {
 
 export interface PaginatedFeedOptions {
   limit?: number;
-  afterCursor?: string; // ISO date or Post ID
+  afterCursor?: string;
   beforeCursor?: string;
 }
 
@@ -756,9 +717,6 @@ export class FeedPaginator {
   }
 }
 
-/**
- * 11. ActivityStreams 2.0 & JSON Feed Serializer
- */
 export interface ActivityStreamObject {
   "@context"?: string | string[];
   id: string;
@@ -887,10 +845,6 @@ export class ActivityStreamsMapper {
   }
 }
 
-/**
- * 12. W3C ActivityStreams / ActivityPub Converter Utility
- * Enables interop and federation between MosaiX instances.
- */
 export interface ActivityStreamsNote {
   "@context": "https://www.w3.org/ns/activitystreams";
   id: string;
@@ -903,9 +857,6 @@ export interface ActivityStreamsNote {
 }
 
 export class ActivityStreamsConverter {
-  /**
-   * Converts a FeedPost to W3C ActivityStreams format
-   */
   public static toActivityPubJSON(
     post: FeedPost,
     instanceDomain = "mosaix.local",
@@ -925,9 +876,6 @@ export class ActivityStreamsConverter {
     };
   }
 
-  /**
-   * Converts an ActivityStreams note to a FeedPost
-   */
   public static fromActivityPubJSON(note: ActivityStreamsNote): FeedPost {
     const matchActor = note.attributedTo.match(/actors\/([^/]+)\/([^/]+)$/);
     const actorType = (matchActor ? matchActor[1] : "user") as SocialActorType;
@@ -949,9 +897,6 @@ export class ActivityStreamsConverter {
   }
 }
 
-/**
- * 13. Sponsored / Promoted Publications Contract
- */
 export interface SponsoredPost extends FeedPost {
   isSponsored: true;
   sponsorName: string;
@@ -961,9 +906,6 @@ export interface SponsoredPost extends FeedPost {
   campaignId: string;
 }
 
-/**
- * Type Guard for SponsoredPost
- */
 export function isSponsoredPost(post: unknown): post is SponsoredPost {
   return (
     typeof post === "object" &&
@@ -973,9 +915,6 @@ export function isSponsoredPost(post: unknown): post is SponsoredPost {
   );
 }
 
-/**
- * 14. Algorithmic Feed Ranking & Scoring Engine
- */
 export interface FeedRankingWeights {
   recencyWeight?: number;
   engagementWeight?: number;
@@ -989,9 +928,6 @@ export interface FeedRankingContext {
 }
 
 export class FeedRanker {
-  /**
-   * Computes a relevance score for a FeedPost given ranking weights and user context.
-   */
   public static calculateScore(
     post: FeedPost,
     context: FeedRankingContext = {},
@@ -1038,9 +974,6 @@ export class FeedRanker {
   }
 }
 
-/**
- * 15. Sponsored Publications Injection Engine
- */
 export interface SponsorshipInjectionOptions {
   interval?: number;
   maxSponsoredPosts?: number;
@@ -1080,9 +1013,6 @@ export class SponsoredPostInjector {
   }
 }
 
-/**
- * 16. "Pour Toi" (For You) Personalized Recommendation Engine
- */
 export interface UserRecommendationProfile {
   userId: string;
   followedSpaceIds: string[];
@@ -1095,7 +1025,7 @@ export class ForYouRecommendationEngine {
   public static generateForYouFeed(
     allPosts: FeedPost[],
     profile: UserRecommendationProfile,
-    options: { weights?: FeedRankingWeights } = {},
+    options: { weights?: FeedRankingWeights; rerankerOptions?: DiversityRerankerOptions } = {},
   ): FeedPost[] {
     const mutedSet = new Set(profile.mutedActorIds || []);
     const hiddenSet = new Set(profile.hiddenPostIds || []);
@@ -1140,17 +1070,27 @@ export class ForYouRecommendationEngine {
     });
 
     scoredPosts.sort((a, b) => b.finalScore - a.finalScore);
+    const rankedCandidates = scoredPosts.map((item) => item.post);
 
-    return scoredPosts.map((item) => item.post);
+    // Pipeline N1: Execute DiversityReranker (MMR + Hard Constraints) AFTER recommendation ranking
+    return DiversityReranker.rerank(rankedCandidates, {
+      mutedActorIds: profile.mutedActorIds,
+      hiddenPostIds: profile.hiddenPostIds,
+      ...options.rerankerOptions,
+    });
   }
 }
 
-// Re-export extracted velocity & moderation utilities from velocity-calculator.js
+// Re-export extracted velocity, MMR diversity, telemetry & moderation utilities
 export {
   TrendingVelocityRanker,
+  DiversityReranker,
+  FeedMetricsCollector,
   ContentSafetyFilter,
   SponsorshipTelemetry,
   FeedGeneratorRegistry,
+  Mulberry32RNG,
+  type DiversityRerankerOptions,
   type QualityReport,
   type AdTelemetryEvent,
   type CustomFeedAlgorithm,

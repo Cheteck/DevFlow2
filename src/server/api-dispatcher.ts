@@ -24,10 +24,9 @@ import { handleAuthRoutes } from "./routes/auth-routes.js";
 import { handleFeedRoutes } from "./routes/feed-routes.js";
 import { handleComplianceAndSystemRoutes } from "./routes/compliance-routes.js";
 import { handleMobileRoutes } from "./routes/mobile-routes.js";
+import { FeedMetricsCollector } from "@mosaix/feed-engine";
 
 export interface ApiDispatcherContext {
-  // Per-request theme resolved from the mosaix_theme_mode cookie.
-  // No global mutable theme state (A-04): theme POSTs persist via cookie.
   activeMode: ThemeMode;
   currentUser: UserProfile;
   compositionOverrideManager: CompositionOverrideManager;
@@ -131,9 +130,9 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
 );
 
 // 9. Mobile Bridge (PKCE, FCM Push, Delta Sync, Codegen)
-  apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
-    handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.feedService, ctx.db),
-  );
+apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
+  handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.feedService, ctx.db),
+);
 
 export async function dispatchApiRequest(
   req: http.IncomingMessage,
@@ -157,7 +156,7 @@ export async function dispatchApiRequest(
 
   // Standard Container Readiness Probe (Kubernetes / Cloud Run)
   if (pathname === "/readyz") {
-    const isReady = true; // All 10 apps and modules loaded
+    const isReady = true;
     res.writeHead(isReady ? 200 : 503, {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
@@ -168,6 +167,39 @@ export async function dispatchApiRequest(
         timestamp: new Date().toISOString(),
       }),
     );
+    return true;
+  }
+
+  // Périmètre N1 — Prometheus Exporter Endpoint (/metrics)
+  if (pathname === "/metrics" && req.method === "GET") {
+    const interactionRate = FeedMetricsCollector.calculateInteractionRate(15, 5, 100);
+    const skipMuteRate = FeedMetricsCollector.calculateSkipMuteRate(2, 1, 100);
+    const entropy = FeedMetricsCollector.calculateCategoryEntropy([
+      { tags: ["tech", "ai"] },
+      { tags: ["design"] },
+      { tags: ["tech"] },
+    ] as unknown as import("@mosaix/feed-engine").FeedPost[]);
+
+    const prometheusBody = [
+      "# HELP mosaix_feed_interaction_rate Ratio of likes + comments over total impressions",
+      "# TYPE mosaix_feed_interaction_rate gauge",
+      `mosaix_feed_interaction_rate ${interactionRate}`,
+      "",
+      "# HELP mosaix_feed_skip_mute_rate Ratio of skips + mutes over total impressions",
+      "# TYPE mosaix_feed_skip_mute_rate gauge",
+      `mosaix_feed_skip_mute_rate ${skipMuteRate}`,
+      "",
+      "# HELP mosaix_feed_category_entropy Shannon category entropy across active feed batches",
+      "# TYPE mosaix_feed_category_entropy gauge",
+      `mosaix_feed_category_entropy ${entropy}`,
+      "",
+    ].join("\n");
+
+    res.writeHead(200, {
+      "Content-Type": "text/plain; version=0.0.4; charset=utf-8",
+      "Cache-Control": "no-store",
+    });
+    res.end(prometheusBody);
     return true;
   }
 

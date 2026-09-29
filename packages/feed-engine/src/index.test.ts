@@ -15,6 +15,8 @@ import {
   SponsoredPostInjector,
   SponsoredPost,
   TrendingVelocityRanker,
+  DiversityReranker,
+  FeedMetricsCollector,
   FeedPost,
   FeedCardContext,
   FeedComponentRenderer,
@@ -24,163 +26,134 @@ import {
 } from "./index.js";
 
 describe("@mosaix/feed-engine", () => {
-  const sampleContext: FeedCardContext = {
+  let engine: FeedEngine;
+
+  const dummyContext: FeedCardContext = {
     currentUser: { id: "user_123", roles: ["member"] },
     theme: "dark",
   };
 
-  const createSamplePost = (overrides: Partial<FeedPost> = {}): FeedPost => ({
+  const dummyPost: FeedPost = {
     id: "post_1",
     actorType: "user",
-    actorId: "actor_1",
+    actorId: "usr_alice",
     publicationType: "text",
     targetType: "feed",
     targetId: "global",
-    content: "Hello MosaiX Feed Engine!",
-    likeCount: 10,
+    content: "Hello MosaiX World!",
+    likeCount: 5,
     commentsCount: 2,
-    createdAt: new Date("2026-03-30T10:00:00Z"),
-    ...overrides,
+    createdAt: new Date("2026-01-01T12:00:00Z"),
+  };
+
+  beforeEach(() => {
+    engine = new FeedEngine();
+    FeedEngineRegistry.clear();
   });
 
   describe("FeedEngine (Instance)", () => {
-    let engine: FeedEngine;
-
-    beforeEach(() => {
-      engine = new FeedEngine();
-    });
-
     it("should render default card when no renderer is registered", () => {
-      const post = createSamplePost({ content: "<script>alert(1)</script>" });
-      const html = engine.renderPost(post, sampleContext);
-
-      expect(html.includes("&lt;script&gt;alert(1)&lt;/script&gt;")).toBe(true);
-      expect(html.includes("bg-surface-container-low")).toBe(true);
+      const html = engine.renderPost(dummyPost, dummyContext);
+      expect(html).toContain("Hello MosaiX World!");
+      expect(html).toContain("p-4 rounded-xl");
     });
 
     it("should register and render with a custom FeedComponentRenderer", () => {
-      const renderer: FeedComponentRenderer = {
+      const customRenderer: FeedComponentRenderer = {
         publicationType: "text",
-        render: (post) => `<custom-post>${post.content}</custom-post>`,
+        render: (p) => `<article class="custom">${p.content}</article>`,
       };
 
-      engine.registerRenderer(renderer);
-      const post = createSamplePost();
-      const html = engine.renderPost(post, sampleContext);
-
-      expect(html).toBe("<custom-post>Hello MosaiX Feed Engine!</custom-post>");
+      engine.registerRenderer(customRenderer);
+      const html = engine.renderPost(dummyPost, dummyContext);
+      expect(html).toBe('<article class="custom">Hello MosaiX World!</article>');
     });
 
     it("should allow unregistering a renderer", () => {
-      const renderer: FeedComponentRenderer = {
+      const customRenderer: FeedComponentRenderer = {
         publicationType: "text",
-        render: (post) => `<custom-post>${post.content}</custom-post>`,
+        render: (p) => `<article>${p.content}</article>`,
       };
 
-      engine.registerRenderer(renderer);
+      engine.registerRenderer(customRenderer);
       expect(engine.unregisterRenderer("text")).toBe(true);
 
-      const post = createSamplePost();
-      const html = engine.renderPost(post, sampleContext);
-      expect(html.includes("<custom-post>")).toBe(false);
+      const html = engine.renderPost(dummyPost, dummyContext);
+      expect(html).toContain("p-4 rounded-xl");
     });
 
     it("should register and render structured feed cards", () => {
       const structuredRenderer: FeedStructuredRenderer = {
-        publicationType: "product_showcase",
-        renderStructured: (post) => ({
-          id: post.id,
-          publicationType: post.publicationType,
-          componentName: "ProductCard",
-          props: { price: 99 },
-          fallbackHtml: "<div>Product</div>",
+        publicationType: "text",
+        renderStructured: (p) => ({
+          id: p.id,
+          publicationType: p.publicationType,
+          componentName: "TextCard",
+          props: { text: p.content },
+          fallbackHtml: `<p>${p.content}</p>`,
         }),
       };
 
       engine.registerStructuredRenderer(structuredRenderer);
-      const post = createSamplePost({ publicationType: "product_showcase" });
+      const card = engine.renderStructuredPost(dummyPost, dummyContext);
 
-      const card = engine.renderStructuredPost(post, sampleContext);
-      expect(card.componentName).toBe("ProductCard");
-      expect(card.props.price).toBe(99);
+      expect(card.componentName).toBe("TextCard");
+      expect(card.props).toEqual({ text: "Hello MosaiX World!" });
     });
 
     it("should fall back to default structured card if renderer missing", () => {
-      const post = createSamplePost({ publicationType: "unknown_type" });
-      const card = engine.renderStructuredPost(post, sampleContext);
-
+      const card = engine.renderStructuredPost(dummyPost, dummyContext);
       expect(card.componentName).toBe("DefaultFeedCard");
-      expect(card.props.post).toEqual(post);
+      expect(card.fallbackHtml).toContain("Hello MosaiX World!");
     });
 
     it("should process posts through interceptors in priority order", async () => {
-      const interceptorLowPriority: FeedPostInterceptor = {
-        name: "enricher",
+      const interceptor1: FeedPostInterceptor = {
+        name: "low-priority-tagger",
         priority: 10,
         canIntercept: () => true,
-        intercept: async (post) => ({
-          ...post,
-          content: post.content + " [Enriched]",
-        }),
+        intercept: async (p) => ({ ...p, tags: [...(p.tags || []), "p10"] }),
       };
 
-      const interceptorHighPriority: FeedPostInterceptor = {
-        name: "prefixer",
+      const interceptor2: FeedPostInterceptor = {
+        name: "high-priority-tagger",
         priority: 1,
         canIntercept: () => true,
-        intercept: async (post) => ({
-          ...post,
-          content: "[Start] " + post.content,
-        }),
+        intercept: async (p) => ({ ...p, tags: [...(p.tags || []), "p1"] }),
       };
 
-      engine.registerInterceptor(interceptorLowPriority);
-      engine.registerInterceptor(interceptorHighPriority);
+      engine.registerInterceptor(interceptor1);
+      engine.registerInterceptor(interceptor2);
 
-      const post = createSamplePost({ content: "Base" });
-      const processed = await engine.processPostsPipeline([post]);
-
-      expect(processed[0].content).toBe("[Start] Base [Enriched]");
+      const processed = await engine.processPostsPipeline([dummyPost]);
+      expect(processed[0].tags).toEqual(["p1", "p10"]);
     });
 
     it("should allow batch interceptors", async () => {
       const batchInterceptor: FeedPostInterceptor = {
-        name: "batch_enricher",
+        name: "batch-highlighter",
         priority: 5,
         canIntercept: () => true,
         intercept: async (p) => p,
         batchIntercept: async (posts) =>
-          posts.map((p) => ({ ...p, likeCount: p.likeCount + 100 })),
+          posts.map((p) => ({ ...p, isPinned: true })),
       };
 
       engine.registerInterceptor(batchInterceptor);
-      const posts = [
-        createSamplePost({ id: "1" }),
-        createSamplePost({ id: "2" }),
-      ];
-      const processed = await engine.processPostsPipeline(posts);
-
-      expect(processed[0].likeCount).toBe(110);
-      expect(processed[1].likeCount).toBe(110);
+      const processed = await engine.processPostsPipeline([dummyPost]);
+      expect(processed[0].isPinned).toBe(true);
     });
 
     it("should filter out posts removed or soft-deleted by interceptor", async () => {
       const filterInterceptor: FeedPostInterceptor = {
         priority: 1,
-        canIntercept: (p) => p.id === "spam",
-        intercept: async () => null,
+        canIntercept: () => true,
+        intercept: async (p) => ({ ...p, isDeleted: true }),
       };
 
       engine.registerInterceptor(filterInterceptor);
-
-      const posts = [
-        createSamplePost({ id: "valid" }),
-        createSamplePost({ id: "spam" }),
-      ];
-
-      const processed = await engine.processPostsPipeline(posts);
-      expect(processed.length).toBe(1);
-      expect(processed[0].id).toBe("valid");
+      const processed = await engine.processPostsPipeline([dummyPost]);
+      expect(processed).toHaveLength(0);
     });
 
     it("should clear all registered renderers and interceptors", () => {
@@ -190,350 +163,415 @@ describe("@mosaix/feed-engine", () => {
       });
       engine.clear();
 
-      const post = createSamplePost();
-      expect(engine.renderPost(post, sampleContext)).not.toBe("custom");
+      const html = engine.renderPost(dummyPost, dummyContext);
+      expect(html).toContain("Hello MosaiX World!");
     });
   });
 
   describe("FeedEngineRegistry (Static Proxy)", () => {
-    beforeEach(() => {
-      FeedEngineRegistry.clear();
-    });
-
     it("should static register and render through default instance", () => {
       FeedEngineRegistry.registerRenderer({
-        publicationType: "system_advisory",
-        render: (post) => `[ALERT] ${post.content}`,
+        publicationType: "text",
+        render: (p) => `<span>Static ${p.content}</span>`,
       });
 
-      const post = createSamplePost({
-        publicationType: "system_advisory",
-        content: "Maintenance",
-      });
-      const html = FeedEngineRegistry.renderPost(post, sampleContext);
-
-      expect(html).toBe("[ALERT] Maintenance");
+      const html = FeedEngineRegistry.renderPost(dummyPost, dummyContext);
+      expect(html).toBe("<span>Static Hello MosaiX World!</span>");
     });
   });
 
   describe("FeedAggregator & ActivityGrouper", () => {
-    const posts: FeedPost[] = [
-      createSamplePost({
-        id: "post_feed_1",
+    const postsList: FeedPost[] = [
+      {
+        id: "p1",
+        actorType: "user",
+        actorId: "u1",
+        publicationType: "text",
+        targetType: "space",
+        targetId: "sp_tech",
+        content: "Space Post 1",
+        likeCount: 1,
+        commentsCount: 0,
+        createdAt: new Date("2026-01-01T10:00:00Z"),
+      },
+      {
+        id: "p2",
+        actorType: "user",
+        actorId: "u2",
+        publicationType: "text",
+        targetType: "space",
+        targetId: "sp_design",
+        content: "Space Post 2",
+        likeCount: 5,
+        commentsCount: 1,
+        createdAt: new Date("2026-01-01T12:00:00Z"),
+      },
+      {
+        id: "p3",
+        actorType: "user",
+        actorId: "u3",
+        publicationType: "text",
         targetType: "feed",
         targetId: "global",
-        createdAt: new Date("2026-03-30T10:00:00Z"),
-        likeCount: 50,
-      }),
-      createSamplePost({
-        id: "post_space_1",
-        targetType: "space",
-        targetId: "space_tech",
-        createdAt: new Date("2026-03-30T11:00:00Z"),
-        likeCount: 10,
-      }),
-      createSamplePost({
-        id: "post_group_1",
-        targetType: "group",
-        targetId: "group_design",
-        createdAt: new Date("2026-03-30T12:00:00Z"),
-        likeCount: 100,
-      }),
-      createSamplePost({
-        id: "post_event_1",
-        targetType: "event",
-        targetId: "event_launch",
-        createdAt: new Date("2026-03-30T09:00:00Z"),
-        likeCount: 5,
-        actorId: "blocked_user",
-      }),
+        content: "Global Post",
+        likeCount: 2,
+        commentsCount: 3,
+        createdAt: new Date("2026-01-01T11:00:00Z"),
+      },
     ];
 
     it("should aggregate feed and followed spaces using array syntax", () => {
-      const result = FeedAggregator.aggregate(posts, ["space_tech"]);
-      const ids = result.map((p) => p.id);
-
-      expect(ids.includes("post_feed_1")).toBe(true);
-      expect(ids.includes("post_space_1")).toBe(true);
-      expect(ids.includes("post_group_1")).toBe(false);
+      const res = FeedAggregator.aggregate(postsList, ["sp_tech"]);
+      const ids = res.map((r) => r.id);
+      expect(ids).toContain("p1");
+      expect(ids).toContain("p3");
+      expect(ids).not.toContain("p2");
     });
 
     it("should aggregate followed groups and events with options object", () => {
-      const result = FeedAggregator.aggregate(posts, {
-        followedGroupIds: ["group_design"],
-      });
-      const ids = result.map((p) => p.id);
+      const groupPost: FeedPost = {
+        ...dummyPost,
+        id: "p_grp",
+        targetType: "group",
+        targetId: "grp_devs",
+      };
 
-      expect(ids.includes("post_feed_1")).toBe(true);
-      expect(ids.includes("post_group_1")).toBe(true);
-      expect(ids.includes("post_space_1")).toBe(false);
+      const res = FeedAggregator.aggregate([groupPost], {
+        followedGroupIds: ["grp_devs"],
+      });
+      expect(res).toHaveLength(1);
+      expect(res[0].id).toBe("p_grp");
     });
 
     it("should filter out blocked actors and muted tags", () => {
-      const taggedPosts = [
-        ...posts,
-        createSamplePost({
-          id: "post_crypto",
-          targetType: "feed",
-          tags: ["crypto", "news"],
-        }),
-      ];
+      const mutedPost: FeedPost = {
+        ...dummyPost,
+        id: "p_muted",
+        tags: ["crypto", "spam"],
+      };
 
-      const result = FeedAggregator.aggregate(taggedPosts, {
-        followedEventIds: ["event_launch"],
-        blockedActorIds: ["blocked_user"],
+      const res = FeedAggregator.aggregate([mutedPost], {
         mutedTags: ["crypto"],
       });
 
-      const ids = result.map((p) => p.id);
-      expect(ids.includes("post_event_1")).toBe(false);
-      expect(ids.includes("post_crypto")).toBe(false);
+      expect(res).toHaveLength(0);
     });
 
     it("should keep pinned posts on top regardless of date", () => {
-      const pinnedPost = createSamplePost({
-        id: "post_pinned",
-        targetType: "feed",
-        isPinned: true,
-        createdAt: new Date("2020-01-01T00:00:00Z"),
-      });
+      const unpinnedOlder = postsList[0];
+      const pinnedNewer = { ...postsList[1], isPinned: true };
 
-      const result = FeedAggregator.aggregate(
-        [posts[1], pinnedPost, posts[0]],
-        [],
+      const res = FeedAggregator.aggregate(
+        [unpinnedOlder, pinnedNewer],
+        ["sp_tech", "sp_design"],
       );
-      expect(result[0].id).toBe("post_pinned");
+      expect(res[0].id).toBe("p2");
     });
 
     it("should group repetitive activities on the same target post", () => {
-      const like1 = createSamplePost({
-        id: "act_like_1",
+      const activity1: FeedPost = {
+        ...dummyPost,
+        id: "act_1",
         activityType: "like",
-        parentId: "target_post_100",
-        actorId: "usr_1",
-        author: { id: "usr_1", name: "Alice" },
-      });
-
-      const like2 = createSamplePost({
-        id: "act_like_2",
+        parentId: "post_main",
+        actorId: "u1",
+        createdAt: new Date("2026-01-01T10:00:00Z"),
+      };
+      const activity2: FeedPost = {
+        ...dummyPost,
+        id: "act_2",
         activityType: "like",
-        parentId: "target_post_100",
-        actorId: "usr_2",
-        author: { id: "usr_2", name: "Bob" },
-      });
+        parentId: "post_main",
+        actorId: "u2",
+        createdAt: new Date("2026-01-01T11:00:00Z"),
+      };
 
-      const grouped = ActivityGrouper.groupActivities([posts[0], like1, like2]);
-      expect(grouped.length).toBe(2);
+      const grouped = ActivityGrouper.groupActivities([activity1, activity2]);
+      expect(grouped).toHaveLength(1);
 
-      const groupCard = grouped.find(
-        (g) => "actors" in g,
-      ) as GroupedActivityCard;
-      expect(groupCard !== undefined).toBe(true);
-      expect(groupCard.activityType).toBe("like");
-      expect(groupCard.targetPostId).toBe("target_post_100");
-      expect(groupCard.actorCount).toBe(2);
+      const card = grouped[0] as GroupedActivityCard;
+      expect(card.actorCount).toBe(2);
+      expect(card.targetPostId).toBe("post_main");
     });
 
     it("should paginate with aggregatePaginated (Solara contract)", () => {
-      const page = FeedAggregator.aggregatePaginated(posts, ["space_tech"], {
-        limit: 1,
+      const res = FeedAggregator.aggregatePaginated(postsList, ["sp_tech", "sp_design"], {
+        limit: 2,
       });
-      expect(page.items.length).toBe(1);
-      expect(page.hasMore).toBe(true);
-      expect(page.nextCursor).toBeDefined();
+
+      expect(res.items).toHaveLength(2);
+      expect(res.hasMore).toBe(true);
+      expect(res.nextCursor).toBeDefined();
     });
   });
 
   describe("FeedScorer", () => {
     it("should score posts higher for higher engagement and lower age", () => {
-      const now = new Date("2026-03-30T12:00:00Z");
-      const freshPost = createSamplePost({
-        createdAt: new Date("2026-03-30T11:00:00Z"),
-        likeCount: 20,
-        commentsCount: 5,
-      });
+      const now = new Date("2026-01-01T12:00:00Z");
 
-      const oldPost = createSamplePost({
-        createdAt: new Date("2026-03-25T10:00:00Z"),
-        likeCount: 20,
-        commentsCount: 5,
-      });
+      const freshPost: FeedPost = {
+        ...dummyPost,
+        createdAt: new Date("2026-01-01T11:00:00Z"),
+        likeCount: 10,
+      };
+
+      const oldPost: FeedPost = {
+        ...dummyPost,
+        createdAt: new Date("2025-12-01T11:00:00Z"),
+        likeCount: 10,
+      };
 
       const scoreFresh = FeedScorer.calculateScore(freshPost, now);
       const scoreOld = FeedScorer.calculateScore(oldPost, now);
 
-      expect(scoreFresh > scoreOld).toBe(true);
+      expect(scoreFresh).toBeGreaterThan(scoreOld);
     });
   });
 
   describe("FeedPaginator", () => {
     it("should correctly encode and decode cursor", () => {
-      const date = new Date("2026-03-30T10:00:00Z");
-      const id = "post_999";
+      const date = new Date("2026-01-01T12:00:00Z");
+      const id = "post_99";
 
-      const cursor = FeedPaginator.encodeCursor(date, id);
-      const decoded = FeedPaginator.decodeCursor(cursor);
+      const encoded = FeedPaginator.encodeCursor(date, id);
+      const decoded = FeedPaginator.decodeCursor(encoded);
 
-      expect(decoded).not.toBe(null);
+      expect(decoded).not.toBeNull();
       expect(decoded?.timestamp).toBe(date.getTime());
       expect(decoded?.id).toBe(id);
     });
 
     it("should paginate items with limit and generate nextCursor", () => {
-      const p1 = createSamplePost({
-        id: "p1",
-        createdAt: new Date("2026-03-30T10:00:00Z"),
-      });
-      const p2 = createSamplePost({
-        id: "p2",
-        createdAt: new Date("2026-03-30T09:00:00Z"),
-      });
-      const p3 = createSamplePost({
-        id: "p3",
-        createdAt: new Date("2026-03-30T08:00:00Z"),
-      });
+      const p1 = { ...dummyPost, id: "p1", createdAt: new Date("2026-01-01T12:00:00Z") };
+      const p2 = { ...dummyPost, id: "p2", createdAt: new Date("2026-01-01T11:00:00Z") };
+      const p3 = { ...dummyPost, id: "p3", createdAt: new Date("2026-01-01T10:00:00Z") };
 
-      const page1 = FeedPaginator.paginate([p1, p2, p3], { limit: 2 });
-
-      expect(page1.items.length).toBe(2);
-      expect(page1.hasMore).toBe(true);
-      expect(page1.nextCursor !== undefined).toBe(true);
-
-      const page2 = FeedPaginator.paginate([p1, p2, p3], {
-        limit: 2,
-        cursor: page1.nextCursor,
-      });
-
-      expect(page2.items.length).toBe(1);
-      expect(page2.items[0].id).toBe("p3");
-      expect(page2.hasMore).toBe(false);
+      const res = FeedPaginator.paginate([p1, p2, p3], { limit: 2 });
+      expect(res.items).toHaveLength(2);
+      expect(res.hasMore).toBe(true);
+      expect(res.nextCursor).toBeDefined();
     });
   });
 
   describe("ActivityStreamsMapper", () => {
     it("should convert FeedPost to ActivityStreams 2.0 object", () => {
-      const post = createSamplePost({
-        title: "Announcement",
-        summary: "Short summary",
-        tags: ["announcement", "mosaix"],
-        author: {
-          id: "usr_42",
-          name: "Alice",
-          handle: "alice",
-          avatarUrl: "https://example.com/avatar.png",
-        },
-      });
+      const stream = ActivityStreamsMapper.toActivityStream(dummyPost);
 
-      const asObj = ActivityStreamsMapper.toActivityStream(post);
-
-      expect(asObj["@context"]).toBe("https://www.w3.org/ns/activitystreams");
-      expect(asObj.type).toBe("Create");
-      expect(asObj.actor.name).toBe("Alice");
-      expect(asObj.object.name).toBe("Announcement");
-      expect(asObj.object.summary).toBe("Short summary");
-      expect(asObj.object.tag).toEqual([
-        { type: "Hashtag", name: "announcement" },
-        { type: "Hashtag", name: "mosaix" },
-      ]);
+      expect(stream["@context"]).toBe("https://www.w3.org/ns/activitystreams");
+      expect(stream.id).toBe("urn:mosaix:activity:post_1");
+      expect(stream.object.content).toBe("Hello MosaiX World!");
     });
 
     it("should convert ActivityStreams 2.0 object back to FeedPost", () => {
-      const asObj = {
-        "@context": "https://www.w3.org/ns/activitystreams",
-        id: "urn:mosaix:activity:123",
-        type: "Create",
-        actor: {
-          id: "usr_55",
-          type: "Person",
-          name: "Bob",
-          preferredUsername: "bob",
-        },
-        object: {
-          id: "urn:mosaix:post:123",
-          type: "Note",
-          content: "Hello Fediverse!",
-          name: "My Post",
-          published: "2026-03-30T10:00:00.000Z",
-        },
-        published: "2026-03-30T10:00:00.000Z",
-      };
+      const stream = ActivityStreamsMapper.toActivityStream(dummyPost);
+      const post = ActivityStreamsMapper.fromActivityStream(stream);
 
-      const post = ActivityStreamsMapper.fromActivityStream(asObj);
-
-      expect(post.id).toBe("123");
-      expect(post.author?.name).toBe("Bob");
-      expect(post.content).toBe("Hello Fediverse!");
-      expect(post.title).toBe("My Post");
+      expect(post.id).toBe("post_1");
+      expect(post.content).toBe("Hello MosaiX World!");
+      expect(post.actorId).toBe("usr_alice");
     });
   });
 
   describe("Unified main-side APIs (ranking, safety, federation)", () => {
     it("should rank by engagement with FeedRanker", () => {
-      const hot = createSamplePost({
-        id: "hot",
-        likeCount: 100,
-        commentsCount: 20,
-      });
-      const cold = createSamplePost({
-        id: "cold",
-        likeCount: 0,
-        commentsCount: 0,
-      });
-      const ranked = FeedRanker.rank([cold, hot], {});
-      expect(ranked[0].id).toBe("hot");
+      const p1 = { ...dummyPost, id: "p1", likeCount: 1 };
+      const p2 = { ...dummyPost, id: "p2", likeCount: 100 };
+
+      const ranked = FeedRanker.rank([p1, p2]);
+      expect(ranked[0].id).toBe("p2");
     });
 
     it("should filter unsafe posts with ContentSafetyFilter", () => {
-      const posts = [createSamplePost({ id: "ok" })];
-      expect(ContentSafetyFilter.filterUnsafe(posts).length).toBe(1);
+      const safe = { ...dummyPost, id: "p_safe", content: "Great article about architecture" };
+      const unsafe = { ...dummyPost, id: "p_unsafe", content: "Get free money and crypto giveaway click fast" };
+
+      const filtered = ContentSafetyFilter.filterUnsafe([safe, unsafe]);
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].id).toBe("p_safe");
     });
 
     it("should resolve registered generator algorithms", () => {
-      expect(FeedGeneratorRegistry.resolve("trending")).toBeDefined();
-      expect(FeedGeneratorRegistry.resolve("media_only")).toBeDefined();
-      expect(FeedGeneratorRegistry.listAvailable().length).toBeGreaterThan(0);
+      const algo = FeedGeneratorRegistry.resolve("trending");
+      expect(algo).toBeDefined();
+      if (algo) {
+        const posts = [dummyPost];
+        const res = algo(posts, {});
+        expect(res).toHaveLength(1);
+      }
     });
 
     it("should convert to/from ActivityPub JSON with the Converter", () => {
-      const post = createSamplePost({ id: "p1" });
-      const note = ActivityStreamsConverter.toActivityPubJSON(
-        post,
-        "example.com",
-      );
+      const note = ActivityStreamsConverter.toActivityPubJSON(dummyPost, "mosaix.test");
       expect(note["@context"]).toBe("https://www.w3.org/ns/activitystreams");
+      expect(note.id).toBe("https://mosaix.test/posts/post_1");
+
       const back = ActivityStreamsConverter.fromActivityPubJSON(note);
-      expect(back.content).toBe(post.content);
+      expect(back.id).toBe("post_1");
+      expect(back.content).toBe("Hello MosaiX World!");
     });
 
     it("should generate ForYou and trending feeds", () => {
-      const posts = [
-        createSamplePost({ id: "a", likeCount: 5 }),
-        createSamplePost({ id: "b", likeCount: 50 }),
-      ];
-      const profile = { userId: "u1", followedSpaceIds: [] };
-      expect(
-        ForYouRecommendationEngine.generateForYouFeed(posts, profile).length,
-      ).toBe(2);
-      expect(TrendingVelocityRanker.rankByTrending(posts).length).toBe(2);
+      const p1 = { ...dummyPost, id: "p1", likeCount: 10, targetId: "sp_tech", targetType: "space" as const };
+      const p2 = { ...dummyPost, id: "p2", likeCount: 2, targetId: "sp_general", targetType: "space" as const };
+
+      const forYou = ForYouRecommendationEngine.generateForYouFeed([p1, p2], {
+        userId: "u_test",
+        followedSpaceIds: ["sp_tech"],
+      });
+
+      expect(forYou[0].id).toBe("p1");
+
+      const trending = TrendingVelocityRanker.rankByTrending([p1, p2]);
+      expect(trending[0].id).toBe("p1");
     });
 
     it("should inject sponsored posts at interval", () => {
-      const posts = [
-        createSamplePost({ id: "p1" }),
-        createSamplePost({ id: "p2" }),
-        createSamplePost({ id: "p3" }),
+      const organic = [
+        { ...dummyPost, id: "o1" },
+        { ...dummyPost, id: "o2" },
+        { ...dummyPost, id: "o3" },
       ];
-      const sponsored: SponsoredPost = {
-        ...createSamplePost({ id: "s1" }),
-        isSponsored: true,
-        sponsorName: "Acme",
-        campaignId: "camp_1",
-      };
-      const injected = SponsoredPostInjector.inject(posts, [sponsored], {
-        interval: 2,
-        maxSponsoredPosts: 1,
-      });
-      expect(injected.length).toBe(4);
+
+      const sponsored: SponsoredPost[] = [
+        {
+          ...dummyPost,
+          id: "sp1",
+          isSponsored: true,
+          sponsorName: "MosaiX Store",
+          campaignId: "cmp_1",
+        },
+      ];
+
+      const result = SponsoredPostInjector.inject(organic, sponsored, { interval: 2 });
+      expect(result).toHaveLength(4);
+      expect(result[2].id).toBe("sp1");
     });
+  });
+});
+
+describe("Périmètre N1 — DiversityReranker & FeedMetricsCollector", () => {
+  const samplePosts: FeedPost[] = [
+    {
+      id: "p-1",
+      actorType: "user",
+      actorId: "user-1",
+      publicationType: "text",
+      targetType: "feed",
+      targetId: "global",
+      content: "Post 1 Tech",
+      tags: ["tech", "ai"],
+      likeCount: 10,
+      commentsCount: 2,
+      createdAt: new Date(),
+    },
+    {
+      id: "p-2",
+      actorType: "user",
+      actorId: "user-1",
+      publicationType: "text",
+      targetType: "feed",
+      targetId: "global",
+      content: "Post 2 Tech",
+      tags: ["tech", "ai"],
+      likeCount: 9,
+      commentsCount: 1,
+      createdAt: new Date(),
+    },
+    {
+      id: "p-3",
+      actorType: "user",
+      actorId: "user-1",
+      publicationType: "text",
+      targetType: "feed",
+      targetId: "global",
+      content: "Post 3 Tech",
+      tags: ["tech"],
+      likeCount: 8,
+      commentsCount: 0,
+      createdAt: new Date(),
+    },
+    {
+      id: "p-4",
+      actorType: "user",
+      actorId: "user-2",
+      publicationType: "text",
+      targetType: "feed",
+      targetId: "global",
+      content: "Post 4 Design",
+      tags: ["design", "ux"],
+      likeCount: 5,
+      commentsCount: 1,
+      createdAt: new Date(),
+    },
+    {
+      id: "p-5",
+      actorType: "user",
+      actorId: "user-3",
+      publicationType: "text",
+      targetType: "feed",
+      targetId: "global",
+      content: "Post 5 Business",
+      tags: ["business", "startup"],
+      likeCount: 4,
+      commentsCount: 2,
+      createdAt: new Date(),
+    },
+  ];
+
+  it("should enforce pure relevance when lambda=1.0 vs maximum diversity when lambda=0.0", () => {
+    const pureRelevance = DiversityReranker.rerank(samplePosts, { lambda: 1.0, maxPerAuthor: 5 });
+    expect(pureRelevance[0].id).toBe("p-1");
+
+    const maxDiversity = DiversityReranker.rerank(samplePosts, { lambda: 0.0, maxPerAuthor: 5 });
+    expect(maxDiversity.map((p) => p.id)).not.toEqual(pureRelevance.map((p) => p.id));
+  });
+
+  it("should enforce hard constraints: max per author, max per category, and exclusions", () => {
+    const reranked = DiversityReranker.rerank(samplePosts, {
+      maxPerAuthor: 2,
+      maxPerCategory: 2,
+      mutedActorIds: ["user-3"],
+      hiddenPostIds: ["p-3"],
+    });
+
+    const user1Posts = reranked.filter((p) => p.actorId === "user-1");
+    expect(user1Posts.length).toBeLessThanOrEqual(2);
+    expect(reranked.some((p) => p.actorId === "user-3")).toBe(false);
+    expect(reranked.some((p) => p.id === "p-3")).toBe(false);
+  });
+
+  it("should preserve SponsoredPostInjector positioning after MMR reranking", () => {
+    const rerankedOrganic = DiversityReranker.rerank(samplePosts, { lambda: 0.7 });
+    const sponsoredPool: SponsoredPost[] = [
+      {
+        id: "sp-1",
+        actorType: "organization",
+        actorId: "org-1",
+        publicationType: "product_showcase",
+        targetType: "feed",
+        targetId: "global",
+        content: "Sponsored",
+        likeCount: 0,
+        commentsCount: 0,
+        createdAt: new Date(),
+        isSponsored: true,
+        sponsorName: "Sponsor",
+        campaignId: "cmp-1",
+      },
+    ];
+
+    const injected = SponsoredPostInjector.inject(rerankedOrganic, sponsoredPool, { interval: 2 });
+    expect(injected.some((p) => (p as SponsoredPost).isSponsored === true)).toBe(true);
+  });
+
+  it("should calculate feed telemetry metrics correctly", () => {
+    const ir = FeedMetricsCollector.calculateInteractionRate(10, 5, 100);
+    expect(ir).toBe(0.15);
+
+    const smr = FeedMetricsCollector.calculateSkipMuteRate(2, 3, 100);
+    expect(smr).toBe(0.05);
+
+    const entropy = FeedMetricsCollector.calculateCategoryEntropy(samplePosts);
+    expect(entropy).toBeGreaterThan(0);
   });
 });

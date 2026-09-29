@@ -1,5 +1,6 @@
 import * as crypto from "node:crypto";
 import { Model } from "@mosaix/sdk";
+import { TrendingVelocityRanker, type FeedPost } from "@mosaix/feed-engine";
 
 export type SocialActorType = "user" | "space" | "organization" | "system";
 
@@ -233,7 +234,6 @@ export class SolaraSocialService {
     metadata?: Record<string, unknown>,
     mediaUrls: string[] = []
   ): Promise<Post> {
-    // Validate publication type metadata
     const validation = this.publicationTypeRegistry.validateMetadata(publicationType, metadata);
     if (!validation.valid) {
       throw new Error(`Métadonnées manquantes pour le type de publication [${publicationType}] : ${validation.missingFields.join(", ")}`);
@@ -241,7 +241,6 @@ export class SolaraSocialService {
 
     let finalContent = content;
 
-    // Execute plugin content hooks in async waterfall pipeline with safety timeout
     for (const hook of this.contentHooks) {
       const result = await Promise.resolve(hook(finalContent));
       if (!result.approved) {
@@ -287,6 +286,76 @@ export class SolaraSocialService {
       list = list.filter((p) => p.publicationType === publicationType);
     }
     return list;
+  }
+
+  /**
+   * Périmètre N1 — Multi-source feed aggregation.
+   * Fuses 3 sources: 'followed' (posts by followed actors), 'trending' (velocity score), and 'recent' (chronological).
+   * Deduplicates by post.id. Preserves modes: 'for_you', 'trending', 'chronological'.
+   */
+  public listFeedMultiSource(
+    followerActorId?: string,
+    mode: "for_you" | "trending" | "chronological" = "for_you",
+    options: { targetType?: string; targetId?: string; publicationType?: string } = {}
+  ): Post[] {
+    const allPosts = this.listFeed(options.targetType, options.targetId, options.publicationType);
+
+    if (mode === "chronological") {
+      return [...allPosts].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }
+
+    if (mode === "trending") {
+      return [...allPosts].sort((a, b) => {
+        const velA = TrendingVelocityRanker.calculateVelocity(a as unknown as FeedPost);
+        const velB = TrendingVelocityRanker.calculateVelocity(b as unknown as FeedPost);
+        return velB - velA;
+      });
+    }
+
+    // Default 'for_you': Multi-source fusion (Followed + Trending + Recent)
+    const followedTargets = new Set<string>();
+    if (followerActorId) {
+      for (const [key, rels] of this.followers.entries()) {
+        for (const rel of rels) {
+          if (rel.followerActorId === followerActorId) {
+            followedTargets.add(rel.targetActorId);
+            followedTargets.add(key);
+          }
+        }
+      }
+    }
+
+    // Source 1: Followed
+    const followedPool = allPosts.filter((p) => followedTargets.has(p.actorId) || followedTargets.has(p.targetId));
+
+    // Source 2: Trending (top velocity)
+    const trendingPool = [...allPosts].sort((a, b) => {
+      const velA = TrendingVelocityRanker.calculateVelocity(a as unknown as FeedPost);
+      const velB = TrendingVelocityRanker.calculateVelocity(b as unknown as FeedPost);
+      return velB - velA;
+    });
+
+    // Source 3: Recent (chronological)
+    const recentPool = [...allPosts].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    // Fusion & Deduplication by ID
+    const mergedMap = new Map<string, Post>();
+
+    for (const post of followedPool) {
+      mergedMap.set(post.id, post);
+    }
+    for (const post of trendingPool) {
+      if (!mergedMap.has(post.id)) {
+        mergedMap.set(post.id, post);
+      }
+    }
+    for (const post of recentPool) {
+      if (!mergedMap.has(post.id)) {
+        mergedMap.set(post.id, post);
+      }
+    }
+
+    return Array.from(mergedMap.values());
   }
 
   async listFeedAsync(targetType?: string, targetId?: string, publicationType?: string): Promise<Post[]> {
@@ -427,7 +496,6 @@ export class SolaraSocialService {
       await this.repository.saveReaction(targetType, targetId, reaction);
       if (targetType === "post") {
         await this.repository.incrementLikeCount(targetId, 1);
-        // Also update in-memory post
         const post = this.posts.get(targetId);
         if (post) {
           post.likeCount++;
