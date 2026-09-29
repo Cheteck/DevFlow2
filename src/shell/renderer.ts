@@ -993,7 +993,6 @@ export function renderMobileNotificationsSheet(): string {
               <div>
                 <div class="flex items-center gap-2">
                   <h3 class="font-bold text-sm text-on-surface">Notifications</h3>
-                  <span class="notification-unread-badge px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">2 nouvelles</span>
                 </div>
                 <p class="text-[10px] text-on-surface-variant">Activités et alertes récentes</p>
               </div>
@@ -1145,7 +1144,6 @@ export function renderMobileBottomNav(
         >
           <div class="relative p-1 rounded-xl">
             <span class="material-symbols-outlined text-2xl">notifications</span>
-            <span class="notification-unread-badge absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center ring-2 ring-surface animate-pulse">2</span>
           </div>
           <span class="text-[10px] leading-none font-medium">Alertes</span>
         </button>

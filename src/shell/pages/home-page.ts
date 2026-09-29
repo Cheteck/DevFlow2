@@ -5,7 +5,22 @@
 import { escapeHtml } from "@mosaix/support";
 import type { ThemeMode } from "@mosaix/contracts";
 import type { UserProfile } from "../profiles.js";
-import type { FeedPost } from "../feed-store.js";
+
+/**
+ * Display shape served by GET /api/feed (Solara N1 pipeline).
+ * Local definition: the legacy shell `feed-store.ts` backing type was removed
+ * with `shell_feed` — this interface mirrors the API envelope, nothing more.
+ */
+export interface FeedPost {
+  id: string;
+  author: string;
+  authorRole: string;
+  authorAvatar: string;
+  bacSource: string;
+  content: string;
+  timestamp: string;
+  likes: number;
+}
 import {
   renderPrimarySidebar,
   renderSecondarySidebar,

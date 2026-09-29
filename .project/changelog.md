@@ -1,5 +1,38 @@
 # Changelog
 
+## Archive — Dashboard 2026-09-25 §4 « Gaps Résolus & Améliorations Récentes » (re-hébergé 2026-09-29)
+
+> Contenu retiré du dashboard par `dae32d9` (dashboard = état courant, pas d'archive).
+> Vérification de non-perte 2026-09-29 : VULN-01..08 détaillés dans `reports/security-audit-2026-09-25.md`,
+> livraisons ROLE/DATA/CIB/PRD couvertes par `backlog/active-backlog.md` §1/§6-§8 — seul le §4 ci-dessous
+> était sans autre domicile et il est conservé ici verbatim.
+
+- ✅ **P0 - Micro QueryBuilder DML Typé (`@mosaix/ports-database`)** : Moteur de requêtes typées (`SelectQueryBuilder`, `InsertQueryBuilder`, `UpdateQueryBuilder`, `DeleteQueryBuilder`) avec binding automatique anti-injection ($1/$2 pour Postgres, ? pour SQLite).
+- ✅ **P0 - Gestionnaire de Pool PostgreSQL (`PostgresPoolManager`)** : Support de pooling de connexions, health check automatique (`SELECT 1`), retries sur erreurs transitoires et fermeture propre.
+- ✅ **P0 - Passerelle de Paiement Webhook (PSP)** : Intégration de `PspWebhookHandler` (`/api/psp/webhook`) avec vérification cryptographique HMAC-SHA256 pour les événements Stripe / Adyen / Mollie.
+- ✅ **P0 - Navigation Mobile & Accessibilité WCAG 2.1 AA** : Intégration de `renderMobileDrawer` avec slide-over responsive (<640px) et balisage ARIA universel (`role="banner"`, `role="navigation"`, `role="main"`).
+- ✅ **P0 - Interface Droit à l'Oubli (RGPD)** : Intégration de la vue `IdentityGdprPrivacyPageView` (`/identity/privacy`) permettant à l'utilisateur de déclencher l'anonymisation de ses données avec confirmation et retour visuel.
+- ✅ **P0 - Clustering Événements Distribués** : Extension de `DistributedEventBackplane` avec interface `ClusterTransportAdapter` (prêt pour Redis Pub/Sub et NATS multi-nœuds).
+- ✅ **P1 - Protection Anti-Abus & Rate Limiting** : Ajout du Token Bucket Rate Limiter (`standardRateLimiter` et `strictRateLimiter`) sur les routes sensibles (`/api/*`).
+- ✅ **P1 - Standardisation des Erreurs HTTP (RFC 7807)** : Réponses d'erreurs d'API standardisées au format `application/problem+json` via `sendProblemResponse`.
+- ✅ **P1 - Cache de Fragments SSR** : Module `FragmentCache` LRU avec TTL pour l'accélération du rendu côté serveur.
+- ✅ **P0 - Scalabilité SQLite** : Mode WAL, busy_timeout 5000ms et pragma `synchronous=NORMAL` activés.
+- ✅ **P0 - Sécurité Cryptographique** : `SecurityGuard` avec vérification stricte des secrets JWT en production.
+- ✅ **P1 - Keyset Pagination** : `FeedService` avec pagination par curseur d'horodatage sur `/api/feed` (note 2026-09-29 : `FeedService`/`shell_feed` retirés par le cutover N1, v1.004).
+- ✅ **P1 - Phase 23 (Subscriptions & Billing)** : Création complète du 10ème BAC `@apps/subscription` avec forfaits récurrents, metering et contrôle d'accès par capability-gating.
+- 🚀 **Phase 25 (BAC Domain Evolution & Hardening)** : Évolution et durcissement livrés sur les 10 BACs (Scrypt/lockout & RGPD Citadelle, State Machine & PaymentIntent & Offres Agnostiques multi-entités Commerce, Recherche à facettes & pricing variants Portfolio, Pipeline modération 3-tiers & parseur tags Solara, iCalendar RFC 5545 & Waitlist Booking, Matching géospatial & Merkle audit trail Solidarity, E2E Crypto ECDH/AES-GCM & bots Beam, Custom domain DNS/SSL & usage tracker Spaces, Compliance SOC2/HIPAA/GDPR & GitOps drift detector Imperia, Prorata & dunning schedule Subscription).
+- ✅ **BAC-COM-07 - Offres Agnostiques de Vendables** : Le Bounded Application Component `commerce` prend désormais en charge les offres (`CommerceOffer`) de manière totalement agnostique pour toute entité vendeuse (`SellerEntityRef` : `space`, `tenant`, `user`, `collective`, etc.) avec cycle de vie d'offre, allocation de stock, calcul de commission et routage de paiement.
+- 🛡️ **Phase 26 - Infrastructure, RLS Natif & Sécurité Avancée** : Schémas PostgreSQL canoniques par BAC (`PostgresBacSchemaMigrator`), Row Level Security natif (`PostgresRlsManager`), `SchemaBuilder.inSchema()`, hasher Bcrypt / Argon2 (`Citadelle`), Saga de réservation et compensation de stock (`Commerce`), import CSV avec validation (`Portfolio`), portail prestataire SSR (`Booking`), antivirus et legal hold (`Beam`), domaine personnalisé avec HSTS/ACME Let's Encrypt et SCIM (`Spaces`), règles de gouvernance déclaratives Rego (`Imperia`), metering Redis sorted sets et reconnaissance de revenus ASC 606 (`Subscription`), ADR-0014 et diagrammes d'architecture C4.
+- 🧩 **Phase 27 - Plugin Engine Optimal (Priorités 1 à 8)** :
+  1. `HookExecutionEngine` (`runHook(point, args)` en waterfall/parallel/bail, priorités, timeout).
+  2. `WorkspacePluginLoader` (scan `plugins/**/mosaix.json`, watch, hot reload/unload).
+  3. `PluginSandboxEnvironment` (isolation Realm/VM, timeout threshold et containment global).
+  4. `PluginCapabilityResolver` (résolution `requiresCapabilities` au register, injection de ports réels).
+  5. `PluginSettingsValidator` & `PluginSettingsManager` (validation JSON Schema, types, defaults, réactivité `onChange`).
+  6. `PluginEventBus` (bus d'événements `plugin:event` inter-plugins avec wildcard patterns et isolation).
+  7. `PluginCliCommandRunner` (`mosaix plugin install|update|remove|list|dev`).
+  8. `PluginMarketplaceRegistry` (index distant, résolution semver `^1.0.0`, vérification d'intégrité SHA-256 et signature cryptographique HMAC/RSA).
+
 ## 2026-09-25 — Feed Engine unifié (branche stateful + couche ranking main)
 
 ### Added
@@ -705,3 +738,10 @@
   - **Multi-Source Solara** : Implémentation de `SolaraSocialService.listFeedMultiSource` fusionnant 3 pools (`followed`, `trending`, `recent`) et dédupliquant par ID.
   - **Diversité MMR & Contraintes Dures** : Ajout de `DiversityReranker` dans `@mosaix/feed-engine` avec algorithme MMR glouton (λ=0.7), similarité cosinus sur tags, RNG Mulberry32 seedable, et contraintes dures (`max_par_auteur: 2`, `max_par_categorie: 4`, `min_categories: 3`, exclusions `mutedActorIds`/`hiddenPostIds`/`seenPostIds`).
   - **Métriques & Export Prometheus** : Calcul et exposition sur `/metrics` de `mosaix_feed_interaction_rate`, `mosaix_feed_skip_mute_rate`, et `mosaix_feed_category_entropy`.
+### Changed
+- **Retrait `shell_feed` (cutover N1)** :
+  - `GET /api/feed` servi par le pipeline Solara N1 (enveloppe `{ posts, nextCursor, hasMore }` inchangée, `?mode=for_you|trending|chronological`, `?category=`, curseur timestamp) ; `POST /api/feed` crée un post Solara (`feed`/`global`).
+  - `/api/mobile/sync/feed` mappé depuis Solara (chronologique) ; `/__mosaix` compte les posts Solara ; entropie `/metrics` calculée sur la sortie N1.
+  - Singleton partagé `getSharedSocialService()` (+ `listFeedMultiSourceAsync` avec hydration Postgres, repo branché uniquement en dialecte postgres) ; anonymisation RGPD retargetée sur `solara_posts`.
+  - Migration `shell.core.v1.004_drop_shell_feed` (+ variante minimale) avec `down` de restauration ; `FeedService`, `feed-store.ts`, seed `shell_feed` supprimés.
+  - Rollback : `git revert` + `migrate:rollback` (restaure la table).

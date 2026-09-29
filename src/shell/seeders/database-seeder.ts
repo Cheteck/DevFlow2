@@ -45,23 +45,9 @@ export async function runDatabaseSeeds(db: DatabasePort): Promise<string[]> {
   }
   const seeded: string[] = [];
 
-  // 1. Initial feed posts
-  if ((await tableCount(db, "shell_feed")) === 0) {
-    const now = Date.now();
-    await db.execute(
-      bind(
-        db,
-        `
-      INSERT INTO shell_feed (id, type, author, title, content, category, tags, likes, timestamp) VALUES
-      ('feed_init_1', 'post', 'Alexandre • Architecte Produit', 'Bienvenue sur la plateforme MosaiX !', 'Ravi de vous accueillir sur notre espace de travail unifié. Les modules Portfolio, Boutique, Agenda et Messagerie sont dès à présent synchronisés.', 'announcement', '["bienvenue", "mosaix", "collaboratif"]', 14, ?),
-      ('feed_init_2', 'post', 'Éléonore • Design Lead', 'Nouveau kit d''icônes et thèmes graphiques disponibles', 'Nous venons de mettre à jour la bibliothèque de styles. Vous pouvez basculer entre le mode Sombre et le mode Clair instantanément depuis la barre d''actions.', 'design', '["design-system", "theme", "ui"]', 9, ?),
-      ('feed_init_3', 'post', 'Julien • Trésorier Solidaire', 'Lancement de la campagne d''entraide Q4', 'Rejoignez le projet de dotation en matériel informatique pour nos nouveaux ateliers collaboratifs !', 'solidarity', '["entraide", "projets"]', 22, ?)
-    `,
-      ),
-      [now - 3600000 * 2, now - 3600000, now - 1800000],
-    );
-    seeded.push("shell_feed");
-  }
+  // NOTE: the legacy shell_feed seed block was retired with the N1 cutover
+  // (shell_feed table dropped by shell.core.v1.004). Social demo content, if
+  // needed, belongs to the Solara BAC — never to shell-level seeds.
 
   // 2. Commerce products
   if ((await tableCount(db, "commerce_products")) === 0) {

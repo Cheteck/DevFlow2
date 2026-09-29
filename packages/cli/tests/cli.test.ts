@@ -231,14 +231,14 @@ describe("MosaiX CLI PRD Specification Suite", () => {
       const before = await router.execute("migrate:status", { json: true });
       expect(before.exitCode).toBe(EXIT_CODES.SUCCESS);
       const rowsBefore = before.data as Array<{ applied: boolean }>;
-      expect(rowsBefore.length).toBe(5);
+      expect(rowsBefore.length).toBe(6);
       expect(rowsBefore.every((r) => r.applied === false)).toBe(true);
 
       const migrated = await router.execute("migrate", { json: true });
       expect(migrated.exitCode).toBe(EXIT_CODES.SUCCESS);
       expect(
         (migrated.data as { applied: readonly string[] }).applied,
-      ).toHaveLength(5);
+      ).toHaveLength(6);
 
       const after = await router.execute("migrate:status", { json: true });
       expect(after.exitCode).toBe(EXIT_CODES.SUCCESS);
@@ -254,7 +254,7 @@ describe("MosaiX CLI PRD Specification Suite", () => {
       expect(first.exitCode).toBe(EXIT_CODES.SUCCESS);
       expect(
         (first.data as { seeded: string[] }).seeded,
-      ).toContain("shell_feed");
+      ).toContain("commerce_products");
 
       const second = await router.execute("db:seed", { json: true });
       expect(second.exitCode).toBe(EXIT_CODES.SUCCESS);
@@ -272,8 +272,8 @@ describe("MosaiX CLI PRD Specification Suite", () => {
         applied: readonly string[];
         seeded: string[];
       };
-      expect(data.applied).toHaveLength(5);
-      expect(data.seeded).toContain("shell_feed");
+      expect(data.applied).toHaveLength(6);
+      expect(data.seeded).toContain("commerce_products");
     });
 
     it("migrate:rollback undoes the last batch", async () => {
@@ -286,7 +286,7 @@ describe("MosaiX CLI PRD Specification Suite", () => {
       expect(rolledBack.exitCode).toBe(EXIT_CODES.SUCCESS);
       expect(
         (rolledBack.data as { rolledBack: readonly string[] }).rolledBack,
-      ).toHaveLength(5);
+      ).toHaveLength(6);
 
       const status = await router.execute("migrate:status", { json: true });
       const rows = status.data as Array<{ applied: boolean }>;

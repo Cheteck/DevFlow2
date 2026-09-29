@@ -25,7 +25,8 @@ import {
   standardRateLimiter,
   strictRateLimiter,
 } from "./shell/rate-limiter.js";
-import { getFeedService } from "./shell/feed-service.js";
+import { getSharedSocialService } from "../apps/solara/src/domain/social.model.js";
+import { PostgresSocialRepository } from "../apps/solara/src/domain/postgres-social-repository.js";
 import { distributedEventBackplane } from "./shell/event-backplane.js";
 import { getAnonymizationOrchestrator } from "./shell/anonymization-orchestrator.js";
 import { bacOrchestrator } from "./shell/orchestrator/bac-orchestrator.js";
@@ -52,6 +53,14 @@ import { renderHomePage } from "./shell/pages/home-page.js";
 const app = await createApplication();
 const { compositionOverrideManager } = app;
 const PORT = app.env.resolvedPort;
+
+// Shared Solara N1 feed pipeline (shell_feed retired): Postgres-backed when the
+// dialect is postgres, in-memory otherwise. Resolved once — first call wins.
+const sharedSocialService = getSharedSocialService(
+  app.dbAdapter.capabilities.dialect === "postgres"
+    ? new PostgresSocialRepository(app.dbAdapter)
+    : undefined,
+);
 
 // Initialize platform feature flags with database adapter for persistent storage
 await getPlatformFeatureFlags(app.dbAdapter);
@@ -197,7 +206,7 @@ const server = http.createServer(async (req, res) => {
       activeMode: currentThemeMode,
       currentUser,
       compositionOverrideManager,
-      feedService: getFeedService(app.dbAdapter),
+      socialService: sharedSocialService,
       eventBackplane: distributedEventBackplane,
       anonymizationOrchestrator: getAnonymizationOrchestrator(app.dbAdapter),
       db: app.dbAdapter,
