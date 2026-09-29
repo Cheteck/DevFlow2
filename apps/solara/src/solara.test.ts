@@ -157,3 +157,20 @@ describe("Solara BAC N1 Multi-Source & Adapter", () => {
     expect(feedPost.actorId).toBe("usr-1");
   });
 });
+
+describe("Solara BAC ForYou Affinity & Outbound Follows", () => {
+  it("should correctly resolve outbound followed targets and boost affinity score", async () => {
+    const service = new SolaraSocialService();
+    await service.followActor("user", "usr-me", "user", "usr-followed-author");
+
+    const followedTargets = service.getFollowedTargets("usr-me");
+    expect(followedTargets).toContain("usr-followed-author");
+
+    const followedPost = await service.createPost("user", "usr-followed-author", "feed", "global", "Post by Followed", "text");
+    const _strangerPost = await service.createPost("user", "usr-stranger", "feed", "global", "Post by Stranger", "text");
+
+    const multiFeed = service.listFeedMultiSource("usr-me", "for_you");
+    expect(multiFeed.length).toBe(2);
+    expect(multiFeed[0].id).toBe(followedPost.id);
+  });
+});

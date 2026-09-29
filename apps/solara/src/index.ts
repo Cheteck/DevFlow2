@@ -99,16 +99,12 @@ export class SolaraServiceProvider {
         return feedPosts;
       }
 
-      // Resolve followed actors & spaces for real user affinity
-      const followedSpaceIds: string[] = [];
-      if (inp.followerActorId) {
-        const followers = socialService.getFollowers("user", inp.followerActorId);
-        for (const rel of followers) {
-          followedSpaceIds.push(rel.targetActorId);
-        }
-      }
+      // Resolve outbound followed actors & spaces for real user affinity (P1 Audit Fix)
+      const followedSpaceIds: string[] = inp.followerActorId
+        ? socialService.getFollowedTargets(inp.followerActorId)
+        : [];
 
-      // 2. Recommendation Engine + MMR Diversity Reranker with resolved followed spaces
+      // 2. Recommendation Engine + MMR Diversity Reranker with resolved followed targets
       const personalizedFeed = ForYouRecommendationEngine.generateForYouFeed(feedPosts, {
         userId: inp.followerActorId || "guest",
         followedSpaceIds,

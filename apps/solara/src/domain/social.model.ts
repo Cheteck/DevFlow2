@@ -1,6 +1,6 @@
 import * as crypto from "node:crypto";
 import { Model } from "@mosaix/sdk";
-import { TrendingVelocityRanker, type FeedPost } from "@mosaix/feed-engine";
+import { TrendingVelocityRanker, FeedMetricsCollector, type FeedPost } from "@mosaix/feed-engine";
 
 export type SocialActorType = "user" | "space" | "organization" | "system";
 
@@ -289,8 +289,24 @@ export class SolaraSocialService {
   }
 
   /**
+   * Scans outbound follow relations where followerActorId is the follower.
+   * Returns list of target actor/space IDs followed by followerActorId.
+   */
+  public getFollowedTargets(followerActorId: string): string[] {
+    const followed = new Set<string>();
+    for (const rels of this.followers.values()) {
+      for (const rel of rels) {
+        if (rel.followerActorId === followerActorId) {
+          followed.add(rel.targetActorId);
+        }
+      }
+    }
+    return Array.from(followed);
+  }
+
+  /**
    * Périmètre N1 — Multi-source feed aggregation.
-   * Fuses 3 sources: 'followed' (posts by followed actors), 'trending' (velocity score), and 'recent' (chronological).
+   * Fuses 3 sources: 'followed' (posts by followed actors/spaces), 'trending' (velocity score), and 'recent' (chronological).
    * Deduplicates by post.id. Preserves modes: 'for_you', 'trending', 'chronological'.
    */
   public listFeedMultiSource(
@@ -306,32 +322,22 @@ export class SolaraSocialService {
 
     if (mode === "trending") {
       return [...allPosts].sort((a, b) => {
-        const velA = TrendingVelocityRanker.calculateVelocity(a );
-        const velB = TrendingVelocityRanker.calculateVelocity(b );
+        const velA = TrendingVelocityRanker.calculateVelocity(postToFeedPost(a));
+        const velB = TrendingVelocityRanker.calculateVelocity(postToFeedPost(b));
         return velB - velA;
       });
     }
 
     // Default 'for_you': Multi-source fusion (Followed + Trending + Recent)
-    const followedTargets = new Set<string>();
-    if (followerActorId) {
-      for (const [key, rels] of this.followers.entries()) {
-        for (const rel of rels) {
-          if (rel.followerActorId === followerActorId) {
-            followedTargets.add(rel.targetActorId);
-            followedTargets.add(key);
-          }
-        }
-      }
-    }
+    const followedTargets = new Set<string>(followerActorId ? this.getFollowedTargets(followerActorId) : []);
 
     // Source 1: Followed
     const followedPool = allPosts.filter((p) => followedTargets.has(p.actorId) || followedTargets.has(p.targetId));
 
     // Source 2: Trending (top velocity)
     const trendingPool = [...allPosts].sort((a, b) => {
-      const velA = TrendingVelocityRanker.calculateVelocity(a );
-      const velB = TrendingVelocityRanker.calculateVelocity(b );
+      const velA = TrendingVelocityRanker.calculateVelocity(postToFeedPost(a));
+      const velB = TrendingVelocityRanker.calculateVelocity(postToFeedPost(b));
       return velB - velA;
     });
 
@@ -406,6 +412,9 @@ export class SolaraSocialService {
     list.push(comment);
     this.comments.set(postId, list);
     post.commentsCount++;
+
+    // Static telemetry counter increment for comments
+    FeedMetricsCollector.recordInteraction(1);
 
     if (this.repository) {
       await this.repository.saveComment(postId, comment);
@@ -492,6 +501,10 @@ export class SolaraSocialService {
       type,
       createdAt: new Date(),
     };
+
+    // Static telemetry counter increment for reactions
+    FeedMetricsCollector.recordInteraction(1);
+
     if (this.repository) {
       await this.repository.saveReaction(targetType, targetId, reaction);
       if (targetType === "post") {
@@ -499,8 +512,12 @@ export class SolaraSocialService {
         const post = this.posts.get(targetId);
         if (post) {
           post.likeCount++;
-        import("@mosaix/feed-engine").then(({ FeedMetricsCollector }) => FeedMetricsCollector.recordInteraction(1));
         }
+      }
+    } else if (targetType === "post") {
+      const post = this.posts.get(targetId);
+      if (post) {
+        post.likeCount++;
       }
     }
     return reaction;
