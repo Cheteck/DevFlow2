@@ -60,6 +60,12 @@ export class SolaraAppServiceProvider implements ServiceProvider {
     const handleComment = async (req: HttpRequest) => await controller.addComment(req);
     const handleReaction = async (req: HttpRequest) => await controller.addReaction(req);
     const handleFollowers = async (req: HttpRequest) => await controller.followActor(req);
+    const handleUnfollow = async (req: HttpRequest) => await controller.unfollowActor(req);
+    const handleUpdatePost = async (req: HttpRequest) => await controller.updatePost(req);
+    const handleDeletePost = async (req: HttpRequest) => await controller.deletePost(req);
+    const handleVote = async (req: HttpRequest) => await controller.castVote(req);
+    const handleRepost = async (req: HttpRequest) => await controller.repost(req);
+    const handleReport = async (req: HttpRequest) => await controller.reportPost(req);
     const handleAdTelemetry = async (req: HttpRequest) => await controller.trackAdTelemetry(req);
 
     // Standard /api/solara and /solara routing
@@ -80,6 +86,24 @@ export class SolaraAppServiceProvider implements ServiceProvider {
 
     router.post("/api/solara/followers", handleFollowers);
     router.post("/solara/followers", handleFollowers);
+
+    router.post("/api/solara/followers/unfollow", handleUnfollow);
+    router.post("/solara/followers/unfollow", handleUnfollow);
+
+    router.put("/api/solara/posts", handleUpdatePost);
+    router.put("/solara/posts", handleUpdatePost);
+
+    router.delete("/api/solara/posts", handleDeletePost);
+    router.delete("/solara/posts", handleDeletePost);
+
+    router.post("/api/solara/polls/vote", handleVote);
+    router.post("/solara/polls/vote", handleVote);
+
+    router.post("/api/solara/reposts", handleRepost);
+    router.post("/solara/reposts", handleRepost);
+
+    router.post("/api/solara/reports", handleReport);
+    router.post("/solara/reports", handleReport);
 
     router.post("/api/solara/telemetry/ad", handleAdTelemetry);
     router.post("/solara/telemetry/ad", handleAdTelemetry);

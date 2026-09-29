@@ -91,8 +91,8 @@ export class SolaraServiceProvider {
       const inp = (input || {}) as { followerActorId?: string; mode?: "for_you" | "trending" | "chronological"; interestTags?: string[]; mutedActorIds?: string[] };
       const mode = inp.mode || "for_you";
 
-      // 1. Multi-Source Fusion
-      const solaraPosts = socialService.listFeedMultiSource(inp.followerActorId, mode);
+      // 1. Multi-Source Fusion (hydrated: DB-persisted posts included when a repository is wired)
+      const solaraPosts = await socialService.listFeedMultiSourceAsync(inp.followerActorId, mode);
       const feedPosts = solaraPosts.map(postToFeedPost);
 
       if (mode === "chronological" || mode === "trending") {

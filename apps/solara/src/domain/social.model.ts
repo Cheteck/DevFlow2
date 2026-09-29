@@ -1,6 +1,7 @@
 import * as crypto from "node:crypto";
 import { Model } from "@mosaix/sdk";
 import { TrendingVelocityRanker, FeedMetricsCollector, type FeedPost } from "@mosaix/feed-engine";
+import { HumanReviewQueueStage, type ReviewQueueItem } from "./solara-moderation-pipeline.js";
 
 export type SocialActorType = "user" | "space" | "organization" | "system";
 
@@ -134,6 +135,21 @@ export interface Post {
   likeCount: number;
   commentsCount: number;
   createdAt: Date;
+  updatedAt?: Date;
+  isDeleted?: boolean;
+  isPinned?: boolean;
+  repostCount?: number;
+}
+
+export interface PollOptionState {
+  id: string;
+  text: string;
+  votes: number;
+}
+
+export interface PollState {
+  options: PollOptionState[];
+  voters: string[];
 }
 
 export interface Comment {
@@ -187,28 +203,17 @@ export class SolaraSocialService {
   private comments = new Map<string, Comment[]>();
   private followers = new Map<string, FollowerRelation[]>();
   private contentHooks: SolaraContentHook[] = [];
-  private sponsoredPool: import("@mosaix/feed-engine").SponsoredPost[] = [
-    {
-      id: "sponsored-1",
-      actorType: "organization",
-      actorId: "org-mosaix-commerce",
-      publicationType: "product_showcase",
-      targetType: "feed",
-      targetId: "global",
-      content: "🔥 **Offre Spéciale Artisanat local** : Découvrez les créations céramiques faites main avec -20% aujourd'hui !",
-      mediaUrls: ["https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=600&q=80"],
-      likeCount: 42,
-      commentsCount: 8,
-      createdAt: new Date(),
-      isSponsored: true,
-      sponsorName: "E-Commerce MosaiX",
-      sponsorBadge: "Sponsorisé",
-      ctaText: "Acheter en ligne",
-      ctaUrl: "/commerce/products/ceramic-vase",
-      campaignId: "cmp-artisanat-2026"
-    }
-  ];
+  // Constitution (InMemoryGuard) : aucun contenu démo par défaut — le pool
+  // sponsorisé se remplit uniquement via `addSponsoredPost` (campagnes réelles).
+  // L'ancien item démo "sponsored-1" (E-Commerce MosaiX, 42 likes) a été retiré.
+  private sponsoredPool: import("@mosaix/feed-engine").SponsoredPost[] = [];
   public publicationTypeRegistry = new PublicationTypeRegistry();
+
+  /** First real producer of the human moderation queue (FEED-V1-06). */
+  public readonly moderationQueue = new HumanReviewQueueStage();
+
+  /** Per-user muted actors (FEED-V1-07). In-memory only: no repository table yet. */
+  private readonly mutedByUser = new Map<string, Set<string>>();
 
   public getSponsoredPool(): import("@mosaix/feed-engine").SponsoredPost[] {
     return this.sponsoredPool;
@@ -239,6 +244,21 @@ export class SolaraSocialService {
       throw new Error(`Métadonnées manquantes pour le type de publication [${publicationType}] : ${validation.missingFields.join(", ")}`);
     }
 
+    // FEED-V1-03: normalize poll options into a votable state envelope.
+    let finalMetadata = metadata;
+    if (publicationType === "poll") {
+      const rawOptions = Array.isArray(metadata?.options) ? metadata.options : [];
+      const options: PollOptionState[] = rawOptions.map((o: unknown, i: number) => {
+        const rec = (o ?? {}) as Record<string, unknown>;
+        return {
+          id: String(rec.id ?? `opt-${i + 1}`),
+          text: String(rec.text ?? ""),
+          votes: Number(rec.votes ?? 0),
+        };
+      });
+      finalMetadata = { ...(metadata ?? {}), poll: { options, voters: [] } satisfies PollState };
+    }
+
     let finalContent = content;
 
     for (const hook of this.contentHooks) {
@@ -261,7 +281,7 @@ export class SolaraSocialService {
       targetId,
       content: finalContent,
       mediaUrls,
-      ...(metadata ? { metadata } : {}),
+      ...(finalMetadata ? { metadata: finalMetadata } : {}),
       likeCount: 0,
       commentsCount: 0,
       createdAt: new Date(),
@@ -278,7 +298,7 @@ export class SolaraSocialService {
   }
 
   listFeed(targetType?: string, targetId?: string, publicationType?: string): Post[] {
-    let list = Array.from(this.posts.values());
+    let list = Array.from(this.posts.values()).filter((p) => !p.isDeleted);
     if (targetType && targetId) {
       list = list.filter((p) => p.targetType === targetType && p.targetId === targetId);
     }
@@ -381,8 +401,29 @@ export class SolaraSocialService {
     return Array.from(mergedMap.values());
   }
 
-  async listFeedAsync(targetType?: string, targetId?: string, publicationType?: string): Promise<Post[]> {
-    if (this.repository) {
+  /**
+   * Async variant: hydrates the in-memory map from the repository (Postgres,
+   * when wired) before running the multi-source fusion, so DB-persisted posts
+   * are visible to server-side readers. Falls back to in-memory state when
+   * no repository is configured or hydration fails.
+   */
+  public async listFeedMultiSourceAsync(
+    followerActorId?: string,
+    mode: "for_you" | "trending" | "chronological" = "for_you",
+    options: {
+      targetType?: string;
+      targetId?: string;
+      publicationType?: string;
+      followedLimit?: number;
+      trendingLimit?: number;
+      recentLimit?: number;
+    } = {}
+  ): Promise<Post[]> {
+    await this.listFeedAsync(options.targetType, options.targetId, options.publicationType);
+    return this.listFeedMultiSource(followerActorId, mode, options);
+  }
+
+  async listFeedAsync(targetType?: string, targetId?: string, publicationType?: string): Promise<Post[]> {    if (this.repository) {
       try {
         const fromDb = await this.repository.getPosts(100);
         if (fromDb.length > 0) {
@@ -492,6 +533,156 @@ export class SolaraSocialService {
     return this.followers.get(key) ?? [];
   }
 
+  /**
+   * FEED-V1-01: removes all follow relations from follower → target.
+   * In-memory only: `SocialRepositoryPort` exposes no follower removal yet.
+   */
+  public async unfollowActor(followerActorId: string, targetActorId: string): Promise<boolean> {
+    let removed = false;
+    for (const [key, rels] of this.followers.entries()) {
+      const kept = rels.filter(
+        (r) => !(r.followerActorId === followerActorId && r.targetActorId === targetActorId),
+      );
+      if (kept.length !== rels.length) {
+        removed = true;
+        if (kept.length > 0) this.followers.set(key, kept);
+        else this.followers.delete(key);
+      }
+    }
+    return removed;
+  }
+
+  /**
+   * FEED-V1-02: author-only content edit. Persists via repository upsert when wired.
+   */
+  public async updatePost(postId: string, actorId: string, content: string): Promise<Post> {
+    const post = this.posts.get(postId);
+    if (!post || post.isDeleted) throw new Error(`Post [${postId}] non trouvé.`);
+    if (post.actorId !== actorId) throw new Error(`Seul l'auteur peut modifier ce post.`);
+    post.content = content;
+    post.updatedAt = new Date();
+    if (this.repository) {
+      await this.repository.savePost(post);
+    }
+    return post;
+  }
+
+  /**
+   * FEED-V1-02: author-only soft delete. Deleted posts are excluded from
+   * `listFeed` and every downstream feed (multi-source, ForYou, MMR).
+   * NOTE: the Postgres repository has no deleted-flag column yet — the flag
+   * persists in-memory only until the solara_posts schema is extended.
+   */
+  public async deletePost(postId: string, actorId: string): Promise<Post> {
+    const post = this.posts.get(postId);
+    if (!post || post.isDeleted) throw new Error(`Post [${postId}] non trouvé.`);
+    if (post.actorId !== actorId) throw new Error(`Seul l'auteur peut supprimer ce post.`);
+    post.isDeleted = true;
+    return post;
+  }
+
+  /**
+   * FEED-V1-03: one vote per actor per poll. Persists via repository upsert when wired.
+   */
+  public async castPollVote(
+    postId: string,
+    optionId: string,
+    actorId: string,
+  ): Promise<{ options: PollOptionState[]; totalVotes: number }> {
+    const post = this.posts.get(postId);
+    if (!post || post.isDeleted) throw new Error(`Post [${postId}] non trouvé.`);
+    if (post.publicationType !== "poll") throw new Error(`Le post [${postId}] n'est pas un sondage.`);
+    const poll = (post.metadata?.poll ?? null) as PollState | null;
+    if (!poll) throw new Error(`Sondage [${postId}] sans état de vote.`);
+    if (poll.voters.includes(actorId)) throw new Error(`L'acteur [${actorId}] a déjà voté.`);
+    const option = poll.options.find((o) => o.id === optionId);
+    if (!option) throw new Error(`Option [${optionId}] inconnue pour le sondage [${postId}].`);
+    option.votes += 1;
+    poll.voters.push(actorId);
+    if (this.repository) {
+      await this.repository.savePost(post);
+    }
+    const totalVotes = poll.options.reduce((sum, o) => sum + o.votes, 0);
+    return { options: poll.options.map((o) => ({ ...o })), totalVotes };
+  }
+
+  /**
+   * FEED-V1-04: repost (empty content) or quote (with comment). The new post
+   * carries `metadata.repostOf`; the target's `repostCount` is incremented.
+   */
+  public async repostPost(
+    actorType: SocialActorType,
+    actorId: string,
+    targetPostId: string,
+    quoteComment?: string,
+  ): Promise<Post> {
+    const target = this.posts.get(targetPostId);
+    if (!target || target.isDeleted) throw new Error(`Post [${targetPostId}] non trouvé.`);
+    target.repostCount = (target.repostCount ?? 0) + 1;
+    return this.createPost(
+      actorType,
+      actorId,
+      target.targetType,
+      target.targetId,
+      quoteComment ?? "",
+      "text",
+      { repostOf: targetPostId },
+    );
+  }
+
+  /**
+   * FEED-V1-05: author-only pinning (`isPinned` is already honored by `FeedAggregator`).
+   */
+  public pinPost(postId: string, actorId: string): Post {
+    const post = this.posts.get(postId);
+    if (!post || post.isDeleted) throw new Error(`Post [${postId}] non trouvé.`);
+    if (post.actorId !== actorId) throw new Error(`Seul l'auteur peut épingler ce post.`);
+    post.isPinned = true;
+    return post;
+  }
+
+  public unpinPost(postId: string, actorId: string): Post {
+    const post = this.posts.get(postId);
+    if (!post || post.isDeleted) throw new Error(`Post [${postId}] non trouvé.`);
+    if (post.actorId !== actorId) throw new Error(`Seul l'auteur peut désépingler ce post.`);
+    post.isPinned = false;
+    return post;
+  }
+
+  /**
+   * FEED-V1-06: user report → human moderation queue (first real producer).
+   */
+  public reportPost(postId: string, reporterActorId: string, reason: string): ReviewQueueItem {
+    const post = this.posts.get(postId);
+    if (!post || post.isDeleted) throw new Error(`Post [${postId}] non trouvé.`);
+    return this.moderationQueue.enqueue(
+      post.content,
+      post.actorId,
+      `Signalement par ${reporterActorId} : ${reason}`,
+    );
+  }
+
+  /**
+   * FEED-V1-07: per-user mute list (in-memory only: no repository table yet).
+   * Consumable via `UserRecommendationProfile.mutedActorIds`.
+   */
+  public muteActor(userId: string, actorId: string): void {
+    const set = this.mutedByUser.get(userId) ?? new Set<string>();
+    set.add(actorId);
+    this.mutedByUser.set(userId, set);
+  }
+
+  public unmuteActor(userId: string, actorId: string): boolean {
+    const set = this.mutedByUser.get(userId);
+    if (!set || !set.has(actorId)) return false;
+    set.delete(actorId);
+    return true;
+  }
+
+  public getMutedActors(userId: string): string[] {
+    return Array.from(this.mutedByUser.get(userId) ?? []);
+  }
+
   async getFollowersAsync(targetActorType: SocialActorType, targetActorId: string): Promise<FollowerRelation[]> {
     if (this.repository) {
       try {
@@ -561,4 +752,24 @@ export function postToFeedPost(post: Post): FeedPost {
     commentsCount: post.commentsCount || 0,
     createdAt: post.createdAt,
   };
+}
+
+let sharedSocialService: SolaraSocialService | undefined;
+
+/**
+ * Server-wide shared SolaraSocialService (same lazy first-wins doctrine as
+ * `getFeedService()` / `getAnonymizationOrchestrator()`): the HTTP server
+ * (`src/start.ts`) initializes it once with the Postgres repository when the
+ * dialect is postgres, in-memory otherwise. The BAC provider keeps building
+ * its own per-composition instance so unit tests stay isolated — the provider
+ * path is never booted in production, hence no data divergence at runtime.
+ * Tests that need a pristine singleton must call `resetSharedSocialService()`.
+ */
+export function getSharedSocialService(repository?: SocialRepositoryPort): SolaraSocialService {
+  sharedSocialService ??= new SolaraSocialService(repository);
+  return sharedSocialService;
+}
+
+export function resetSharedSocialService(): void {
+  sharedSocialService = undefined;
 }

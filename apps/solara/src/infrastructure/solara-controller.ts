@@ -37,10 +37,18 @@ export class SolaraController extends Controller {
 
     // Apply selected feed algorithm
     if (mode === "for_you") {
+      // FEED-V1-08: caller-supplied profile wins; legacy demo defaults kept as fallback.
+      const csv = (v: unknown): string[] | undefined =>
+        typeof v === "string" && v.length > 0
+          ? v.split(",").map((s) => s.trim()).filter(Boolean)
+          : undefined;
+      const q = req.query ?? {};
+      // Constitution : no mock identity — anonymous callers get a neutral guest
+      // profile (no affinity, no fabricated interests).
       posts = ForYouRecommendationEngine.generateForYouFeed(posts, {
-        userId: "current-user-1",
-        followedSpaceIds: ["space-commerce", "space-events"],
-        interestTags: ["artisanat", "booking", "musique", "tech"]
+        userId: typeof q["userId"] === "string" ? (q["userId"] as string) : "guest",
+        followedSpaceIds: csv(q["followedSpaceIds"]) ?? [],
+        interestTags: csv(q["interestTags"]) ?? [],
       });
     } else if (mode === "trending") {
       posts = TrendingVelocityRanker.rankByTrending(posts);
@@ -170,8 +178,7 @@ export class SolaraController extends Controller {
     }
   }
 
-  async followActor(req: HttpRequest): Promise<HttpResponse> {
-    const body = req.body as {
+  async followActor(req: HttpRequest): Promise<HttpResponse> {    const body = req.body as {
       followerActorType: SocialActorType;
       followerActorId: string;
       targetActorType: SocialActorType;
@@ -189,5 +196,124 @@ export class SolaraController extends Controller {
       body.targetActorId
     );
     return this.created({ message: "Abonnement enregistré avec succès", relation });
+  }
+
+  async unfollowActor(req: HttpRequest): Promise<HttpResponse> {
+    const body = req.body as {
+      followerActorId?: string;
+      targetActorId?: string;
+    };
+
+    if (!body || !body.followerActorId || !body.targetActorId) {
+      return this.badRequest("followerActorId and targetActorId are required.");
+    }
+
+    const removed = await this.socialService.unfollowActor(body.followerActorId, body.targetActorId);
+    return this.json({ message: removed ? "Désabonnement effectué" : "Aucun abonnement trouvé", removed });
+  }
+
+  async updatePost(req: HttpRequest): Promise<HttpResponse> {
+    const body = req.body as {
+      postId?: string;
+      actorId?: string;
+      content?: string;
+    };
+
+    if (!body || !body.postId || !body.actorId || typeof body.content !== "string") {
+      return this.badRequest("postId, actorId and content are required.");
+    }
+
+    try {
+      const post = await this.socialService.updatePost(body.postId, body.actorId, body.content);
+      return this.json({ message: "Publication modifiée", post });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      return this.badRequest(errorMsg);
+    }
+  }
+
+  async deletePost(req: HttpRequest): Promise<HttpResponse> {
+    const body = req.body as {
+      postId?: string;
+      actorId?: string;
+    };
+
+    if (!body || !body.postId || !body.actorId) {
+      return this.badRequest("postId and actorId are required.");
+    }
+
+    try {
+      await this.socialService.deletePost(body.postId, body.actorId);
+      return this.json({ message: "Publication supprimée", postId: body.postId });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      return this.badRequest(errorMsg);
+    }
+  }
+
+  async castVote(req: HttpRequest): Promise<HttpResponse> {
+    const body = req.body as {
+      postId?: string;
+      optionId?: string;
+      actorId?: string;
+    };
+
+    if (!body || !body.postId || !body.optionId || !body.actorId) {
+      return this.badRequest("postId, optionId and actorId are required.");
+    }
+
+    try {
+      const result = await this.socialService.castPollVote(body.postId, body.optionId, body.actorId);
+      return this.json({ message: "Vote enregistré", ...result });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      return this.badRequest(errorMsg);
+    }
+  }
+
+  async repost(req: HttpRequest): Promise<HttpResponse> {
+    const body = req.body as {
+      actorType?: SocialActorType;
+      actorId?: string;
+      targetPostId?: string;
+      quoteComment?: string;
+    };
+
+    if (!body || !body.actorType || !body.actorId || !body.targetPostId) {
+      return this.badRequest("actorType, actorId and targetPostId are required.");
+    }
+
+    try {
+      const post = await this.socialService.repostPost(
+        body.actorType,
+        body.actorId,
+        body.targetPostId,
+        body.quoteComment,
+      );
+      return this.created({ message: "Publication repartagée", post });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      return this.badRequest(errorMsg);
+    }
+  }
+
+  async reportPost(req: HttpRequest): Promise<HttpResponse> {
+    const body = req.body as {
+      postId?: string;
+      reporterActorId?: string;
+      reason?: string;
+    };
+
+    if (!body || !body.postId || !body.reporterActorId || !body.reason) {
+      return this.badRequest("postId, reporterActorId and reason are required.");
+    }
+
+    try {
+      const report = this.socialService.reportPost(body.postId, body.reporterActorId, body.reason);
+      return this.created({ message: "Signalement transmis à la modération", report });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      return this.badRequest(errorMsg);
+    }
   }
 }
