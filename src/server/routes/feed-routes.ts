@@ -39,7 +39,9 @@ export async function handleFeedRoutes(
             likes: 0,
           };
 
-          // Demo-only mirror: in-memory feedStore disabled when MOSAIX_DEMO_USERS=false
+          // Demo-only mirror: the in-memory feedStore (seeded with mock
+          // posts) is disabled when demo mode is off
+          // (MOSAIX_DEMO_USERS=false) — persistence goes to the database.
           if (isDemoMode()) {
             feedStore.unshift(newPost);
           }
@@ -70,7 +72,7 @@ export async function handleFeedRoutes(
       return true;
     }
 
-    // Keyset pagination query parsing
+    // Keyset & mode pagination query parsing
     const limit = parseInt(parsedUrl.searchParams.get("limit") || "20", 10);
     const cursor = parsedUrl.searchParams.get("cursor")
       ? parseInt(parsedUrl.searchParams.get("cursor")!, 10)
@@ -110,6 +112,9 @@ export async function handleFeedRoutes(
       return true;
     }
 
+    // Empty database: serve the in-memory mock posts ONLY in demo mode.
+    // With MOSAIX_DEMO_USERS=false the API returns an empty feed instead
+    // of mock content.
     if (isDemoMode()) {
       FeedMetricsCollector.recordImpression(feedStore.length);
     }

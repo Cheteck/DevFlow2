@@ -6,13 +6,21 @@ import type * as http from "node:http";
 import type { URL } from "node:url";
 import { registrationWizardService } from "../../../apps/citadelle/src/domain/registration-wizard.service.js";
 import { readLimitedJson } from "../utils/safe-body-parser.js";
+import { isDemoMode } from "../../shell/profiles.js";
 
 function validateCsrfOrigin(req: http.IncomingMessage): boolean {
   const origin = req.headers.origin || req.headers.referer;
   if (!origin) return true;
   const host = req.headers.host;
   if (!host) return true;
-  return origin.includes(host);
+
+  try {
+    const originUrl = new URL(origin);
+    const originHost = originUrl.host;
+    return originHost === host;
+  } catch {
+    return false;
+  }
 }
 
 export async function handleAuthRoutes(
@@ -27,7 +35,7 @@ export async function handleAuthRoutes(
     try {
       if (!validateCsrfOrigin(req)) {
         res.writeHead(403, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: false, error: "Validation CSRF échouée (Origin non valide)." }));
+        res.end(JSON.stringify({ success: false, error: "Validation CSRF échouée (Origin/Host non valide)." }));
         return true;
       }
 
@@ -35,6 +43,14 @@ export async function handleAuthRoutes(
       if (!data.email || !data.password) {
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ success: false, error: "Email et mot de passe requis." }));
+        return true;
+      }
+
+      // DEMO-OFF Gate: Production authentication requires Citadelle / SessionStore validation
+      if (!isDemoMode()) {
+        // TODO: Wire Citadelle SessionStore credentials verification in production mode
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: false, error: "Authentification de production requiert la validation Citadelle SessionStore." }));
         return true;
       }
 
@@ -47,7 +63,7 @@ export async function handleAuthRoutes(
         "Content-Type": "application/json",
         "Set-Cookie": cookieHeader,
       });
-      res.end(JSON.stringify({ success: true, sessionId, message: "Connexion réussie." }));
+      res.end(JSON.stringify({ success: true, sessionId, message: "Connexion démo réussie." }));
       return true;
     } catch (err) {
       res.writeHead(400, { "Content-Type": "application/json" });

@@ -305,14 +305,21 @@ export class SolaraSocialService {
   }
 
   /**
-   * Périmètre N1 — Multi-source feed aggregation.
-   * Fuses 3 sources: 'followed' (posts by followed actors/spaces), 'trending' (velocity score), and 'recent' (chronological).
+   * Périmètre N1 — Multi-source feed aggregation with source quotas.
+   * Fuses 3 sources: 'followed' (quota: followedLimit), 'trending' (quota: trendingLimit), and 'recent' (quota: recentLimit).
    * Deduplicates by post.id. Preserves modes: 'for_you', 'trending', 'chronological'.
    */
   public listFeedMultiSource(
     followerActorId?: string,
     mode: "for_you" | "trending" | "chronological" = "for_you",
-    options: { targetType?: string; targetId?: string; publicationType?: string } = {}
+    options: {
+      targetType?: string;
+      targetId?: string;
+      publicationType?: string;
+      followedLimit?: number;
+      trendingLimit?: number;
+      recentLimit?: number;
+    } = {}
   ): Post[] {
     const allPosts = this.listFeed(options.targetType, options.targetId, options.publicationType);
 
@@ -328,21 +335,31 @@ export class SolaraSocialService {
       });
     }
 
-    // Default 'for_you': Multi-source fusion (Followed + Trending + Recent)
+    const followedLimit = options.followedLimit ?? 10;
+    const trendingLimit = options.trendingLimit ?? 10;
+    const recentLimit = options.recentLimit ?? 10;
+
+    // Default 'for_you': Multi-source fusion with quotas & deduplication
     const followedTargets = new Set<string>(followerActorId ? this.getFollowedTargets(followerActorId) : []);
 
     // Source 1: Followed
-    const followedPool = allPosts.filter((p) => followedTargets.has(p.actorId) || followedTargets.has(p.targetId));
+    const followedPool = allPosts
+      .filter((p) => followedTargets.has(p.actorId) || followedTargets.has(p.targetId))
+      .slice(0, followedLimit);
 
     // Source 2: Trending (top velocity)
-    const trendingPool = [...allPosts].sort((a, b) => {
-      const velA = TrendingVelocityRanker.calculateVelocity(postToFeedPost(a));
-      const velB = TrendingVelocityRanker.calculateVelocity(postToFeedPost(b));
-      return velB - velA;
-    });
+    const trendingPool = [...allPosts]
+      .sort((a, b) => {
+        const velA = TrendingVelocityRanker.calculateVelocity(postToFeedPost(a));
+        const velB = TrendingVelocityRanker.calculateVelocity(postToFeedPost(b));
+        return velB - velA;
+      })
+      .slice(0, trendingLimit);
 
     // Source 3: Recent (chronological)
-    const recentPool = [...allPosts].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const recentPool = [...allPosts]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, recentLimit);
 
     // Fusion & Deduplication by ID
     const mergedMap = new Map<string, Post>();
@@ -413,13 +430,13 @@ export class SolaraSocialService {
     this.comments.set(postId, list);
     post.commentsCount++;
 
-    // Static telemetry counter increment for comments
-    FeedMetricsCollector.recordInteraction(1);
-
     if (this.repository) {
       await this.repository.saveComment(postId, comment);
       await this.repository.incrementCommentsCount(postId, 1);
     }
+
+    // Telemetry: record interaction ONLY AFTER successful comment persistence
+    FeedMetricsCollector.recordInteraction(1);
 
     return comment;
   }
@@ -502,9 +519,6 @@ export class SolaraSocialService {
       createdAt: new Date(),
     };
 
-    // Static telemetry counter increment for reactions
-    FeedMetricsCollector.recordInteraction(1);
-
     if (this.repository) {
       await this.repository.saveReaction(targetType, targetId, reaction);
       if (targetType === "post") {
@@ -520,6 +534,10 @@ export class SolaraSocialService {
         post.likeCount++;
       }
     }
+
+    // Telemetry: record interaction ONLY AFTER successful reaction persistence
+    FeedMetricsCollector.recordInteraction(1);
+
     return reaction;
   }
 }

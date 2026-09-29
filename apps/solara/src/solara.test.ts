@@ -174,3 +174,21 @@ describe("Solara BAC ForYou Affinity & Outbound Follows", () => {
     expect(multiFeed[0].id).toBe(followedPost.id);
   });
 });
+
+describe("Solara BAC ForYou Affinity Test #2 (Low Velocity Followed vs Viral Stranger)", () => {
+  it("should prioritize low-velocity followed author over viral stranger author using deterministic seed", async () => {
+    const service = new SolaraSocialService();
+    await service.followActor("user", "usr-me", "user", "usr-followed-author");
+
+    // Low velocity followed post
+    const lowVelFollowedPost = await service.createPost("user", "usr-followed-author", "feed", "global", "Low velocity followed post", "text");
+
+    // Viral stranger post (100 likes)
+    const viralStrangerPost = await service.createPost("user", "usr-stranger", "feed", "global", "Viral stranger post", "text");
+    viralStrangerPost.likeCount = 100;
+
+    const multiFeed = service.listFeedMultiSource("usr-me", "for_you");
+    expect(multiFeed.length).toBe(2);
+    expect(multiFeed[0].id).toBe(lowVelFollowedPost.id);
+  });
+});
