@@ -4,15 +4,19 @@
  */
 
 import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
-import { escapeHtml } from "@mosaix/support";
+import { escapeHtml, isDemoMode } from "@mosaix/support";
 import { BeamMessagingService } from "../domain/messaging.model.js";
 
 export function createBeamDescriptor(messagingService?: BeamMessagingService): BacDescriptor {
   const service = messagingService || new BeamMessagingService();
 
-  // Seed default conversations if empty
-  service.createConversation("group", ["admin", "citizen", "support"]).catch(() => {});
-  service.createConversation("direct", ["admin", "support"]).catch(() => {});
+  // Constitution (InMemoryGuard) : demo conversations only when demo mode is on.
+  // Never fabricate conversations on a real database.
+  if (isDemoMode()) {
+    // Seed default conversations if empty
+    service.createConversation("group", ["admin", "citizen", "support"]).catch(() => {});
+    service.createConversation("direct", ["admin", "support"]).catch(() => {});
+  }
 
   return {
     id: "@apps/beam",
@@ -50,8 +54,8 @@ export function createBeamDescriptor(messagingService?: BeamMessagingService): B
           
           const messages = await service.getMessagesAsync(activeConvId);
           
-          if (messages.length === 0) {
-            // Seed first message
+          if (messages.length === 0 && isDemoMode()) {
+            // Demo-only welcome message (never fabricate on a real database)
             await service.sendMessage(activeConvId, "support", "Bienvenue dans votre espace de messagerie sécurisé Beam ! Comment puis-je vous aider ?");
             messages.push({
               id: "msg-seed",

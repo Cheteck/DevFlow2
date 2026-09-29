@@ -1211,6 +1211,7 @@ Ne jamais :
 - casser une interface sans migration
 - supprimer une connaissance utile
 - **dupliquer un nom de fichier** : chaque fichier doit avoir un basename unique dans le repository (ex. pas de `domain/user-repository.ts` ET `infrastructure/user-repository.ts`). Un port et son adaptateur portent des noms distincts — ex. `domain/user-repository.ts` (port) et `infrastructure/in-memory-user-repository.ts` (adaptateur).
+- **ajouter d'implémentation in-memory, mock ou démo dans les chemins de production** : toute nouvelle persistance ou intégration passe par un port avec un adaptateur réel (ex. `DatabasePort` → SQLite/Postgres) ; toute donnée de démonstration est gatée par `isDemoMode()` ; aucun fallback silencieux vers du mock — échec explicite immédiat (doctrine `InMemoryGuard`). Exceptions permanentes : doubles de test (`*.test.ts`, SQLite `:memory:`, `Fake*`), adaptateurs mémoire choisis explicitement à la composition (`cache-memory`, `featureflags-memory`, …), scripts `demo/`. L'existant non conforme devient une tâche backlog priorisée, jamais un refactoring opportuniste ni une suppression silencieuse.
 
 ---
 

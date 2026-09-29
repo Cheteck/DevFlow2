@@ -122,13 +122,44 @@ export const INTEGRITY_RULES: IntegrityRule[] = [
   {
     id: "CONF-SEC-003",
     alias: "no-mock-in-prod-path",
-    severity: "warn",
+    severity: "error",
     message:
-      "Mock default in a production path (mock tokens, isMockMode: true) — fail fast in production instead.",
+      "Mock default in a production path (mock tokens, isMockMode: true, silent mock credentials) — fail fast in production instead. Explicit `{ mock: true }` opt-in adapters are allowed; silent defaults are not.",
     remediation:
-      "Remove hardcoded mock mode defaults in production code paths.",
-    pattern: /isMockMode\s*[:=]\s*true|mock_token/i,
+      "Remove hardcoded mock mode defaults in production code paths, or convert to an explicit opt-in that throws without credentials.",
+    pattern: /isMockMode\s*[:=]\s*true|mock_token|mockKey|ACmock|mockToken|mockSecret/i,
     include: ["src/**/*.ts", "apps/**/*.ts", "packages/**/*.ts"],
+  },
+  {
+    id: "CONF-PROD-001",
+    alias: "no-demo-seed-helpers",
+    severity: "error",
+    message:
+      "Demo seed helper in a production path — demo data enters only via the gated CLI seeder (`isDemoMode`), never via domain helpers or ad-hoc seeds. Constitution: no in-memory/mock/demo implementations in production paths.",
+    remediation:
+      "Move test-only seeds into *.test.ts files; gate CLI seeds with isDemoMode(); delete dead seed markers.",
+    pattern: /seedDefaultSlots|seedInitialFeed|feed_init_|DEFAULT_POSTS/i,
+    include: ["src/**/*.ts", "apps/**/*.ts", "packages/**/*.ts", "scripts/**/*.ts"],
+    allow: [
+      // Gated CLI-only seeder (refuses fail-fast when demo mode is off).
+      "src/shell/seeders/**",
+    ],
+  },
+  {
+    id: "CONF-PROD-002",
+    alias: "no-forged-session-identity",
+    severity: "error",
+    message:
+      "Forged session id or mock identity in a production path — sessions come from SessionStore/Citadelle, identities from authenticated profiles, never from Date.now() literals or hardcoded demo users.",
+    remediation:
+      "Resolve sessions via SessionResolver and identities via the authenticated profile; remove hardcoded demo identities.",
+    pattern: /sess-["']\s*\+|current-user-1/i,
+    include: ["src/**/*.ts", "apps/**/*.ts"],
+    allow: [
+      // Demo-only login stub (isDemoMode-gated, TODO: Citadelle SessionStore
+      // wiring). Tracked exception — any other occurrence fails the gate.
+      "src/server/routes/auth-routes.ts",
+    ],
   },
   {
     id: "CONF-ID-001",
