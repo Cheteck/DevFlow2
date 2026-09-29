@@ -306,8 +306,8 @@ export class SolaraSocialService {
 
     if (mode === "trending") {
       return [...allPosts].sort((a, b) => {
-        const velA = TrendingVelocityRanker.calculateVelocity(a as unknown as FeedPost);
-        const velB = TrendingVelocityRanker.calculateVelocity(b as unknown as FeedPost);
+        const velA = TrendingVelocityRanker.calculateVelocity(a );
+        const velB = TrendingVelocityRanker.calculateVelocity(b );
         return velB - velA;
       });
     }
@@ -330,8 +330,8 @@ export class SolaraSocialService {
 
     // Source 2: Trending (top velocity)
     const trendingPool = [...allPosts].sort((a, b) => {
-      const velA = TrendingVelocityRanker.calculateVelocity(a as unknown as FeedPost);
-      const velB = TrendingVelocityRanker.calculateVelocity(b as unknown as FeedPost);
+      const velA = TrendingVelocityRanker.calculateVelocity(a );
+      const velB = TrendingVelocityRanker.calculateVelocity(b );
       return velB - velA;
     });
 
@@ -499,6 +499,7 @@ export class SolaraSocialService {
         const post = this.posts.get(targetId);
         if (post) {
           post.likeCount++;
+        import("@mosaix/feed-engine").then(({ FeedMetricsCollector }) => FeedMetricsCollector.recordInteraction(1));
         }
       }
     }

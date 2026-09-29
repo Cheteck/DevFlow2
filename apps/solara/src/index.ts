@@ -99,10 +99,19 @@ export class SolaraServiceProvider {
         return feedPosts;
       }
 
-      // 2. Recommendation Engine + MMR Diversity Reranker
+      // Resolve followed actors & spaces for real user affinity
+      const followedSpaceIds: string[] = [];
+      if (inp.followerActorId) {
+        const followers = socialService.getFollowers("user", inp.followerActorId);
+        for (const rel of followers) {
+          followedSpaceIds.push(rel.targetActorId);
+        }
+      }
+
+      // 2. Recommendation Engine + MMR Diversity Reranker with resolved followed spaces
       const personalizedFeed = ForYouRecommendationEngine.generateForYouFeed(feedPosts, {
         userId: inp.followerActorId || "guest",
-        followedSpaceIds: [],
+        followedSpaceIds,
         interestTags: inp.interestTags,
         mutedActorIds: inp.mutedActorIds,
       });

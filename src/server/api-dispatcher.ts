@@ -173,11 +173,10 @@ export async function dispatchApiRequest(
   // Périmètre N1 — Prometheus Exporter Endpoint (/metrics) with live dynamic counters
   if (pathname === "/metrics" && req.method === "GET") {
     const summary = FeedMetricsCollector.getMetricsSummary();
-    const entropy = FeedMetricsCollector.calculateCategoryEntropy([
-      { tags: ["tech", "ai"] },
-      { tags: ["design"] },
-      { tags: ["tech"] },
-    ] as unknown as import("@mosaix/feed-engine").FeedPost[]);
+    const activeFeedBatch = await context.feedService.getFeed({ limit: 50 }).catch(() => null);
+    const entropy = FeedMetricsCollector.calculateCategoryEntropy(
+      (activeFeedBatch?.items || []).map((i) => ({ tags: [i.category || "general"] })) as unknown as import("@mosaix/feed-engine").FeedPost[]
+    );
 
     const prometheusBody = [
       "# HELP mosaix_feed_interaction_rate Ratio of likes + comments over total impressions",

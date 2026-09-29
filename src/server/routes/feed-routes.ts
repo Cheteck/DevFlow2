@@ -39,10 +39,12 @@ export async function handleFeedRoutes(
             likes: 0,
           };
 
+          // Demo-only mirror: in-memory feedStore disabled when MOSAIX_DEMO_USERS=false
           if (isDemoMode()) {
             feedStore.unshift(newPost);
           }
 
+          // Persist with FeedService
           await feedService
             .addItem({
               type: "post",
@@ -52,9 +54,6 @@ export async function handleFeedRoutes(
               likes: 0,
             })
             .catch((err) => { console.warn("[Feed] Persist post error:", err); });
-
-          // Track live interaction for telemetry
-          FeedMetricsCollector.recordInteraction(1);
 
           eventBackplane.publish("solara.post.published", { post: newPost });
 
@@ -86,7 +85,6 @@ export async function handleFeedRoutes(
     }
 
     if (paginated && paginated.items.length > 0) {
-      // Record impressions for dynamic telemetry metrics
       FeedMetricsCollector.recordImpression(paginated.items.length);
 
       res.writeHead(200, { "Content-Type": "application/json" });
