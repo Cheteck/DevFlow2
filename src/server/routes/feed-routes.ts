@@ -11,6 +11,7 @@ import type { FeedService } from "../../shell/feed-service.js";
 import type { DistributedEventBackplane } from "../../shell/event-backplane.js";
 import type { UserProfile } from "../../shell/profiles.js";
 import { readLimitedJson } from "../utils/safe-body-parser.js";
+import { FeedMetricsCollector } from "@mosaix/feed-engine";
 
 export async function handleFeedRoutes(
   req: http.IncomingMessage,
@@ -37,14 +38,11 @@ export async function handleFeedRoutes(
             timestamp: "À l'instant",
             likes: 0,
           };
-          // Demo-only mirror: the in-memory feedStore (seeded with mock
-          // posts) is disabled when demo mode is off
-          // (MOSAIX_DEMO_USERS=false) — persistence goes to the database.
+
           if (isDemoMode()) {
             feedStore.unshift(newPost);
           }
 
-          // Persist with FeedService
           await feedService
             .addItem({
               type: "post",
@@ -55,7 +53,9 @@ export async function handleFeedRoutes(
             })
             .catch((err) => { console.warn("[Feed] Persist post error:", err); });
 
-          // Broadcast via distributed event backplane
+          // Track live interaction for telemetry
+          FeedMetricsCollector.recordInteraction(1);
+
           eventBackplane.publish("solara.post.published", { post: newPost });
 
           res.writeHead(201, { "Content-Type": "application/json" });
@@ -78,8 +78,17 @@ export async function handleFeedRoutes(
       : undefined;
     const category = parsedUrl.searchParams.get("category") || undefined;
 
-    let paginated = null; try { paginated = await feedService.getFeed({ limit, cursor, category }); } catch (err) { console.warn("[Feed] Get feed error:", err); }
+    let paginated = null;
+    try {
+      paginated = await feedService.getFeed({ limit, cursor, category });
+    } catch (err) {
+      console.warn("[Feed] Get feed error:", err);
+    }
+
     if (paginated && paginated.items.length > 0) {
+      // Record impressions for dynamic telemetry metrics
+      FeedMetricsCollector.recordImpression(paginated.items.length);
+
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -103,9 +112,10 @@ export async function handleFeedRoutes(
       return true;
     }
 
-    // Empty database: serve the in-memory mock posts ONLY in demo mode.
-    // With MOSAIX_DEMO_USERS=false the API returns an empty feed instead
-    // of mock content.
+    if (isDemoMode()) {
+      FeedMetricsCollector.recordImpression(feedStore.length);
+    }
+
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ posts: isDemoMode() ? feedStore : [], hasMore: false }));
     return true;

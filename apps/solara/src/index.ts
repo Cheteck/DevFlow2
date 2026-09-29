@@ -6,9 +6,10 @@
 import { Container, Router, createBoundedAppBootstrap, MosaixApp, RuntimeKernel, type TenantIdentity } from "@mosaix/sdk";
 import type { ApplicationManifest } from "@mosaix/contracts";
 import type { DatabasePort } from "@mosaix/ports-database";
+import { ForYouRecommendationEngine, SponsoredPostInjector } from "@mosaix/feed-engine";
 
 import { SolaraAppServiceProvider } from "./infrastructure/solara-service-provider.js";
-import { SolaraSocialService, type SocialActorType } from "./domain/social.model.js";
+import { SolaraSocialService, postToFeedPost, type SocialActorType } from "./domain/social.model.js";
 
 // =============================================================
 // SECTION 1 — MANIFEST
@@ -85,8 +86,29 @@ export class SolaraServiceProvider {
       );
     });
 
-    app.provideCapability("solara.feed.read", async () => {
-      return socialService.listFeed("feed", "", undefined);
+    // P1 Bridge: Wire solara.feed.read capability to N1 Multi-Source + Recommendation + MMR Reranking Pipeline
+    app.provideCapability("solara.feed.read", async (input) => {
+      const inp = (input || {}) as { followerActorId?: string; mode?: "for_you" | "trending" | "chronological"; interestTags?: string[]; mutedActorIds?: string[] };
+      const mode = inp.mode || "for_you";
+
+      // 1. Multi-Source Fusion
+      const solaraPosts = socialService.listFeedMultiSource(inp.followerActorId, mode);
+      const feedPosts = solaraPosts.map(postToFeedPost);
+
+      if (mode === "chronological" || mode === "trending") {
+        return feedPosts;
+      }
+
+      // 2. Recommendation Engine + MMR Diversity Reranker
+      const personalizedFeed = ForYouRecommendationEngine.generateForYouFeed(feedPosts, {
+        userId: inp.followerActorId || "guest",
+        followedSpaceIds: [],
+        interestTags: inp.interestTags,
+        mutedActorIds: inp.mutedActorIds,
+      });
+
+      // 3. Sponsored Ads Injection
+      return SponsoredPostInjector.inject(personalizedFeed, socialService.getSponsoredPool(), { interval: 5 });
     });
   }
 

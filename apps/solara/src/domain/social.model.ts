@@ -505,3 +505,24 @@ export class SolaraSocialService {
     return reaction;
   }
 }
+
+/**
+ * P3 Adapter: Converts a Solara Post model to a feed-engine FeedPost without unsafe type casting.
+ */
+export function postToFeedPost(post: Post): FeedPost {
+  return {
+    id: post.id,
+    actorType: post.actorType,
+    actorId: post.actorId,
+    publicationType: post.publicationType,
+    targetType: post.targetType,
+    targetId: post.targetId,
+    content: post.content,
+    mediaUrls: post.mediaUrls,
+    metadata: post.metadata,
+    tags: Array.isArray(post.metadata?.tags) ? (post.metadata?.tags as string[]) : [],
+    likeCount: post.likeCount || 0,
+    commentsCount: post.commentsCount || 0,
+    createdAt: post.createdAt,
+  };
+}

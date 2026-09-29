@@ -1,3 +1,4 @@
+import { SolaraSocialService, postToFeedPost } from "./index.js";
 import { describe, expect, it } from "vitest";
 import { createSolaraComposition } from "./composition-root";
 import { SolaraContentModeratorPlugin } from "@mosaix-plugin/solara-content-moderator";
@@ -135,5 +136,24 @@ describe("MosaiX Solara Extensible Social Engine Suite", () => {
     // Convention repo : MANIFEST.id = "@apps/<app>" (cf. test commerce).
     expect(adminPages[0]?.applicationId).toBe("@apps/solara");
     expect(adminPages[0]?.pageId).toBe("social-moderation");
+  });
+});
+
+describe("Solara BAC N1 Multi-Source & Adapter", () => {
+  it("should aggregate multi-source feeds and deduplicate by post id", async () => {
+    const service = new SolaraSocialService();
+    const post1 = await service.createPost("user", "usr-1", "feed", "global", "Post 1", "text");
+    const post2 = await service.createPost("user", "usr-2", "feed", "global", "Post 2", "text");
+
+    await service.followActor("user", "usr-follower", "user", "usr-1");
+
+    const multiFeed = service.listFeedMultiSource("usr-follower", "for_you");
+    expect(multiFeed.length).toBe(2);
+    expect(multiFeed.map((p) => p.id)).toContain(post1.id);
+    expect(multiFeed.map((p) => p.id)).toContain(post2.id);
+
+    const feedPost = postToFeedPost(post1);
+    expect(feedPost.id).toBe(post1.id);
+    expect(feedPost.actorId).toBe("usr-1");
   });
 });

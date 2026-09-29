@@ -170,10 +170,9 @@ export async function dispatchApiRequest(
     return true;
   }
 
-  // Périmètre N1 — Prometheus Exporter Endpoint (/metrics)
+  // Périmètre N1 — Prometheus Exporter Endpoint (/metrics) with live dynamic counters
   if (pathname === "/metrics" && req.method === "GET") {
-    const interactionRate = FeedMetricsCollector.calculateInteractionRate(15, 5, 100);
-    const skipMuteRate = FeedMetricsCollector.calculateSkipMuteRate(2, 1, 100);
+    const summary = FeedMetricsCollector.getMetricsSummary();
     const entropy = FeedMetricsCollector.calculateCategoryEntropy([
       { tags: ["tech", "ai"] },
       { tags: ["design"] },
@@ -183,15 +182,19 @@ export async function dispatchApiRequest(
     const prometheusBody = [
       "# HELP mosaix_feed_interaction_rate Ratio of likes + comments over total impressions",
       "# TYPE mosaix_feed_interaction_rate gauge",
-      `mosaix_feed_interaction_rate ${interactionRate}`,
+      `mosaix_feed_interaction_rate ${summary.interactionRate}`,
       "",
       "# HELP mosaix_feed_skip_mute_rate Ratio of skips + mutes over total impressions",
       "# TYPE mosaix_feed_skip_mute_rate gauge",
-      `mosaix_feed_skip_mute_rate ${skipMuteRate}`,
+      `mosaix_feed_skip_mute_rate ${summary.skipMuteRate}`,
       "",
       "# HELP mosaix_feed_category_entropy Shannon category entropy across active feed batches",
       "# TYPE mosaix_feed_category_entropy gauge",
       `mosaix_feed_category_entropy ${entropy}`,
+      "",
+      "# HELP mosaix_feed_impressions_total Total impressions served by feed engine",
+      "# TYPE mosaix_feed_impressions_total counter",
+      `mosaix_feed_impressions_total ${summary.totalImpressions}`,
       "",
     ].join("\n");
 

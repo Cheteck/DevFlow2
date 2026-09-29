@@ -1036,6 +1036,8 @@ export class ForYouRecommendationEngine {
       return true;
     });
 
+    const relevanceScores = new Map<string, number>();
+
     const scoredPosts = eligiblePosts.map((post) => {
       const baseScore = FeedRanker.calculateScore(post, {
         currentUserFollowedSpaces: profile.followedSpaceIds,
@@ -1063,19 +1065,23 @@ export class ForYouRecommendationEngine {
       const isTrending = post.likeCount + post.commentsCount >= 5;
       const serendipityBonus = isUnfollowedSpace && isTrending ? 0.2 : 0;
 
+      const finalScore = baseScore + interestBonus + serendipityBonus;
+      relevanceScores.set(post.id, finalScore);
+
       return {
         post,
-        finalScore: baseScore + interestBonus + serendipityBonus,
+        finalScore,
       };
     });
 
     scoredPosts.sort((a, b) => b.finalScore - a.finalScore);
     const rankedCandidates = scoredPosts.map((item) => item.post);
 
-    // Pipeline N1: Execute DiversityReranker (MMR + Hard Constraints) AFTER recommendation ranking
+    // Pipeline N1 (P2 Remediation): Execute DiversityReranker preserving ForYou relevanceScores (finalScore)
     return DiversityReranker.rerank(rankedCandidates, {
       mutedActorIds: profile.mutedActorIds,
       hiddenPostIds: profile.hiddenPostIds,
+      relevanceScores,
       ...options.rerankerOptions,
     });
   }

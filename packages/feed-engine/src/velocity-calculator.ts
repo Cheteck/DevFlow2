@@ -52,6 +52,7 @@ export interface DiversityRerankerOptions {
   mutedActorIds?: string[];
   hiddenPostIds?: string[];
   seenPostIds?: string[];
+  relevanceScores?: Map<string, number>; // P2: Preserve ForYou scores (finalScore) instead of overwriting with velocity.
   rng?: Mulberry32RNG; // Seedable RNG for serendipity (+0.2 exploration).
 }
 
@@ -99,7 +100,10 @@ export class DiversityReranker {
     const maxPerAuthor = options.maxPerAuthor ?? 2;
     const maxPerCategory = options.maxPerCategory ?? 4;
     const minCategories = options.minCategories ?? 3;
-    const rng = options.rng || new Mulberry32RNG(1337);
+    // P2: Production entropy seed if no explicit RNG passed
+    const rng =
+      options.rng ||
+      new Mulberry32RNG(Date.now() ^ Math.floor(Math.random() * 100000));
 
     const mutedActors = new Set(options.mutedActorIds || []);
     const hiddenPosts = new Set(options.hiddenPostIds || []);
@@ -117,13 +121,18 @@ export class DiversityReranker {
 
     if (pool.length === 0) return [];
 
-    // Compute base relevance scores
+    // Compute base relevance scores — P2: Preserve ForYou score if supplied
     const relevanceMap = new Map<string, number>();
-    for (const post of pool) {
-      const baseVel = TrendingVelocityRanker.calculateVelocity(post);
+    for (let i = 0; i < pool.length; i++) {
+      const post = pool[i];
+      let baseRel = options.relevanceScores?.get(post.id);
+      if (baseRel === undefined) {
+        // Fall back to candidate order rank or velocity score
+        baseRel = TrendingVelocityRanker.calculateVelocity(post);
+      }
       // 10% exploration serendipity bonus (+0.2)
       const serendipityBonus = rng.nextFloat() < 0.1 ? 0.2 : 0;
-      relevanceMap.set(post.id, baseVel + serendipityBonus);
+      relevanceMap.set(post.id, baseRel + serendipityBonus);
     }
 
     const selected: FeedPost[] = [];
@@ -179,7 +188,6 @@ export class DiversityReranker {
         }
       }
 
-      // If no candidate satisfies hard constraints, break or fallback to select best remaining
       if (bestPostIdx === -1) {
         break;
       }
@@ -187,7 +195,6 @@ export class DiversityReranker {
       const [chosen] = remaining.splice(bestPostIdx, 1);
       selected.push(chosen);
 
-      // Track author and category counts
       authorCounts.set(chosen.actorId, (authorCounts.get(chosen.actorId) || 0) + 1);
       const chosenTags =
         chosen.tags && chosen.tags.length > 0 ? chosen.tags : ["uncategorized"];
@@ -204,9 +211,37 @@ export class DiversityReranker {
 
 /**
  * Périmètre N1 — Feed Telemetry Metrics Collector.
- * Calculates interaction rate, skip/mute rate, and Shannon category entropy.
+ * Maintains real dynamic interaction counters and calculates rates & Shannon category entropy.
  */
 export class FeedMetricsCollector {
+  private static realImpressions = 0;
+  private static realInteractions = 0;
+  private static realSkipsMutes = 0;
+
+  public static recordImpression(count = 1): void {
+    this.realImpressions += count;
+  }
+
+  public static recordInteraction(count = 1): void {
+    this.realInteractions += count;
+  }
+
+  public static recordSkipMute(count = 1): void {
+    this.realSkipsMutes += count;
+  }
+
+  public static getMetricsSummary(): {
+    interactionRate: number;
+    skipMuteRate: number;
+    totalImpressions: number;
+  } {
+    return {
+      interactionRate: this.calculateInteractionRate(this.realInteractions, 0, this.realImpressions),
+      skipMuteRate: this.calculateSkipMuteRate(this.realSkipsMutes, 0, this.realImpressions),
+      totalImpressions: this.realImpressions,
+    };
+  }
+
   public static calculateInteractionRate(
     likes: number,
     comments: number,
