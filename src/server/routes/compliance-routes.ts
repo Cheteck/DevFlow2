@@ -112,7 +112,7 @@ export async function handleComplianceAndSystemRoutes(
       JSON.stringify(
         {
           platform: "MosaiX Platform (Midnight Pulse)",
-          version: "0.1.0",
+          version: "1.0.0-beta.1",
           status: "running",
           currentUser: {
             name: currentUser.name,

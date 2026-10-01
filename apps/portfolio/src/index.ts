@@ -183,3 +183,5 @@ export * from "./infrastructure/in-memory-proposal-repository.js";
 export * from "./infrastructure/postgres-proposal-repository.js";
 export * from "./vendable-workflow.js";
 
+
+export * from "./presentation/portfolio-view.js";
