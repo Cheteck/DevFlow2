@@ -3,9 +3,14 @@ import * as path from "node:path";
 import { MemoryFeatureFlagsAdapter } from "@mosaix/adapter-featureflags-memory";
 import { PostgresFeatureFlagsAdapter } from "@mosaix/adapter-featureflags-postgres";
 import type { DatabasePort } from "@mosaix/ports-database";
-import type {
-  FeatureFlagDefinition,
-  FeatureFlagUserContext,
+import {
+  FeatureFlagEvaluator,
+  FEATURE_FLAG_REGISTRY,
+  getDefaultValueForEnvironment,
+  type FeatureFlagDefinition,
+  type FeatureFlagUserContext,
+  type FeatureFlagKey,
+  type FeatureEnvironment,
 } from "@mosaix/ports-feature-flags";
 import { registerFeatureFlagsProvider } from "@mosaix/sdk";
 import { isDemoMode } from "./profiles.js";
@@ -15,166 +20,16 @@ const FEATURE_FLAGS_FILE = path.resolve(
   ".mosaix/feature-flags.json",
 );
 
-/**
- * Standard platform feature flag catalog with domain tags and descriptions
- */
-export const DEFAULT_PLATFORM_FLAGS: Record<
-  string,
-  {
-    value: boolean | string;
-    description: string;
-    category: string;
-    variationType: "boolean" | "string";
-    rolesAllowlist?: string[];
-    usersAllowlist?: string[];
-    tenantsAllowlist?: string[];
-    plansAllowlist?: string[];
-    percentageRollout?: number;
-  }
-> = {
-  // Platform & Core
-  "platform.mcp.gateway_enabled": {
-    value: true,
-    description:
-      "Active la passerelle MCP pour les intégrations et les outils agents.",
-    category: "platform",
-    variationType: "boolean",
-  },
-  "platform.live_editor.enabled": {
-    value: true,
-    description:
-      "Active la barre d'édition de grille et la customisation en direct de l'UI.",
-    category: "platform",
-    variationType: "boolean",
-    rolesAllowlist: ["admin", "super-admin"],
-  },
-  "platform.experimental_plugins": {
-    value: false,
-    description:
-      "Active le chargement des extensions communautaires non certifiées.",
-    category: "platform",
-    variationType: "boolean",
-    rolesAllowlist: ["admin"],
-  },
-
-  // BAC Apps Visibility & Gates
-  "apps.citadelle.enabled": {
-    value: true,
-    description: "Active le module Citadelle (Sécurité, IAM, Audit & Profils).",
-    category: "apps",
-    variationType: "boolean",
-  },
-  "apps.solara.enabled": {
-    value: true,
-    description:
-      "Active le module Solara (Réseau social, Flux d'actualité & Publications).",
-    category: "apps",
-    variationType: "boolean",
-  },
-  "apps.beam.enabled": {
-    value: true,
-    description:
-      "Active le module Beam (Messagerie directe, canaux d'équipe & chat).",
-    category: "apps",
-    variationType: "boolean",
-  },
-  "apps.commerce.enabled": {
-    value: true,
-    description:
-      "Active le module Commerce (Boutique en ligne, paniers & checkout).",
-    category: "apps",
-    variationType: "boolean",
-  },
-  "apps.portfolio.enabled": {
-    value: true,
-    description:
-      "Active le module Portfolio (Vitrine des réalisations & galeries).",
-    category: "apps",
-    variationType: "boolean",
-  },
-  "apps.spaces.enabled": {
-    value: true,
-    description:
-      "Active le module Espaces (Gestion des espaces collectifs & contextes).",
-    category: "apps",
-    variationType: "boolean",
-  },
-  "apps.solidarity.enabled": {
-    value: true,
-    description:
-      "Active le module Solidarité (Collecte, entraide & distribution).",
-    category: "apps",
-    variationType: "boolean",
-  },
-  "apps.imperia.enabled": {
-    value: true,
-    description:
-      "Active le module Imperia (Console de gouvernance & supervision).",
-    category: "apps",
-    variationType: "boolean",
-    rolesAllowlist: ["admin", "platform-governor"],
-  },
-
-  // Functional Sub-features
-  "beam.messaging.group_chats": {
-    value: true,
-    description:
-      "Permet la création de conversations de groupe à plusieurs membres dans Beam.",
-    category: "beam",
-    variationType: "boolean",
-  },
-  "solara.posts.showcase_type": {
-    value: true,
-    description:
-      "Active les publications de type Showcase / Produit dans le fil Solara.",
-    category: "solara",
-    variationType: "boolean",
-  },
-  "solara.comments.reactions": {
-    value: true,
-    description:
-      "Permet les réactions émotionnelles en direct sur les publications.",
-    category: "solara",
-    variationType: "boolean",
-  },
-  "commerce.checkout.guest_mode": {
-    value: false,
-    description:
-      "Permet de finaliser une commande sans compte utilisateur Citadelle.",
-    category: "commerce",
-    variationType: "boolean",
-  },
-  "spaces.multi_tenancy.cross_space_sharing": {
-    value: true,
-    description:
-      "Autorise le partage de documents et flux entre différents espaces abonnés.",
-    category: "spaces",
-    variationType: "boolean",
-  },
-};
-
 export class PersistentFeatureFlagsManager {
   private readonly adapter:
     | MemoryFeatureFlagsAdapter
     | PostgresFeatureFlagsAdapter;
-  private readonly flagMetadata = new Map<
-    string,
-    {
-      rolesAllowlist?: string[];
-      usersAllowlist?: string[];
-      tenantsAllowlist?: string[];
-      plansAllowlist?: string[];
-      percentageRollout?: number;
-    }
-  >();
+  private readonly flagMetadata = new Map<string, FeatureFlagDefinition>();
 
   constructor(db?: DatabasePort) {
     if (db) {
       this.adapter = new PostgresFeatureFlagsAdapter(db);
     } else if (!isDemoMode()) {
-      // No silent in-memory persistence when demo mode is off
-      // (MOSAIX_DEMO_USERS=false): flags must live in the database.
-      // Volatile memory storage would silently lose flag state.
       throw new Error(
         "[FeatureFlags] Refused: no DatabasePort and demo mode is off " +
           "(MOSAIX_DEMO_USERS=false). Pass the database adapter — " +
@@ -186,25 +41,25 @@ export class PersistentFeatureFlagsManager {
     this.init();
   }
 
-  private async init() {
-    // Initialize Postgres adapter if using it
+  public getCurrentEnvironment(): FeatureEnvironment {
+    return (process.env.MOSAIX_ENV || process.env.NODE_ENV || "development") as FeatureEnvironment;
+  }
+
+  private init() {
     if (this.adapter instanceof PostgresFeatureFlagsAdapter) {
-      await this.adapter.init();
+      void this.adapter.init();
     }
 
-    // 1. Load initial default catalog
-    for (const [key, meta] of Object.entries(DEFAULT_PLATFORM_FLAGS)) {
-      this.adapter.setFlag(key, meta.value, meta.description, {
-        category: meta.category,
-        rolesAllowlist: meta.rolesAllowlist,
+    const currentEnv = this.getCurrentEnvironment();
+
+    // 1. Load canonical FEATURE_FLAG_REGISTRY with environment-aware defaults
+    for (const [key, catalogDef] of Object.entries(FEATURE_FLAG_REGISTRY)) {
+      const envDefault = getDefaultValueForEnvironment(key, currentEnv);
+      this.adapter.setFlag(key, envDefault, catalogDef.description, {
+        category: catalogDef.category,
+        rolesAllowlist: catalogDef.rolesAllowlist,
       });
-      this.flagMetadata.set(key, {
-        rolesAllowlist: meta.rolesAllowlist,
-        usersAllowlist: meta.usersAllowlist,
-        tenantsAllowlist: meta.tenantsAllowlist,
-        plansAllowlist: meta.plansAllowlist,
-        percentageRollout: meta.percentageRollout,
-      });
+      this.flagMetadata.set(key, { ...catalogDef, defaultValue: envDefault });
     }
 
     // 2. Load disk overrides if existing (only for memory adapter)
@@ -217,6 +72,7 @@ export class PersistentFeatureFlagsManager {
             for (const [key, flagRecord] of Object.entries(parsed)) {
               const record = flagRecord as {
                 value?: boolean | string;
+                defaultValue?: boolean | string;
                 description?: string;
                 rolesAllowlist?: string[];
                 usersAllowlist?: string[];
@@ -224,17 +80,28 @@ export class PersistentFeatureFlagsManager {
                 plansAllowlist?: string[];
                 percentageRollout?: number;
               };
-              const val = record?.value !== undefined ? record.value : flagRecord;
-              if (val !== undefined) {
+              const val =
+                record?.value !== undefined
+                  ? record.value
+                  : record?.defaultValue !== undefined
+                  ? record.defaultValue
+                  : flagRecord;
+
+              if (val !== undefined && typeof val !== "object") {
                 const desc = record?.description;
                 this.adapter.setFlag(key, val as boolean | string, desc);
                 if (typeof flagRecord === "object" && flagRecord !== null) {
+                  const existingMeta = this.flagMetadata.get(key) || {
+                    key,
+                    defaultValue: val as boolean | string,
+                  };
                   this.flagMetadata.set(key, {
-                    rolesAllowlist: record.rolesAllowlist,
-                    usersAllowlist: record.usersAllowlist,
-                    tenantsAllowlist: record.tenantsAllowlist,
-                    plansAllowlist: record.plansAllowlist,
-                    percentageRollout: record.percentageRollout,
+                    ...existingMeta,
+                    rolesAllowlist: record.rolesAllowlist ?? existingMeta.rolesAllowlist,
+                    usersAllowlist: record.usersAllowlist ?? existingMeta.usersAllowlist,
+                    tenantsAllowlist: record.tenantsAllowlist ?? existingMeta.tenantsAllowlist,
+                    plansAllowlist: record.plansAllowlist ?? existingMeta.plansAllowlist,
+                    percentageRollout: record.percentageRollout ?? existingMeta.percentageRollout,
                   });
                 }
               }
@@ -257,107 +124,105 @@ export class PersistentFeatureFlagsManager {
     return this.adapter;
   }
 
+  public getEnvVariableOverride(key: string): boolean | string | undefined {
+    const envKey = `MOSAIX_FLAG_${key.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
+    const envVal = process.env[envKey];
+    if (envVal === undefined) return undefined;
+    if (envVal === "true") return true;
+    if (envVal === "false") return false;
+    return envVal;
+  }
+
   public async isEnabled(
-    key: string,
+    key: FeatureFlagKey | string,
     context?: FeatureFlagUserContext,
     defaultValue = false,
   ): Promise<boolean> {
+    const envOverride = this.getEnvVariableOverride(key);
+    if (typeof envOverride === "boolean") {
+      return envOverride;
+    }
+
     const baseResult = await this.adapter.isEnabled(key, context, defaultValue);
-    if (!baseResult) return false;
-
-    // Granular rules evaluation
     const meta = this.flagMetadata.get(key);
-    if (!meta || !context) return true;
+    if (!meta) return baseResult;
 
-    // 1. Users allowlist
-    if (meta.usersAllowlist && meta.usersAllowlist.length > 0) {
-      if (context.userId && meta.usersAllowlist.includes(context.userId)) {
-        return true;
-      }
-      return false; // If users allowlist is set and user not in it
-    }
-
-    // 2. Roles allowlist
-    if (meta.rolesAllowlist && meta.rolesAllowlist.length > 0) {
-      if (
-        context.roles &&
-        context.roles.some((r) => meta.rolesAllowlist!.includes(r))
-      ) {
-        return true;
-      }
-      return false;
-    }
-
-    // 3. Tenants allowlist
-    if (meta.tenantsAllowlist && meta.tenantsAllowlist.length > 0) {
-      if (
-        context.tenantId &&
-        meta.tenantsAllowlist.includes(context.tenantId)
-      ) {
-        return true;
-      }
-      return false;
-    }
-
-    // 4. Subscription Plans allowlist
-    if (meta.plansAllowlist && meta.plansAllowlist.length > 0) {
-      const customPlan = context.custom?.subscriptionPlan;
-      const userPlan =
-        context.subscriptionPlan ??
-        (typeof customPlan === "string" ? customPlan : undefined);
-      if (userPlan && meta.plansAllowlist.includes(userPlan)) {
-        return true;
-      }
-      return false;
-    }
-
-    // 5. Percentage Rollout
-    if (
-      typeof meta.percentageRollout === "number" &&
-      meta.percentageRollout >= 0 &&
-      meta.percentageRollout < 100
-    ) {
-      if (context.userId) {
-        let hash = 0;
-        for (let i = 0; i < context.userId.length; i++) {
-          hash = (hash << 5) - hash + context.userId.charCodeAt(i);
-          hash |= 0;
-        }
-        const userPercent = Math.abs(hash) % 100;
-        return userPercent < meta.percentageRollout;
-      }
-      return false;
-    }
-
-    return true;
+    // Delegate targeting evaluation to FeatureFlagEvaluator
+    return FeatureFlagEvaluator.evaluateTargeting(
+      { ...meta, defaultValue: baseResult },
+      context,
+    );
   }
 
-  public isEnabledSync(key: string, defaultValue = false): boolean {
-    // Aligned with async isEnabled(): unknown flags default to false (D-05).
-    // Prefer the adapter's sync read over reaching into its internals (T-01).
+  public isEnabledSync(key: FeatureFlagKey | string, defaultValue = false): boolean {
+    const envOverride = this.getEnvVariableOverride(key);
+    if (typeof envOverride === "boolean") {
+      return envOverride;
+    }
+
     const syncRead = this.adapter.isEnabledSync?.bind(this.adapter);
     if (typeof syncRead === "function") return syncRead(key, defaultValue);
     return defaultValue;
   }
 
   public async listFlags(): Promise<FeatureFlagDefinition[]> {
-    return this.adapter.listFlags();
+    const flagsFromAdapter = await this.adapter.listFlags();
+    return flagsFromAdapter.map((f) => {
+      const meta = this.flagMetadata.get(f.key);
+      const envOverride = this.getEnvVariableOverride(f.key);
+      return {
+        ...f,
+        ...meta,
+        defaultValue: envOverride !== undefined ? (envOverride as boolean | string) : f.defaultValue,
+      };
+    });
   }
 
   public async setFlag(
-    key: string,
+    key: FeatureFlagKey | string,
     value: boolean | string,
     description?: string,
+    options?: Partial<FeatureFlagDefinition>,
   ): Promise<void> {
-    this.adapter.setFlag(key, value, description);
+    await this.adapter.setFlag(key, value, description, options);
+    if (options || value !== undefined) {
+      const existing = this.flagMetadata.get(key) || { key, defaultValue: value };
+      this.flagMetadata.set(key, {
+        ...existing,
+        ...options,
+        defaultValue: value,
+      });
+    }
     await this.saveToDisk();
   }
 
-  public async toggleFlag(key: string): Promise<boolean> {
+  public async resetToDefault(key: FeatureFlagKey | string): Promise<void> {
+    const currentEnv = this.getCurrentEnvironment();
+    const envDefault = getDefaultValueForEnvironment(key, currentEnv);
+    const catalogMeta = (FEATURE_FLAG_REGISTRY as Record<string, FeatureFlagDefinition>)[key];
+
+    await this.setFlag(key, envDefault, catalogMeta?.description, catalogMeta);
+  }
+
+  public async toggleFlag(key: FeatureFlagKey | string): Promise<boolean> {
     const current = await this.adapter.isEnabled(key, undefined, false);
     const updated = !current;
     await this.setFlag(key, updated);
     return updated;
+  }
+
+  public async getAllFlagsSnapshot(
+    context?: FeatureFlagUserContext,
+  ): Promise<Record<string, boolean | string>> {
+    const allFlags = await this.listFlags();
+    const snapshot: Record<string, boolean | string> = {};
+
+    for (const flag of allFlags) {
+      const evaluated = await this.isEnabled(flag.key, context, Boolean(flag.defaultValue));
+      snapshot[flag.key] = evaluated;
+    }
+
+    return snapshot;
   }
 
   private isSaving = false;
@@ -375,17 +240,10 @@ export class PersistentFeatureFlagsManager {
         fs.mkdirSync(dir, { recursive: true });
       }
 
-      const flags = await this.adapter.listFlags();
-      const record: Record<
-        string,
-        { value: boolean | string; description?: string; category?: string }
-      > = {};
+      const flags = await this.listFlags();
+      const record: Record<string, FeatureFlagDefinition> = {};
       for (const f of flags) {
-        record[f.key] = {
-          value: f.defaultValue,
-          description: f.description,
-          category: f.category,
-        };
+        record[f.key] = f;
       }
       fs.writeFileSync(
         FEATURE_FLAGS_FILE,
@@ -413,7 +271,6 @@ export function getPlatformFeatureFlags(db?: DatabasePort): PersistentFeatureFla
   return platformFeatureFlagsInstance;
 }
 
-// Backward compatibility - lazy initialization without DB (falls back to memory adapter)
 export const platformFeatureFlags = {
   get isEnabled(): PersistentFeatureFlagsManager["isEnabled"] {
     return getPlatformFeatureFlags().isEnabled.bind(getPlatformFeatureFlags());
@@ -426,6 +283,9 @@ export const platformFeatureFlags = {
   },
   get setFlag(): PersistentFeatureFlagsManager["setFlag"] {
     return getPlatformFeatureFlags().setFlag.bind(getPlatformFeatureFlags());
+  },
+  get resetToDefault(): PersistentFeatureFlagsManager["resetToDefault"] {
+    return getPlatformFeatureFlags().resetToDefault.bind(getPlatformFeatureFlags());
   },
   get toggleFlag(): PersistentFeatureFlagsManager["toggleFlag"] {
     return getPlatformFeatureFlags().toggleFlag.bind(getPlatformFeatureFlags());

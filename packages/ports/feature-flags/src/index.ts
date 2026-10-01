@@ -1,10 +1,24 @@
+export type FeatureEnvironment = "development" | "staging" | "production" | string;
+
 export interface FeatureFlagDefinition {
   key: string;
   description?: string;
   defaultValue: boolean | string;
+  environmentDefaults?: {
+    development?: boolean | string;
+    staging?: boolean | string;
+    production?: boolean | string;
+  };
   variationType?: "boolean" | "string" | "json";
   category?: string;
   enabled?: boolean;
+
+  // Targeting Rules Metadata
+  rolesAllowlist?: string[];
+  usersAllowlist?: string[];
+  tenantsAllowlist?: string[];
+  plansAllowlist?: string[];
+  percentageRollout?: number;
 }
 
 export interface FeatureFlagUserContext {
@@ -40,6 +54,7 @@ export interface FeatureFlagsPort {
     flagKey: string,
     value: boolean | string,
     description?: string,
+    options?: Partial<FeatureFlagDefinition>,
   ): Promise<void> | void;
   /** Optional: synchronous boolean read for render paths (memory adapters). */
   isEnabledSync?(flagKey: string, defaultValue?: boolean): boolean;
@@ -50,3 +65,4 @@ export interface FeatureFlagsPort {
 }
 
 export * from "./catalog.js";
+export * from "./evaluator.js";

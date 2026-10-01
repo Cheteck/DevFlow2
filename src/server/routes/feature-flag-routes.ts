@@ -15,6 +15,24 @@ export async function handleFeatureFlagRoutes(
 ): Promise<boolean> {
   const pathname = parsedUrl.pathname;
 
+  // Snapshot evaluated flags for client hydration
+  if (pathname === "/api/feature-flags/snapshot" && req.method === "GET") {
+    const userId = parsedUrl.searchParams.get("userId") || undefined;
+    const roles = parsedUrl.searchParams.get("roles")?.split(",") || undefined;
+    const tenantId = parsedUrl.searchParams.get("tenantId") || undefined;
+
+    const snapshot = await platformFeatureFlags.getAllFlagsSnapshot({
+      key: userId || "anonymous",
+      userId,
+      roles,
+      tenantId,
+    });
+
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: true, snapshot }));
+    return true;
+  }
+
   // Override feature flag (dev helper)
   if (pathname === "/api/feature-flags/override" && req.method === "POST") {
     try {
@@ -30,6 +48,30 @@ export async function handleFeatureFlagRoutes(
     }
     res.writeHead(400, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ success: false, error: "Payload feature flag invalide" }));
+    return true;
+  }
+
+  // Reset flag to environment default
+  if (pathname === "/api/feature-flags/reset" && req.method === "POST") {
+    if (currentUserRole !== "admin") {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: false, error: "Accès refusé. Privilèges d'administration requis." }));
+      return true;
+    }
+
+    try {
+      const body = await readLimitedJson<{ key?: string }>(req);
+      if (body.key) {
+        await platformFeatureFlags.resetToDefault(body.key);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: true, message: `Flag ${body.key} réinitialisé au défaut environnement`, key: body.key }));
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to reset feature flag:", e);
+    }
+    res.writeHead(400, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: false, error: "Clé de feature flag invalide" }));
     return true;
   }
 

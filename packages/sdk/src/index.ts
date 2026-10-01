@@ -11,7 +11,7 @@ import type {
   TenantIdentity,
 } from "@mosaix/contracts";
 import type { PayloadValidator } from "@mosaix/core";
-import type { FeatureFlagsPort, FeatureFlagUserContext } from "@mosaix/ports-feature-flags";
+import type { FeatureFlagsPort, FeatureFlagUserContext, FeatureFlagKey } from "@mosaix/ports-feature-flags";
 import { uuidV7 } from "@mosaix/types";
 
 export interface MosaixAppRegistration {
@@ -170,7 +170,7 @@ export function setFeatureFlagOverride(flagName: string, value: boolean | string
  * 4. defaultValue (fallback)
  */
 export async function featureAsync(
-  flagName: string,
+  flagName: FeatureFlagKey | string,
   contextOrDefaultForward?: FeatureFlagUserContext | boolean,
   defaultValueFallback: boolean = false
 ): Promise<boolean> {
@@ -209,7 +209,7 @@ export async function featureAsync(
  * featureVariationAsync - Query a multivariate or string feature flag variation.
  */
 export async function featureVariationAsync(
-  flagName: string,
+  flagName: FeatureFlagKey | string,
   contextOrDefaultForward?: FeatureFlagUserContext | string,
   defaultValueFallback: string = ""
 ): Promise<string> {
