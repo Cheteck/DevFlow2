@@ -1,4 +1,6 @@
 import type { PaymentPort } from "../workflows/checkout-order.workflow.js";
+import { SatimPaymentAdapter } from "@mosaix/adapter-payment-satim";
+import { ChargilyPaymentAdapter } from "@mosaix/adapter-payment-chargily";
 import { Money } from "@mosaix/core";
 
 export interface Wallet {
@@ -20,15 +22,21 @@ export interface WalletTransaction {
 
 /**
  * SatimPaymentPort - Implementation for SATIM CIB / Edahabia Card payments in Algeria (CIB-01).
- * Integrates SATIM Gateway standard APIs: register.do, getOrderStatus.do, refund.do
+ * Delegated to @mosaix/adapter-payment-satim.
  */
 export class SatimPaymentPort implements PaymentPort {
-  private activeHolds = new Map<string, { amount: number; key: string }>();
+  private readonly adapter: SatimPaymentAdapter;
 
   constructor(
-    private readonly gatewayUrl = "https://test.satim.dz/payment/rest",
-    private readonly terminalId = "MOSAIX_TERM_01"
-  ) {}
+    gatewayUrl = "https://test.satim.dz/payment/rest",
+    terminalId = "MOSAIX_TERM_01"
+  ) {
+    this.adapter = new SatimPaymentAdapter({
+      gatewayUrl,
+      terminalId,
+      isLiveMode: process.env.MOSAIX_FLAG_COMMERCE_PAYMENTS_SATIM_LIVE === "true",
+    });
+  }
 
   /**
    * Authorize / Hold payment via SATIM CIB gateway
@@ -37,18 +45,18 @@ export class SatimPaymentPort implements PaymentPort {
     console.log(
       `[SATIM PAY] Initiating authorization hold for order [${orderId}] with amount [${amount}] via SATIM CIB/Edahabia Gateway`
     );
-    // Mimic the SATIM Gateway registration API call
-    const satimRegisterEndpoint = `${this.gatewayUrl}/register.do`;
-    const payload = {
-      terminalId: this.terminalId,
-      amount,
-      orderNumber: orderId,
-      returnUrl: `https://mosaix.platform/api/payments/satim-callback?id=${idempotenceKey}`,
-    };
 
-    console.log("[SATIM PAY] Prepared endpoint & payload for SATIM Gateway:", satimRegisterEndpoint, payload);
+    const result = await this.adapter.registerOrder({
+      orderId,
+      amountInCents: amount,
+      idempotenceKey,
+    });
 
-    this.activeHolds.set(orderId, { amount, key: idempotenceKey });
+    if (!result.success) {
+      throw new Error(`SATIM Authorization failed: ${result.errorMessage || result.errorCode}`);
+    }
+
+    console.log("[SATIM PAY] Prepared endpoint & payload for SATIM Gateway:", this.adapter, result);
   }
 
   /**
@@ -56,7 +64,41 @@ export class SatimPaymentPort implements PaymentPort {
    */
   async void(orderId: string, idempotenceKey: string): Promise<void> {
     console.log(`[SATIM PAY] Refunding / Voiding SATIM transaction [${orderId}] for key [${idempotenceKey}]`);
-    this.activeHolds.delete(orderId);
+    await this.adapter.refund(orderId, 0);
+  }
+}
+
+/**
+ * ChargilyPaymentPort - Implementation for Chargily Pay V2 payments (CIB, Edahabia).
+ * Delegated to @mosaix/adapter-payment-chargily.
+ */
+export class ChargilyPaymentPort implements PaymentPort {
+  private readonly adapter: ChargilyPaymentAdapter;
+
+  constructor(apiKey?: string, secretKey?: string) {
+    this.adapter = new ChargilyPaymentAdapter({
+      apiKey,
+      secretKey,
+      isLiveMode: process.env.MOSAIX_FLAG_COMMERCE_PAYMENTS_SATIM_LIVE === "true",
+    });
+  }
+
+  async authorize(orderId: string, amount: number, idempotenceKey: string): Promise<void> {
+    console.log(`[CHARGILY PAY] Creating checkout session for order [${orderId}] with amount [${amount}]`);
+
+    const result = await this.adapter.createCheckoutSession({
+      amountInCents: amount,
+      orderId,
+      successUrl: `https://mosaix.platform/api/payments/chargily-callback?id=${idempotenceKey}`,
+    });
+
+    if (!result.success) {
+      throw new Error(`Chargily checkout creation failed: ${result.errorMessage || result.errorCode}`);
+    }
+  }
+
+  async void(orderId: string, idempotenceKey: string): Promise<void> {
+    console.log(`[CHARGILY PAY] Voiding checkout session for order [${orderId}] (idemp: ${idempotenceKey})`);
   }
 }
 

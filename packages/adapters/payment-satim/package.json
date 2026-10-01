@@ -1,0 +1,13 @@
+{
+  "name": "@mosaix/adapter-payment-satim",
+  "version": "1.0.0",
+  "description": "SATIM CIB / Edahabia Card Payment Gateway Adapter for MosaiX",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mosaix/core": "workspace:*"
+  }
+}

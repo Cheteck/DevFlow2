@@ -22,7 +22,9 @@
     "@mosaix-plugin/commerce-wishlist": "workspace:*",
     "@mosaix/orchestration": "workspace:*",
     "@mosaix/sdk": "workspace:*",
-    "@mosaix/types": "workspace:*"
+    "@mosaix/types": "workspace:*",
+    "@mosaix/adapter-payment-satim": "workspace:*",
+    "@mosaix/adapter-payment-chargily": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

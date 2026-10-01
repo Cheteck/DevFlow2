@@ -1,0 +1,13 @@
+{
+  "name": "@mosaix/adapter-payment-chargily",
+  "version": "1.0.0",
+  "description": "Chargily Pay V2 Gateway Adapter for MosaiX (CIB, Edahabia, Bank Transfer)",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mosaix/core": "workspace:*"
+  }
+}
