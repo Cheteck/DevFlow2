@@ -125,5 +125,6 @@ export class ImperiaAppServiceProvider implements ServiceProvider {
     router.get("/imperia/feature-flags", async (req: HttpRequest) => await controller.listFeatureFlags(req));
     router.post("/imperia/feature-flags", async (req: HttpRequest) => await controller.setFeatureFlag(req));
     router.post("/imperia/feature-flags/toggle", async (req: HttpRequest) => await controller.toggleFeatureFlag(req));
+    router.post("/imperia/feature-flags/reset", async (req: HttpRequest) => await controller.resetFeatureFlag(req));
   }
 }

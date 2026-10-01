@@ -95,7 +95,7 @@ export class ActivityStreamsMapper {
       attachments: obj.attachment?.map((a) => ({
         type: a.type || "link",
         url: a.url,
-        mimeType: a.mediaType || a.mimeType,
+        mimeType: a.mediaType || ((a as Record<string, unknown>).mimeType as string | undefined),
         title: a.name,
       })),
       likeCount: 0,

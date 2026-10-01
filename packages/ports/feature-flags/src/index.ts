@@ -14,10 +14,10 @@ export interface FeatureFlagDefinition {
   enabled?: boolean;
 
   // Targeting Rules Metadata
-  rolesAllowlist?: string[];
-  usersAllowlist?: string[];
-  tenantsAllowlist?: string[];
-  plansAllowlist?: string[];
+  rolesAllowlist?: readonly string[] | string[];
+  usersAllowlist?: readonly string[] | string[];
+  tenantsAllowlist?: readonly string[] | string[];
+  plansAllowlist?: readonly string[] | string[];
   percentageRollout?: number;
 }
 

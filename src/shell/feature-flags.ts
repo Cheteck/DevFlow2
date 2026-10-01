@@ -1,3 +1,4 @@
+import { DistributedEventBackplane } from "./event-backplane.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { MemoryFeatureFlagsAdapter } from "@mosaix/adapter-featureflags-memory";
@@ -194,6 +195,15 @@ export class PersistentFeatureFlagsManager {
       });
     }
     await this.saveToDisk();
+    try {
+      DistributedEventBackplane.getInstance().publish("platform.feature_flag.updated", {
+        key,
+        value,
+        timestamp: Date.now(),
+      });
+    } catch {
+      // ignore if Backplane is not bootstrapped in standalone test mocks
+    }
   }
 
   public async resetToDefault(key: FeatureFlagKey | string): Promise<void> {

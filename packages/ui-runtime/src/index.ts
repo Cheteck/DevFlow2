@@ -71,3 +71,5 @@ slotRegistry.register({
 
 export * from "./plugins/form-help-sidebar.plugin.js";
 export * from "./plugins/qr-code-generator.plugin.js";
+
+export * from "./feature-gate.js";

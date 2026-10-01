@@ -382,4 +382,31 @@ export class ImperiaGovernanceController extends Controller {
 
     return this.internalError("Active FeatureFlags provider does not support dynamic toggling.");
   }
+
+  async resetFeatureFlag(req: HttpRequest): Promise<HttpResponse> {
+    const forbidden = this.requireAdmin(req);
+    if (forbidden) return forbidden;
+
+    const body = req.body as { key: string };
+    if (!body || !body.key) {
+      return this.badRequest("Flag 'key' is required.");
+    }
+
+    const port = this.getEffectiveFlagsPort();
+    if (port && typeof (port as any).resetToDefault === "function") {
+      await (port as any).resetToDefault(body.key);
+      this.recordAuditLog(
+        this.actorId(req),
+        "RESET_FEATURE_FLAG",
+        body.key,
+        "success"
+      );
+      return this.json({
+        message: `Feature flag '${body.key}' reset to environment default.`,
+        key: body.key
+      });
+    }
+
+    return this.internalError("Active FeatureFlags provider does not support reset to default.");
+  }
 }

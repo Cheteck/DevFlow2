@@ -1,9 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   FEATURE_FLAG_REGISTRY,
   getDefaultValueForEnvironment,
 } from "@mosaix/ports-feature-flags";
 import { getPlatformFeatureFlags } from "../../src/shell/feature-flags.js";
+import { DistributedEventBackplane } from "../../src/shell/event-backplane.js";
 
 describe("Centralized Feature Flag Architecture Specification Suite", () => {
   describe("1. Environment Defaults Resolution", () => {
@@ -72,15 +73,23 @@ describe("Centralized Feature Flag Architecture Specification Suite", () => {
     });
   });
 
-  describe("4. Reset to Default & Snapshot Hydration", () => {
-    it("resets flag to canonical environment default via resetToDefault", async () => {
+  describe("4. Reset to Default & Real-Time Event Dispatching", () => {
+    it("resets flag to canonical environment default and dispatches event", async () => {
       const ff = getPlatformFeatureFlags();
+      const backplane = DistributedEventBackplane.getInstance();
+
+      const publishedEvents: Array<{ topic: string; payload: unknown }> = [];
+      const spy = vi.spyOn(backplane, "publish").mockImplementation((topic, payload) => {
+        publishedEvents.push({ topic, payload });
+      });
 
       await ff.setFlag("platform.mcp.gateway_enabled", false);
-      expect(await ff.isEnabled("platform.mcp.gateway_enabled")).toBe(false);
+      expect(publishedEvents.some(e => e.topic === "platform.feature_flag.updated")).toBe(true);
 
       await ff.resetToDefault("platform.mcp.gateway_enabled");
       expect(await ff.isEnabled("platform.mcp.gateway_enabled")).toBe(true);
+
+      spy.mockRestore();
     });
 
     it("generates evaluated snapshot for client hydration via getAllFlagsSnapshot", async () => {
