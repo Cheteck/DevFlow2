@@ -1,3 +1,4 @@
+import { featureAsync } from "@mosaix/sdk";
 /**
  * @apps/spaces — Autonomous BAC View & Descriptor
  * Self-contained SSR presentation layer for MosaiX Spaces & Multi-tenancy (inspired by Facebook/LinkedIn Organization Pages).
@@ -35,7 +36,7 @@ export function createSpacesDescriptor(): BacDescriptor {
     requiredPermissions: ["spaces:space:read"],
 
     async isAvailable(): Promise<boolean> {
-      return true;
+      return featureAsync("apps.spaces.enabled", true);
     },
 
     async render(context: BacExecutionContext): Promise<BacRenderResult> {

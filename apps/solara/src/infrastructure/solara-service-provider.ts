@@ -58,7 +58,13 @@ export class SolaraAppServiceProvider implements ServiceProvider {
       return await controller.createPost(req);
     };
     const handleComment = async (req: HttpRequest) => await controller.addComment(req);
-    const handleReaction = async (req: HttpRequest) => await controller.addReaction(req);
+    const handleReaction = async (req: HttpRequest) => {
+      const reactionsEnabled = await featureAsync("solara.comments.reactions", true);
+      if (!reactionsEnabled) {
+        return { statusCode: 400, body: { error: "Reactions disabled by feature flag [solara.comments.reactions]." } };
+      }
+      return await controller.addReaction(req);
+    };
     const handleFollowers = async (req: HttpRequest) => await controller.followActor(req);
     const handleUnfollow = async (req: HttpRequest) => await controller.unfollowActor(req);
     const handleUpdatePost = async (req: HttpRequest) => await controller.updatePost(req);

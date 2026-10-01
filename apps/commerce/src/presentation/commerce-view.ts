@@ -1,3 +1,4 @@
+import { featureAsync } from "@mosaix/sdk";
 /**
  * @apps/commerce — Autonomous BAC View & Descriptor
  * Self-contained SSR presentation layer for MosaiX Commerce (Orders, Checkout & Offers).
@@ -25,7 +26,7 @@ export function createCommerceDescriptor(): BacDescriptor {
     requiredPermissions: ["commerce:order:create"],
 
     async isAvailable(): Promise<boolean> {
-      return true;
+      return featureAsync("apps.commerce.enabled", true);
     },
 
     async render(context: BacExecutionContext): Promise<BacRenderResult> {

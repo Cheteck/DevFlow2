@@ -62,6 +62,15 @@ export const FEATURE_FLAG_REGISTRY = {
     enabled: true,
     rolesAllowlist: ["admin"],
   },
+  "platform.auth.session_login": {
+    key: "platform.auth.session_login",
+    description: "Authentification de session centralisée v2 (AUTH-06/07)",
+    defaultValue: false,
+    environmentDefaults: { development: true, staging: false, production: false },
+    variationType: "boolean",
+    category: "platform",
+    enabled: true,
+  },
 
   // --- BAC Applications Master Toggles ---
   "apps.citadelle.enabled": {
@@ -156,7 +165,27 @@ export const FEATURE_FLAG_REGISTRY = {
     enabled: true,
   },
 
-  // --- Domain Functional Sub-Features ---
+  // --- Citadelle IAM Flags ---
+  "citadelle.mfa.enforced": {
+    key: "citadelle.mfa.enforced",
+    description: "Exiger le second facteur TOTP pour tous les rôles d'administration",
+    defaultValue: false,
+    environmentDefaults: { development: false, staging: true, production: true },
+    variationType: "boolean",
+    category: "security",
+    enabled: true,
+  },
+  "citadelle.registration.wizard": {
+    key: "citadelle.registration.wizard",
+    description: "Assistant d'inscription multi-étapes avec validation progressive",
+    defaultValue: true,
+    environmentDefaults: { development: true, staging: true, production: true },
+    variationType: "boolean",
+    category: "security",
+    enabled: true,
+  },
+
+  // --- Imperia Governance Flags ---
   "imperia.dlq.auto_replay": {
     key: "imperia.dlq.auto_replay",
     description: "Rejeu automatique des événements DLQ après résolution de panne",
@@ -184,6 +213,17 @@ export const FEATURE_FLAG_REGISTRY = {
     category: "governance",
     enabled: true,
   },
+  "imperia.governance.voting_live": {
+    key: "imperia.governance.voting_live",
+    description: "Session de vote et soumission de propositions en direct",
+    defaultValue: true,
+    environmentDefaults: { development: true, staging: true, production: true },
+    variationType: "boolean",
+    category: "governance",
+    enabled: true,
+  },
+
+  // --- Solara Social Flags ---
   "solara.moderation.ai_filter": {
     key: "solara.moderation.ai_filter",
     description: "Filtrage automatique et modération des publications par IA",
@@ -220,6 +260,26 @@ export const FEATURE_FLAG_REGISTRY = {
     category: "social",
     enabled: false,
   },
+
+  // --- Commerce & Checkout Flags ---
+  "commerce.payments.satim_live": {
+    key: "commerce.payments.satim_live",
+    description: "Bascule paiement réel CIB/Edahabia SATIM vs mode simulateur de test",
+    defaultValue: false,
+    environmentDefaults: { development: false, staging: false, production: true },
+    variationType: "boolean",
+    category: "commerce",
+    enabled: true,
+  },
+  "commerce.auctions.enabled": {
+    key: "commerce.auctions.enabled",
+    description: "Moteur d'enchères publiques avec prix de réserve et anti-sniping",
+    defaultValue: true,
+    environmentDefaults: { development: true, staging: true, production: true },
+    variationType: "boolean",
+    category: "commerce",
+    enabled: true,
+  },
   "commerce.checkout.v2": {
     key: "commerce.checkout.v2",
     description: "Nouveau pipeline de validation de commande avec réservation d'inventaire optimiste",
@@ -247,6 +307,17 @@ export const FEATURE_FLAG_REGISTRY = {
     category: "commerce",
     enabled: false,
   },
+
+  // --- Beam Messaging Flags ---
+  "beam.push.fcm_live": {
+    key: "beam.push.fcm_live",
+    description: "Bascule notifications push réelles Firebase Cloud Messaging vs mode mock",
+    defaultValue: false,
+    environmentDefaults: { development: false, staging: true, production: true },
+    variationType: "boolean",
+    category: "messaging",
+    enabled: true,
+  },
   "beam.messaging.group_chats": {
     key: "beam.messaging.group_chats",
     description: "Permet la création de conversations de groupe à plusieurs membres dans Beam",
@@ -263,6 +334,17 @@ export const FEATURE_FLAG_REGISTRY = {
     environmentDefaults: { development: true, staging: true, production: true },
     variationType: "boolean",
     category: "messaging",
+    enabled: true,
+  },
+
+  // --- Spaces Flags ---
+  "spaces.acting_as.enabled": {
+    key: "spaces.acting_as.enabled",
+    description: "Délégation d'autorité pour agir au nom d'un espace de travail",
+    defaultValue: true,
+    environmentDefaults: { development: true, staging: true, production: true },
+    variationType: "boolean",
+    category: "spaces",
     enabled: true,
   },
   "spaces.acting_as.enforce_scopes": {
@@ -283,6 +365,17 @@ export const FEATURE_FLAG_REGISTRY = {
     category: "spaces",
     enabled: true,
   },
+
+  // --- Solidarity & Booking Flags ---
+  "solidarity.donations.live": {
+    key: "solidarity.donations.live",
+    description: "Collecte de dons réels vs mode démonstration",
+    defaultValue: false,
+    environmentDefaults: { development: false, staging: true, production: true },
+    variationType: "boolean",
+    category: "solidarity",
+    enabled: true,
+  },
   "solidarity.emergency_broadcast": {
     key: "solidarity.emergency_broadcast",
     description: "Diffusion prioritaire des alertes d'urgence sur tous les canaux du tenant",
@@ -299,6 +392,26 @@ export const FEATURE_FLAG_REGISTRY = {
     environmentDefaults: { development: true, staging: true, production: true },
     variationType: "boolean",
     category: "booking",
+    enabled: true,
+  },
+  "booking.reminders": {
+    key: "booking.reminders",
+    description: "Notifications automatiques de rappel de rendez-vous (T-24, T-1)",
+    defaultValue: true,
+    environmentDefaults: { development: true, staging: true, production: true },
+    variationType: "boolean",
+    category: "booking",
+    enabled: true,
+  },
+
+  // --- Portfolio Flags ---
+  "portfolio.csv.import": {
+    key: "portfolio.csv.import",
+    description: "Importation massive de produits et variantes par fichier CSV",
+    defaultValue: false,
+    environmentDefaults: { development: true, staging: false, production: false },
+    variationType: "boolean",
+    category: "portfolio",
     enabled: true,
   },
 } as const satisfies Record<string, FeatureFlagDefinition>;

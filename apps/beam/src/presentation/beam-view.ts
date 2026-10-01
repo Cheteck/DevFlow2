@@ -1,3 +1,4 @@
+import { featureAsync } from "@mosaix/sdk";
 /**
  * @apps/beam — Autonomous BAC View & Descriptor
  * Self-contained SSR presentation layer for MosaiX Beam Messaging.
@@ -28,7 +29,7 @@ export function createBeamDescriptor(messagingService?: BeamMessagingService): B
     requiredPermissions: ["beam:message:read"],
 
     async isAvailable(): Promise<boolean> {
-      return true;
+      return featureAsync("apps.beam.enabled", true);
     },
 
     async render(context: BacExecutionContext): Promise<BacRenderResult> {

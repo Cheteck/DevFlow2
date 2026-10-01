@@ -1,3 +1,4 @@
+import { featureAsync } from "@mosaix/sdk";
 /**
  * @apps/solara — Autonomous BAC View & Descriptor
  * Self-contained SSR presentation layer for MosaiX Solara Social & Content (inspired by Facebook).
@@ -36,7 +37,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
     requiredPermissions: ["solara:feed:read"],
 
     async isAvailable(): Promise<boolean> {
-      return true;
+      return featureAsync("apps.solara.enabled", true);
     },
 
     async render(context: BacExecutionContext): Promise<BacRenderResult> {
