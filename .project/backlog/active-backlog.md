@@ -1,6 +1,6 @@
 # MosaiX / IJIDeals Platform — Active Backlog
 
-- **Dernière mise à jour :** 2026-09-29 — §15 Feed complétude (audit 2026-09-29) + §16 statuts vérifiés
+- **Dernière mise à jour :** 2026-09-24 — Vues BAC réelles (§9 : 8 tâches VIEW-*) + CIB/Gestion-Commerciale + PRD-0011 MeshJS
 - **Statut global :** 100% COMPLÉTÉ ET VÉRIFIÉ — FEAT-01..13, AUTH-01..08, RENDERER-SPLIT, PALETTE-INSPECTOR-WIRING, DB-FK-HARDEN, DATA-07, DATA-08, PRD-0011 (19 routes UI), 10 Vues BACs réelles. Historique dans `.project/archive/completed-backlog-history.md`.
 
 ---
@@ -363,61 +363,3 @@ Socle livré (session 2026-09-27, à commiter) : **DEMO-OFF** — `MOSAIX_DEMO_U
 - **AUTH-08 [SEC] Gate + finalisation** — Audit fixation/rejeu/CSRF/brute-force/révocation, perfs (mesurer avant cache), ADR-0017 final + erratum ADR-0012, activation explicite. Critère : checklist OWASP/ASVS + autorisation humaine. Criticité haute.
 
 > Ordre strict : DEMO-OFF (commit) → AUTH-01 → AUTH-02+AUTH-03 et AUTH-04+AUTH-05 (parallélisables) → AUTH-06+AUTH-07 (tranche verticale flaggée) → AUTH-08. Pas d'endpoint login public avant AUTH-06. Règle d'hygiène : aucune permission fiable depuis cookie/SSR ; le container ne contourne jamais ADR-0016.
-
----
-
-## 15. Feed — complétude sociale (audit code 2026-09-29)
-
-Référence : audit `apps/solara` + `packages/feed-engine` + `apps/beam` + présentation Solara. Légende : ✅ vérifié en place · ⚠️ structure sans alimentation · ❌ absent. Base déjà livrée : N1 (multi-source + MMR + telemetry), cutover `/api/feed` → Solara, retrait `shell_feed` (v1.004).
-
-### FEED-V0 Consolidation (pré-requis, P0) — ✅ exécuté 2026-09-29
-- **FEED-V0-01** — ✅ `FeedScorer` (interne à `FeedAggregator`) et `FeedRanker` (personnalisation) ont des rôles distincts légitimes : pas de fusion. Doublon mort `FeedScoringEngine`/`FeedSortStrategy` supprimé (`solara-feed-realtime.ts`, note anti-régression).
-- **FEED-V0-02** — ⏳ `SQLiteFeedStore` (0 appelant) conservé comme substrat V2 (compteurs persistés), pas supprimé.
-- **FEED-V0-03** — ✅ `SolaraAnalyticsTracker` neutralisé (classe vide `@deprecated`, 0 appelant) au profit de `FeedMetricsCollector` + event logging FEED-V2.
-
-### FEED-V1 Writers & interactions (P0) — ✅ exécuté 2026-09-29 (18 tests Solara verts)
-- **FEED-V1-01** — ✅ `unfollowActor` + test.
-- **FEED-V1-02** — ✅ `updatePost` (auteur seul, `updatedAt`, upsert repo) + `deletePost` (soft `isDeleted`, exclu de `listFeed` et de tous les feeds) + tests. Limite : flag non persisté côté Postgres (colonne absente — follow-up schéma).
-- **FEED-V1-03** — ✅ `castPollVote` anti-double-vote (`metadata.poll.voters`) + tests ; normalisation des options à la création.
-- **FEED-V1-04** — ✅ `repostPost` (+ quote via `quoteComment`, `metadata.repostOf`, compteur `repostCount`) + tests.
-- **FEED-V1-05** — ✅ `pinPost`/`unpinPost` (auteur seul) + tests.
-- **FEED-V1-06** — ✅ `reportPost` → `HumanReviewQueueStage` (premier producteur réel) + tests.
-- **FEED-V1-07** — ✅ `muteActor`/`unmuteActor`/`getMutedActors` (in-memory, pas de table repo — follow-up) + tests.
-- **FEED-V1-08** — ✅ Controller : endpoints vote/repost/report (+ bonus unfollow/update/delete) et profil ForYou via query (`userId`, `followedSpaceIds`, `interestTags`, défauts démo conservés en fallback) + routes PUT/DELETE/POST + tests.
-- **FEED-V1-09** — ⏳ Durcir la modération : `HumanReviewQueueStage.evaluate` branchée sur la vraie file (pas toujours-approved), UI de revue modérateur, tests.
-
-### FEED-V2 Event logging (P1)
-- **FEED-V2-01** — Événements persistés `post_viewed/clicked/skipped` (remplace compteurs statiques volatils) + taux réels sur `/metrics`. Débloque : métriques honnêtes, notifs, données d'entraînement.
-
-### FEED-V3 Recherche & découverte (P1)
-- **FEED-V3-01** — FTS Postgres (trigramme) posts + users + hashtags ; page hashtag ; sujets tendance (vélocité tags) ; suggestions de follow. Ne pas dupliquer par BAC (cf. BOUND-06).
-
-### FEED-V4 Notifications (P1, lié BOUND-04)
-- **FEED-V4-01** — Domaine Notification (entité, préférences, centre, digest, badge réel) sur SSE + FCM existants. Décision : BAC dédié (BOUND-04) ou module Solara — trancher par ADR.
-
-### FEED-V5 Médias (P2)
-- **FEED-V5-01** — Upload via `ports-storage` (presigned S3) branché à Solara ; vraies link previews (fetch + cache + SSRF-guard, remplace `parseDummy`).
-
-### FEED-V6 Stories/Live (P2, après V2)
-- **FEED-V6-01** — Stories (backend éphémère + TTL) puis live. Pré-requis : vues réelles (V2) + présence.
-
-### FEED-X Transverse feed (à planifier)
-- **FEED-X-01** — Fédération cross-BAC (`Feedable` hors Solara) + application du `visibility`/`followers-only` dans `listFeed` + intégration `SolaraGroupManager.canView`.
-- **FEED-X-02** — Profils réels (compteurs followeurs, plus de « 142 » en dur) ; câbler boutons UI décoratifs (partage, like home) ou les retirer (règle : aucune UI sans backend).
-
-> Ordre : V0 → V1 (en cours) → V2 → V3+V4 (parallélisables) → V5 → V6. V1-09 et X-01 avant toute exposition publique du ranking.
-
-## 16. Statuts vérifiés 2026-09-29 (audit code, ne réécrit pas l'historique)
-
-| Tâche backlog | Verdict vérifié |
-|---|---|
-| AUTH-01..08 (§14) | ✅ Livré sur branche (composition root, SessionStore PG, secrets fail-fast, SessionResolver, ports identity, endpoints login/logout/session, UI login) — reste : wiring Citadelle réel du login (401 + TODO en démo-off) |
-| DB-FK-HARDEN (§11) | ✅ Livré (FK `ON DELETE CASCADE` vers `identities`) |
-| DATA-08 (§6) | ✅ Livré (schémas Zod stricts) |
-| FEED-N1 + cutover `/api/feed` + retrait `shell_feed` (v1.004) | ✅ Livré working-tree (128 fichiers / 706 tests verts, lint 0) — en attente de commit |
-| RENDERER-SPLIT (§10) | ❌ **Non livré** — `src/shell/render/` inexistant, malgré les rapports qui le déclarent fait. Requalifié en pending. |
-| DATA-07 (§6/§7) | ⚠️ Claim « SELECT FOR UPDATE » non prouvé par le diff — triggers à vérifier, reste pending |
-| B2 données démo | ⚠️ Dashboard portfolio (chiffres en dur) + `seedDefaultSlots()` non gatés — à gater `isDemoMode()` ou supprimer |
-| Rapports `0b7bfca` | ⚠️ Décrivent RENDERER-SPLIT inexistant + chiffres de tests contradictoires — à corriger avant merge |
-| PRD-0011 UI 19 pages, BOUND-01..08, DB-BAC-OWNERSHIP, DB-BOOKING-SEED, DB-SHELL-REGISTRY-PKG, DB-PGSQL-DRIVER, VIEW-* restantes | ⏳ Pending (non ré-audités, inchangés) |
-| Constitution placeholders (2026-09-29) | ✅ Enforcement livré : règle AGENTS.md + `CONF-SEC-003` renforcée (error) + `CONF-PROD-001/002` + tests (706 verts) + workflow `audit/production-placeholder-audit` + `check:integrity` zéro finding sur les nouvelles règles. Corrigés : pool démo `sponsored-1` → `[]`, compteurs `142`/`78%` (solara/spaces) → `—`, badges `2 nouvelles`/`2` retirés, seeding beam-view + welcome gatés `isDemoMode()`, défaut `current-user-1` → `guest`, `seedDefaultSlots` déplacé en test. Restent (design requis) : chiffres dashboard portfolio (`12,480`/`11,890` → vraies requêtes ou retrait), persona profil Solara, boutons story/edit factices (cf. FEED-X-02). Strict `--strict` reste rouge sur baseline `CONF-DB-001` préexistante (36 erreurs, calibration à part). |

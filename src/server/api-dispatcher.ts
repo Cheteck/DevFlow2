@@ -8,10 +8,7 @@ import type { URL } from "node:url";
 import type { ThemeMode } from "@mosaix/contracts";
 import type { CompositionOverrideManager } from "@mosaix/core";
 import type { UserProfile } from "../shell/profiles.js";
-import {
-  postToFeedPost,
-  type SolaraSocialService,
-} from "../../apps/solara/src/domain/social.model.js";
+import type { FeedService } from "../shell/feed-service.js";
 import type { DistributedEventBackplane } from "../shell/event-backplane.js";
 import type { AnonymizationOrchestrator } from "../shell/anonymization-orchestrator.js";
 import type { DatabasePort } from "@mosaix/ports-database";
@@ -33,7 +30,7 @@ export interface ApiDispatcherContext {
   activeMode: ThemeMode;
   currentUser: UserProfile;
   compositionOverrideManager: CompositionOverrideManager;
-  socialService: SolaraSocialService;
+  feedService: FeedService;
   eventBackplane: DistributedEventBackplane;
   anonymizationOrchestrator: AnonymizationOrchestrator;
   db: DatabasePort;
@@ -115,7 +112,7 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
     res,
     parsedUrl,
     ctx.currentUser,
-    ctx.socialService,
+    ctx.feedService,
     ctx.eventBackplane,
   ),
 );
@@ -134,7 +131,7 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
 
 // 9. Mobile Bridge (PKCE, FCM Push, Delta Sync, Codegen)
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
-  handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.socialService, ctx.db),
+  handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.feedService, ctx.db),
 );
 
 export async function dispatchApiRequest(
@@ -173,16 +170,12 @@ export async function dispatchApiRequest(
     return true;
   }
 
-  // Périmètre N1 — Prometheus Exporter Endpoint (/metrics) with live dynamic counters.
-  // Category entropy is computed on the Solara N1 output batch (post-MMR ranking
-  // for the requesting user), not on the retired shell_feed store.
+  // Périmètre N1 — Prometheus Exporter Endpoint (/metrics) with live dynamic counters
   if (pathname === "/metrics" && req.method === "GET") {
     const summary = FeedMetricsCollector.getMetricsSummary();
-    const solaraPosts = await context.socialService
-      .listFeedMultiSourceAsync(context.currentUser.id, "for_you", { recentLimit: 50 })
-      .catch(() => []);
+    const activeFeedBatch = await context.feedService.getFeed({ limit: 50 }).catch(() => null);
     const entropy = FeedMetricsCollector.calculateCategoryEntropy(
-      solaraPosts.map(postToFeedPost)
+      (activeFeedBatch?.items || []).map((i) => ({ tags: [i.category || "general"] })) as unknown as import("@mosaix/feed-engine").FeedPost[]
     );
 
     const prometheusBody = [
@@ -219,7 +212,7 @@ export async function dispatchApiRequest(
       res,
       parsedUrl,
       context.currentUser,
-      context.socialService,
+      context.feedService,
       context.db,
     );
   }

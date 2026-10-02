@@ -20,7 +20,7 @@ export class AnonymizationOrchestrator {
 
   /**
    * Irreversibly anonymizes all personal identifiable information (PII) associated with a user
-   * across Citadelle, Solara, Beam, Commerce, and Booking.
+   * across Citadelle, Solara, Beam, Commerce, Booking, and Shell feed.
    */
   async anonymizeUser(userId: string): Promise<AnonymizationResult> {
     const timestamp = new Date().toISOString();
@@ -63,12 +63,10 @@ export class AnonymizationOrchestrator {
         .catch(() => 0);
       contextsUpdated.push("citadelle");
 
-      // 2. Solara social items (post shell_feed removal: solara_posts is the
-      // only feed table; quoted camelCase columns match the Postgres schema —
-      // absent on SQLite dev, where the guarded catch below yields 0).
+      // 2. Shell Feed / Solara Social items
       const feedChanges = await this.db
         .execute(
-          `UPDATE solara_posts SET content = '[Message supprimé conformément au RGPD]', "actorId" = 'Anonyme' WHERE "actorId" = ? OR "actorId" = ?`,
+          `UPDATE shell_feed SET author = 'Anonyme', content = '[Message supprimé conformément au RGPD]' WHERE author = ? OR author = ?`,
           [userId, pseudonym],
         )
         .catch(() => 0);
@@ -101,7 +99,7 @@ export class AnonymizationOrchestrator {
 let cachedOrchestrator: AnonymizationOrchestrator | undefined;
 
 /**
- * Lazily-built orchestrator singleton — see `getSharedSocialService()`: never bind
+ * Lazily-built orchestrator singleton — see `getFeedService()`: never bind
  * the database at import time, only on first use after env is loaded.
  * Explicit injection wins over the global cache (first call wins).
  */

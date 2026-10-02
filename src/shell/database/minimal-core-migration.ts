@@ -10,7 +10,6 @@ import {
 } from "@mosaix/migrations";
 
 export const MINIMAL_CORE_MIGRATION_ID = "shell.core.v1.003_minimal_core_tables";
-export const MINIMAL_DROP_FEED_MIGRATION_ID = "shell.core.v1.004_drop_shell_feed_minimal";
 
 const UP = `
 -- Shell-owned tables only (not claimed by BACs)
@@ -119,30 +118,6 @@ DROP TABLE IF EXISTS external_identities;
 DROP TABLE IF EXISTS identities;
 `;
 
-const MINIMAL_UP_DROP_FEED = `
-DROP INDEX IF EXISTS idx_shell_feed_timestamp;
-DROP INDEX IF EXISTS idx_shell_feed_category;
-DROP TABLE IF EXISTS shell_feed;
-`;
-
-const MINIMAL_DOWN_DROP_FEED = `
-CREATE TABLE IF NOT EXISTS shell_feed (
-  id TEXT PRIMARY KEY,
-  type TEXT NOT NULL DEFAULT 'post',
-  author TEXT NOT NULL,
-  title TEXT,
-  content TEXT NOT NULL,
-  category TEXT DEFAULT 'general',
-  tags TEXT,
-  likes INTEGER DEFAULT 0,
-  timestamp INTEGER NOT NULL,
-  space_id TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_shell_feed_timestamp ON shell_feed (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_shell_feed_category ON shell_feed (category);
-`;
-
 export class MinimalCoreMigrationProvider implements MigrationProvider {
   ownerId(): string {
     return "shell";
@@ -165,16 +140,6 @@ export class MinimalCoreMigrationProvider implements MigrationProvider {
           "table:shell_feed",
           "table:platform_settings",
         ],
-      },
-      {
-        // v1.004 (minimal) — drop retired shell_feed. resources: [] on purpose:
-        // "table:shell_feed" is already owned by the base migration above and
-        // the planner rejects resource collisions across planned migrations (R9).
-        id: MINIMAL_DROP_FEED_MIGRATION_ID,
-        content: MINIMAL_UP_DROP_FEED,
-        down: MINIMAL_DOWN_DROP_FEED,
-        checksum: computeChecksum(MINIMAL_UP_DROP_FEED),
-        resources: [],
       },
     ];
   }

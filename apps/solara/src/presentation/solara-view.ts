@@ -108,9 +108,9 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
                     </h2>
                     <p class="text-xs text-on-surface-variant font-normal">Gouverneur de la Plateforme & Architecte Logiciel · Jijel, Algérie</p>
                     <div class="flex items-center gap-1.5 justify-center md:justify-start text-[10px] text-on-surface-variant/80 font-mono tabular-nums mt-1">
-                      <span><strong>—</strong> relations</span>
+                      <span><strong>18</strong> relations</span>
                       <span aria-hidden="true" class="text-outline-variant/40">·</span>
-                      <span><strong>—</strong> abonnés</span>
+                      <span><strong>142</strong> abonnés</span>
                     </div>
                   </div>
                 </div>

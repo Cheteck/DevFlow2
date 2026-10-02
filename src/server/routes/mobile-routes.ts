@@ -16,7 +16,7 @@ import {
   type SyncableItem,
 } from "../../../packages/mobile-bridge/src/index.js";
 import type { UserProfile } from "../../shell/profiles.js";
-import type { SolaraSocialService } from "../../../apps/solara/src/domain/social.model.js";
+import type { FeedService } from "../../shell/feed-service.js";
 import type { DatabasePort } from "@mosaix/ports-database";
 import {
   AuthCodeStoreAdapter,
@@ -65,7 +65,7 @@ export async function handleMobileRoutes(
   res: http.ServerResponse,
   parsedUrl: URL,
   currentUser: UserProfile,
-  socialService: SolaraSocialService,
+  feedService: FeedService,
   db: DatabasePort
 ): Promise<boolean> {
   const authCodeStore = new AuthCodeStoreAdapter(db);
@@ -244,27 +244,14 @@ export async function handleMobileRoutes(
   }
 
   // 7. Delta-Sync Endpoint for Android Room DB (ETags & Since timestamp)
-  // Served from the Solara N1 pipeline (post shell_feed removal): full
-  // chronological post list; DeltaSyncEngine derives deltas + ETags.
   if (pathname === "/api/mobile/sync/feed" && req.method === "GET") {
     const clientSince = parsedUrl.searchParams.get("since") || undefined;
     const clientIfNoneMatch = req.headers["if-none-match"];
 
-    const solaraPosts = await socialService.listFeedMultiSourceAsync(
-      currentUser.id,
-      "chronological",
-    );
-    const syncablePosts: SyncableItem[] = solaraPosts.map((p) => ({
-      id: p.id,
-      type: p.publicationType,
-      author: p.actorId,
-      content: p.content,
-      category: p.targetId,
-      tags: Array.isArray(p.metadata?.tags) ? p.metadata.tags : [],
-      likes: p.likeCount,
-      timestamp: p.createdAt.getTime(),
-      spaceId: p.targetType === "space" ? p.targetId : undefined,
-      updatedAt: p.createdAt.toISOString(),
+    const page = await feedService.getFeed({ limit: 1000 });
+    const syncablePosts: SyncableItem[] = page.items.map((p) => ({
+      ...p,
+      updatedAt: new Date(p.timestamp).toISOString(),
     }));
 
     const deltaResult = DeltaSyncEngine.calculateDelta(syncablePosts, clientSince, clientIfNoneMatch);

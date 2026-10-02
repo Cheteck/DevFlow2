@@ -1,8 +1,27 @@
-// NOTE (FEED-V0, 2026-09-29) : `FeedScoringEngine`/`FeedSortStrategy` (doublon
-// mort de `FeedRanker`/`TrendingVelocityRanker`, 0 appelant) et
-// `SolaraAnalyticsTracker` (0 appelant, remplacé par `FeedMetricsCollector` +
-// futur event logging FEED-V2) ont été retirés. Ne pas réintroduire de scoreur
-// parallèle : étendre `FeedRanker` dans `@mosaix/feed-engine`.
+import type { Post } from "./social.model.js";
+
+export type FeedSortStrategy = "chronological" | "engagement" | "trending";
+
+export class FeedScoringEngine {
+  static score(post: Post, now: number = Date.now()): number {
+    const ageHours = Math.max(1, (now - post.createdAt.getTime()) / (1000 * 60 * 60));
+    const likes = post.likeCount ?? 0;
+    const comments = post.commentsCount ?? 0;
+    const engagement = likes * 2 + comments * 5;
+
+    // Decay gravity formula: engagement / (ageHours ^ 1.5)
+    return engagement / Math.pow(ageHours, 1.5);
+  }
+
+  static sortPosts(posts: Post[], strategy: FeedSortStrategy = "chronological"): Post[] {
+    const sorted = [...posts];
+    if (strategy === "chronological") {
+      return sorted.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }
+    const now = Date.now();
+    return sorted.sort((a, b) => this.score(b, now) - this.score(a, now));
+  }
+}
 
 export interface OpenGraphMetadata {
   url: string;
@@ -83,21 +102,24 @@ export class SolaraRealtimeNotifier {
   }
 }
 
-/**
- * @deprecated FEED-V0 (2026-09-29) — 0 appelant : utiliser
- * `FeedMetricsCollector` (`@mosaix/feed-engine`) et le futur event logging
- * FEED-V2. Conservé vide pour ne pas casser d'import externe ; sera supprimé.
- */
+
 export class SolaraAnalyticsTracker {
-  track(
-    _type: "post_viewed" | "post_liked" | "comment_added" | "follow",
-    _actorId: string,
-    _targetId: string,
-  ): void {
-    // No-op by design (see deprecation note above).
+  private events: Array<{ type: string; actorId: string; targetId: string; timestamp: string }> = [];
+
+  track(type: "post_viewed" | "post_liked" | "comment_added" | "follow", actorId: string, targetId: string): void {
+    this.events.push({
+      type,
+      actorId,
+      targetId,
+      timestamp: new Date().toISOString(),
+    });
   }
 
-  getMetricsForTarget(_targetId: string): { views: number; likes: number; comments: number } {
-    return { views: 0, likes: 0, comments: 0 };
+  getMetricsForTarget(targetId: string): { views: number; likes: number; comments: number } {
+    return {
+      views: this.events.filter((e) => e.targetId === targetId && e.type === "post_viewed").length,
+      likes: this.events.filter((e) => e.targetId === targetId && e.type === "post_liked").length,
+      comments: this.events.filter((e) => e.targetId === targetId && e.type === "comment_added").length,
+    };
   }
 }

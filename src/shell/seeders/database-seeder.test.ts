@@ -25,7 +25,6 @@ describe("migrate + seed flow (CLI-only)", () => {
     expect(pendingBefore).toContain(
       "shell.core.v1.002_create_subscription_tables",
     );
-    expect(pendingBefore).toContain("shell.core.v1.004_drop_shell_feed");
     expect(pendingBefore).toContain(
       "shell.theme.v1.001_create_theme_assignments",
     );
@@ -37,7 +36,7 @@ describe("migrate + seed flow (CLI-only)", () => {
     );
 
     const migrated = await runShellMigrations(db);
-    expect(migrated.applied).toHaveLength(6);
+    expect(migrated.applied).toHaveLength(5);
 
     await expect(getPendingMigrationIds(db)).resolves.toEqual([]);
   });
@@ -47,14 +46,13 @@ describe("migrate + seed flow (CLI-only)", () => {
     await runShellMigrations(db);
 
     const seeded = await runDatabaseSeeds(db);
-    // shell_feed retired (N1 cutover, dropped by shell.core.v1.004): no feed seeds.
-    expect(seeded).not.toContain("shell_feed");
+    expect(seeded).toContain("shell_feed");
     expect(seeded).toContain("commerce_products");
 
-    const products = await db.query<{ count: number }>(
-      `SELECT COUNT(*) as count FROM commerce_products`,
+    const feed = await db.query<{ count: number }>(
+      `SELECT COUNT(*) as count FROM shell_feed`,
     );
-    expect(products[0]?.count).toBe(4);
+    expect(feed[0]?.count).toBe(3);
 
     await expect(runDatabaseSeeds(db)).resolves.toEqual([]);
   });
@@ -66,10 +64,10 @@ describe("migrate + seed flow (CLI-only)", () => {
     process.env.MOSAIX_DEMO_USERS = "false";
     try {
       await expect(runDatabaseSeeds(db)).rejects.toThrow(/demo mode is off/);
-      const products = await db.query<{ count: number }>(
-        `SELECT COUNT(*) as count FROM commerce_products`,
+      const feed = await db.query<{ count: number }>(
+        `SELECT COUNT(*) as count FROM shell_feed`,
       );
-      expect(Number(products[0]?.count ?? 0)).toBe(0);
+      expect(Number(feed[0]?.count ?? 0)).toBe(0);
     } finally {
       if (prev === undefined) delete process.env.MOSAIX_DEMO_USERS;
       else process.env.MOSAIX_DEMO_USERS = prev;

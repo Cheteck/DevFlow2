@@ -18,7 +18,6 @@ import {
 
 export const SHELL_CORE_MIGRATION_ID = "shell.core.v1.001_create_core_tables";
 export const SHELL_SUBSCRIPTION_MIGRATION_ID = "shell.core.v1.002_create_subscription_tables";
-export const SHELL_DROP_FEED_MIGRATION_ID = "shell.core.v1.004_drop_shell_feed";
 
 const UP = `
 CREATE TABLE IF NOT EXISTS identities (
@@ -311,36 +310,6 @@ const DOWN_SUBSCRIPTIONS = `
 DROP TABLE IF EXISTS user_subscriptions;
 `;
 
-// v1.004 — Retires the legacy Shell feed store (`shell_feed` + indexes) after
-// the N1 cutover: reads/writes moved to the Solara pipeline
-// (`SolaraSocialService` + `@mosaix/feed-engine`). Historic v1.001/v1.002 blobs
-// stay byte-identical (checksum-bound); removal happens only here.
-// resources: [] on purpose — "table:shell_feed" is already owned by v1.001 and
-// the planner rejects resource collisions across planned migrations (R9).
-const UP_DROP_FEED = `
-DROP INDEX IF EXISTS idx_shell_feed_timestamp;
-DROP INDEX IF EXISTS idx_shell_feed_category;
-DROP TABLE IF EXISTS shell_feed;
-`;
-
-const DOWN_DROP_FEED = `
-CREATE TABLE IF NOT EXISTS shell_feed (
-  id TEXT PRIMARY KEY,
-  type TEXT NOT NULL DEFAULT 'post',
-  author TEXT NOT NULL,
-  title TEXT,
-  content TEXT NOT NULL,
-  category TEXT DEFAULT 'general',
-  tags TEXT,
-  likes INTEGER DEFAULT 0,
-  timestamp INTEGER NOT NULL,
-  space_id TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_shell_feed_timestamp ON shell_feed (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_shell_feed_category ON shell_feed (category);
-`;
-
 export class ShellCoreMigrationProvider implements MigrationProvider {
   ownerId(): string {
     return "shell";
@@ -388,14 +357,6 @@ export class ShellCoreMigrationProvider implements MigrationProvider {
         down: DOWN_SUBSCRIPTIONS,
         checksum: computeChecksum(UP_SUBSCRIPTIONS),
         resources: ["table:user_subscriptions"],
-      },
-      {
-        // v1.004 — drop retired shell_feed (see UP_DROP_FEED above).
-        id: SHELL_DROP_FEED_MIGRATION_ID,
-        content: UP_DROP_FEED,
-        down: DOWN_DROP_FEED,
-        checksum: computeChecksum(UP_DROP_FEED),
-        resources: [],
       },
     ];
   }

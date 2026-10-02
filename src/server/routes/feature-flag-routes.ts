@@ -15,8 +15,14 @@ export async function handleFeatureFlagRoutes(
 ): Promise<boolean> {
   const pathname = parsedUrl.pathname;
 
-  // Override feature flag (dev helper)
+  // Override feature flag (admin-only control plane)
   if (pathname === "/api/feature-flags/override" && req.method === "POST") {
+    if (currentUserRole !== "admin") {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: false, error: "Accès refusé. Privilèges d'administration requis." }));
+      return true;
+    }
+
     try {
       const body = await readLimitedJson<{ key?: string; value?: unknown }>(req);
       if (body.key && (typeof body.value === "boolean" || typeof body.value === "string")) {

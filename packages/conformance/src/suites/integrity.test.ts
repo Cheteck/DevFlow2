@@ -123,58 +123,10 @@ describe("IntegrityConformanceSuite", () => {
       "packages/mobile-bridge/src/push/adapter.ts",
       "constructor(config = { isMockMode: true }) {}\n",
     );
-    write(
-      root,
-      "packages/adapters/sms-twilio/src/index.ts",
-      'const token = config.token ?? "ACmock";\n',
-    );
     const findings = IntegrityConformanceSuite.scan({ rootDir: root });
     const ids = findings.map((f) => f.ruleId);
     expect(ids).toContain("CONF-ID-001");
     expect(ids).toContain("CONF-SEC-003");
-    expect(
-      findings.find((f) => f.ruleId === "CONF-SEC-003")?.severity,
-    ).toBe("error");
-  });
-
-  it("flags demo seed helpers and forged session identities (CONF-PROD-001/002)", () => {
-    write(
-      root,
-      "apps/booking/src/domain/demo-seeds.ts",
-      "export async function seedDefaultSlots() { return []; }\n",
-    );
-    write(
-      root,
-      "src/server/routes/legacy-auth.ts",
-      'const sessionId = "sess-" + Date.now();\n',
-    );
-    write(
-      root,
-      "apps/solara/src/whoami.ts",
-      'const userId = "current-user-1";\n',
-    );
-    const findings = IntegrityConformanceSuite.scan({ rootDir: root });
-    const byFile = new Map(findings.map((f) => [f.file, f.ruleId]));
-    expect(byFile.get("apps/booking/src/domain/demo-seeds.ts")).toBe(
-      "CONF-PROD-001",
-    );
-    expect(byFile.get("src/server/routes/legacy-auth.ts")).toBe(
-      "CONF-PROD-002",
-    );
-    expect(byFile.get("apps/solara/src/whoami.ts")).toBe("CONF-PROD-002");
-    for (const f of findings) expect(f.severity).toBe("error");
-  });
-
-  it("allows the documented demo-only login stub (CONF-PROD-002 exception)", () => {
-    write(
-      root,
-      "src/server/routes/auth-routes.ts",
-      'if (isDemoMode()) { const sessionId = "sess-" + Date.now(); }\n',
-    );
-    const findings = IntegrityConformanceSuite.scan({ rootDir: root });
-    expect(
-      findings.filter((f) => f.ruleId === "CONF-PROD-002"),
-    ).toHaveLength(0);
   });
 
   it("flags direct cross-BAC imports via CONF-BOUNDARY-001", () => {

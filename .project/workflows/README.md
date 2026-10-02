@@ -22,7 +22,6 @@ Chaque workflow est une procédure courte, orientée mission, exécutable à la 
 | audit | architecture | `/workflow audit architecture` | `reports/architecture-audit.md` |
 | audit | security | `/workflow audit security` | `reports/security-audit.md` |
 | audit | technical-debt | `/workflow audit technical-debt` | Tâches backlog |
-| audit | production-placeholder-audit | `/workflow audit production-placeholder-audit` | Tâches backlog (mocks/démo en prod) |
 | maintenance | fix | `/workflow maintenance fix` | `completed/` + rapport |
 | maintenance | refactor | `/workflow maintenance refactor` | Commits atomiques + tests |
 | improvement | code-quality | `/workflow improvement code-quality` | Commits + connaissances |

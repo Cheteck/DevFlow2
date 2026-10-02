@@ -25,8 +25,7 @@ import {
   standardRateLimiter,
   strictRateLimiter,
 } from "./shell/rate-limiter.js";
-import { getSharedSocialService } from "../apps/solara/src/domain/social.model.js";
-import { PostgresSocialRepository } from "../apps/solara/src/domain/postgres-social-repository.js";
+import { getFeedService } from "./shell/feed-service.js";
 import { distributedEventBackplane } from "./shell/event-backplane.js";
 import { getAnonymizationOrchestrator } from "./shell/anonymization-orchestrator.js";
 import { bacOrchestrator } from "./shell/orchestrator/bac-orchestrator.js";
@@ -53,14 +52,6 @@ import { renderHomePage } from "./shell/pages/home-page.js";
 const app = await createApplication();
 const { compositionOverrideManager } = app;
 const PORT = app.env.resolvedPort;
-
-// Shared Solara N1 feed pipeline (shell_feed retired): Postgres-backed when the
-// dialect is postgres, in-memory otherwise. Resolved once — first call wins.
-const sharedSocialService = getSharedSocialService(
-  app.dbAdapter.capabilities.dialect === "postgres"
-    ? new PostgresSocialRepository(app.dbAdapter)
-    : undefined,
-);
 
 // Initialize platform feature flags with database adapter for persistent storage
 await getPlatformFeatureFlags(app.dbAdapter);
@@ -206,7 +197,7 @@ const server = http.createServer(async (req, res) => {
       activeMode: currentThemeMode,
       currentUser,
       compositionOverrideManager,
-      socialService: sharedSocialService,
+      feedService: getFeedService(app.dbAdapter),
       eventBackplane: distributedEventBackplane,
       anonymizationOrchestrator: getAnonymizationOrchestrator(app.dbAdapter),
       db: app.dbAdapter,
@@ -222,6 +213,25 @@ const server = http.createServer(async (req, res) => {
 
     if (matchedApp) {
       const cleanAppId = matchedApp.id.replace(/^@apps\//, "");
+      const flagKey = matchedApp.featureFlag || `apps.${cleanAppId}.enabled`;
+      const isFeatureEnabled = platformFeatureFlags.isEnabledSync(flagKey, true);
+
+      if (!isFeatureEnabled) {
+        res.writeHead(503, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(`
+        <div style="font-family:sans-serif; text-align:center; padding:50px; background:#0f172a; color:#f8fafc; min-height:100vh;">
+          <div style="max-width:500px; margin:0 auto; padding:30px; border:1px solid rgba(239,68,68,0.3); border-radius:24px; background:rgba(30,41,59,0.8);">
+            <div style="font-size:48px; margin-bottom:16px;">🛑</div>
+            <h2 style="color:#ef4444; font-size:20px; margin-bottom:12px;">Module Indisponible</h2>
+            <p style="font-size:14px; color:#94a3b8; line-height:1.6;">Le module <strong>${escapeHtml(matchedApp.name)}</strong> est actuellement désactivé par l'administration de la plateforme.</p>
+            <div style="margin-top:24px;">
+              <a href="/" style="color:#6366f1; font-weight:bold; text-decoration:none;">&larr; Retour à l'accueil</a>
+            </div>
+          </div>
+        </div>
+      `);
+        return;
+      }
       const isAllowed =
         currentUser.allowedBacs.includes("*") ||
         currentUser.allowedBacs.includes(matchedApp.id) ||

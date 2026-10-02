@@ -8,8 +8,8 @@ import { pspWebhookHandler } from "../../shell/psp-webhook-handler.js";
 import type { AnonymizationOrchestrator } from "../../shell/anonymization-orchestrator.js";
 import type { DistributedEventBackplane } from "../../shell/event-backplane.js";
 import type { UserProfile } from "../../shell/profiles.js";
+import { feedStore } from "../../shell/feed-store.js";
 import { isDemoMode } from "../../shell/profiles.js";
-import { getSharedSocialService } from "../../../apps/solara/src/domain/social.model.js";
 import { apps } from "../../shell/discovery.js";
 import { DynamicBacRegistry } from "../../shell/dynamic-bac-registry.js";
 import { readLimitedJson } from "../utils/safe-body-parser.js";
@@ -122,9 +122,9 @@ export async function handleComplianceAndSystemRoutes(
           },
           activeApps: apps.map((a) => a.id),
           totalContributions: allContributions.length,
-          // Solara post count (demo only): report 0 when demo mode is
-          // off (MOSAIX_DEMO_USERS=false) instead of a live count.
-          feedPostsCount: isDemoMode() ? getSharedSocialService().listFeed().length : 0,
+          // feedStore is demo-only mock content: report 0 when demo mode is
+          // off (MOSAIX_DEMO_USERS=false) instead of the unreachable array.
+          feedPostsCount: isDemoMode() ? feedStore.length : 0,
         },
         null,
         2,

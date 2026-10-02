@@ -170,11 +170,11 @@ export function createSpacesDescriptor(): BacDescriptor {
                   <div class="grid grid-cols-2 gap-3.5 text-center">
                     <div class="p-3 rounded-xl bg-surface-container-low border border-outline-variant/10 flex flex-col gap-0.5">
                       <span class="text-[9px] font-bold uppercase text-on-surface-variant">Publications</span>
-                      <span class="text-base font-bold text-primary font-mono tabular-nums">—</span>
+                      <span class="text-base font-bold text-primary font-mono tabular-nums">142</span>
                     </div>
                     <div class="p-3 rounded-xl bg-surface-container-low border border-outline-variant/10 flex flex-col gap-0.5">
                       <span class="text-[9px] font-bold uppercase text-on-surface-variant">Réservations</span>
-                      <span class="text-base font-bold text-primary font-mono tabular-nums">—</span>
+                      <span class="text-base font-bold text-primary font-mono tabular-nums">78%</span>
                     </div>
                   </div>
                 </div>

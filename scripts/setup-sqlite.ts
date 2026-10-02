@@ -65,17 +65,10 @@ async function main() {
   console.log(`✓ Tables vérifiées (${tables.length} tables opérationnelles) :`);
   tables.forEach((t) => console.log(`   - ${t.name}`));
 
-  // Check counts (solara_posts lives behind Postgres-only BAC migrations:
-  // absent on SQLite dev by design — guarded to 0 instead of crashing setup).
-  let solaraCount: number;
-  try {
-    const rows = await dbAdapter.query<{ count: number }>(
-      `SELECT COUNT(*) as count FROM solara_posts`,
-    );
-    solaraCount = Number(rows[0]?.count ?? 0);
-  } catch {
-    solaraCount = 0;
-  }
+  // Check counts
+  const feedCount = await dbAdapter.query<{ count: number }>(
+    `SELECT COUNT(*) as count FROM shell_feed`,
+  );
   const prodCount = await dbAdapter.query<{ count: number }>(
     `SELECT COUNT(*) as count FROM commerce_products`,
   );
@@ -87,7 +80,7 @@ async function main() {
   );
 
   console.log("\n✓ Enregistrements opérationnels :");
-  console.log(`   - Publications Solara   : ${solaraCount}`);
+  console.log(`   - Publications Sociales : ${feedCount[0]?.count || 0}`);
   console.log(`   - Produits Boutique     : ${prodCount[0]?.count || 0}`);
   console.log(`   - Créations Portfolio   : ${portCount[0]?.count || 0}`);
   console.log(`   - Espaces de Travail    : ${spaceCount[0]?.count || 0}`);

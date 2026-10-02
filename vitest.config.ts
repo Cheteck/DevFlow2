@@ -60,7 +60,6 @@ export default defineConfig({
       "@apps/subscription": path.resolve(__dirname, "./apps/subscription/src/index.ts"),
       "@mosaix/dev-session": path.resolve(__dirname, "./packages/dev-session/src/index.ts"),
       "@mosaix/dev-server": path.resolve(__dirname, "./packages/dev-server/src/index.ts"),
-      "@mosaix/feed-engine": path.resolve(__dirname, "./packages/feed-engine/src/index.ts"),
     },
   },
 });

@@ -1,35 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { BookingService, type BookingSlot } from "./domain/booking.model.js";
+import { BookingService, seedDefaultSlots } from "./domain/booking.model.js";
 import { BookingServiceProvider, MANIFEST } from "./index.js";
 import { RuntimeKernel, Container, Router } from "@mosaix/sdk";
-
-// Test-only seed helper (moved out of domain per constitution: no demo
-// implementations in production paths — domain exports no seeders).
-async function seedDefaultSlots(service: BookingService): Promise<BookingSlot[]> {
-  const now = Date.now();
-  const s1 = await service.createSlot({
-    providerId: "demo-provider-1",
-    serviceName: "Consultation Stratégique (Demo)",
-    startTime: new Date(now + 3600000).toISOString(),
-    endTime: new Date(now + 7200000).toISOString(),
-    capacity: 3,
-  });
-  const s2 = await service.createSlot({
-    providerId: "demo-provider-1",
-    serviceName: "Revue de Projet (Demo)",
-    startTime: new Date(now + 86400000).toISOString(),
-    endTime: new Date(now + 90000000).toISOString(),
-    capacity: 2,
-  });
-  const s3 = await service.createSlot({
-    providerId: "demo-provider-2",
-    serviceName: "Atelier de Co-création (Demo)",
-    startTime: new Date(now + 172800000).toISOString(),
-    endTime: new Date(now + 180000000).toISOString(),
-    capacity: 5,
-  });
-  return [s1, s2, s3];
-}
 
 describe("Booking Application Module", () => {
   it("should initialize default demo slots when explicitly seeded", async () => {

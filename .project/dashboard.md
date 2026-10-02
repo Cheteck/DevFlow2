@@ -13,7 +13,7 @@
 - **Validation Manifestes & Graphe Topologique :** 10/10 validés
 - **Thèmes Validés :** 2 (`midnight-ocean`, `mosaix-default`)
 - **Audit de Sécurité & Backlog :** 100% des vulnérabilités et tâches du backlog traitées
-- **Suites de Tests Vitest :** 128/128 validées · 706/706 tests verts
+- **Suites de Tests Vitest :** 127/127 validées · 690/690 tests verts
 - **Compilation & Linters :** 0 erreur, 0 warning
 
 ---
