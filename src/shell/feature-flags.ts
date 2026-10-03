@@ -1,4 +1,3 @@
-import { FEATURE_FLAG_CATALOG } from "@mosaix/ports-feature-flags";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { MemoryFeatureFlagsAdapter } from "@mosaix/adapter-featureflags-memory";
@@ -32,18 +31,127 @@ export const DEFAULT_PLATFORM_FLAGS: Record<
     plansAllowlist?: string[];
     percentageRollout?: number;
   }
-> = Object.fromEntries(
-  Object.entries(FEATURE_FLAG_CATALOG).map(([k, v]) => [
-    k,
-    {
-      value: v.enabled ?? v.defaultValue ?? true,
-      description: v.description,
-      category: v.category || "platform",
-      variationType: (v.variationType as "boolean" | "string") || "boolean",
-      rolesAllowlist: k === "platform.live_editor.enabled" ? ["admin", "super-admin"] : k === "apps.imperia.enabled" ? ["admin", "platform-governor"] : undefined,
-    },
-  ])
-);
+> = {
+  // Platform & Core
+  "platform.mcp.gateway_enabled": {
+    value: true,
+    description:
+      "Active la passerelle MCP pour les intégrations et les outils agents.",
+    category: "platform",
+    variationType: "boolean",
+  },
+  "platform.live_editor.enabled": {
+    value: true,
+    description:
+      "Active la barre d'édition de grille et la customisation en direct de l'UI.",
+    category: "platform",
+    variationType: "boolean",
+    rolesAllowlist: ["admin", "super-admin"],
+  },
+  "platform.experimental_plugins": {
+    value: false,
+    description:
+      "Active le chargement des extensions communautaires non certifiées.",
+    category: "platform",
+    variationType: "boolean",
+    rolesAllowlist: ["admin"],
+  },
+
+  // BAC Apps Visibility & Gates
+  "apps.citadelle.enabled": {
+    value: true,
+    description: "Active le module Citadelle (Sécurité, IAM, Audit & Profils).",
+    category: "apps",
+    variationType: "boolean",
+  },
+  "apps.solara.enabled": {
+    value: true,
+    description:
+      "Active le module Solara (Réseau social, Flux d'actualité & Publications).",
+    category: "apps",
+    variationType: "boolean",
+  },
+  "apps.beam.enabled": {
+    value: true,
+    description:
+      "Active le module Beam (Messagerie directe, canaux d'équipe & chat).",
+    category: "apps",
+    variationType: "boolean",
+  },
+  "apps.commerce.enabled": {
+    value: true,
+    description:
+      "Active le module Commerce (Boutique en ligne, paniers & checkout).",
+    category: "apps",
+    variationType: "boolean",
+  },
+  "apps.portfolio.enabled": {
+    value: true,
+    description:
+      "Active le module Portfolio (Vitrine des réalisations & galeries).",
+    category: "apps",
+    variationType: "boolean",
+  },
+  "apps.spaces.enabled": {
+    value: true,
+    description:
+      "Active le module Espaces (Gestion des espaces collectifs & contextes).",
+    category: "apps",
+    variationType: "boolean",
+  },
+  "apps.solidarity.enabled": {
+    value: true,
+    description:
+      "Active le module Solidarité (Collecte, entraide & distribution).",
+    category: "apps",
+    variationType: "boolean",
+  },
+  "apps.imperia.enabled": {
+    value: true,
+    description:
+      "Active le module Imperia (Console de gouvernance & supervision).",
+    category: "apps",
+    variationType: "boolean",
+    rolesAllowlist: ["admin", "platform-governor"],
+  },
+
+  // Functional Sub-features
+  "beam.messaging.group_chats": {
+    value: true,
+    description:
+      "Permet la création de conversations de groupe à plusieurs membres dans Beam.",
+    category: "beam",
+    variationType: "boolean",
+  },
+  "solara.posts.showcase_type": {
+    value: true,
+    description:
+      "Active les publications de type Showcase / Produit dans le fil Solara.",
+    category: "solara",
+    variationType: "boolean",
+  },
+  "solara.comments.reactions": {
+    value: true,
+    description:
+      "Permet les réactions émotionnelles en direct sur les publications.",
+    category: "solara",
+    variationType: "boolean",
+  },
+  "commerce.checkout.guest_mode": {
+    value: false,
+    description:
+      "Permet de finaliser une commande sans compte utilisateur Citadelle.",
+    category: "commerce",
+    variationType: "boolean",
+  },
+  "spaces.multi_tenancy.cross_space_sharing": {
+    value: true,
+    description:
+      "Autorise le partage de documents et flux entre différents espaces abonnés.",
+    category: "spaces",
+    variationType: "boolean",
+  },
+};
 
 export class PersistentFeatureFlagsManager {
   private readonly adapter:
