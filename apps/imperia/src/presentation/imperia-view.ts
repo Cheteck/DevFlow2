@@ -4,7 +4,7 @@
  */
 
 import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
-import { HumanReviewQueue, IntelligenceMetricsCollector } from "../../../../packages/intelligence/src/index.js";
+import { HumanReviewQueue, IntelligenceMetricsCollector } from "@mosaix/intelligence";
 
 function esc(str: unknown): string {
   if (str === null || str === undefined) return "";

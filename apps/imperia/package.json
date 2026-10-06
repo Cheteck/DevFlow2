@@ -33,7 +33,8 @@
     "@mosaix/telemetry": "workspace:*",
     "@mosaix/types": "workspace:*",
     "@mosaix/ui-runtime": "workspace:*",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "@mosaix/intelligence": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

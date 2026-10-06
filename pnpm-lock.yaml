@@ -288,6 +288,9 @@ importers:
       '@mosaix/http':
         specifier: workspace:*
         version: link:../../packages/http
+      '@mosaix/intelligence':
+        specifier: workspace:*
+        version: link:../../packages/intelligence
       '@mosaix/migrations':
         specifier: workspace:*
         version: link:../../packages/migrations

@@ -527,6 +527,8 @@ export class IntelligenceRuntime {
         results[settled.value.key] = settled.value.res;
         totalConfidence += settled.value.res.confidence;
         count++;
+      } else {
+        IntelligenceMetricsCollector.getInstance().recordFallback();
       }
     }
 
