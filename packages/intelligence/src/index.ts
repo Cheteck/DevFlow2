@@ -9,6 +9,7 @@ import {
   DecisionRequest,
   DecisionResult,
 } from "@mosaix/ports-intelligence";
+import { EventDispatcher } from "@mosaix/events";
 
 export * from "@mosaix/ports-intelligence";
 
@@ -18,6 +19,7 @@ export class CapabilityRegistry {
 
   private constructor() {
     this.registerP0Capabilities();
+    this.registerP1Capabilities();
   }
 
   public static getInstance(): CapabilityRegistry {
@@ -107,6 +109,99 @@ export class CapabilityRegistry {
       this.register(cap);
     }
   }
+
+  private registerP1Capabilities(): void {
+    const p1Caps: CapabilityDefinition[] = [
+      {
+        name: "commerce.order.fraud.score",
+        version: 1,
+        description: "Evaluates transaction anomaly and checkout fraud risk score",
+        category: "commerce",
+        riskLevel: "critical",
+        allowedProviders: ["mock", "typesafe"],
+        defaultThresholds: { automatic: 0.99, assisted: 0.9 },
+        humanReviewSupported: true,
+      },
+      {
+        name: "identity.document.verify",
+        version: 1,
+        description: "Verifies user identity document authenticity and OCR extraction",
+        category: "citadelle",
+        riskLevel: "critical",
+        allowedProviders: ["mock", "typesafe"],
+        defaultThresholds: { automatic: 0.98, assisted: 0.85 },
+        humanReviewSupported: true,
+      },
+      {
+        name: "solidarity.incident.classify",
+        version: 1,
+        description: "Categorizes crisis signal and humanitarian incident urgency",
+        category: "solidarity",
+        riskLevel: "high",
+        allowedProviders: ["mock", "typesafe"],
+        defaultThresholds: { automatic: 0.95, assisted: 0.8 },
+        humanReviewSupported: true,
+      },
+      {
+        name: "booking.no-show.score",
+        version: 1,
+        description: "Predicts reservation cancellation and no-show probability",
+        category: "booking",
+        riskLevel: "low",
+        allowedProviders: ["mock", "typesafe"],
+        defaultThresholds: { automatic: 0.9, assisted: 0.7 },
+        humanReviewSupported: false,
+      },
+    ];
+
+    for (const cap of p1Caps) {
+      this.register(cap);
+    }
+  }
+}
+
+export class IntelligenceKillSwitch {
+  private static instance: IntelligenceKillSwitch;
+  private disabledCapabilities = new Set<string>();
+  private disabledProviders = new Set<string>();
+
+  private constructor() {}
+
+  public static getInstance(): IntelligenceKillSwitch {
+    if (!IntelligenceKillSwitch.instance) {
+      IntelligenceKillSwitch.instance = new IntelligenceKillSwitch();
+    }
+    return IntelligenceKillSwitch.instance;
+  }
+
+  public disableCapability(name: string): void {
+    this.disabledCapabilities.add(name);
+  }
+
+  public enableCapability(name: string): void {
+    this.disabledCapabilities.delete(name);
+  }
+
+  public disableProvider(providerId: string): void {
+    this.disabledProviders.add(providerId);
+  }
+
+  public enableProvider(providerId: string): void {
+    this.disabledProviders.delete(providerId);
+  }
+
+  public isCapabilityDisabled(name: string): boolean {
+    return this.disabledCapabilities.has(name);
+  }
+
+  public isProviderDisabled(providerId: string): boolean {
+    return this.disabledProviders.has(providerId);
+  }
+
+  public resetAll(): void {
+    this.disabledCapabilities.clear();
+    this.disabledProviders.clear();
+  }
 }
 
 export class ConfidenceEngine {
@@ -124,12 +219,141 @@ export class ConfidenceEngine {
   }
 }
 
+export interface ReviewItem {
+  id: string;
+  decisionId: string;
+  capability: string;
+  originalResult: DecisionResult;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CORRECTED";
+  humanValue?: unknown;
+  humanReason?: string;
+  actorId?: string;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
+export class HumanReviewQueue {
+  private static instance: HumanReviewQueue;
+  private items = new Map<string, ReviewItem>();
+
+  private constructor() {}
+
+  public static getInstance(): HumanReviewQueue {
+    if (!HumanReviewQueue.instance) {
+      HumanReviewQueue.instance = new HumanReviewQueue();
+    }
+    return HumanReviewQueue.instance;
+  }
+
+  public enqueue(decisionResult: DecisionResult): ReviewItem {
+    const reviewId = `rev-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const item: ReviewItem = {
+      id: reviewId,
+      decisionId: decisionResult.decisionId,
+      capability: decisionResult.capability,
+      originalResult: decisionResult,
+      status: "PENDING",
+      createdAt: new Date().toISOString(),
+    };
+    this.items.set(reviewId, item);
+
+    new EventDispatcher().dispatch(
+      "intelligence.review.required",
+      { reviewId, decisionId: decisionResult.decisionId, capability: decisionResult.capability },
+      "system.intelligence",
+    );
+
+    return item;
+  }
+
+  public resolve(
+    reviewId: string,
+    resolution: {
+      status: "APPROVED" | "REJECTED" | "CORRECTED";
+      humanValue?: unknown;
+      humanReason?: string;
+      actorId?: string;
+    },
+  ): ReviewItem | undefined {
+    const item = this.items.get(reviewId);
+    if (!item) return undefined;
+
+    item.status = resolution.status;
+    item.humanValue = resolution.humanValue;
+    item.humanReason = resolution.humanReason;
+    item.actorId = resolution.actorId;
+    item.resolvedAt = new Date().toISOString();
+
+    IntelligenceMetricsCollector.getInstance().recordHumanOverride();
+
+    new EventDispatcher().dispatch(
+      "intelligence.review.completed",
+      { reviewId, decisionId: item.decisionId, status: item.status, actorId: item.actorId },
+      "system.intelligence",
+    );
+
+    return item;
+  }
+
+  public listPending(): ReviewItem[] {
+    return Array.from(this.items.values()).filter((i) => i.status === "PENDING");
+  }
+
+  public get(id: string): ReviewItem | undefined {
+    return this.items.get(id);
+  }
+}
+
+export class IntelligenceMetricsCollector {
+  private static instance: IntelligenceMetricsCollector;
+  private totalDecisions = 0;
+  private totalCostAmount = 0;
+  private totalTokens = 0;
+  private humanOverrides = 0;
+  private fallbackCount = 0;
+
+  private constructor() {}
+
+  public static getInstance(): IntelligenceMetricsCollector {
+    if (!IntelligenceMetricsCollector.instance) {
+      IntelligenceMetricsCollector.instance = new IntelligenceMetricsCollector();
+    }
+    return IntelligenceMetricsCollector.instance;
+  }
+
+  public recordDecision(result: DecisionResult): void {
+    this.totalDecisions++;
+    this.totalCostAmount += result.estimatedCostAmount || 0;
+    this.totalTokens += result.estimatedCostTokens || 0;
+  }
+
+  public recordHumanOverride(): void {
+    this.humanOverrides++;
+  }
+
+  public recordFallback(): void {
+    this.fallbackCount++;
+  }
+
+  public getSnapshot() {
+    const overrideRate = this.totalDecisions > 0 ? (this.humanOverrides / this.totalDecisions) * 100 : 0;
+    return {
+      totalDecisions: this.totalDecisions,
+      totalCostAmount: Number(this.totalCostAmount.toFixed(4)),
+      totalTokens: this.totalTokens,
+      humanOverrides: this.humanOverrides,
+      overrideRate: Number(overrideRate.toFixed(2)),
+      fallbackCount: this.fallbackCount,
+    };
+  }
+}
+
 export class MockDecisionProvider implements DecisionProvider {
   public id = "mock";
   public name = "Mock Intelligence Provider";
 
   public async isAvailable(): Promise<boolean> {
-    return true;
+    return !IntelligenceKillSwitch.getInstance().isProviderDisabled(this.id);
   }
 
   public async decide<TState = unknown, TResult = unknown>(
@@ -196,6 +420,9 @@ export class ProviderRouter {
     const cap = CapabilityRegistry.getInstance().get(capabilityName);
     if (cap) {
       for (const pId of cap.allowedProviders) {
+        if (IntelligenceKillSwitch.getInstance().isProviderDisabled(pId)) {
+          continue;
+        }
         const provider = this.providers.get(pId);
         if (provider && (await provider.isAvailable())) {
           return provider;
@@ -203,9 +430,10 @@ export class ProviderRouter {
       }
     }
     const fallback = this.providers.get(this.defaultProviderId) || this.providers.get("mock");
-    if (!fallback) {
+    if (!fallback || !(await fallback.isAvailable())) {
       throw new Error(`No available intelligence provider found for capability [${capabilityName}]`);
     }
+    IntelligenceMetricsCollector.getInstance().recordFallback();
     return fallback;
   }
 }
@@ -224,6 +452,10 @@ export class IntelligenceRuntime {
   public async decide<TState = unknown, TResult = unknown>(
     request: DecisionRequest<TState>,
   ): Promise<DecisionResult<TResult>> {
+    if (IntelligenceKillSwitch.getInstance().isCapabilityDisabled(request.capability)) {
+      throw new Error(`Intelligence capability [${request.capability}] is disabled by Kill Switch`);
+    }
+
     const provider = await this.router.resolveProvider(request.capability);
     const cap = CapabilityRegistry.getInstance().get(request.capability);
 
@@ -238,7 +470,29 @@ export class IntelligenceRuntime {
       policy: mergedPolicy,
     };
 
-    return await provider.decide<TState, TResult>(requestWithPolicy);
+    const result = await provider.decide<TState, TResult>(requestWithPolicy);
+
+    // Record metrics & cost
+    IntelligenceMetricsCollector.getInstance().recordDecision(result);
+
+    // Human Review Queue trigger if confidence falls below assisted/automatic threshold
+    if (result.confidenceLevel === "HUMAN" && cap?.humanReviewSupported) {
+      HumanReviewQueue.getInstance().enqueue(result);
+    }
+
+    new EventDispatcher().dispatch(
+      "intelligence.decision.completed",
+      {
+        decisionId: result.decisionId,
+        capability: result.capability,
+        provider: result.provider,
+        confidence: result.confidence,
+        confidenceLevel: result.confidenceLevel,
+      },
+      "system.intelligence",
+    );
+
+    return result;
   }
 
   public async decideBundle(

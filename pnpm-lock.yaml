@@ -892,7 +892,7 @@ importers:
         version: link:../../ports/intelligence
     devDependencies:
       typescript:
-        specifier: ^5.8.2
+        specifier: ^5.7.0
         version: 5.9.3
 
   packages/adapters/kafka:
@@ -1528,7 +1528,7 @@ importers:
         version: link:../ports/intelligence
     devDependencies:
       typescript:
-        specifier: ^5.8.2
+        specifier: ^5.7.0
         version: 5.9.3
 
   packages/mcp:
@@ -1711,13 +1711,9 @@ importers:
         version: 5.9.3
 
   packages/ports/intelligence:
-    dependencies:
-      '@mosaix/schemas':
-        specifier: workspace:*
-        version: link:../../schemas
     devDependencies:
       typescript:
-        specifier: ^5.8.2
+        specifier: ^5.7.0
         version: 5.9.3
 
   packages/ports/logging:

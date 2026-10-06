@@ -24,6 +24,7 @@ import { handleAuthRoutes } from "./routes/auth-routes.js";
 import { handleFeedRoutes } from "./routes/feed-routes.js";
 import { handleComplianceAndSystemRoutes } from "./routes/compliance-routes.js";
 import { handleMobileRoutes } from "./routes/mobile-routes.js";
+import { handleIntelligenceRoutes } from "./routes/intelligence-routes.js";
 import { FeedMetricsCollector } from "@mosaix/feed-engine";
 
 export interface ApiDispatcherContext {
@@ -132,6 +133,11 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
 // 9. Mobile Bridge (PKCE, FCM Push, Delta Sync, Codegen)
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.feedService, ctx.db),
+);
+
+// 10. Intelligence Core API
+apiRouteRegistry.register((req, res) =>
+  handleIntelligenceRoutes(req, res),
 );
 
 export async function dispatchApiRequest(
