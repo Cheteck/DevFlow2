@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   AIPolicy,
   CapabilityDefinition,
@@ -246,7 +247,7 @@ export class HumanReviewQueue {
   }
 
   public enqueue(decisionResult: DecisionResult): ReviewItem {
-    const reviewId = `rev-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const reviewId = `rev-${randomUUID()}`;
     const item: ReviewItem = {
       id: reviewId,
       decisionId: decisionResult.decisionId,
@@ -284,7 +285,10 @@ export class HumanReviewQueue {
     item.actorId = resolution.actorId;
     item.resolvedAt = new Date().toISOString();
 
-    IntelligenceMetricsCollector.getInstance().recordHumanOverride();
+    // Only record human override rate when the AI prediction was modified or rejected
+    if (resolution.status === "CORRECTED" || resolution.status === "REJECTED") {
+      IntelligenceMetricsCollector.getInstance().recordHumanOverride();
+    }
 
     new EventDispatcher().dispatch(
       "intelligence.review.completed",
@@ -385,7 +389,7 @@ export class MockDecisionProvider implements DecisionProvider {
     const level = ConfidenceEngine.evaluateLevel(confidence, thresholds);
 
     return {
-      decisionId: `dec-mock-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      decisionId: `dec-mock-${randomUUID()}`,
       capability: request.capability,
       value: mockValue as TResult,
       confidence,
@@ -499,28 +503,38 @@ export class IntelligenceRuntime {
     bundleRequest: DecisionBundleRequest,
   ): Promise<DecisionBundleResult> {
     const start = Date.now();
+    const entries = Object.entries(bundleRequest.decisions);
+
+    const settledResults = await Promise.allSettled(
+      entries.map(async ([key, subConfig]) => {
+        const capName = subConfig.capability || `${bundleRequest.capability}.${key}`;
+        const singleReq: DecisionRequest = {
+          capability: capName,
+          state: bundleRequest.state,
+          context: bundleRequest.context,
+        };
+        const res = await this.decide(singleReq);
+        return { key, res };
+      }),
+    );
+
     const results: Record<string, DecisionResult> = {};
     let totalConfidence = 0;
     let count = 0;
 
-    for (const [key, subConfig] of Object.entries(bundleRequest.decisions)) {
-      const capName = subConfig.capability || `${bundleRequest.capability}.${key}`;
-      const singleReq: DecisionRequest = {
-        capability: capName,
-        state: bundleRequest.state,
-        context: bundleRequest.context,
-      };
-      const result = await this.decide(singleReq);
-      results[key] = result;
-      totalConfidence += result.confidence;
-      count++;
+    for (const settled of settledResults) {
+      if (settled.status === "fulfilled") {
+        results[settled.value.key] = settled.value.res;
+        totalConfidence += settled.value.res.confidence;
+        count++;
+      }
     }
 
     const provider = count > 0 ? Object.values(results)[0].provider : "mock";
     const model = count > 0 ? Object.values(results)[0].model : "unknown";
 
     return {
-      bundleId: `bundle-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      bundleId: `bundle-${randomUUID()}`,
       capability: bundleRequest.capability,
       results,
       overallConfidence: count > 0 ? totalConfidence / count : 1.0,

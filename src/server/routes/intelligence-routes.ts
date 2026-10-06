@@ -1,5 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { URL } from "node:url";
 import {
+  type AIPolicy,
   HumanReviewQueue,
   IntelligenceMetricsCollector,
   IntelligenceRuntime,
@@ -37,10 +39,11 @@ export async function handleIntelligenceRoutes(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<boolean> {
-  const url = req.url || "/";
+  const parsedUrl = new URL(req.url || "/", "http://localhost");
+  const pathname = parsedUrl.pathname;
   const method = req.method || "GET";
 
-  if (url === "/api/intelligence/decide" && method === "POST") {
+  if (pathname === "/api/intelligence/decide" && method === "POST") {
     try {
       const body = await parseJsonBody<{
         capability: string;
@@ -63,14 +66,15 @@ export async function handleIntelligenceRoutes(
     return true;
   }
 
-  if (url === "/api/intelligence/review-queue" && method === "GET") {
+  if (pathname === "/api/intelligence/review-queue" && method === "GET") {
     const items = HumanReviewQueue.getInstance().listPending();
     jsonResponse(res, 200, { status: "success", data: items });
     return true;
   }
 
-  if (url.startsWith("/api/intelligence/review-queue/") && url.endsWith("/resolve") && method === "POST") {
-    const reviewId = url.split("/")[4];
+  const resolveMatch = pathname.match(/^\/api\/intelligence\/review-queue\/([^/]+)\/resolve$/);
+  if (resolveMatch && method === "POST") {
+    const reviewId = resolveMatch[1];
     try {
       const body = await parseJsonBody<{
         status: "APPROVED" | "REJECTED" | "CORRECTED";
@@ -90,7 +94,7 @@ export async function handleIntelligenceRoutes(
     return true;
   }
 
-  if (url === "/api/intelligence/metrics" && method === "GET") {
+  if (pathname === "/api/intelligence/metrics" && method === "GET") {
     const snapshot = IntelligenceMetricsCollector.getInstance().getSnapshot();
     jsonResponse(res, 200, { status: "success", data: snapshot });
     return true;
