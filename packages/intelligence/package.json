@@ -1,0 +1,31 @@
+{
+  "name": "@mosaix/intelligence",
+  "version": "1.0.0",
+  "description": "MosaiX Intelligence Core decision engine, capability registry, and provider routing",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsc --build --watch",
+    "build": "tsc --build",
+    "clean": "rimraf dist"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@mosaix/ports-intelligence": "workspace:*",
+    "@mosaix/events": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}

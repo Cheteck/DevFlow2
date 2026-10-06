@@ -882,6 +882,19 @@ importers:
         specifier: ^3.0.0
         version: 3.2.7(@types/node@25.9.7)(tsx@4.23.13)
 
+  packages/adapters/intelligence-typesafe:
+    dependencies:
+      '@mosaix/intelligence':
+        specifier: workspace:*
+        version: link:../../intelligence
+      '@mosaix/ports-intelligence':
+        specifier: workspace:*
+        version: link:../../ports/intelligence
+    devDependencies:
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+
   packages/adapters/kafka:
     dependencies:
       '@mosaix/ports-pubsub':
@@ -1015,6 +1028,25 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/node@25.9.7)(tsx@4.23.13)
+
+  packages/adapters/session-store-postgres:
+    dependencies:
+      '@mosaix/ports-database':
+        specifier: workspace:*
+        version: link:../../ports/database
+      '@mosaix/ports-session-store':
+        specifier: workspace:*
+        version: link:../../ports/session-store
+    devDependencies:
+      '@mosaix/adapter-database-sqlite':
+        specifier: workspace:*
+        version: link:../database-sqlite
+      typescript:
+        specifier: ^5.0.0
         version: 5.9.3
       vitest:
         specifier: ^3.0.0
@@ -1486,6 +1518,19 @@ importers:
         specifier: ^3.0.0
         version: 3.2.7(@types/node@25.9.7)(tsx@4.23.13)
 
+  packages/intelligence:
+    dependencies:
+      '@mosaix/events':
+        specifier: workspace:*
+        version: link:../events
+      '@mosaix/ports-intelligence':
+        specifier: workspace:*
+        version: link:../ports/intelligence
+    devDependencies:
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+
   packages/mcp:
     dependencies:
       '@mosaix/contracts':
@@ -1663,6 +1708,16 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.7.0
+        version: 5.9.3
+
+  packages/ports/intelligence:
+    dependencies:
+      '@mosaix/schemas':
+        specifier: workspace:*
+        version: link:../../schemas
+    devDependencies:
+      typescript:
+        specifier: ^5.8.2
         version: 5.9.3
 
   packages/ports/logging:
