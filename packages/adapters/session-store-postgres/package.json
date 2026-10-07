@@ -17,5 +17,12 @@
     "@mosaix/adapter-database-sqlite": "workspace:*",
     "typescript": "^5.0.0",
     "vitest": "^3.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
   }
 }
