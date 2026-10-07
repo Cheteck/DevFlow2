@@ -24,6 +24,7 @@
     "@mosaix/control-plane": "workspace:*",
     "@mosaix/core": "workspace:*",
     "@mosaix/http": "workspace:*",
+    "@mosaix/intelligence": "workspace:*",
     "@mosaix/migrations": "workspace:*",
     "@mosaix/plugin-engine": "workspace:*",
     "@mosaix/ports-feature-flags": "workspace:*",
@@ -33,8 +34,7 @@
     "@mosaix/telemetry": "workspace:*",
     "@mosaix/types": "workspace:*",
     "@mosaix/ui-runtime": "workspace:*",
-    "zod": "^3.25.76",
-    "@mosaix/intelligence": "workspace:*"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

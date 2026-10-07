@@ -26,6 +26,9 @@ importers:
       '@mosaix/adapter-identity-store-sqlite':
         specifier: workspace:*
         version: link:packages/adapters/identity-store-sqlite
+      '@mosaix/adapter-intelligence-typesafe':
+        specifier: workspace:*
+        version: link:packages/adapters/intelligence-typesafe
       '@mosaix/cli':
         specifier: workspace:*
         version: link:packages/cli
@@ -44,6 +47,9 @@ importers:
       '@mosaix/http':
         specifier: workspace:*
         version: link:packages/http
+      '@mosaix/intelligence':
+        specifier: workspace:*
+        version: link:packages/intelligence
       '@mosaix/migrations':
         specifier: workspace:*
         version: link:packages/migrations
@@ -56,6 +62,9 @@ importers:
       '@mosaix/ports-identity-store':
         specifier: workspace:*
         version: link:packages/ports/identity-store
+      '@mosaix/ports-intelligence':
+        specifier: workspace:*
+        version: link:packages/ports/intelligence
       '@mosaix/schemas':
         specifier: workspace:*
         version: link:packages/schemas
