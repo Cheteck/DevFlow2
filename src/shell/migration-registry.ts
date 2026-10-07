@@ -29,7 +29,6 @@ export function createShellMigrationRegistry(
   if (dialect === "postgres") {
     // Fresh Postgres DB: use minimal core (only truly shell-owned tables)
     // to avoid resource collisions with BAC migrations (DB-BAC-OWNERSHIP).
-    // Skip ShellPostgresPatchProvider — it targets tables from shell.core.v1.002
     // (user_subscriptions) and shell.core.v1.001 (beam_messages, solidarity_contributions)
     // which are now owned by BACs or not created by minimal core.
     registry.register(new MinimalCoreMigrationProvider());

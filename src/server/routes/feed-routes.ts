@@ -11,9 +11,6 @@ import type { FeedService } from "../../shell/feed-service.js";
 import type { DistributedEventBackplane } from "../../shell/event-backplane.js";
 import type { UserProfile } from "../../shell/profiles.js";
 import { readLimitedJson } from "../utils/safe-body-parser.js";
-import { FeedMetricsCollector } from "@mosaix/feed-engine";
-import { platformFeatureFlags } from "../../shell/feature-flags.js";
-import { sendProblemResponse } from "../../shell/http-errors.js";
 
 export async function handleFeedRoutes(
   req: http.IncomingMessage,
@@ -26,18 +23,6 @@ export async function handleFeedRoutes(
   const pathname = parsedUrl.pathname;
 
   if (pathname === "/api/feed") {
-    // Server-side feature flag check for Solara / Feed feature
-    const isFeedEnabled = platformFeatureFlags.isEnabledSync("apps.solara.enabled", true);
-    if (!isFeedEnabled) {
-      sendProblemResponse(
-        res,
-        503,
-        "Feature Disabled",
-        "Le module de fil d'actualité Solara est actuellement désactivé par l'administration."
-      );
-      return true;
-    }
-
     if (req.method === "POST") {
       try {
         const data = await readLimitedJson<{ content?: string }>(req);
@@ -52,11 +37,14 @@ export async function handleFeedRoutes(
             timestamp: "À l'instant",
             likes: 0,
           };
-
+          // Demo-only mirror: the in-memory feedStore (seeded with mock
+          // posts) is disabled when demo mode is off
+          // (MOSAIX_DEMO_USERS=false) — persistence goes to the database.
           if (isDemoMode()) {
             feedStore.unshift(newPost);
           }
 
+          // Persist with FeedService
           await feedService
             .addItem({
               type: "post",
@@ -67,6 +55,7 @@ export async function handleFeedRoutes(
             })
             .catch((err) => { console.warn("[Feed] Persist post error:", err); });
 
+          // Broadcast via distributed event backplane
           eventBackplane.publish("solara.post.published", { post: newPost });
 
           res.writeHead(201, { "Content-Type": "application/json" });
@@ -82,23 +71,15 @@ export async function handleFeedRoutes(
       return true;
     }
 
-    // Keyset & mode pagination query parsing
+    // Keyset pagination query parsing
     const limit = parseInt(parsedUrl.searchParams.get("limit") || "20", 10);
     const cursor = parsedUrl.searchParams.get("cursor")
       ? parseInt(parsedUrl.searchParams.get("cursor")!, 10)
       : undefined;
     const category = parsedUrl.searchParams.get("category") || undefined;
 
-    let paginated = null;
-    try {
-      paginated = await feedService.getFeed({ limit, cursor, category });
-    } catch (err) {
-      console.warn("[Feed] Get feed error:", err);
-    }
-
+    let paginated = null; try { paginated = await feedService.getFeed({ limit, cursor, category }); } catch (err) { console.warn("[Feed] Get feed error:", err); }
     if (paginated && paginated.items.length > 0) {
-      FeedMetricsCollector.recordImpression(paginated.items.length);
-
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -122,10 +103,9 @@ export async function handleFeedRoutes(
       return true;
     }
 
-    if (isDemoMode()) {
-      FeedMetricsCollector.recordImpression(feedStore.length);
-    }
-
+    // Empty database: serve the in-memory mock posts ONLY in demo mode.
+    // With MOSAIX_DEMO_USERS=false the API returns an empty feed instead
+    // of mock content.
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ posts: isDemoMode() ? feedStore : [], hasMore: false }));
     return true;

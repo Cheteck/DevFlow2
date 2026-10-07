@@ -418,7 +418,7 @@ export class RuntimeKernel {
   registerCapabilityExecutor(capabilityId: string, executor: CapabilityExecutor): void {
     const entry = this.context.capabilities.resolve(capabilityId);
     if (!entry) {
-      throw new CapabilityError('Unknown capability: ' + capabilityId, { capabilityId });
+      throw new CapabilityError(`Unknown capability: ${capabilityId}`, { capabilityId });
     }
     this.executors.set(capabilityId, executor);
     (entry as unknown as { executor: CapabilityExecutor }).executor = executor;
@@ -461,37 +461,6 @@ export class RuntimeKernel {
     });
   }
 
-
-  private async checkFeatureEnabled(flagKey: string, context?: { userId?: string; tenantId?: string }, defaultValue = true): Promise<boolean> {
-    try {
-      if (this.context.hasService("featureFlags")) {
-        const port = this.context.getService<import("@mosaix/ports-feature-flags").FeatureFlagsPort>("featureFlags");
-        if (port && typeof port.isEnabled === "function") {
-          return await port.isEnabled(flagKey, context, defaultValue);
-        }
-      }
-      if (this.context.container.has("featureFlags")) {
-        const port = this.context.container.resolve<import("@mosaix/ports-feature-flags").FeatureFlagsPort>("featureFlags");
-        if (port && typeof port.isEnabled === "function") {
-          return await port.isEnabled(flagKey, context, defaultValue);
-        }
-      }
-      const g = globalThis as unknown as Record<string, Record<string, boolean | string>>;
-      if (typeof globalThis !== "undefined" && g.__mosaix_feature_flags) {
-        if (flagKey in g.__mosaix_feature_flags) {
-          return Boolean(g.__mosaix_feature_flags[flagKey]);
-        }
-      }
-      const envKey = flagKey.toUpperCase().replace(/\./g, "_");
-      if (typeof process !== "undefined" && process.env && process.env[envKey] !== undefined) {
-        return process.env[envKey] === "true" || process.env[envKey] === "1";
-      }
-    } catch {
-      // safe fallback
-    }
-    return defaultValue;
-  }
-
   async executeCapability(
     capabilityId: string,
     callerApp: string,
@@ -501,17 +470,6 @@ export class RuntimeKernel {
     const entry = this.context.capabilities.resolve(capabilityId);
     if (!entry) {
       throw new CapabilityError(`Unknown capability: ${capabilityId}`, { capabilityId });
-    }
-    // 0. Server-side Feature Flag Control
-    const cleanOwner = entry.ownerApp.replace(/^@apps\//, "");
-    const appFlagKey = `apps.${cleanOwner}.enabled`;
-    const isAppEnabled = await this.checkFeatureEnabled(appFlagKey, { userId: callerApp, tenantId: tenant.organizationId }, true);
-    if (!isAppEnabled) {
-      throw new CapabilityError(`Application [${entry.ownerApp}] is disabled by feature flag [${appFlagKey}].`, { capabilityId, callerApp, flagKey: appFlagKey });
-    }
-    const isCapEnabled = await this.checkFeatureEnabled(capabilityId, { userId: callerApp, tenantId: tenant.organizationId }, true);
-    if (!isCapEnabled) {
-      throw new CapabilityError(`Capability [${capabilityId}] is disabled by feature flag [${capabilityId}].`, { capabilityId, callerApp, flagKey: capabilityId });
     }
     // 1. permission execute:<tenant> — le domaine est dérivé de l'entry, pas
     // du caller. Les ids techniques "@apps/<app>" mappent vers le domaine

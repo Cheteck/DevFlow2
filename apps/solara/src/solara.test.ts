@@ -1,4 +1,3 @@
-import { SolaraSocialService, postToFeedPost } from "./index.js";
 import { describe, expect, it } from "vitest";
 import { createSolaraComposition } from "./composition-root";
 import { SolaraContentModeratorPlugin } from "@mosaix-plugin/solara-content-moderator";
@@ -136,59 +135,5 @@ describe("MosaiX Solara Extensible Social Engine Suite", () => {
     // Convention repo : MANIFEST.id = "@apps/<app>" (cf. test commerce).
     expect(adminPages[0]?.applicationId).toBe("@apps/solara");
     expect(adminPages[0]?.pageId).toBe("social-moderation");
-  });
-});
-
-describe("Solara BAC N1 Multi-Source & Adapter", () => {
-  it("should aggregate multi-source feeds and deduplicate by post id", async () => {
-    const service = new SolaraSocialService();
-    const post1 = await service.createPost("user", "usr-1", "feed", "global", "Post 1", "text");
-    const post2 = await service.createPost("user", "usr-2", "feed", "global", "Post 2", "text");
-
-    await service.followActor("user", "usr-follower", "user", "usr-1");
-
-    const multiFeed = service.listFeedMultiSource("usr-follower", "for_you");
-    expect(multiFeed.length).toBe(2);
-    expect(multiFeed.map((p) => p.id)).toContain(post1.id);
-    expect(multiFeed.map((p) => p.id)).toContain(post2.id);
-
-    const feedPost = postToFeedPost(post1);
-    expect(feedPost.id).toBe(post1.id);
-    expect(feedPost.actorId).toBe("usr-1");
-  });
-});
-
-describe("Solara BAC ForYou Affinity & Outbound Follows", () => {
-  it("should correctly resolve outbound followed targets and boost affinity score", async () => {
-    const service = new SolaraSocialService();
-    await service.followActor("user", "usr-me", "user", "usr-followed-author");
-
-    const followedTargets = service.getFollowedTargets("usr-me");
-    expect(followedTargets).toContain("usr-followed-author");
-
-    const followedPost = await service.createPost("user", "usr-followed-author", "feed", "global", "Post by Followed", "text");
-    const _strangerPost = await service.createPost("user", "usr-stranger", "feed", "global", "Post by Stranger", "text");
-
-    const multiFeed = service.listFeedMultiSource("usr-me", "for_you");
-    expect(multiFeed.length).toBe(2);
-    expect(multiFeed[0].id).toBe(followedPost.id);
-  });
-});
-
-describe("Solara BAC ForYou Affinity Test #2 (Low Velocity Followed vs Viral Stranger)", () => {
-  it("should prioritize low-velocity followed author over viral stranger author using deterministic seed", async () => {
-    const service = new SolaraSocialService();
-    await service.followActor("user", "usr-me", "user", "usr-followed-author");
-
-    // Low velocity followed post
-    const lowVelFollowedPost = await service.createPost("user", "usr-followed-author", "feed", "global", "Low velocity followed post", "text");
-
-    // Viral stranger post (100 likes)
-    const viralStrangerPost = await service.createPost("user", "usr-stranger", "feed", "global", "Viral stranger post", "text");
-    viralStrangerPost.likeCount = 100;
-
-    const multiFeed = service.listFeedMultiSource("usr-me", "for_you");
-    expect(multiFeed.length).toBe(2);
-    expect(multiFeed[0].id).toBe(lowVelFollowedPost.id);
   });
 });

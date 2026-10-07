@@ -4,7 +4,7 @@ import {
   IntelligenceKillSwitch,
   IntelligenceMetricsCollector,
   IntelligenceRuntime,
-} from "../packages/intelligence/src/index.js";
+} from "@mosaix/intelligence";
 import { createImperiaDescriptor } from "../apps/imperia/src/presentation/imperia-view.js";
 
 describe("IJIDeals Intelligence Core — Advanced Runtime & Human Review", () => {
@@ -31,7 +31,6 @@ describe("IJIDeals Intelligence Core — Advanced Runtime & Human Review", () =>
     expect(pendingItem).toBeDefined();
 
     if (pendingItem) {
-      // APPROVED does not increase override count
       const initialSnapshot = IntelligenceMetricsCollector.getInstance().getSnapshot();
       const resolvedApproved = queue.resolve(pendingItem.id, {
         status: "APPROVED",
@@ -41,7 +40,6 @@ describe("IJIDeals Intelligence Core — Advanced Runtime & Human Review", () =>
       const postApprovedSnapshot = IntelligenceMetricsCollector.getInstance().getSnapshot();
       expect(postApprovedSnapshot.humanOverrides).toBe(initialSnapshot.humanOverrides);
 
-      // CORRECTED increases override count
       const item2 = queue.enqueue(decision);
       queue.resolve(item2.id, {
         status: "CORRECTED",

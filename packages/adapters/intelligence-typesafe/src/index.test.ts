@@ -8,7 +8,6 @@ describe("TypeSafe / Jev System One Intelligence Adapter", () => {
     const router = new ProviderRouter();
     router.register(jevProvider);
 
-    // Update capability allowedProviders priority so typesafe is tried first
     const cap = CapabilityRegistry.getInstance().get("commerce.product.classify");
     if (cap) {
       cap.allowedProviders = ["typesafe", "mock"];

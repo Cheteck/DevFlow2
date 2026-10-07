@@ -46,39 +46,3 @@ export interface IdentityStore {
     externalId: string,
   ): Promise<void>;
 }
-
-
-export interface IdentityAuthenticationInput {
-  email?: string;
-  username?: string;
-  password?: string;
-  provider?: string;
-  token?: string;
-}
-
-export interface IdentityAuthenticationResult {
-  success: boolean;
-  identity?: Identity;
-  error?: string;
-  mfaRequired?: boolean;
-}
-
-export interface IdentityAuthenticationPort {
-  authenticate(input: IdentityAuthenticationInput): Promise<IdentityAuthenticationResult>;
-}
-
-export interface IdentityRegistrationInput {
-  email: string;
-  password?: string;
-  displayName?: string;
-  tenantId?: string;
-}
-
-export interface IdentityRegistrationPort {
-  register(input: IdentityRegistrationInput): Promise<Identity>;
-}
-
-export interface IdentityProfilePort {
-  getProfile(identityId: string): Promise<Identity | null>;
-  updateProfile(identityId: string, profile: Partial<Identity>): Promise<Identity>;
-}

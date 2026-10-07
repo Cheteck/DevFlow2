@@ -1,13 +1,10 @@
 /**
- * @mosaix/feed-engine — Shared Extensible Feed & Publication Pipeline
+ * @mosaix/feed-engine ÔÇö Shared Extensible Feed & Publication Pipeline
  * Decoupled from any specific BAC, provides ActivityStreams-like structures,
  * component resolvers, render interceptors, high-performance feed aggregators,
  * activity grouping, event publishing, caching interfaces, pagination,
- * relevance scoring, ActivityStreams 2.0 serialization, MMR diversity reranking,
- * and feed metrics.
+ * relevance scoring, and ActivityStreams 2.0 serialization.
  */
-
-import { DiversityReranker, type DiversityRerankerOptions } from "./velocity-calculator.js";
 
 export type SocialActorType = "user" | "space" | "organization" | "system";
 
@@ -117,6 +114,7 @@ export interface FeedCardContext {
 
 /**
  * Trait 1: Feedable
+ * Implemented by domain entities to declare their ability to project themselves into a feed.
  */
 export interface FeedProjection {
   publicationType: PublicationType;
@@ -134,6 +132,9 @@ export interface Feedable {
   toFeedProjection(): FeedProjection;
 }
 
+/**
+ * Type Guard for Feedable trait
+ */
 export function isFeedable(entity: unknown): entity is Feedable {
   return (
     typeof entity === "object" &&
@@ -145,6 +146,7 @@ export function isFeedable(entity: unknown): entity is Feedable {
 
 /**
  * Trait 2: Engageable
+ * Implemented by entities to declare social engagement rules (reactions, comments).
  */
 export type ReactionType =
   "like" | "love" | "laugh" | "surprised" | "sad" | "angry";
@@ -163,6 +165,9 @@ export interface Engageable {
   getEngagementPolicy?(): EngagementPolicy;
 }
 
+/**
+ * Type Guard for Engageable trait
+ */
 export function isEngageable(entity: unknown): entity is Engageable {
   return (
     typeof entity === "object" &&
@@ -172,6 +177,9 @@ export function isEngageable(entity: unknown): entity is Engageable {
   );
 }
 
+/**
+ * Reaction & Comment Data Contracts
+ */
 export interface FeedReaction {
   id: string;
   targetType: "post" | "comment" | "custom";
@@ -200,6 +208,9 @@ export interface StructuredFeedCard {
   fallbackHtml: string;
 }
 
+/**
+ * 1. Component Renderer Interfaces
+ */
 export interface FeedComponentRenderer {
   publicationType: PublicationType;
   render(post: FeedPost, context: FeedCardContext): string;
@@ -213,6 +224,9 @@ export interface FeedStructuredRenderer {
   ): StructuredFeedCard;
 }
 
+/**
+ * 2. Feed Post Interceptor (Middleware Pipeline)
+ */
 export interface FeedPostInterceptor {
   name?: string;
   priority: number;
@@ -221,6 +235,9 @@ export interface FeedPostInterceptor {
   batchIntercept?(posts: FeedPost[]): Promise<FeedPost[]>;
 }
 
+/**
+ * 3. Stateful FeedEngine Instance
+ */
 export class FeedEngine {
   private renderers = new Map<string, FeedComponentRenderer>();
   private structuredRenderers = new Map<string, FeedStructuredRenderer>();
@@ -362,6 +379,9 @@ export class FeedEngine {
   }
 }
 
+/**
+ * 4. Static Proxy Registry
+ */
 export class FeedEngineRegistry {
   private static defaultInstance = new FeedEngine();
 
@@ -415,6 +435,9 @@ export class FeedEngineRegistry {
   }
 }
 
+/**
+ * 5. Feed Aggregation Utility
+ */
 export interface FeedAggregationOptions {
   followedSpaceIds?: string[];
   followedGroupIds?: string[];
@@ -545,6 +568,10 @@ export class FeedAggregator {
   }
 }
 
+/**
+ * 6. Activity Grouper / Aggregation Utility
+ * Groups notification-like repetitive activities (e.g., "Alice, Bob and 3 others liked your post")
+ */
 export class ActivityGrouper {
   public static groupActivities(
     posts: FeedPost[],
@@ -597,12 +624,18 @@ export class ActivityGrouper {
   }
 }
 
+/**
+ * 7. Feed Event Publisher Port Integration
+ */
 export interface FeedEventPublisher {
   publishPostCreated(post: FeedPost): Promise<void>;
   publishPostUpdated(post: FeedPost): Promise<void>;
   publishPostDeleted(postId: string): Promise<void>;
 }
 
+/**
+ * 8. Feed Cache Port Interface
+ */
 export interface FeedCachePort {
   getFeed(feedKey: string): Promise<FeedPost[] | null>;
   setFeed(
@@ -613,6 +646,9 @@ export interface FeedCachePort {
   invalidateFeed(feedKey: string): Promise<void>;
 }
 
+/**
+ * 9. Feed Relevance Scorer
+ */
 export class FeedScorer {
   public static calculateScore(
     post: FeedPost,
@@ -633,6 +669,9 @@ export class FeedScorer {
   }
 }
 
+/**
+ * 10. Feed Cursor-Based Paginator
+ */
 export interface PaginationOptions {
   limit?: number;
   cursor?: string;
@@ -640,7 +679,7 @@ export interface PaginationOptions {
 
 export interface PaginatedFeedOptions {
   limit?: number;
-  afterCursor?: string;
+  afterCursor?: string; // ISO date or Post ID
   beforeCursor?: string;
 }
 
@@ -717,6 +756,9 @@ export class FeedPaginator {
   }
 }
 
+/**
+ * 11. ActivityStreams 2.0 & JSON Feed Serializer
+ */
 export interface ActivityStreamObject {
   "@context"?: string | string[];
   id: string;
@@ -845,6 +887,10 @@ export class ActivityStreamsMapper {
   }
 }
 
+/**
+ * 12. W3C ActivityStreams / ActivityPub Converter Utility
+ * Enables interop and federation between MosaiX instances.
+ */
 export interface ActivityStreamsNote {
   "@context": "https://www.w3.org/ns/activitystreams";
   id: string;
@@ -857,6 +903,9 @@ export interface ActivityStreamsNote {
 }
 
 export class ActivityStreamsConverter {
+  /**
+   * Converts a FeedPost to W3C ActivityStreams format
+   */
   public static toActivityPubJSON(
     post: FeedPost,
     instanceDomain = "mosaix.local",
@@ -876,6 +925,9 @@ export class ActivityStreamsConverter {
     };
   }
 
+  /**
+   * Converts an ActivityStreams note to a FeedPost
+   */
   public static fromActivityPubJSON(note: ActivityStreamsNote): FeedPost {
     const matchActor = note.attributedTo.match(/actors\/([^/]+)\/([^/]+)$/);
     const actorType = (matchActor ? matchActor[1] : "user") as SocialActorType;
@@ -897,15 +949,21 @@ export class ActivityStreamsConverter {
   }
 }
 
+/**
+ * 13. Sponsored / Promoted Publications Contract
+ */
 export interface SponsoredPost extends FeedPost {
   isSponsored: true;
   sponsorName: string;
-  sponsorBadge?: string;
-  ctaText?: string;
+  sponsorBadge?: string; // e.g., "Sponsoris├®", "Sponsoris├® par MosaiX"
+  ctaText?: string; // e.g., "D├®couvrir l'offre", "R├®server un cr├®neau"
   ctaUrl?: string;
   campaignId: string;
 }
 
+/**
+ * Type Guard for SponsoredPost
+ */
 export function isSponsoredPost(post: unknown): post is SponsoredPost {
   return (
     typeof post === "object" &&
@@ -915,11 +973,14 @@ export function isSponsoredPost(post: unknown): post is SponsoredPost {
   );
 }
 
+/**
+ * 14. Algorithmic Feed Ranking & Scoring Engine
+ */
 export interface FeedRankingWeights {
-  recencyWeight?: number;
-  engagementWeight?: number;
-  affinityWeight?: number;
-  timeDecayHalfLifeHours?: number;
+  recencyWeight?: number; // default: 0.4
+  engagementWeight?: number; // default: 0.3
+  affinityWeight?: number; // default: 0.3
+  timeDecayHalfLifeHours?: number; // default: 24h
 }
 
 export interface FeedRankingContext {
@@ -928,6 +989,9 @@ export interface FeedRankingContext {
 }
 
 export class FeedRanker {
+  /**
+   * Computes a relevance score for a FeedPost given ranking weights and user context.
+   */
   public static calculateScore(
     post: FeedPost,
     context: FeedRankingContext = {},
@@ -939,6 +1003,7 @@ export class FeedRanker {
       timeDecayHalfLifeHours: context.weights?.timeDecayHalfLifeHours ?? 24,
     };
 
+    // A. Recency Decay (exponential decay)
     const ageInHours = Math.max(
       0,
       (Date.now() - post.createdAt.getTime()) / (1000 * 60 * 60),
@@ -948,10 +1013,12 @@ export class FeedRanker {
       ageInHours / weights.timeDecayHalfLifeHours,
     );
 
+    // B. Engagement Score (logarithmic scaling for reactions and comments)
     const totalEngagements =
       (post.likeCount || 0) * 1 + (post.commentsCount || 0) * 2;
     const engagementScore = Math.min(1, Math.log10(totalEngagements + 1) / 3);
 
+    // C. Affinity Score
     const isFollowedSpace =
       context.currentUserFollowedSpaces?.includes(post.targetId) ?? false;
     const affinityScore = isFollowedSpace ? 1.0 : 0.2;
@@ -963,6 +1030,9 @@ export class FeedRanker {
     );
   }
 
+  /**
+   * Ranks an array of feed posts dynamically based on calculated score.
+   */
   public static rank(
     posts: FeedPost[],
     context: FeedRankingContext = {},
@@ -974,12 +1044,18 @@ export class FeedRanker {
   }
 }
 
+/**
+ * 15. Sponsored Publications Injection Engine
+ */
 export interface SponsorshipInjectionOptions {
-  interval?: number;
-  maxSponsoredPosts?: number;
+  interval?: number; // insert 1 sponsored post every N organic posts (default: 5)
+  maxSponsoredPosts?: number; // max sponsored posts per feed view (default: 3)
 }
 
 export class SponsoredPostInjector {
+  /**
+   * Interjects sponsored publications into organic feeds at configured intervals.
+   */
   public static inject(
     organicPosts: FeedPost[],
     sponsoredPool: SponsoredPost[],
@@ -1013,6 +1089,9 @@ export class SponsoredPostInjector {
   }
 }
 
+/**
+ * 16. "Pour Toi" (For You) Personalized Recommendation Engine
+ */
 export interface UserRecommendationProfile {
   userId: string;
   followedSpaceIds: string[];
@@ -1022,11 +1101,16 @@ export interface UserRecommendationProfile {
 }
 
 export class ForYouRecommendationEngine {
+  /**
+   * Generates a personalized "Pour Toi" feed with interest tag matching,
+   * serendipity discovery boosting, and noise exclusion (muted actors / hidden posts).
+   */
   public static generateForYouFeed(
     allPosts: FeedPost[],
     profile: UserRecommendationProfile,
-    options: { weights?: FeedRankingWeights; rerankerOptions?: DiversityRerankerOptions } = {},
+    options: { weights?: FeedRankingWeights } = {},
   ): FeedPost[] {
+    // A. Filter out muted actors & hidden posts
     const mutedSet = new Set(profile.mutedActorIds || []);
     const hiddenSet = new Set(profile.hiddenPostIds || []);
 
@@ -1036,14 +1120,15 @@ export class ForYouRecommendationEngine {
       return true;
     });
 
-    const relevanceScores = new Map<string, number>();
-
+    // B. Calculate personalized recommendation score
     const scoredPosts = eligiblePosts.map((post) => {
+      // Base algorithmic ranking score
       const baseScore = FeedRanker.calculateScore(post, {
         currentUserFollowedSpaces: profile.followedSpaceIds,
         weights: options.weights,
       });
 
+      // Interest tag match bonus
       let interestBonus = 0;
       if (
         profile.interestTags &&
@@ -1059,47 +1144,197 @@ export class ForYouRecommendationEngine {
         interestBonus = matchingTags.length * 0.25;
       }
 
+      // Serendipity bonus for highly engaging trending posts outside followed spaces
       const isUnfollowedSpace =
         !profile.followedSpaceIds.includes(post.targetId) &&
         post.targetType === "space";
       const isTrending = post.likeCount + post.commentsCount >= 5;
       const serendipityBonus = isUnfollowedSpace && isTrending ? 0.2 : 0;
 
-      const finalScore = baseScore + interestBonus + serendipityBonus;
-      relevanceScores.set(post.id, finalScore);
-
       return {
         post,
-        finalScore,
+        finalScore: baseScore + interestBonus + serendipityBonus,
       };
     });
 
+    // C. Sort descending by final recommendation score
     scoredPosts.sort((a, b) => b.finalScore - a.finalScore);
-    const rankedCandidates = scoredPosts.map((item) => item.post);
 
-    // Pipeline N1 (P2 Remediation): Execute DiversityReranker preserving ForYou relevanceScores (finalScore)
-    return DiversityReranker.rerank(rankedCandidates, {
-      mutedActorIds: profile.mutedActorIds,
-      hiddenPostIds: profile.hiddenPostIds,
-      relevanceScores,
-      ...options.rerankerOptions,
-    });
+    return scoredPosts.map((item) => item.post);
   }
 }
 
-// Re-export extracted velocity, MMR diversity, telemetry & moderation utilities
-export {
-  TrendingVelocityRanker,
-  DiversityReranker,
-  FeedMetricsCollector,
-  ContentSafetyFilter,
-  SponsorshipTelemetry,
-  FeedGeneratorRegistry,
-  Mulberry32RNG,
-  type DiversityRerankerOptions,
-  type QualityReport,
-  type AdTelemetryEvent,
-  type CustomFeedAlgorithm,
-} from "./velocity-calculator.js";
+/**
+ * 17. Trending & Viral Velocity Algorithm (Inspired by HackerNews / Reddit / Phoenix)
+ * Velocity = (Engagements) / (Age + 2)^gravity
+ */
+export class TrendingVelocityRanker {
+  public static calculateVelocity(post: FeedPost, gravity = 1.6): number {
+    const ageInHours = Math.max(
+      0,
+      (Date.now() - post.createdAt.getTime()) / (1000 * 60 * 60),
+    );
+    const rawEngagements =
+      (post.likeCount || 0) * 2 + (post.commentsCount || 0) * 4;
+    return rawEngagements / Math.pow(ageInHours + 2, gravity);
+  }
+
+  public static rankByTrending(posts: FeedPost[], gravity = 1.6): FeedPost[] {
+    return [...posts].sort(
+      (a, b) =>
+        this.calculateVelocity(b, gravity) - this.calculateVelocity(a, gravity),
+    );
+  }
+}
+
+/**
+ * 18. Content Safety & Quality Moderation Engine
+ * Evaluates spam, abusive patterns, repetition, and assigns a quality score.
+ */
+export interface QualityReport {
+  score: number; // 0.0 to 1.0 (1.0 is pristine quality)
+  isSafe: boolean;
+  flags: string[];
+}
+
+export class ContentSafetyFilter {
+  private static SPAM_KEYWORDS = [
+    "viagra",
+    "crypto giveaway",
+    "free money",
+    "gagnez 10000Ôé¼",
+    "double your coins",
+    "whatsapp me",
+    "click here fast",
+    "earn from home fast",
+  ];
+
+  public static evaluate(post: FeedPost): QualityReport {
+    const flags: string[] = [];
+    let penalty = 0;
+    const content = (post.content || "").toLowerCase();
+
+    // 1. Spam keyword analysis
+    for (const kw of this.SPAM_KEYWORDS) {
+      if (content.includes(kw)) {
+        flags.push(`spam_keyword:${kw}`);
+        penalty += 0.4;
+      }
+    }
+
+    // 2. Character repetition check (e.g. "aaaaaaa!!!!")
+    if (/(.)\1{5,}/.test(content)) {
+      flags.push("excessive_character_repetition");
+      penalty += 0.2;
+    }
+
+    // 3. Excessive uppercase check
+    const uppercaseCount = (post.content.match(/[A-Z]/g) || []).length;
+    if (
+      post.content.length > 20 &&
+      uppercaseCount / post.content.length > 0.6
+    ) {
+      flags.push("excessive_caps");
+      penalty += 0.15;
+    }
+
+    // 4. Short / Low Effort content
+    if (
+      post.content.trim().length < 5 &&
+      (!post.mediaUrls || post.mediaUrls.length === 0)
+    ) {
+      flags.push("low_effort");
+      penalty += 0.1;
+    }
+
+    const score = Math.max(0, Math.min(1, 1.0 - penalty));
+    const isSafe =
+      score >= 0.5 && !flags.some((f) => f.startsWith("spam_keyword"));
+
+    return { score, isSafe, flags };
+  }
+
+  public static filterUnsafe(posts: FeedPost[]): FeedPost[] {
+    return posts.filter((post) => this.evaluate(post).isSafe);
+  }
+}
+
+/**
+ * 19. Sponsored Ads Telemetry & Impression Tracker
+ * High-precision attribution for impressions, clicks, and CTR calculation.
+ */
+export interface AdTelemetryEvent {
+  campaignId: string;
+  postId: string;
+  viewerActorId: string;
+  eventType: "impression" | "click" | "cta_conversion";
+  timestamp: Date;
+}
+
+export class SponsorshipTelemetry {
+  private static events: AdTelemetryEvent[] = [];
+
+  public static track(event: AdTelemetryEvent): void {
+    this.events.push(event);
+  }
+
+  public static getMetrics(campaignId: string): {
+    impressions: number;
+    clicks: number;
+    conversions: number;
+    ctr: number;
+  } {
+    const campaignEvents = this.events.filter(
+      (e) => e.campaignId === campaignId,
+    );
+    const impressions = campaignEvents.filter(
+      (e) => e.eventType === "impression",
+    ).length;
+    const clicks = campaignEvents.filter((e) => e.eventType === "click").length;
+    const conversions = campaignEvents.filter(
+      (e) => e.eventType === "cta_conversion",
+    ).length;
+    const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+
+    return {
+      impressions,
+      clicks,
+      conversions,
+      ctr: parseFloat(ctr.toFixed(2)),
+    };
+  }
+}
+
+/**
+ * 20. AT Protocol-inspired Custom Feed Generators
+ */
+export type CustomFeedAlgorithm = (
+  posts: FeedPost[],
+  context: Record<string, unknown>,
+) => FeedPost[];
+
+export class FeedGeneratorRegistry {
+  private static generators = new Map<string, CustomFeedAlgorithm>();
+
+  public static register(name: string, algorithm: CustomFeedAlgorithm): void {
+    this.generators.set(name, algorithm);
+  }
+
+  public static resolve(name: string): CustomFeedAlgorithm | undefined {
+    return this.generators.get(name);
+  }
+
+  public static listAvailable(): string[] {
+    return Array.from(this.generators.keys());
+  }
+}
+
+// Pre-register standard platform algorithms
+FeedGeneratorRegistry.register("trending", (posts) =>
+  TrendingVelocityRanker.rankByTrending(posts),
+);
+FeedGeneratorRegistry.register("media_only", (posts) =>
+  posts.filter((p) => p.mediaUrls && p.mediaUrls.length > 0),
+);
 
 export { SQLiteFeedStore, type Queryable } from "./feed-store.js";

@@ -24,7 +24,6 @@
     "@mosaix/control-plane": "workspace:*",
     "@mosaix/core": "workspace:*",
     "@mosaix/http": "workspace:*",
-    "@mosaix/intelligence": "workspace:*",
     "@mosaix/migrations": "workspace:*",
     "@mosaix/plugin-engine": "workspace:*",
     "@mosaix/ports-feature-flags": "workspace:*",

@@ -36,7 +36,6 @@ export class TypeSafeJevProvider implements DecisionProvider {
     const start = Date.now();
     const thresholds = request.policy?.thresholds || { automatic: 0.95, assisted: 0.75 };
 
-    // Jev System One probability normalization & decision inference
     let rawResult: unknown;
     let confidence: number;
     let probabilities: Record<string, number> = {};

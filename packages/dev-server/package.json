@@ -2,8 +2,8 @@
   "name": "@mosaix/dev-server",
   "version": "0.1.0",
   "description": "MosaiX Dev Server & Dev Session Runtime",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc --build",
     "test": "vitest run"
@@ -12,7 +12,6 @@
     "@mosaix/contracts": "workspace:*",
     "@mosaix/core": "workspace:*",
     "@mosaix/dev-session": "workspace:*"
-
   },
   "exports": {
     ".": {

@@ -1,6 +1,5 @@
 import * as crypto from "node:crypto";
 import { Model } from "@mosaix/sdk";
-import { TrendingVelocityRanker, FeedMetricsCollector, type FeedPost } from "@mosaix/feed-engine";
 
 export type SocialActorType = "user" | "space" | "organization" | "system";
 
@@ -234,6 +233,7 @@ export class SolaraSocialService {
     metadata?: Record<string, unknown>,
     mediaUrls: string[] = []
   ): Promise<Post> {
+    // Validate publication type metadata
     const validation = this.publicationTypeRegistry.validateMetadata(publicationType, metadata);
     if (!validation.valid) {
       throw new Error(`Métadonnées manquantes pour le type de publication [${publicationType}] : ${validation.missingFields.join(", ")}`);
@@ -241,6 +241,7 @@ export class SolaraSocialService {
 
     let finalContent = content;
 
+    // Execute plugin content hooks in async waterfall pipeline with safety timeout
     for (const hook of this.contentHooks) {
       const result = await Promise.resolve(hook(finalContent));
       if (!result.approved) {
@@ -286,99 +287,6 @@ export class SolaraSocialService {
       list = list.filter((p) => p.publicationType === publicationType);
     }
     return list;
-  }
-
-  /**
-   * Scans outbound follow relations where followerActorId is the follower.
-   * Returns list of target actor/space IDs followed by followerActorId.
-   */
-  public getFollowedTargets(followerActorId: string): string[] {
-    const followed = new Set<string>();
-    for (const rels of this.followers.values()) {
-      for (const rel of rels) {
-        if (rel.followerActorId === followerActorId) {
-          followed.add(rel.targetActorId);
-        }
-      }
-    }
-    return Array.from(followed);
-  }
-
-  /**
-   * Périmètre N1 — Multi-source feed aggregation with source quotas.
-   * Fuses 3 sources: 'followed' (quota: followedLimit), 'trending' (quota: trendingLimit), and 'recent' (quota: recentLimit).
-   * Deduplicates by post.id. Preserves modes: 'for_you', 'trending', 'chronological'.
-   */
-  public listFeedMultiSource(
-    followerActorId?: string,
-    mode: "for_you" | "trending" | "chronological" = "for_you",
-    options: {
-      targetType?: string;
-      targetId?: string;
-      publicationType?: string;
-      followedLimit?: number;
-      trendingLimit?: number;
-      recentLimit?: number;
-    } = {}
-  ): Post[] {
-    const allPosts = this.listFeed(options.targetType, options.targetId, options.publicationType);
-
-    if (mode === "chronological") {
-      return [...allPosts].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    }
-
-    if (mode === "trending") {
-      return [...allPosts].sort((a, b) => {
-        const velA = TrendingVelocityRanker.calculateVelocity(postToFeedPost(a));
-        const velB = TrendingVelocityRanker.calculateVelocity(postToFeedPost(b));
-        return velB - velA;
-      });
-    }
-
-    const followedLimit = options.followedLimit ?? 10;
-    const trendingLimit = options.trendingLimit ?? 10;
-    const recentLimit = options.recentLimit ?? 10;
-
-    // Default 'for_you': Multi-source fusion with quotas & deduplication
-    const followedTargets = new Set<string>(followerActorId ? this.getFollowedTargets(followerActorId) : []);
-
-    // Source 1: Followed
-    const followedPool = allPosts
-      .filter((p) => followedTargets.has(p.actorId) || followedTargets.has(p.targetId))
-      .slice(0, followedLimit);
-
-    // Source 2: Trending (top velocity)
-    const trendingPool = [...allPosts]
-      .sort((a, b) => {
-        const velA = TrendingVelocityRanker.calculateVelocity(postToFeedPost(a));
-        const velB = TrendingVelocityRanker.calculateVelocity(postToFeedPost(b));
-        return velB - velA;
-      })
-      .slice(0, trendingLimit);
-
-    // Source 3: Recent (chronological)
-    const recentPool = [...allPosts]
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, recentLimit);
-
-    // Fusion & Deduplication by ID
-    const mergedMap = new Map<string, Post>();
-
-    for (const post of followedPool) {
-      mergedMap.set(post.id, post);
-    }
-    for (const post of trendingPool) {
-      if (!mergedMap.has(post.id)) {
-        mergedMap.set(post.id, post);
-      }
-    }
-    for (const post of recentPool) {
-      if (!mergedMap.has(post.id)) {
-        mergedMap.set(post.id, post);
-      }
-    }
-
-    return Array.from(mergedMap.values());
   }
 
   async listFeedAsync(targetType?: string, targetId?: string, publicationType?: string): Promise<Post[]> {
@@ -434,9 +342,6 @@ export class SolaraSocialService {
       await this.repository.saveComment(postId, comment);
       await this.repository.incrementCommentsCount(postId, 1);
     }
-
-    // Telemetry: record interaction ONLY AFTER successful comment persistence
-    FeedMetricsCollector.recordInteraction(1);
 
     return comment;
   }
@@ -518,47 +423,17 @@ export class SolaraSocialService {
       type,
       createdAt: new Date(),
     };
-
     if (this.repository) {
       await this.repository.saveReaction(targetType, targetId, reaction);
       if (targetType === "post") {
         await this.repository.incrementLikeCount(targetId, 1);
+        // Also update in-memory post
         const post = this.posts.get(targetId);
         if (post) {
           post.likeCount++;
         }
       }
-    } else if (targetType === "post") {
-      const post = this.posts.get(targetId);
-      if (post) {
-        post.likeCount++;
-      }
     }
-
-    // Telemetry: record interaction ONLY AFTER successful reaction persistence
-    FeedMetricsCollector.recordInteraction(1);
-
     return reaction;
   }
-}
-
-/**
- * P3 Adapter: Converts a Solara Post model to a feed-engine FeedPost without unsafe type casting.
- */
-export function postToFeedPost(post: Post): FeedPost {
-  return {
-    id: post.id,
-    actorType: post.actorType,
-    actorId: post.actorId,
-    publicationType: post.publicationType,
-    targetType: post.targetType,
-    targetId: post.targetId,
-    content: post.content,
-    mediaUrls: post.mediaUrls,
-    metadata: post.metadata,
-    tags: Array.isArray(post.metadata?.tags) ? (post.metadata?.tags as string[]) : [],
-    likeCount: post.likeCount || 0,
-    commentsCount: post.commentsCount || 0,
-    createdAt: post.createdAt,
-  };
 }

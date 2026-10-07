@@ -698,10 +698,3 @@
 
 ### Archived
 - Déplacement sous `.project/archive/` des working items complétés (`working/structural-gap-audit-2026-08-16.md`, `working/identity-reference-app-plan.md`, `working/T-02-runtime-kernel.md`, `working/T-01-monorepo-foundations.md`, `working/governance-questions.md`, `working/governance-execution-plan.md`, `working/delete-demo-sales-plan.md`) et du rapport v1 obsolète (`reports/audit-ports-adapters-2026-08-15.md`).
-
-## [Unreleased] - 2026-09-28
-### Added
-- **Feed Personnalisé N1 (Multi-Source + MMR + Métriques Prometheus)** :
-  - **Multi-Source Solara** : Implémentation de `SolaraSocialService.listFeedMultiSource` fusionnant 3 pools (`followed`, `trending`, `recent`) et dédupliquant par ID.
-  - **Diversité MMR & Contraintes Dures** : Ajout de `DiversityReranker` dans `@mosaix/feed-engine` avec algorithme MMR glouton (λ=0.7), similarité cosinus sur tags, RNG Mulberry32 seedable, et contraintes dures (`max_par_auteur: 2`, `max_par_categorie: 4`, `min_categories: 3`, exclusions `mutedActorIds`/`hiddenPostIds`/`seenPostIds`).
-  - **Métriques & Export Prometheus** : Calcul et exposition sur `/metrics` de `mosaix_feed_interaction_rate`, `mosaix_feed_skip_mute_rate`, et `mosaix_feed_category_entropy`.

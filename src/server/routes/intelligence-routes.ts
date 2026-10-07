@@ -8,6 +8,8 @@ import {
   ProviderRouter,
 } from "@mosaix/intelligence";
 import { TypeSafeJevProvider } from "@mosaix/adapter-intelligence-typesafe";
+import { requireRole } from "../middleware/auth-guard.js";
+import type { UserProfile } from "../../shell/profiles.js";
 
 const router = new ProviderRouter();
 router.register(new TypeSafeJevProvider());
@@ -38,10 +40,20 @@ function parseJsonBody<T>(req: IncomingMessage): Promise<T> {
 export async function handleIntelligenceRoutes(
   req: IncomingMessage,
   res: ServerResponse,
+  currentUser?: UserProfile,
 ): Promise<boolean> {
   const parsedUrl = new URL(req.url || "/", "http://localhost");
   const pathname = parsedUrl.pathname;
   const method = req.method || "GET";
+
+  if (!pathname.startsWith("/api/intelligence")) {
+    return false;
+  }
+
+  // Require administrative or platform governor privileges for intelligence API execution & review
+  if (currentUser && !requireRole(res, currentUser, ["admin", "superadmin", "platform-governor"])) {
+    return true;
+  }
 
   if (pathname === "/api/intelligence/decide" && method === "POST") {
     try {

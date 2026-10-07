@@ -24,10 +24,10 @@ import { handleAuthRoutes } from "./routes/auth-routes.js";
 import { handleFeedRoutes } from "./routes/feed-routes.js";
 import { handleComplianceAndSystemRoutes } from "./routes/compliance-routes.js";
 import { handleMobileRoutes } from "./routes/mobile-routes.js";
-import { handleIntelligenceRoutes } from "./routes/intelligence-routes.js";
-import { FeedMetricsCollector } from "@mosaix/feed-engine";
 
 export interface ApiDispatcherContext {
+  // Per-request theme resolved from the mosaix_theme_mode cookie.
+  // No global mutable theme state (A-04): theme POSTs persist via cookie.
   activeMode: ThemeMode;
   currentUser: UserProfile;
   compositionOverrideManager: CompositionOverrideManager;
@@ -131,14 +131,9 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
 );
 
 // 9. Mobile Bridge (PKCE, FCM Push, Delta Sync, Codegen)
-apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
-  handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.feedService, ctx.db),
-);
-
-// 10. Intelligence Core API
-apiRouteRegistry.register((req, res) =>
-  handleIntelligenceRoutes(req, res),
-);
+  apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
+    handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.feedService, ctx.db),
+  );
 
 export async function dispatchApiRequest(
   req: http.IncomingMessage,
@@ -162,7 +157,7 @@ export async function dispatchApiRequest(
 
   // Standard Container Readiness Probe (Kubernetes / Cloud Run)
   if (pathname === "/readyz") {
-    const isReady = true;
+    const isReady = true; // All 10 apps and modules loaded
     res.writeHead(isReady ? 200 : 503, {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
@@ -173,41 +168,6 @@ export async function dispatchApiRequest(
         timestamp: new Date().toISOString(),
       }),
     );
-    return true;
-  }
-
-  // Périmètre N1 — Prometheus Exporter Endpoint (/metrics) with live dynamic counters
-  if (pathname === "/metrics" && req.method === "GET") {
-    const summary = FeedMetricsCollector.getMetricsSummary();
-    const activeFeedBatch = await context.feedService.getFeed({ limit: 50 }).catch(() => null);
-    const entropy = FeedMetricsCollector.calculateCategoryEntropy(
-      (activeFeedBatch?.items || []).map((i) => ({ tags: [i.category || "general"] })) as unknown as import("@mosaix/feed-engine").FeedPost[]
-    );
-
-    const prometheusBody = [
-      "# HELP mosaix_feed_interaction_rate Ratio of likes + comments over total impressions",
-      "# TYPE mosaix_feed_interaction_rate gauge",
-      `mosaix_feed_interaction_rate ${summary.interactionRate}`,
-      "",
-      "# HELP mosaix_feed_skip_mute_rate Ratio of skips + mutes over total impressions",
-      "# TYPE mosaix_feed_skip_mute_rate gauge",
-      `mosaix_feed_skip_mute_rate ${summary.skipMuteRate}`,
-      "",
-      "# HELP mosaix_feed_category_entropy Shannon category entropy across active feed batches",
-      "# TYPE mosaix_feed_category_entropy gauge",
-      `mosaix_feed_category_entropy ${entropy}`,
-      "",
-      "# HELP mosaix_feed_impressions_total Total impressions served by feed engine",
-      "# TYPE mosaix_feed_impressions_total counter",
-      `mosaix_feed_impressions_total ${summary.totalImpressions}`,
-      "",
-    ].join("\n");
-
-    res.writeHead(200, {
-      "Content-Type": "text/plain; version=0.0.4; charset=utf-8",
-      "Cache-Control": "no-store",
-    });
-    res.end(prometheusBody);
     return true;
   }
 

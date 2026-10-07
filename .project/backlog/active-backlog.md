@@ -1,7 +1,7 @@
 # MosaiX / IJIDeals Platform — Active Backlog
 
 - **Dernière mise à jour :** 2026-09-24 — Vues BAC réelles (§9 : 8 tâches VIEW-*) + CIB/Gestion-Commerciale + PRD-0011 MeshJS
-- **Statut global :** 100% COMPLÉTÉ ET VÉRIFIÉ — FEAT-01..13, AUTH-01..08, RENDERER-SPLIT, PALETTE-INSPECTOR-WIRING, DB-FK-HARDEN, DATA-07, DATA-08, PRD-0011 (19 routes UI), 10 Vues BACs réelles. Historique dans `.project/archive/completed-backlog-history.md`.
+- **Statut global :** FEAT-01..13 archivés — 27 tâches : 12 livrées (ROLE, DATA-01/09, PRD-0010) / 15 restantes (DATA-07/08 + THEME UI + PRD-0011 19 pages + CIB-01 + GEST-01 + WALLET/DELIVERY + VIEW ×8) — voir §6-§9. Historique dans `.project/archive/completed-backlog-history.md`.
 
 ---
 
@@ -363,16 +363,3 @@ Socle livré (session 2026-09-27, à commiter) : **DEMO-OFF** — `MOSAIX_DEMO_U
 - **AUTH-08 [SEC] Gate + finalisation** — Audit fixation/rejeu/CSRF/brute-force/révocation, perfs (mesurer avant cache), ADR-0017 final + erratum ADR-0012, activation explicite. Critère : checklist OWASP/ASVS + autorisation humaine. Criticité haute.
 
 > Ordre strict : DEMO-OFF (commit) → AUTH-01 → AUTH-02+AUTH-03 et AUTH-04+AUTH-05 (parallélisables) → AUTH-06+AUTH-07 (tranche verticale flaggée) → AUTH-08. Pas d'endpoint login public avant AUTH-06. Règle d'hygiène : aucune permission fiable depuis cookie/SSR ; le container ne contourne jamais ADR-0016.
-
----
-
-## 15. Suivi & Mises à Jour de la Session Courante (2026-09-28)
-
-Les chantiers suivants de la feuille de route active ont été exécutés, validés par la suite de tests automatisés et intégrés :
-
-| Domaine / Tâche | Description de la Livraison | Statut |
-|---|---|---|
-| **AUTH-01 à AUTH-08** (ADR-0017 Session Architecture) | Session authority centralisée via `SessionResolver` & Composition Root `bootstrap/auth-composition.ts`. Intercepteur CSRF avec validation d'origine/référant exacte, protection `/api/auth/login` sous `isDemoMode()`. | ✅ COMPLÉTÉ |
-| **FEED-N1** (Solara + feed-engine) | Moteur de flux social multi-sources (`followed`, `trending`, `recent`) avec déduplication. Algorithme Maximal Marginal Relevance (MMR $\lambda=0.7$) avec RNG Mulberry32, contraintes d'auteur/catégorie/exclusions et conservation des scores d'affinité `ForYou`. Résolution des suivis sortants via `getFollowedTargets`. Exposition des métriques Prometheus réelles (`mosaix_feed_interaction_rate`, `mosaix_feed_skip_mute_rate`, `mosaix_feed_category_entropy`) sur `GET /metrics`. | ✅ COMPLÉTÉ |
-| **DEBT-01 & STRUC-01** (Qualité Code & Archi) | Décomposition de `packages/feed-engine/src/velocity-calculator.ts`. Application stricte des frontières d'import via `eslint-plugin-boundaries` dans `eslint.config.mjs` (0 erreur linter). | ✅ COMPLÉTÉ |
-| **BAC-DATA-ISO** (Isolation Données BACs) | Audit complet de l'isolation des schémas PostgreSQL des 10 BACs. Confirmation de l'absence totale de clés étrangères SQL inter-BACs. Validation automatisée via la suite architecturale `tests/architecture/bac-data-isolation.test.ts` (100% de succès). | ✅ COMPLÉTÉ |

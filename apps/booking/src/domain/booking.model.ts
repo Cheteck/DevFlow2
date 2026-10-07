@@ -533,28 +533,27 @@ export class BookingService {
   }
 }
 
-export async function seedDefaultSlots(service: BookingService): Promise<BookingSlot[]> {
-  const now = Date.now();
-  const s1 = await service.createSlot({
-    providerId: "demo-provider-1",
-    serviceName: "Consultation Stratégique (Demo)",
-    startTime: new Date(now + 3600000).toISOString(),
-    endTime: new Date(now + 7200000).toISOString(),
-    capacity: 3,
-  });
-  const s2 = await service.createSlot({
-    providerId: "demo-provider-1",
-    serviceName: "Revue de Projet (Demo)",
-    startTime: new Date(now + 86400000).toISOString(),
-    endTime: new Date(now + 90000000).toISOString(),
-    capacity: 2,
-  });
-  const s3 = await service.createSlot({
-    providerId: "demo-provider-2",
-    serviceName: "Atelier de Co-création (Demo)",
-    startTime: new Date(now + 172800000).toISOString(),
-    endTime: new Date(now + 180000000).toISOString(),
+export async function seedDefaultSlots(service: BookingService): Promise<void> {
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+  await service.createSlot({
+    title: "Session Démo 1",
+    startTime: `${tomorrow}T10:00:00Z`,
+    endTime: `${tomorrow}T11:00:00Z`,
     capacity: 5,
+    hostId: "usr_host_1",
   });
-  return [s1, s2, s3];
+  await service.createSlot({
+    title: "Session Démo 2",
+    startTime: `${tomorrow}T14:00:00Z`,
+    endTime: `${tomorrow}T15:00:00Z`,
+    capacity: 3,
+    hostId: "usr_host_1",
+  });
+  await service.createSlot({
+    title: "Session Démo 3",
+    startTime: `${tomorrow}T16:00:00Z`,
+    endTime: `${tomorrow}T17:00:00Z`,
+    capacity: 10,
+    hostId: "usr_host_2",
+  });
 }

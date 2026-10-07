@@ -20,7 +20,6 @@ export interface CliDatabase {
   readonly manager: DatabaseManager;
   readonly db: DatabasePort;
   readonly config: DatabaseConfig;
-  readonly close: () => Promise<void>;
 }
 
 export async function connectCliDatabase(
@@ -31,5 +30,5 @@ export async function connectCliDatabase(
     skipSecurity: true,
     skipComposition: true,
   });
-  return { manager: app.manager, db: app.dbAdapter, config: app.config, close: app.close };
+  return { manager: app.manager, db: app.dbAdapter, config: app.config };
 }

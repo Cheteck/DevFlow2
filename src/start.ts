@@ -213,25 +213,6 @@ const server = http.createServer(async (req, res) => {
 
     if (matchedApp) {
       const cleanAppId = matchedApp.id.replace(/^@apps\//, "");
-      const flagKey = matchedApp.featureFlag || `apps.${cleanAppId}.enabled`;
-      const isFeatureEnabled = platformFeatureFlags.isEnabledSync(flagKey, true);
-
-      if (!isFeatureEnabled) {
-        res.writeHead(503, { "Content-Type": "text/html; charset=utf-8" });
-        res.end(`
-        <div style="font-family:sans-serif; text-align:center; padding:50px; background:#0f172a; color:#f8fafc; min-height:100vh;">
-          <div style="max-width:500px; margin:0 auto; padding:30px; border:1px solid rgba(239,68,68,0.3); border-radius:24px; background:rgba(30,41,59,0.8);">
-            <div style="font-size:48px; margin-bottom:16px;">🛑</div>
-            <h2 style="color:#ef4444; font-size:20px; margin-bottom:12px;">Module Indisponible</h2>
-            <p style="font-size:14px; color:#94a3b8; line-height:1.6;">Le module <strong>${escapeHtml(matchedApp.name)}</strong> est actuellement désactivé par l'administration de la plateforme.</p>
-            <div style="margin-top:24px;">
-              <a href="/" style="color:#6366f1; font-weight:bold; text-decoration:none;">&larr; Retour à l'accueil</a>
-            </div>
-          </div>
-        </div>
-      `);
-        return;
-      }
       const isAllowed =
         currentUser.allowedBacs.includes("*") ||
         currentUser.allowedBacs.includes(matchedApp.id) ||

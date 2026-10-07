@@ -285,7 +285,6 @@ export class HumanReviewQueue {
     item.actorId = resolution.actorId;
     item.resolvedAt = new Date().toISOString();
 
-    // Only record human override rate when the AI prediction was modified or rejected
     if (resolution.status === "CORRECTED" || resolution.status === "REJECTED") {
       IntelligenceMetricsCollector.getInstance().recordHumanOverride();
     }
@@ -476,10 +475,8 @@ export class IntelligenceRuntime {
 
     const result = await provider.decide<TState, TResult>(requestWithPolicy);
 
-    // Record metrics & cost
     IntelligenceMetricsCollector.getInstance().recordDecision(result);
 
-    // Human Review Queue trigger if confidence falls below assisted/automatic threshold
     if (result.confidenceLevel === "HUMAN" && cap?.humanReviewSupported) {
       HumanReviewQueue.getInstance().enqueue(result);
     }
