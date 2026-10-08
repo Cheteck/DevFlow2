@@ -1,84 +1,95 @@
 /**
- * @server/routes — Authentication & Registration Wizard API Routes
+ * src/server/routes/auth-routes.ts — Flagged HTTP Auth Bridge Endpoints (AUTH-06, AUTH-07).
  */
 
-import type * as http from "node:http";
-import type { URL } from "node:url";
-import { registrationWizardService } from "../../../apps/citadelle/src/domain/registration-wizard.service.js";
-import { readLimitedJson } from "../utils/safe-body-parser.js";
+import { Router } from "@mosaix/sdk";
+import { getSharedAuthComposition } from "../../../bootstrap/auth-composition.js";
 
-export async function handleAuthRoutes(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  parsedUrl: URL
-): Promise<boolean> {
-  const pathname = parsedUrl.pathname;
+export function registerAuthRoutes(router: Router): void {
+  const { authManager, sessionManager } = getSharedAuthComposition();
 
-  // Wizard: Start Registration
-  if (pathname === "/api/auth/register/wizard/start" && req.method === "POST") {
-    const draft = registrationWizardService.startRegistration();
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ success: true, draft }));
-    return true;
-  }
-
-  // Wizard: Get Draft Status
-  const getDraftMatch = pathname.match(/^\/api\/auth\/register\/wizard\/([^/]+)$/);
-  if (getDraftMatch && req.method === "GET") {
-    const draftId = getDraftMatch[1];
-    const draft = registrationWizardService.getDraft(draftId);
-    if (!draft) {
-      res.writeHead(404, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ success: false, error: "Session d'inscription introuvable ou expirée." }));
-      return true;
+  router.post("/api/auth/login", async (req) => {
+    const body = req.body as { email?: string; password?: string } | undefined;
+    if (!body?.email || !body?.password) {
+      return {
+        statusCode: 400,
+        body: { error: "Missing email or password" },
+      };
     }
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ success: true, draft }));
-    return true;
-  }
-
-  // Wizard: Submit Step
-  const stepMatch = pathname.match(/^\/api\/auth\/register\/wizard\/([^/]+)\/step\/([123])$/);
-  if (stepMatch && req.method === "POST") {
-    const draftId = stepMatch[1];
-    const stepNum = parseInt(stepMatch[2], 10);
 
     try {
-      const data = await readLimitedJson<Record<string, unknown>>(req);
+      const result = await authManager.authenticate({
+        provider: "credentials",
+        credentials: { email: body.email, password: body.password },
+      });
 
-      let result;
-      if (stepNum === 1) {
-        result = registrationWizardService.saveStep1(
-          draftId,
-          data as unknown as Parameters<typeof registrationWizardService.saveStep1>[1],
-        );
-      } else if (stepNum === 2) {
-        result = registrationWizardService.saveStep2(
-          draftId,
-          data as unknown as Parameters<typeof registrationWizardService.saveStep2>[1],
-        );
-      } else {
-        result = registrationWizardService.saveStep3(
-          draftId,
-          data as unknown as Parameters<typeof registrationWizardService.saveStep3>[1],
-        );
-      }
-
-      if (!result.valid) {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: false, errors: result.errors }));
-        return true;
-      }
-
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ success: true, draft: result.draft }));
-      return true;
-    } catch (err) {
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ success: false, error: String(err) }));
-      return true;
+      return {
+        statusCode: 200,
+        headers: {
+          "Set-Cookie": `__Host-mosaix_session=${result.session.id}; Path=/; Secure; HttpOnly; SameSite=Lax`,
+        },
+        body: {
+          success: true,
+          sessionId: result.session.id,
+          identityId: result.identity.id,
+        },
+      };
+    } catch (_err) {
+      return {
+        statusCode: 401,
+        body: { error: "Invalid credentials" },
+      };
     }
-  }
+  });
 
-  return false;
+  router.post("/api/auth/logout", async (req) => {
+    const cookieHeader = req.headers?.cookie || "";
+    const match = cookieHeader.match(/__Host-mosaix_session=([^;]+)/);
+    const sessionId = match?.[1];
+
+    if (sessionId) {
+      await sessionManager.revoke(sessionId);
+    }
+
+    return {
+      statusCode: 200,
+      headers: {
+        "Set-Cookie": `__Host-mosaix_session=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0`,
+      },
+      body: { success: true, message: "Logged out successfully" },
+    };
+  });
+
+  router.get("/api/auth/session", async (req) => {
+    const cookieHeader = req.headers?.cookie || "";
+    const match = cookieHeader.match(/__Host-mosaix_session=([^;]+)/);
+    const sessionId = match?.[1];
+
+    if (!sessionId) {
+      return {
+        statusCode: 200,
+        body: { authenticated: false, session: null },
+      };
+    }
+
+    const session = await sessionManager.get(sessionId);
+    if (!session) {
+      return {
+        statusCode: 200,
+        body: { authenticated: false, session: null },
+      };
+    }
+
+    return {
+      statusCode: 200,
+      body: {
+        authenticated: true,
+        session: {
+          id: session.id,
+          identityId: session.identityId,
+          expiresAt: session.expiresAt,
+        },
+      },
+    };
+  });
 }
