@@ -223,7 +223,6 @@ export class ProductWizardService {
     draft.step4 = {
       ...data,
       slug: generatedSlug,
-      targetStatus: data.targetStatus || "Published",
     };
     draft.updatedAt = new Date().toISOString();
 
@@ -258,27 +257,21 @@ export class ProductWizardService {
         sku: draft.step2.sku || draft.step1.reference,
         stock: draft.step2.stock,
         reserved: 0,
-        reorderPoint: draft.step2.reorderPoint || 5,
-      },
-      seo: {
-        slug: draft.step4.slug,
-        metaTitle: draft.step4.metaTitle || draft.step1.name,
-        metaDesc: draft.step4.metaDesc || draft.step1.description,
+        reorderPoint: draft.step2.reorderPoint ?? 5,
       },
       content: {
         [lang]: {
           name: draft.step1.name,
+          shortDescription: draft.step1.description.slice(0, 160),
           description: draft.step1.description,
-          keywords: draft.step1.tags,
         },
       },
       classification: {
         categories: [draft.step1.category],
         tags: draft.step1.tags,
+        collections: [],
       },
       characteristics: {
-        // Wizard-specific extras (brand, physical, custom, provenance) live
-        // in free-form attributes — the typed model has no dedicated slots.
         attributes: {
           ...(draft.step3.characteristics ?? {}),
           ...(draft.step3.weightGrams
@@ -301,7 +294,7 @@ export class ProductWizardService {
         url,
         metadata: {
           role: idx === 0 ? "primary" : "gallery",
-          order: idx,
+          positionIndex: idx,
         },
       })),
       variants: draft.step2.variants.map((v) => ({
