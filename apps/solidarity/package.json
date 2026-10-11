@@ -16,6 +16,8 @@
     "@mosaix/http": "workspace:*",
     "@mosaix/orm": "workspace:*",
     "@mosaix/sdk": "workspace:*",
+    "@mosaix/security": "workspace:*",
+    "@mosaix/support": "workspace:*",
     "@mosaix/types": "workspace:*"
   },
   "devDependencies": {

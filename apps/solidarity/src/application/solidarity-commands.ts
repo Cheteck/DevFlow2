@@ -34,3 +34,13 @@ export class ConfirmDistributionCommand {
   static readonly commandName = "solidarity.distribution.confirm";
   constructor(public readonly data: Omit<Distribution, 'id' | 'timestamp'>) {}
 }
+
+export class ConfirmAllocationCommand {
+  static readonly commandName = "solidarity.allocation.confirm";
+  constructor(
+    public readonly resourceId: string,
+    public readonly needId: string,
+    public readonly quantity: number,
+    public readonly idempotencyKey: string,
+  ) {}
+}
