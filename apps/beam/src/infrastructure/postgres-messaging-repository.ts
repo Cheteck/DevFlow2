@@ -7,7 +7,7 @@ import type { DatabasePort } from "@mosaix/ports-database";
 import type { ConversationModel, MessageAttachment, MessageModel } from "../domain/messaging.model";
 import type { EncryptedMessagePayload } from "../domain/beam-e2e-crypto.js";
 
-/** Les 12 colonnes canoniques de `beam_messages` (migration `beam.messaging.v1.001`). */
+/** Les 12 colonnes canoniques de `"beam"."messages"` (migration `beam.messaging.v1.001`). */
 const MESSAGE_COLUMNS = [
   "id",
   "conversationId",
@@ -134,7 +134,7 @@ export class PostgresMessagingRepository {
 
   async saveConversation(conversation: ConversationModel): Promise<void> {
     await this.db.query(
-      `INSERT INTO beam_conversations (id, type, participants, "createdAt", data)
+      `INSERT INTO "beam"."conversations" (id, type, participants, "createdAt", data)
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (id) DO UPDATE SET
          type = $2, participants = $3, data = $5`,
@@ -150,7 +150,7 @@ export class PostgresMessagingRepository {
 
   async getConversation(id: string): Promise<ConversationModel | null> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT id, type, participants, "createdAt", data FROM beam_conversations WHERE id = $1`,
+      `SELECT id, type, participants, "createdAt", data FROM "beam"."conversations" WHERE id = $1`,
       [id],
     );
     if (rows.length === 0) return null;
@@ -172,7 +172,7 @@ export class PostgresMessagingRepository {
   async listConversations(limit = 100): Promise<ConversationModel[]> {
     const safeLimit = Math.min(Math.max(limit, 1), 500);
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT id, type, participants, "createdAt", data FROM beam_conversations ORDER BY "createdAt" DESC LIMIT $1`,
+      `SELECT id, type, participants, "createdAt", data FROM "beam"."conversations" ORDER BY "createdAt" DESC LIMIT $1`,
       [safeLimit],
     );
     return rows.map((r) => this.hydrateConversation(r));
@@ -180,7 +180,7 @@ export class PostgresMessagingRepository {
 
   async saveMessage(message: MessageModel): Promise<void> {
     await this.db.query(
-      `INSERT INTO beam_messages (${MESSAGE_SELECT})
+      `INSERT INTO "beam"."messages" (${MESSAGE_SELECT})
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        ON CONFLICT (id) DO UPDATE SET
          "conversationId" = $2, "senderId" = $3, content = $4,
@@ -207,7 +207,7 @@ export class PostgresMessagingRepository {
   async getMessages(conversationId: string, limit = 50): Promise<MessageModel[]> {
     const safeLimit = Math.min(Math.max(limit, 1), 500);
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT ${MESSAGE_SELECT} FROM beam_messages WHERE "conversationId" = $1 ORDER BY "sentAt" DESC LIMIT $2`,
+      `SELECT ${MESSAGE_SELECT} FROM "beam"."messages" WHERE "conversationId" = $1 ORDER BY "sentAt" DESC LIMIT $2`,
       [conversationId, safeLimit],
     );
     return rows.map((r) => hydrateMessage(r, conversationId));
