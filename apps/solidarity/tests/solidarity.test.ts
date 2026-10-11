@@ -69,4 +69,62 @@ describe('SolidarityBAC Domain Tests', () => {
     expect(distribution.id).toBeDefined();
   });
 
+  it('should assess needs, guard allocations and propose matches', async () => {
+    const { solidarityService } = createSolidarityComposition();
+
+    const incident = await solidarityService.createIncident({
+      code: 'INC-2026-0002',
+      title: 'Jijel Water Shortage',
+      description: 'Drinking water shortage after pipe rupture',
+      type: 'FLOOD',
+      severityLevel: 'CRITICAL',
+      geoZone: 'Jijel',
+      startDate: new Date().toISOString(),
+      coordinatingOrgId: 'ORG-001'
+    });
+
+    const need = await solidarityService.declareNeed({
+      incidentId: incident.id,
+      requesterId: 'USER-002',
+      type: 'WATER',
+      quantityRequired: 1000,
+      urgency: 'CRITICAL',
+      affectedPeopleCount: 95,
+      geoZone: 'Jijel'
+    });
+
+    const assessment = solidarityService.assessNeed(need.id);
+    expect(assessment?.verifyUrgently).toBe(true);
+
+    const coverage = solidarityService.getNeedCoverage(need.id);
+    expect(coverage?.percent).toBe(0);
+
+    const donation = await solidarityService.submitDonation({
+      donorId: 'DONOR-002',
+      donorType: 'CITIZEN',
+      itemType: 'WATER',
+      quantity: 800,
+      geoZone: 'Algiers'
+    });
+    const resources = solidarityService.getResources();
+    const resource = resources.find((r) => r.donationId === donation.id);
+    expect(resource).toBeDefined();
+
+    const proposals = solidarityService.proposeMatchesForNeed(need.id);
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0].allocatedQuantity).toBe(800);
+
+    const over = await solidarityService.allocateResource(resource!.id, need.id, 900, 'alloc-key-over');
+    expect(over.success).toBe(false);
+
+    const first = await solidarityService.allocateResource(resource!.id, need.id, 300, 'alloc-key-1');
+    expect(first.success).toBe(true);
+    const replay = await solidarityService.allocateResource(resource!.id, need.id, 300, 'alloc-key-1');
+    expect(replay.success).toBe(true);
+    expect(replay.alreadyProcessed).toBe(true);
+
+    const rows = solidarityService.buildHxlReport('Jijel Water');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].coveragePct).toBe(0);
+  });
 });
