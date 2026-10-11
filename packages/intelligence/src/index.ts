@@ -220,6 +220,11 @@ export class ConfidenceEngine {
   }
 }
 
+export interface ReviewStore {
+  load(): Promise<ReviewItem[]> | ReviewItem[];
+  save(items: ReviewItem[]): Promise<void> | void;
+}
+
 export interface ReviewItem {
   id: string;
   decisionId: string;
@@ -235,6 +240,7 @@ export interface ReviewItem {
 
 export class HumanReviewQueue {
   private static instance: HumanReviewQueue;
+  private static store: ReviewStore | undefined;
   private items = new Map<string, ReviewItem>();
 
   private constructor() {}
@@ -244,6 +250,38 @@ export class HumanReviewQueue {
       HumanReviewQueue.instance = new HumanReviewQueue();
     }
     return HumanReviewQueue.instance;
+  }
+
+  /**
+   * Pluggable persistence seam (INT-MCP-01). Default is process memory;
+   * production must configure a durable store (DatabasePort/outbox) or the
+   * review queue is lost on restart. Pass `undefined` to revert to memory.
+   */
+  public static configureStore(store: ReviewStore | undefined): void {
+    HumanReviewQueue.store = store;
+  }
+
+  /** Reloads items from the configured store (no-op with the memory default). */
+  public static async rehydrate(): Promise<void> {
+    const store = HumanReviewQueue.store;
+    if (!store) return;
+    const items = await store.load();
+    const queue = HumanReviewQueue.getInstance();
+    queue.items.clear();
+    for (const item of items) {
+      queue.items.set(item.id, item);
+    }
+  }
+
+  private persist(): void {
+    const store = HumanReviewQueue.store;
+    if (!store) return;
+    const snapshot = Array.from(this.items.values());
+    Promise.resolve()
+      .then(() => store.save(snapshot))
+      .catch(() => {
+        // Persistence must never break the review flow; metrics stay in memory.
+      });
   }
 
   public enqueue(decisionResult: DecisionResult): ReviewItem {
@@ -257,12 +295,13 @@ export class HumanReviewQueue {
       createdAt: new Date().toISOString(),
     };
     this.items.set(reviewId, item);
+    this.persist();
 
-    new EventDispatcher().dispatch(
-      "intelligence.review.required",
-      { reviewId, decisionId: decisionResult.decisionId, capability: decisionResult.capability },
-      "system.intelligence",
-    );
+    new EventDispatcher().dispatch("intelligence.review.required", {
+      reviewId,
+      decisionId: decisionResult.decisionId,
+      capability: decisionResult.capability,
+    });
 
     return item;
   }
@@ -288,12 +327,14 @@ export class HumanReviewQueue {
     if (resolution.status === "CORRECTED" || resolution.status === "REJECTED") {
       IntelligenceMetricsCollector.getInstance().recordHumanOverride();
     }
+    this.persist();
 
-    new EventDispatcher().dispatch(
-      "intelligence.review.completed",
-      { reviewId, decisionId: item.decisionId, status: item.status, actorId: item.actorId },
-      "system.intelligence",
-    );
+    new EventDispatcher().dispatch("intelligence.review.completed", {
+      reviewId,
+      decisionId: item.decisionId,
+      status: item.status,
+      actorId: item.actorId,
+    });
 
     return item;
   }
@@ -355,6 +396,21 @@ export class MockDecisionProvider implements DecisionProvider {
   public id = "mock";
   public name = "Mock Intelligence Provider";
 
+  /**
+   * Per-capability confidence calibration (dev/test). Default is the legacy
+   * hardcoded 0.98; without calibration the ConfidenceEngine almost always
+   * returns AUTO and the HUMAN path is never exercised.
+   */
+  private static confidenceOverrides = new Map<string, number>();
+
+  public static setConfidenceFor(capability: string, confidence: number): void {
+    MockDecisionProvider.confidenceOverrides.set(capability, confidence);
+  }
+
+  public static resetCalibration(): void {
+    MockDecisionProvider.confidenceOverrides.clear();
+  }
+
   public async isAvailable(): Promise<boolean> {
     return !IntelligenceKillSwitch.getInstance().isProviderDisabled(this.id);
   }
@@ -367,7 +423,8 @@ export class MockDecisionProvider implements DecisionProvider {
     const thresholds = request.policy?.thresholds || cap?.defaultThresholds || { automatic: 0.95, assisted: 0.75 };
 
     let mockValue: unknown = { status: "processed", state: request.state };
-    let confidence = 0.98;
+    let confidence =
+      MockDecisionProvider.confidenceOverrides.get(request.capability) ?? 0.98;
 
     if (request.capability === "commerce.product.classify") {
       const state = request.state as { title?: string } | undefined;
@@ -481,17 +538,13 @@ export class IntelligenceRuntime {
       HumanReviewQueue.getInstance().enqueue(result);
     }
 
-    new EventDispatcher().dispatch(
-      "intelligence.decision.completed",
-      {
-        decisionId: result.decisionId,
-        capability: result.capability,
-        provider: result.provider,
-        confidence: result.confidence,
-        confidenceLevel: result.confidenceLevel,
-      },
-      "system.intelligence",
-    );
+    new EventDispatcher().dispatch("intelligence.decision.completed", {
+      decisionId: result.decisionId,
+      capability: result.capability,
+      provider: result.provider,
+      confidence: result.confidence,
+      confidenceLevel: result.confidenceLevel,
+    });
 
     return result;
   }

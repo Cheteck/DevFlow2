@@ -205,6 +205,7 @@ export function createThemeResolver(
         "createThemeResolver: onMutation requires an InMemoryThemeAssignmentsStore (or a pre-wired store)",
       );
     }
+    // eslint-disable-next-line no-restricted-syntax -- mecanique onMutation exigeant l'implementation memoire (invariant verifie ci-dessus) ; pas un stockage metier persistant.
     const seededStore = new InMemoryThemeAssignmentsStore({ onMutation });
     seededStore.seed(store.list());
     wiredStore = seededStore;
