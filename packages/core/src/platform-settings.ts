@@ -58,6 +58,7 @@ export class PostgresPlatformSettingsStore implements PlatformSettingsPort {
     private readonly db: DatabasePort,
     initialFallback: Partial<PlatformSettings> = {}
   ) {
+    // eslint-disable-next-line no-restricted-syntax -- couche 2 : cache local de resilience DB (pas un stockage source) ; le defaut de constructeur ci-dessous suit le meme statut.
     this.memoryFallback = new InMemoryPlatformSettingsStore(initialFallback);
   }
 
@@ -121,6 +122,7 @@ export class PlatformSettingsService {
   private cacheTtlMs = 15000;
   private lastFetchedAt = 0;
 
+  // eslint-disable-next-line no-restricted-syntax -- couche 2 : le singleton et le defaut de constructeur exigent un cablage boot-time du store persistant ; en attendant, memoire explicite (jamais en prod via InMemoryGuard des appelants critiques).
   constructor(private readonly store: PlatformSettingsPort = new InMemoryPlatformSettingsStore()) {}
 
   async getSettings(forceRefresh = false): Promise<PlatformSettings> {

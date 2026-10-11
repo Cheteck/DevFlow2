@@ -73,4 +73,5 @@ export class InMemoryRequestDiagnosticsStore implements RequestDiagnosticsStore 
   }
 }
 
+// eslint-disable-next-line no-restricted-syntax -- tampon de diagnostic volatil by-design (jamais du stockage metier).
 export const requestDiagnosticsStore = new InMemoryRequestDiagnosticsStore();

@@ -136,9 +136,9 @@ export class PostgresFeatureFlagsAdapter implements FeatureFlagsPort {
     }
 
     if (record.plansAllowlist && record.plansAllowlist.length > 0) {
-      const customPlan = context.custom?.subscriptionPlan;
+      const customPlan = context?.custom?.subscriptionPlan;
       const userPlan =
-        context.subscriptionPlan ??
+        context?.subscriptionPlan ??
         (typeof customPlan === "string" ? customPlan : undefined);
       if (!userPlan || !record.plansAllowlist.includes(userPlan)) {
         return false;

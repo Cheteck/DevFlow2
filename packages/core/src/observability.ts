@@ -194,7 +194,9 @@ export interface ObservabilitySet {
 export function defaultObservability(logLevel: LogLevel): ObservabilitySet {
   return {
     logger: new ConsoleLogger(logLevel),
+    // eslint-disable-next-line no-restricted-syntax -- telemetrie volatile by-design : metriques/traces en memoire, jamais du stockage metier persistant.
     metrics: new InMemoryMetrics(),
+    // eslint-disable-next-line no-restricted-syntax -- voir ci-dessus.
     tracer: new InMemoryTracer(),
   };
 }

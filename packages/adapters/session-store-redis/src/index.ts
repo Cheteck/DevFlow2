@@ -69,6 +69,7 @@ export class RedisSessionStoreAdapter implements SessionStore {
     const options: RedisSessionStoreOptions = (clientOrOptions as RedisSessionStoreOptions | undefined) ?? {};
 
     if (options.mock === true) {
+      // eslint-disable-next-line no-restricted-syntax -- opt-in explicite { mock: true } : seul usage volontaire de memoire, jamais un fallback silencieux.
       this.client = new InMemoryRedisClient();
       this.keyPrefix = options.keyPrefix ?? "session:";
       return;

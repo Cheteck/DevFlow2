@@ -16,6 +16,18 @@ export interface PgClient {
   connect?(): Promise<void>;
   release?(): Promise<void> | void;
   end?(): Promise<void>;
+  /**
+   * Checks out ONE dedicated connection from the pool (true per-connection
+   * transactions). Absent on single-client fakes — `transaction()` then uses
+   * the legacy savepoint path.
+   */
+  checkout?(): Promise<PooledConnection>;
+}
+
+/** Single pooled connection: every statement shares one backend session. */
+export interface PooledConnection {
+  query(sql: string, params?: readonly unknown[]): Promise<PgQueryResult>;
+  release(): Promise<void> | void;
 }
 
 export interface PostgresPoolOptions {
@@ -45,6 +57,7 @@ export function translatePlaceholders(sql: string): string {
  */
 export class PostgresPoolManager {
   private readonly clients: Set<PgClient> = new Set();
+  private sharedClient: PgClient | null = null;
   private isClosed = false;
 
   constructor(
@@ -57,12 +70,18 @@ export class PostgresPoolManager {
       throw new Error("PostgresPoolManager has been closed.");
     }
 
-    const client = this.clientFactory();
-    if (client.connect) {
-      await client.connect();
+    // The factory product is a long-lived shared handle (a pg Pool wrapper):
+    // creating one per acquisition leaked a backend connection per query
+    // ("too many clients already" past ~100 statements). Acquire once.
+    if (!this.sharedClient) {
+      const client = this.clientFactory();
+      if (client.connect) {
+        await client.connect();
+      }
+      this.sharedClient = client;
+      this.clients.add(client);
     }
-    this.clients.add(client);
-    return client;
+    return this.sharedClient;
   }
 
   async executeWithRetry<T>(
@@ -91,11 +110,13 @@ export class PostgresPoolManager {
         }
         throw err;
       } finally {
+        // Logical return only: the factory product is shared (see
+        // acquireClient) — removing it here would break close() tracking
+        // without freeing anything.
         if (client) {
           if (client.release) {
             await client.release();
           }
-          this.clients.delete(client);
         }
       }
     }
@@ -111,6 +132,22 @@ export class PostgresPoolManager {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Checks out a dedicated pooled connection when the factory product
+   * supports it; otherwise falls back to the shared handle (no real
+   * isolation — same limitation as the legacy transaction path).
+   */
+  async checkout(): Promise<PooledConnection> {
+    const shared = await this.acquireClient();
+    if (shared.checkout) {
+      return shared.checkout();
+    }
+    return {
+      query: (sql, params) => shared.query(sql, params),
+      release: async () => {},
+    };
   }
 
   async close(): Promise<void> {
@@ -149,17 +186,22 @@ export class PostgresDatabaseAdapter implements DatabasePort {
 
   private readonly client: PgClient;
   private readonly poolManager?: PostgresPoolManager;
+  private readonly checkoutDedicated: (() => Promise<PooledConnection>) | undefined;
   private savepointDepth = 0;
 
   constructor(clientOrPool: PgClient | PostgresPoolManager) {
     if (clientOrPool instanceof PostgresPoolManager) {
       this.poolManager = clientOrPool;
+      this.checkoutDedicated = () => clientOrPool.checkout();
       this.client = {
         query: (sql, params) =>
           clientOrPool.executeWithRetry((c) => c.query(sql, params)),
       };
     } else {
       this.client = clientOrPool;
+      this.checkoutDedicated = clientOrPool.checkout
+        ? () => (clientOrPool.checkout as () => Promise<PooledConnection>)()
+        : undefined;
     }
   }
 
@@ -177,6 +219,42 @@ export class PostgresDatabaseAdapter implements DatabasePort {
   }
 
   async transaction<T>(fn: (tx: DatabaseConnection) => Promise<T>): Promise<T> {
+    // Real atomicity needs ONE backend session for the whole fn. Pool-backed
+    // ports check out a dedicated connection; single-client fakes (tests)
+    // keep the legacy savepoint path. Nested real transactions are NOT
+    // multiplexed (no ALS): inner calls share the outer connection via
+    // savepoints, exactly like the legacy path.
+    if (this.savepointDepth === 0 && this.checkoutDedicated) {
+      const conn = await this.checkoutDedicated();
+      const tx: DatabaseConnection = {
+        execute: async (sql: string, params?: readonly unknown[]) => {
+          const res = await conn.query(translatePlaceholders(sql), params);
+          return res.rowCount ?? 0;
+        },
+        query: async <R = Record<string, unknown>>(
+          sql: string,
+          params?: readonly unknown[],
+        ) => {
+          const res = await conn.query(translatePlaceholders(sql), params);
+          return res.rows as unknown as R[];
+        },
+      };
+      await conn.query("BEGIN");
+      try {
+        const result = await fn(tx);
+        await conn.query("COMMIT");
+        return result;
+      } catch (err) {
+        try {
+          await conn.query("ROLLBACK");
+        } catch {
+          // Rollback failure must not mask the original error.
+        }
+        throw err;
+      } finally {
+        await conn.release();
+      }
+    }
     const depth = this.savepointDepth;
     const savepoint = `mosaix_tx_${depth}`;
     this.savepointDepth++;
@@ -244,6 +322,16 @@ export function createPgPoolClient(connectionString?: string): PgClient {
     query: async (sql: string, params?: readonly unknown[]) => {
       const result = await pool.query(sql, [...(params ?? [])]);
       return { rows: result.rows, rowCount: result.rowCount };
+    },
+    checkout: async () => {
+      const client = await pool.connect();
+      return {
+        query: async (sql: string, params?: readonly unknown[]) => {
+          const result = await client.query(sql, [...(params ?? [])]);
+          return { rows: result.rows, rowCount: result.rowCount };
+        },
+        release: () => client.release(),
+      };
     },
     end: async () => {
       await pool.end();
