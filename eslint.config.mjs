@@ -55,6 +55,10 @@ const elementTypes = [
   { type: "app-composition-root", pattern: "apps/*/src/composition-root.ts" },
   { type: "app-general", pattern: "apps/**" },
   { type: "plugin", pattern: "plugins/**" },
+
+  // Historical server entry (src/): composition helper, not a BAC.
+  // Must only use BAC public composition contracts.
+  { type: "server", pattern: "src/server/**" },
 ];
 
 const ignores = [
@@ -112,10 +116,94 @@ export default [
             { from: "app-domain", allow: ["framework-foundation", "sdk"] },
             { from: "app-application", allow: ["app-domain", "framework-foundation", "sdk"] },
             { from: "app-infrastructure", allow: ["app-infrastructure", "app-application", "app-domain", "framework-port", "framework-adapter", "framework-foundation", "sdk"] },
-            { from: "app-composition-root", allow: ["app-domain", "app-application", "app-infrastructure", "sdk", "framework-primitive", "framework-port", "framework-adapter", "framework-foundation"] },
+            { from: "app-composition-root", allow: ["app-general", "app-domain", "app-application", "app-infrastructure", "sdk", "framework-primitive", "framework-port", "framework-adapter", "framework-foundation"] },
             { from: "app-general", allow: ["app-general", "sdk", "framework-primitive", "framework-port", "framework-foundation"] },
             { from: "plugin", allow: ["plugin", "sdk", "framework-foundation"] },
+            // Server orchestration: BAC internals forbidden — use
+            // apps/<bac>/src/composition-root.ts (public contract).
+            // NOTE: boundaries only sees *resolvable* specifiers; the repo's
+            // ESM `.js` suffixes rarely resolve, so the real enforcement is
+            // the `no-restricted-imports` block below (specifier strings).
+            { from: "server", allow: ["server", "app-composition-root", "sdk", "framework-primitive", "framework-port", "framework-foundation", "framework-adapter"] },
           ],
+        },
+      ],
+    },
+  },
+  {
+    // Persistance explicite (decision in-memory repo-wide) : aucun
+    // `new InMemory*` hors tests/bench — exiger une DB (fail-fast) ou un
+    // opt-in documente. Exemptions ciblees uniquement via
+    // `eslint-disable-next-line no-restricted-syntax -- motif` (couche 2,
+    // volatilite by-design, transport sans DB).
+    files: ["**/*.ts"],
+    ignores: ["**/*.test.ts", "**/*.bench.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "NewExpression[callee.name=/^InMemory/], NewExpression[callee.property.name=/^InMemory/]",
+          message:
+            "Stockage en memoire interdit hors tests/bench : exigez un DatabasePort (fail-fast) ou documentez l'opt-in (mock explicite, volatilite by-design, couche 2).",
+        },
+      ],
+    },
+  },
+  {
+    // Enforceable BAC encapsulation for the historical server layer.
+    // Unlike boundaries (resolution-based, blind to ESM `.js` specifiers),
+    // this matches specifier strings, so `../../apps/<bac>/src/domain/*.js`
+    // and friends are rejected in CI. Public contracts
+    // (`apps/<bac>/src/composition-root.ts`, `apps/<bac>/src/index.ts`)
+    // remain allowed. Scoped to src/server/** only — src/shell/** keeps its
+    // legacy deep imports (orchestrator/migrations) until migrated.
+    files: ["src/server/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              // One entry per layer and relative depth used under src/server/
+              // (src/server/*.ts -> ../../apps, */*.ts -> ../../../apps).
+              // NOTE: `**/` cannot match `..` segments and brace expansion
+              // (`{a,b}`) is not honored by this rule/version, so entries
+              // are enumerated explicitly. Covers static imports only —
+              // dynamic import() is covered by no-restricted-syntax below.
+              group: [
+                "../../apps/*/src/domain/**",
+                "../../apps/*/src/infrastructure/**",
+                "../../apps/*/src/presentation/**",
+                "../../apps/*/src/application/**",
+                "../../apps/*/src/commands/**",
+                "../../../apps/*/src/domain/**",
+                "../../../apps/*/src/infrastructure/**",
+                "../../../apps/*/src/presentation/**",
+                "../../../apps/*/src/application/**",
+                "../../../apps/*/src/commands/**",
+              ],
+              message: "src/server must not import BAC internal layers — use the BAC public composition contract (apps/<bac>/src/composition-root.ts).",
+            },
+          ],
+        },
+      ],
+      // Same boundary for dynamic import() specifiers (string literals),
+      // which no-restricted-imports does not inspect.
+      // Plus the repo-wide persistence invariant (see block above): repeated
+      // here because this later block overrides `no-restricted-syntax` for
+      // src/server/** files.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "ImportExpression > Literal[value=/\\/apps\\/[^/]+\\/src\\/(domain|infrastructure|presentation|application|commands)\\//]",
+          message: "src/server must not dynamically import BAC internal layers — use the BAC public composition contract (apps/<bac>/src/composition-root.ts).",
+        },
+        {
+          selector:
+            "NewExpression[callee.name=/^InMemory/], NewExpression[callee.property.name=/^InMemory/]",
+          message:
+            "Stockage en memoire interdit hors tests/bench : exigez un DatabasePort (fail-fast) ou documentez l'opt-in (mock explicite, volatilite by-design, couche 2).",
         },
       ],
     },

@@ -55,6 +55,9 @@ services:
       POSTGRES_USER: mosaix
       POSTGRES_PASSWORD: mosaix
       POSTGRES_DB: mosaix
+    ports:
+      # Host-local dev (tsx hors container, .env MOSAIX_DATABASE_URL sur localhost)
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

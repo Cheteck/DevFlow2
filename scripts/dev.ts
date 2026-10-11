@@ -44,6 +44,15 @@ function startChild(): void {
 
 function startMcpServer(): void {
   if (stopped) return;
+  // Never leak the previous MCP child on supervised restarts: kill it first.
+  if (mcpChild) {
+    try {
+      mcpChild.kill();
+    } catch {
+      /* already gone — the exit handler clears the reference */
+    }
+    mcpChild = null;
+  }
   mcpChild = spawn("pnpm tsx packages/mcp/src/stdio-server.ts", {
     stdio: ["pipe", "pipe", "inherit"],
     shell: true,
