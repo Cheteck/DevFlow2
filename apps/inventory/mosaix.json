@@ -1,0 +1,44 @@
+{
+  "type": "application",
+  "id": "@apps/inventory",
+  "name": "Inventory & Stock Levels",
+  "version": "0.1.0",
+  "domain": {
+    "name": "inventory"
+  },
+  "runtime": {
+    "entrypoint": "./src/index.ts",
+    "isolation": "trusted"
+  },
+  "database": {
+    "strategy": "per-app"
+  },
+  "capabilities": [
+    {
+      "id": "inventory.stock.report",
+      "version": "1.0.0"
+    },
+    {
+      "id": "inventory.restock.subscribe",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [
+    "inventory:stock:read:tenant",
+    "inventory:restock:subscribe"
+  ],
+  "events": [
+    "inventory.stock.depleted",
+    "inventory.restock.requested"
+  ],
+  "experience": {
+    "appCard": {
+      "title": "Stock & Inventaire",
+      "icon": "📦",
+      "description": "Niveaux de stock, réservations et signaux de réapprovisionnement (sans prix)"
+    },
+    "frontend": {
+      "entrypoint": "./frontend/src/index.ts"
+    }
+  }
+}
