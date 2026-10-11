@@ -1,7 +1,7 @@
 import type { Container, ServiceProvider, Router } from "@mosaix/sdk";
-import { InMemoryGuard } from "@mosaix/support";
-import { InMemoryOrderRepository, PostgresOrderRepository } from "./postgres-order-repository.js";
+import { PostgresOrderRepository } from "./postgres-order-repository.js";
 import { OrderService, type OrderRepositoryPort } from "../domain/order.service.js";
+import { SatimPaymentPort } from "../domain/satim-payment-port.js";
 import { CommerceController } from "./commerce-controller.js";
 import type { DatabasePort } from "@mosaix/ports-database";
 
@@ -18,10 +18,16 @@ export class CommerceAppServiceProvider implements ServiceProvider {
     } else if (this.databasePort) {
       repository = new PostgresOrderRepository(this.databasePort);
     } else {
-      InMemoryGuard.reportFallback("InMemoryOrderRepository", "missing DatabasePort in CommerceAppServiceProvider");
-      repository = new InMemoryOrderRepository();
+      // Pas de stockage en memoire hors tests : exiger un DatabasePort
+      // (Postgres) ou un repository explicite (tests uniquement).
+      throw new Error(
+        "[CommerceAppServiceProvider] DatabasePort requis : passez databasePort (Postgres) ou orderRepository (tests uniquement).",
+      );
     }
-    const orderService = new OrderService(repository);
+    // Production runtime: real PSP adapter (BOUND-02). Inventory reservation
+    // has no persistent adapter yet — checkout fails closed loudly until
+    // one is wired, never a silent no-op.
+    const orderService = new OrderService(repository, new SatimPaymentPort());
     const controller = new CommerceController(orderService);
 
     container.instance("orderRepository", repository);

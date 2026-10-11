@@ -113,6 +113,9 @@ export const baseEnvSchema = z
 
     // ── Payments / CDN ──
     PSP_WEBHOOK_SECRET: emptyAsUnset(z.string().min(16).optional()),
+    SATIM_GATEWAY_URL: emptyAsUnset(z.string().url().optional()),
+    SATIM_TERMINAL_ID: emptyAsUnset(z.string().min(1).optional()),
+    MOSAIX_PUBLIC_BASE_URL: emptyAsUnset(z.string().url().optional()),
     MOSAIX_CDN_SECRET: emptyAsUnset(z.string().min(8).optional()),
     MOSAIX_CDN_BASE_URL: emptyAsUnset(z.string().url().optional()),
 

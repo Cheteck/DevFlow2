@@ -1,5 +1,73 @@
 import type { PaymentPort } from "../workflows/checkout-order.workflow.js";
-import { Money } from "@mosaix/core";
+import { Money, type Logger } from "@mosaix/core";
+
+export interface SatimPaymentOptions {
+  gatewayUrl?: string;
+  terminalId?: string;
+  returnUrlBase?: string;
+  logger?: Pick<Logger, "info" | "warn">;
+}
+
+/**
+ * SatimPaymentPort - Implementation for SATIM CIB / Edahabia Card payments in Algeria (CIB-01).
+ * Integrates SATIM Gateway standard APIs: register.do, getOrderStatus.do, refund.do
+ *
+ * Config via env (see `.env.example`, BOUND-02): `SATIM_GATEWAY_URL`,
+ * `SATIM_TERMINAL_ID`, `MOSAIX_PUBLIC_BASE_URL`. Constructor params win
+ * over env, for tests. Hardcoded values below are sandbox fallbacks only.
+ *
+ * NOTE: the live gateway call is not issued yet — the hold is recorded
+ * locally (volatile `Map`). No secret material (terminal payload) is ever
+ * logged. Full PSP extraction + persistence is tracked by BOUND-02.
+ */
+export class SatimPaymentPort implements PaymentPort {
+  private activeHolds = new Map<string, { amount: number; key: string }>();
+  private readonly gatewayUrl: string;
+  private readonly terminalId: string;
+  private readonly returnUrlBase: string;
+  private readonly logger?: Pick<Logger, "info" | "warn">;
+
+  constructor(options: SatimPaymentOptions = {}) {
+    this.gatewayUrl =
+      options.gatewayUrl ?? process.env.SATIM_GATEWAY_URL ?? "https://test.satim.dz/payment/rest";
+    this.terminalId = options.terminalId ?? process.env.SATIM_TERMINAL_ID ?? "MOSAIX_TERM_01";
+    this.returnUrlBase =
+      options.returnUrlBase ?? process.env.MOSAIX_PUBLIC_BASE_URL ?? "https://mosaix.platform";
+    this.logger = options.logger;
+  }
+
+  /**
+   * Authorize / Hold payment via SATIM CIB gateway
+   */
+  async authorize(orderId: string, amount: number, idempotenceKey: string): Promise<void> {
+    this.logger?.info("[satim] authorization hold requested", { orderId, amount });
+    const satimRegisterEndpoint = `${this.gatewayUrl}/register.do`;
+    const payload = {
+      terminalId: this.terminalId,
+      amount,
+      orderNumber: orderId,
+      returnUrl: `${this.returnUrlBase}/api/payments/satim-callback?id=${idempotenceKey}`,
+    };
+
+    // Deferred live call (BOUND-02): record the prepared hold locally.
+    // The endpoint is kept for debuggability; secrets stay out of logs.
+    this.logger?.warn("[satim] gateway call deferred — hold kept in memory (non-persistent)", {
+      orderId,
+      endpoint: satimRegisterEndpoint,
+    });
+
+    this.activeHolds.set(orderId, { amount, key: idempotenceKey });
+    void payload;
+  }
+
+  /**
+   * Cancel / Void the authorization hold on SATIM
+   */
+  async void(orderId: string, idempotenceKey: string): Promise<void> {
+    this.logger?.info("[satim] authorization hold voided", { orderId, idempotenceKey });
+    this.activeHolds.delete(orderId);
+  }
+}
 
 export interface Wallet {
   id: string;
@@ -19,50 +87,11 @@ export interface WalletTransaction {
 }
 
 /**
- * SatimPaymentPort - Implementation for SATIM CIB / Edahabia Card payments in Algeria (CIB-01).
- * Integrates SATIM Gateway standard APIs: register.do, getOrderStatus.do, refund.do
- */
-export class SatimPaymentPort implements PaymentPort {
-  private activeHolds = new Map<string, { amount: number; key: string }>();
-
-  constructor(
-    private readonly gatewayUrl = "https://test.satim.dz/payment/rest",
-    private readonly terminalId = "MOSAIX_TERM_01"
-  ) {}
-
-  /**
-   * Authorize / Hold payment via SATIM CIB gateway
-   */
-  async authorize(orderId: string, amount: number, idempotenceKey: string): Promise<void> {
-    console.log(
-      `[SATIM PAY] Initiating authorization hold for order [${orderId}] with amount [${amount}] via SATIM CIB/Edahabia Gateway`
-    );
-    // Mimic the SATIM Gateway registration API call
-    const satimRegisterEndpoint = `${this.gatewayUrl}/register.do`;
-    const payload = {
-      terminalId: this.terminalId,
-      amount,
-      orderNumber: orderId,
-      returnUrl: `https://mosaix.platform/api/payments/satim-callback?id=${idempotenceKey}`,
-    };
-
-    console.log("[SATIM PAY] Prepared endpoint & payload for SATIM Gateway:", satimRegisterEndpoint, payload);
-
-    this.activeHolds.set(orderId, { amount, key: idempotenceKey });
-  }
-
-  /**
-   * Cancel / Void the authorization hold on SATIM
-   */
-  async void(orderId: string, idempotenceKey: string): Promise<void> {
-    console.log(`[SATIM PAY] Refunding / Voiding SATIM transaction [${orderId}] for key [${idempotenceKey}]`);
-    this.activeHolds.delete(orderId);
-  }
-}
-
-/**
  * WalletEscrowManager - Handles the transaction flows for platform escrow:
- * recharge -> escrow_hold -> escrow_release with platform commission deduction
+ * recharge -> escrow_hold -> escrow_release with platform commission deduction.
+ *
+ * NOTE: state lives in process memory (volatile). Balances MUST move to
+ * persistent ledger tables before production money flows (BOUND-02).
  */
 export class WalletEscrowManager {
   private wallets = new Map<string, Wallet>();
