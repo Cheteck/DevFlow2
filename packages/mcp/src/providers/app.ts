@@ -6,7 +6,12 @@ import { MCPToolRegistry } from "../tool-registry";
 
 export class AppToolProvider {
   static register(tools: MCPToolRegistry): void {
+    // NOTE (MCP-02): requiredPermissions below are aligned on BAC manifests
+    // (`apps/*/mosaix.json`). Where the BAC lacks the matching capability,
+    // the closest existing scope is used and the gap is noted inline.
     // 1. Imperia BAC (Governance & Legislation)
+    // NOTE: no `propose`/`vote` capability exists in @apps/imperia manifest
+    // (inspect/audit/topology only) — gated on inspect until the BAC declares them.
     tools.registerTool({
       name: "imperia_create_bill",
       description: "Create a new legislative proposal (bill) in Imperia Governance",
@@ -19,7 +24,7 @@ export class AppToolProvider {
         },
         required: ["title", "description"],
       },
-      requiredPermission: "imperia:governance:propose",
+      requiredPermission: "imperia:governance:inspect",
       ownerApp: "@apps/imperia",
       handler: async (input: { title: string; description: string; category?: string }) => ({
         success: true,
@@ -41,7 +46,7 @@ export class AppToolProvider {
         },
         required: ["billId", "vote"],
       },
-      requiredPermission: "imperia:governance:vote",
+      requiredPermission: "imperia:governance:inspect",
       ownerApp: "@apps/imperia",
       handler: async (input: { billId: string; vote: string }) => ({
         success: true,
@@ -52,6 +57,8 @@ export class AppToolProvider {
     });
 
     // 2. Commerce BAC (Store & Catalog)
+    // NOTE: no `catalog:read`/stock scope exists in @apps/commerce manifest
+    // (order:create/read only) — stock checks belong behind InventoryPort.
     tools.registerTool({
       name: "commerce_check_stock",
       description: "Check stock availability for a product in Commerce BAC",
@@ -60,7 +67,7 @@ export class AppToolProvider {
         properties: { productId: { type: "string" } },
         required: ["productId"],
       },
-      requiredPermission: "commerce:catalog:read",
+      requiredPermission: "commerce:order:read",
       ownerApp: "@apps/commerce",
       handler: async (input: { productId: string }) => ({
         productId: input.productId,
@@ -81,7 +88,7 @@ export class AppToolProvider {
         },
         required: ["items", "totalAmount"],
       },
-      requiredPermission: "commerce:orders:write",
+      requiredPermission: "commerce:order:create",
       ownerApp: "@apps/commerce",
       handler: async (input: { items: unknown[]; totalAmount: number }) => ({
         success: true,
@@ -105,7 +112,7 @@ export class AppToolProvider {
         },
         required: ["title", "startTime"],
       },
-      requiredPermission: "booking:slots:write",
+      requiredPermission: "booking:slot:create",
       ownerApp: "@apps/booking",
       handler: async (input: { title: string; startTime: string; durationMinutes?: number }) => ({
         success: true,
@@ -129,7 +136,7 @@ export class AppToolProvider {
         },
         required: ["channelId", "content"],
       },
-      requiredPermission: "beam:messages:write",
+      requiredPermission: "beam:message:send",
       ownerApp: "@apps/beam",
       handler: async (input: { channelId: string; content: string }) => ({
         success: true,
@@ -141,6 +148,8 @@ export class AppToolProvider {
     });
 
     // 5. Spaces BAC (File Storage & Document Management)
+    // NOTE: no `documents` scope exists in @apps/spaces manifest
+    // (space:create/manage/read only) — gated on space:read until mapped.
     tools.registerTool({
       name: "spaces_search_docs",
       description: "Search documents and files in Spaces BAC",
@@ -149,7 +158,7 @@ export class AppToolProvider {
         properties: { query: { type: "string" }, spaceId: { type: "string" } },
         required: ["query"],
       },
-      requiredPermission: "spaces:documents:read",
+      requiredPermission: "spaces:space:read",
       ownerApp: "@apps/spaces",
       handler: async (input: { query: string; spaceId?: string }) => ({
         query: input.query,
@@ -160,7 +169,7 @@ export class AppToolProvider {
       }),
     });
 
-    // 6. Identity & Portfolio
+    // 6. Identity (Citadelle)
     tools.registerTool({
       name: "identity_user_lookup",
       description: "Look up a user profile in Identity BAC",
@@ -169,31 +178,13 @@ export class AppToolProvider {
         properties: { userId: { type: "string" } },
         required: ["userId"],
       },
-      requiredPermission: "identity:user:read",
+      requiredPermission: "citadelle:user:read:tenant",
       ownerApp: "@apps/citadelle",
       handler: async (input: { userId: string }) => ({
         id: input.userId,
         status: "active",
         tenantId: "tenant-001",
         displayName: "Agent User",
-      }),
-    });
-
-    tools.registerTool({
-      name: "portfolio_vendable_search",
-      description: "Search products/services in Portfolio BAC",
-      inputSchema: {
-        type: "object",
-        properties: { query: { type: "string" } },
-        required: ["query"],
-      },
-      requiredPermission: "portfolio:vendables:read",
-      ownerApp: "@apps/portfolio",
-      handler: async (input: { query: string }) => ({
-        query: input.query,
-        results: [
-          { id: "vendable-1", title: `Result for ${input.query}`, type: "Product" },
-        ],
       }),
     });
   }

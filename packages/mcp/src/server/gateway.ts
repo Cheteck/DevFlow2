@@ -8,22 +8,26 @@ import { MCPToolRegistry, mcpToolRegistry } from "../tool-registry";
 import { MCPResourceRegistry, mcpResourceRegistry } from "../resource-registry";
 import { MCPPromptRegistry, mcpPromptRegistry } from "../prompt-registry";
 import { mcpPermissionGate } from "../security/permission-gate";
+import { validateToolInput } from "../security/input-validator";
 import { mcpRateLimiter } from "../security/rate-limiter";
-import type { MCPPrincipal } from "../security/principal-resolver";
+import { MCPPrincipalResolver, type MCPPrincipal } from "../security/principal-resolver";
 
 export interface JSONRPCRequest {
   jsonrpc: "2.0";
-  id: string | number;
+  id?: string | number | null;
   method: string;
   params?: Record<string, unknown>;
 }
 
 export interface JSONRPCResponse {
   jsonrpc: "2.0";
-  id: string | number;
+  id: string | number | null;
   result?: { content?: Array<{ type?: string; text?: string }>; tools?: unknown[]; [key: string]: unknown };
   error?: { code: number; message: string; data?: unknown };
 }
+
+/** MCP protocol versions this gateway negotiates (newest first). */
+const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
 export class MCPGateway {
   private toolRegistry: MCPToolRegistry;
@@ -40,22 +44,33 @@ export class MCPGateway {
     this.promptRegistry = prompts;
   }
 
-  /** Anonymous fallback principal for unauthenticated JSON-RPC callers. */
+  /**
+   * Fallback principal for callers without credentials (MCP-03).
+   * Deny-by-default: read-only scope, never `mcp:admin`. Any `tools/call`
+   * without an authorized scope is rejected with -32001.
+   */
   private anonymousPrincipal(): MCPPrincipal {
-    return {
-      actorId: "anonymous-agent",
-      actorType: "agent",
-      tenantId: "tenant-default",
-      scopes: ["mcp:admin"],
-      expiresAt: new Date(Date.now() + 3600_000).toISOString(),
-    };
+    return MCPPrincipalResolver.resolveFromHeader(undefined);
+  }
+
+  private resolvePrincipal(context?: {
+    principal?: MCPPrincipal;
+    authHeader?: string;
+    [key: string]: unknown;
+  }): MCPPrincipal {
+    if (context?.principal) return context.principal;
+    if (typeof context?.authHeader === "string") {
+      return MCPPrincipalResolver.resolveFromHeader(context.authHeader);
+    }
+    return this.anonymousPrincipal();
   }
 
   async handleRequest(
     request: JSONRPCRequest,
-    context?: { principal?: MCPPrincipal; [key: string]: unknown }
-  ): Promise<JSONRPCResponse> {
-    const { id, method, params } = request;
+    context?: { principal?: MCPPrincipal; authHeader?: string; [key: string]: unknown },
+  ): Promise<JSONRPCResponse | null> {
+    const { id: rawId, method, params } = request;
+    const id = rawId ?? null;
 
     // P0 Feature Flag Guard: platform.mcp.gateway_enabled (default: true)
     const gatewayEnabled = await featureAsync("platform.mcp.gateway_enabled", true);
@@ -69,6 +84,38 @@ export class MCPGateway {
 
     try {
       switch (method) {
+        case "initialize": {
+          // MCP lifecycle handshake (required by clients like OpenCode).
+          const rawParams = (params ?? {}) as { protocolVersion?: unknown };
+          const requested =
+            typeof rawParams.protocolVersion === "string" ? rawParams.protocolVersion : "";
+          const negotiated = SUPPORTED_PROTOCOL_VERSIONS.includes(requested)
+            ? requested
+            : SUPPORTED_PROTOCOL_VERSIONS[0];
+          return {
+            jsonrpc: "2.0",
+            id: id ?? null,
+            result: {
+              protocolVersion: negotiated,
+              capabilities: {
+                tools: { listChanged: false },
+                resources: { subscribe: false, listChanged: false },
+                prompts: { listChanged: false },
+              },
+              serverInfo: { name: "mosaix-mcp", version: "0.1.0" },
+            },
+          };
+        }
+
+        case "notifications/initialized": {
+          // JSON-RPC notification: no response expected on stdio.
+          return null;
+        }
+
+        case "ping": {
+          return { jsonrpc: "2.0", id: id ?? null, result: {} };
+        }
+
         case "tools/list": {
           return {
             jsonrpc: "2.0",
@@ -88,7 +135,22 @@ export class MCPGateway {
             };
           }
 
-          const principal: MCPPrincipal = context?.principal || this.anonymousPrincipal();
+          const principal: MCPPrincipal = this.resolvePrincipal(context);
+
+          // 0. Input validation against the tool schema (MCP-04)
+          const violations = validateToolInput(tool.inputSchema, args);
+          if (violations.length > 0) {
+            return {
+              jsonrpc: "2.0",
+              id,
+              error: {
+                code: -32602,
+                message: `Invalid params for tool [${name}]: ${violations
+                  .map((v) => (v.path ? `${v.path} ${v.message}` : v.message))
+                  .join("; ")}`,
+              },
+            };
+          }
 
           // 1. RBAC Check
           const authorized = mcpPermissionGate.authorize(name, tool.requiredPermission, principal);
@@ -143,7 +205,7 @@ export class MCPGateway {
             };
           }
 
-          const principal: MCPPrincipal = context?.principal || this.anonymousPrincipal();
+          const principal: MCPPrincipal = this.resolvePrincipal(context);
 
           if (resource.requiredPermission) {
             const authorized = mcpPermissionGate.authorize(uri, resource.requiredPermission, principal);
