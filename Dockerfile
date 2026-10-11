@@ -29,7 +29,7 @@ COPY --chown=node:node config ./config
 COPY --chown=node:node scripts ./scripts
 COPY --chown=node:node pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.json tsconfig.build.json ./
 ENV COREPACK_HOME="/tmp/corepack"
-RUN corepack prepare pnpm@10.33.4 --activate
+RUN corepack prepare pnpm@9.15.4 --activate
 USER node
 ENV PORT="3000" \
     HOST="0.0.0.0"
