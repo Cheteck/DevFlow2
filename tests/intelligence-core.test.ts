@@ -97,16 +97,16 @@ describe("IJIDeals Intelligence Core — Advanced Runtime & Human Review", () =>
     } as unknown as import("@mosaix/contracts").BacExecutionContext;
 
     const resAi = await descriptor.render(ctxAdmin);
-    expect(resAi.html).toContain("IJIDeals Intelligence");
-    expect(resAi.html).toContain("Policies Rego");
-    expect(resAi.html).toContain("Audit");
-    expect(resAi.html).toContain("Plateforme");
+    expect(resAi.contentHtml).toContain("IJIDeals Intelligence");
+    expect(resAi.contentHtml).toContain("Policies Rego");
+    expect(resAi.contentHtml).toContain("Audit");
+    expect(resAi.contentHtml).toContain("Plateforme");
 
     const ctxAudit = {
       user: { id: "admin", roles: ["admin"] },
       request: { query: { tab: "audit" } },
     } as unknown as import("@mosaix/contracts").BacExecutionContext;
     const resAudit = await descriptor.render(ctxAudit);
-    expect(resAudit.html).toContain("Journal d'Audit");
+    expect(resAudit.contentHtml).toContain("Journal d'Audit");
   });
 });

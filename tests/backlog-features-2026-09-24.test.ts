@@ -9,7 +9,11 @@ import { maintenanceService } from "@apps/imperia";
 // FEAT-02
 import { registrationWizardService } from "@apps/citadelle";
 // FEAT-03
-import { productWizardService, shopInventoryReportService, shopAnalyticsService } from "@apps/portfolio";
+import { productWizardService } from "@apps/portfolio";
+// FEAT-06 & FEAT-07 (moved out of portfolio: PIM purity)
+import { inventoryReportService } from "@apps/inventory";
+// FEAT-09 (moved out of portfolio: transverse analytics)
+import { trafficAnalyticsService } from "@mosaix/analytics";
 // FEAT-04 & FEAT-05
 import { auctionService, deliveryPartnerService } from "@apps/commerce";
 // FEAT-08
@@ -90,13 +94,9 @@ describe("Backlog 2026-09-24 Features Suite", () => {
       });
       expect(s1.valid).toBe(true);
 
-      // Step 2
+      // Step 2 (descriptive variants only, no price/stock — PIM purity)
       const s2 = productWizardService.saveStep2(draft.draftId, {
-        basePrice: 450,
-        currency: "EUR",
-        sku: "TAB-NOY-001",
-        stock: 3,
-        variants: [{ name: "Version Huilée", sku: "TAB-NOY-001-OIL", priceModifier: 30, stock: 2 }],
+        variants: [{ name: "Version Huilée", sku: "TAB-NOY-001-OIL", attributes: { finition: "huile" } }],
       });
       expect(s2.valid).toBe(true);
 
@@ -192,20 +192,20 @@ describe("Backlog 2026-09-24 Features Suite", () => {
     });
   });
 
-  // 🟠 FEAT-06 & FEAT-07: Rapports boutiques & Intérêt rupture
-  describe("FEAT-06 & FEAT-07: Shop Reports & Out-of-Stock Demand [CŒUR]", () => {
+  // 🟠 FEAT-06 & FEAT-07: Rapports inventaire & Intérêt rupture (inventory BAC, quantités uniquement)
+  describe("FEAT-06 & FEAT-07: Stock Reports & Out-of-Stock Demand [CŒUR]", () => {
     it("tracks out-of-stock visits and computes demand signals", () => {
-      shopInventoryReportService.recordOutOfStockVisit("vend_sold_out_item", "visitor_anon_1", "space_shop_1");
-      shopInventoryReportService.recordOutOfStockVisit("vend_sold_out_item", "visitor_anon_2", "space_shop_1");
+      inventoryReportService.recordOutOfStockVisit("SKU-SOLD-OUT-01", "visitor_anon_1", "space_shop_1");
+      inventoryReportService.recordOutOfStockVisit("SKU-SOLD-OUT-01", "visitor_anon_2", "space_shop_1");
 
-      const alertSub = shopInventoryReportService.registerRestockAlertSubscription(
-        "vend_sold_out_item",
+      const alertSub = inventoryReportService.registerRestockAlertSubscription(
+        "SKU-SOLD-OUT-01",
         "buyer@interest.com",
         "space_shop_1"
       );
       expect(alertSub.id).toBeDefined();
 
-      const demand = shopInventoryReportService.getMissedDemandForVendable("vend_sold_out_item");
+      const demand = inventoryReportService.getMissedDemandForSku("SKU-SOLD-OUT-01");
       expect(demand.visitsCount).toBe(2);
       expect(demand.subscribersCount).toBe(1);
     });
@@ -239,7 +239,7 @@ describe("Backlog 2026-09-24 Features Suite", () => {
   // 🟡 FEAT-09: Compteur de visites
   describe("FEAT-09: GDPR Traffic Analytics Service [CŒUR]", () => {
     it("anonymizes IP with daily rotating salt and aggregates visits", () => {
-      const tracked1 = shopAnalyticsService.recordVisit({
+      const tracked1 = trafficAnalyticsService.recordVisit({
         spaceId: "space_artisan",
         route: "/p/table-basse",
         ip: "192.168.1.50",
@@ -248,7 +248,7 @@ describe("Backlog 2026-09-24 Features Suite", () => {
       expect(tracked1).toBe(true);
 
       // Bot exclusion
-      const trackedBot = shopAnalyticsService.recordVisit({
+      const trackedBot = trafficAnalyticsService.recordVisit({
         spaceId: "space_artisan",
         route: "/p/table-basse",
         ip: "66.249.66.1",
@@ -256,7 +256,7 @@ describe("Backlog 2026-09-24 Features Suite", () => {
       });
       expect(trackedBot).toBe(false);
 
-      const summary = shopAnalyticsService.getTrafficSummary("space_artisan", "today");
+      const summary = trafficAnalyticsService.getTrafficSummary("space_artisan", "today");
       expect(summary.totalVisits).toBeGreaterThanOrEqual(1);
       expect(summary.uniqueVisitors).toBeGreaterThanOrEqual(1);
     });
