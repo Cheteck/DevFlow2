@@ -47,23 +47,58 @@ export class PostgresBookingRepository {
 
   async saveSlot(slot: BookingSlot): Promise<void> {
     await this.db.query(
-      `INSERT INTO booking_slots (id, "providerId", status, data)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO "booking"."slots" (id, "providerId", status, data, "startAt", "endAt", capacity, "bookedCount")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (id) DO UPDATE SET
-         status = $3, data = $4`,
-      [slot.id, slot.providerId, slot.status, JSON.stringify(slot)]
+         status = $3, data = $4, "startAt" = $5, "endAt" = $6, capacity = $7, "bookedCount" = $8`,
+      [
+        slot.id,
+        slot.providerId,
+        slot.status,
+        JSON.stringify(slot),
+        slot.startTime ?? null,
+        slot.endTime ?? null,
+        slot.capacity ?? 1,
+        (slot as { reservedCount?: number }).reservedCount ?? 0,
+      ]
     );
   }
 
   async getSlot(id: string): Promise<BookingSlot | null> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT data FROM booking_slots WHERE id = $1`,
+      `SELECT data, "startAt", "endAt", capacity, "bookedCount" FROM "booking"."slots" WHERE id = $1`,
       [id]
     );
     if (rows.length === 0) return null;
     const data = rows[0]?.["data"];
     if (!data) return null;
-    return typeof data === "string" ? JSON.parse(data) : (data as BookingSlot);
+    const slot = (typeof data === "string" ? JSON.parse(data) : data) as BookingSlot;
+    const row = rows[0] as Record<string, unknown>;
+    // Typed columns win over the JSONB snapshot when present.
+    if (typeof row["capacity"] === "number") slot.capacity = row["capacity"] as number;
+    return slot;
+  }
+
+  /**
+   * Atomic capacity hold: succeeds only if enough capacity remains.
+   * Single-statement => safe under concurrency without explicit locking.
+   */
+  async holdSlot(slotId: string, quantity = 1): Promise<boolean> {
+    const rows = await this.db.query<Record<string, unknown>>(
+      `UPDATE "booking"."slots" SET "bookedCount" = "bookedCount" + $2
+       WHERE id = $1 AND "bookedCount" + $2 <= capacity
+       RETURNING id`,
+      [slotId, quantity]
+    );
+    return rows.length > 0;
+  }
+
+  async releaseSlot(slotId: string, quantity = 1): Promise<void> {
+    await this.db.query(
+      `UPDATE "booking"."slots" SET "bookedCount" = GREATEST("bookedCount" - $2, 0)
+       WHERE id = $1`,
+      [slotId, quantity]
+    );
   }
 
   async listSlots(providerId?: string, status?: string): Promise<BookingSlot[]> {
@@ -79,7 +114,7 @@ export class PostgresBookingRepository {
       conditions.push(`status = $${params.length}`);
     }
 
-    const query = `SELECT data FROM booking_slots WHERE ${conditions.join(" AND ")} ORDER BY data->>'startTime' ASC LIMIT 200`;
+    const query = `SELECT data FROM "booking"."slots" WHERE ${conditions.join(" AND ")} ORDER BY data->>'startTime' ASC LIMIT 200`;
 
     const rows = await this.db.query<Record<string, unknown>>(query, params);
     return rows
@@ -93,7 +128,7 @@ export class PostgresBookingRepository {
 
   async saveReservation(reservation: Reservation): Promise<void> {
     await this.db.query(
-      `INSERT INTO booking_reservations (id, "slotId", "customerId", status, "idempotencyKey", data)
+      `INSERT INTO "booking"."reservations" (id, "slotId", "customerId", status, "idempotencyKey", data)
        VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (id) DO UPDATE SET
          status = $4, "idempotencyKey" = $5, data = $6`,
@@ -110,7 +145,7 @@ export class PostgresBookingRepository {
 
   async getReservation(id: string): Promise<Reservation | null> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT data FROM booking_reservations WHERE id = $1`,
+      `SELECT data FROM "booking"."reservations" WHERE id = $1`,
       [id]
     );
     if (rows.length === 0) return null;
@@ -127,7 +162,7 @@ export class PostgresBookingRepository {
    */
   async getReservationByIdempotencyKey(key: string): Promise<Reservation | null> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT data FROM booking_reservations WHERE "idempotencyKey" = $1 LIMIT 1`,
+      `SELECT data FROM "booking"."reservations" WHERE "idempotencyKey" = $1 LIMIT 1`,
       [key]
     );
     if (rows.length === 0) return null;
@@ -149,7 +184,7 @@ export class PostgresBookingRepository {
       conditions.push(`"customerId" = $${params.length}`);
     }
 
-    const query = `SELECT data FROM booking_reservations WHERE ${conditions.join(" AND ")} ORDER BY data->>'createdAt' DESC LIMIT 200`;
+    const query = `SELECT data FROM "booking"."reservations" WHERE ${conditions.join(" AND ")} ORDER BY data->>'createdAt' DESC LIMIT 200`;
 
     const rows = await this.db.query<Record<string, unknown>>(query, params);
     return rows
@@ -172,7 +207,7 @@ export class PostgresBookingRepository {
       (await this.countWaitlistBySlot(entry.slotId)) + 1;
     const createdAt = new Date().toISOString();
     await this.db.query(
-      `INSERT INTO booking_waitlists (id, "slotId", "customerId", "customerEmail", position, status, "createdAt", data)
+      `INSERT INTO "booking"."waitlists" (id, "slotId", "customerId", "customerEmail", position, status, "createdAt", data)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (id) DO UPDATE SET
          position = $5, status = $6, data = $8`,
@@ -191,7 +226,7 @@ export class PostgresBookingRepository {
 
   private async countWaitlistBySlot(slotId: string): Promise<number> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT COUNT(*) AS count FROM booking_waitlists WHERE "slotId" = $1`,
+      `SELECT COUNT(*) AS count FROM "booking"."waitlists" WHERE "slotId" = $1`,
       [slotId]
     );
     const raw = rows[0]?.["count"];
@@ -201,7 +236,7 @@ export class PostgresBookingRepository {
   /** Waitlist — listBySlot minimal, ordre FIFO (position, createdAt). */
   async listWaitlistBySlot(slotId: string): Promise<WaitlistEntry[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT data FROM booking_waitlists WHERE "slotId" = $1 ORDER BY position ASC, "createdAt" ASC LIMIT 200`,
+      `SELECT data FROM "booking"."waitlists" WHERE "slotId" = $1 ORDER BY position ASC, "createdAt" ASC LIMIT 200`,
       [slotId]
     );
     return rows
@@ -241,7 +276,7 @@ export class PostgresBookingRepository {
       reservationId,
     };
     await this.db.query(
-      `INSERT INTO booking_reminders (id, "reservationId", "customerId", "sendAt", status, "createdAt", data)
+      `INSERT INTO "booking"."reminders" (id, "reservationId", "customerId", "sendAt", status, "createdAt", data)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (id) DO UPDATE SET
          "sendAt" = $4, status = $5, data = $7`,
@@ -261,23 +296,52 @@ export class PostgresBookingRepository {
   async listPendingReminders(now: Date | string = new Date()): Promise<PersistedReminder[]> {
     const cursor = now instanceof Date ? now.toISOString() : now;
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT id, "reservationId", "customerId", "sendAt", status, data FROM booking_reminders WHERE status = 'Scheduled' AND "sendAt" <= $1 ORDER BY "sendAt" ASC LIMIT 200`,
+      `SELECT id, "reservationId", "customerId", "sendAt", status, data FROM "booking"."reminders" WHERE status = 'Scheduled' AND "sendAt" <= $1 ORDER BY "sendAt" ASC LIMIT 200`,
       [cursor]
     );
-    return rows.map((r) => {
-      const d = r["data"];
-      const parsed =
-        typeof d === "string" ? JSON.parse(d) : ((d ?? {}) as Record<string, unknown>);
-      const sendAt = String(r["sendAt"] ?? parsed["sendAt"] ?? "");
-      return {
-        id: String(r["id"] ?? parsed["id"] ?? ""),
-        slotId: String(parsed["slotId"] ?? r["reservationId"] ?? ""),
-        userId: String(r["customerId"] ?? parsed["userId"] ?? ""),
-        triggerTime: sendAt,
-        type: (parsed["type"] as PersistedReminder["type"]) ?? "T_MINUS_24H",
-        reservationId: String(r["reservationId"] ?? ""),
-        status: String(r["status"] ?? "Scheduled"),
-      };
+    return rows.map((r) => this.hydrateReminder(r));
+  }
+
+  /**
+   * Atomically claims due reminders for a worker: rows are locked
+   * (SKIP LOCKED, concurrent workers never double-send) and attempts
+   * bumped in the same transaction. The worker sends, then marks
+   * Sent/Failed via saveReminder.
+   */
+  async claimDueReminders(now: Date | string = new Date(), limit = 50): Promise<PersistedReminder[]> {
+    const cursor = now instanceof Date ? now.toISOString() : now;
+    return this.db.transaction(async (tx) => {
+      const rows = await tx.query<Record<string, unknown>>(
+        `SELECT id, "reservationId", "customerId", "sendAt", status, data FROM "booking"."reminders"
+         WHERE status = 'Scheduled' AND "sendAt" <= $1
+         ORDER BY "sendAt" ASC LIMIT $2
+         FOR UPDATE SKIP LOCKED`,
+        [cursor, limit]
+      );
+      if (rows.length === 0) return [];
+      const ids = rows.map((r) => String(r["id"]));
+      const placeholders = ids.map((_, i) => `$${i + 1}`).join(", ");
+      await tx.execute(
+        `UPDATE "booking"."reminders" SET attempts = attempts + 1 WHERE id IN (${placeholders})`,
+        ids
+      );
+      return rows.map((r) => this.hydrateReminder(r));
     });
+  }
+
+  private hydrateReminder(r: Record<string, unknown>): PersistedReminder {
+    const d = r["data"];
+    const parsed =
+      typeof d === "string" ? JSON.parse(d) : ((d ?? {}) as Record<string, unknown>);
+    const sendAt = String(r["sendAt"] ?? parsed["sendAt"] ?? "");
+    return {
+      id: String(r["id"] ?? parsed["id"] ?? ""),
+      slotId: String(parsed["slotId"] ?? r["reservationId"] ?? ""),
+      userId: String(r["customerId"] ?? parsed["userId"] ?? ""),
+      triggerTime: sendAt,
+      type: (parsed["type"] as PersistedReminder["type"]) ?? "T_MINUS_24H",
+      reservationId: String(r["reservationId"] ?? ""),
+      status: String(r["status"] ?? "Scheduled"),
+    };
   }
 }
