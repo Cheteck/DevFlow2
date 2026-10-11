@@ -219,8 +219,7 @@ allow {
       `;
 
       return {
-        html,
-        data: { activeTab, totalDecisions: 0 },
+        contentHtml: html,
         pageTitle: "Imperia Governance — MosaiX Platform",
       };
     },
