@@ -22,7 +22,7 @@ import {
   type DatabasePort,
 } from "../../../migrations/src/index.js";
 import type { DatabaseManager } from "@mosaix/database";
-import { connectCliDatabase } from "./database-command.js";
+import { connectCliDatabase, type CliDatabase } from "./database-command.js";
 // Shell-owned providers (aggregated registry). Relative import follows the
 // existing cross-package style of this file; the long-term home is a
 // dedicated shell-registry package (backlog).
@@ -41,11 +41,15 @@ async function buildMigrationCli(ctx: CommandContext): Promise<{
     cli: new MigrationCLI(registry, store, db),
     db,
     manager,
-    connection:
-      config.connection === "sqlite"
-        ? `sqlite:${config.database}`
-        : `pgsql:${config.connectionString}`,
+    connection: describeConnection(config),
   };
+}
+
+/** Single human-readable `[driver:target]` label for CLI output. */
+function describeConnection(config: CliDatabase["config"]): string {
+  return config.connection === "sqlite"
+    ? `sqlite:${config.database}`
+    : `pgsql:${config.connectionString}`;
 }
 
 export class MigrateCommand implements CliCommand {
@@ -146,7 +150,8 @@ export class MigrateInstallCommand implements CliCommand {
   readonly description = "Create the migration repository table";
 
   async execute(ctx: CommandContext): Promise<CLIResult> {
-    const { db, manager, connection } = await connectCliDatabase(ctx);
+    const { db, config, manager } = await connectCliDatabase(ctx);
+    const connection = describeConnection(config);
     try {
       await db.execute(`
         CREATE TABLE IF NOT EXISTS mosaix_migrations (
@@ -174,7 +179,9 @@ export class MigrateResetCommand implements CliCommand {
   async execute(ctx: CommandContext): Promise<CLIResult> {
     const { cli, manager, connection } = await buildMigrationCli(ctx);
     try {
-      const result = await cli.rollback({ kind: "all" });
+      // No "all" target exists on the planner — a step count beyond any real
+      // ledger size rolls everything back in one plan (planner slices to held).
+      const result = await cli.rollback(Number.MAX_SAFE_INTEGER);
       return ctx.respond(
         `All migrations rolled back on [${connection}].`,
         result,
@@ -190,7 +197,8 @@ export class MigrateMarkCommand implements CliCommand {
   readonly description = "Mark a migration as applied without running it (usage: migrate:mark <migration-id>)";
 
   async execute(ctx: CommandContext): Promise<CLIResult> {
-    const { db, manager, connection } = await connectCliDatabase(ctx);
+    const { db, config, manager } = await connectCliDatabase(ctx);
+    const connection = describeConnection(config);
     try {
       const migrationId = ctx.args.find(a => !a.startsWith("--"));
       if (!migrationId) {
