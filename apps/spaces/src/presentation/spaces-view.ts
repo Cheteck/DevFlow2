@@ -1,29 +1,46 @@
 /**
  * @apps/spaces — Autonomous BAC View & Descriptor
- * Self-contained SSR presentation layer for MosaiX Spaces & Multi-tenancy (inspired by Facebook/LinkedIn Organization Pages).
+ * Self-contained SSR presentation layer for MosaiX Spaces & Multi-tenancy.
+ *
+ * Data doctrine: spaces come from the injected SpaceService (Postgres in
+ * production). No static spaces, members or stats — empty stores render
+ * explicit empty states, never fabricated organizations.
+ *
+ * Visibility doctrine (guest policy): the public profile shows presentation
+ * fields only (name, slug, category, followers). The member directory
+ * (names + space roles, NEVER emails), management actions and invitations
+ * are members-only. Space creation (`new`) requires a session (guarded).
  */
 
 import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
+import { SpaceService, type Space } from "../domain/space.model.js";
 
-export function createSpacesDescriptor(): BacDescriptor {
-  const SPACES = [
-    { id: "spc-01", name: "Chambre d'Agriculture de Jijel (CAJ)", code: "CAJ-JIJEL", members: 18, plan: "Enterprise", status: "Verified" },
-    { id: "spc-04", name: "Tech Startup Hub", code: "TECH-HUB", members: 7, plan: "Pro", status: "Pending" }
-  ];
+export interface SpacesDescriptorDeps {
+  spaceService?: SpaceService;
+}
 
-  const MEMBERS = [
-    { name: "Administrateur", email: "admin@mosaix.network", role: "Propriétaire de l'Espace", avatar: "👤" },
-    { name: "Amel", email: "amel@mosaix.io", role: "Designer d'Interface", avatar: "💎" },
-    { name: "Ali", email: "ali@mosaix.io", role: "Développeur Principal", avatar: "💻" },
-    { name: "Sarah Connor", email: "s.connor@citadelle.io", role: "Administrateur Support", avatar: "🛡️" }
-  ];
+/** Presentation-only fields safe for anonymous visitors. */
+export interface PublicSpace {
+  id: string;
+  name: string;
+  slug: string;
+  category: string;
+  followersCount: number;
+}
 
-  const APPS_CONNECTED = [
-    { name: "Solara Social", desc: "Discussion communautaire & fil d'actualité actif.", icon: "☀️" },
-    { name: "Commerce Marketplace", desc: "Marché d'achat direct et gestion de paniers connectée.", icon: "🛒" },
-    { name: "Booking Calendar", desc: "Planification des créneaux horaires de l'espace.", icon: "📅" }
-  ];
+export function toPublicSpace(space: Space): PublicSpace {
+  return {
+    id: space.id,
+    name: space.name,
+    slug: space.slug,
+    category: space.category,
+    followersCount: space.followersCount ?? 0,
+  };
+}
+
+export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDescriptor {
+  const spaceService = deps.spaceService ?? new SpaceService();
 
   return {
     id: "@apps/spaces",
@@ -39,16 +56,28 @@ export function createSpacesDescriptor(): BacDescriptor {
     },
 
     async render(context: BacExecutionContext): Promise<BacRenderResult> {
-      const view = context.request.query.view || "list";
+      const rawView = context.request.query.view;
+      const view = (Array.isArray(rawView) ? rawView[0] : rawView) || "list";
+      const rawSpace = context.request.query.space;
+      const spaceParam = Array.isArray(rawSpace) ? rawSpace[0] : rawSpace;
+      // Guest boundary: anonymous execution contexts carry no roles (see
+      // `src/start.ts`). Creation is session-only; the SSR guard redirects
+      // guests to login and this is the second lock.
+      const isGuest = (context.user.roles?.length ?? 0) === 0;
 
       let subViewHtml: string;
       if (view === "new") {
+        if (isGuest) {
+          return guestLoginPrompt(
+            "Créer un espace",
+            "La création d'un espace nécessite un compte.",
+          );
+        }
         subViewHtml = `
           <div class="glass-card p-6 rounded-2xl border border-outline-variant/20 max-w-xl mx-auto space-y-4">
             <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Créer un Nouvel Espace</h3>
             <p class="text-[11px] text-on-surface-variant leading-relaxed">Les espaces vous permettent d'isoler vos catalogues de produits, vos membres, vos ventes et vos analyses.</p>
-            
-            <form id="create-space-form" onsubmit="event.preventDefault(); const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Espace cree avec succes !'; document.body.appendChild(t); setTimeout(()=>window.location.href='/spaces',2000);" class="space-y-4 text-xs">
+            <form id="create-space-form" class="space-y-4 text-xs">
               <div>
                 <label class="block text-[10px] font-bold uppercase text-on-surface-variant mb-1">Nom de l'espace / Organisation</label>
                 <input type="text" placeholder="Ex: École Supérieure d'Informatique" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" required />
@@ -57,15 +86,6 @@ export function createSpacesDescriptor(): BacDescriptor {
                 <label class="block text-[10px] font-bold uppercase text-on-surface-variant mb-1">Code Unique / Identifiant URL</label>
                 <input type="text" placeholder="Ex: esi-alger" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" required />
               </div>
-              <div>
-                <label class="block text-[10px] font-bold uppercase text-on-surface-variant mb-1">Forfait d'abonnement</label>
-                <select class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition">
-                  <option value="free">Free Starter (0.00 € / mois)</option>
-                  <option value="pro">Pro (29.00 € / mois)</option>
-                  <option value="enterprise">Enterprise (Sur devis)</option>
-                </select>
-              </div>
-
               <div class="flex justify-end gap-2 pt-2">
                 <a href="/spaces" class="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 font-bold">Annuler</a>
                 <button type="submit" class="px-5 py-2 rounded-xl bg-primary text-on-primary font-bold shadow-md shadow-primary/25 cursor-pointer">Créer l'Espace</button>
@@ -74,155 +94,47 @@ export function createSpacesDescriptor(): BacDescriptor {
           </div>
         `;
       } else if (view === "profile") {
-        // --- SPACE PROFILE VIEW (Facebook / LinkedIn Org Page style) ---
-        subViewHtml = `
-          <div class="space-y-6">
-            <!-- Space Cover Image Header -->
-            <div class="glass-card rounded-2xl border border-outline-variant/20 overflow-hidden bg-surface-container-low/40 relative">
-              <!-- Cover Area -->
-              <div class="h-44 md:h-56 relative overflow-hidden">
-                <img src="/src/assets/images/spaces_workspace_cover_1790307907795.jpg" alt="Espace de travail" class="w-full h-full object-cover" />
-                <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
-              </div>
-
-              <!-- Org Superposed Info -->
-              <div class="p-6 pt-0 flex flex-col md:flex-row items-center md:items-end justify-between -mt-12 md:-mt-16 relative z-10 gap-4">
-                <div class="flex flex-col md:flex-row items-center md:items-end gap-4 text-center md:text-left">
-                  <div class="w-24 h-24 rounded-2xl overflow-hidden border-4 border-surface bg-primary/20 flex items-center justify-center text-3xl font-bold text-primary shadow-xl shrink-0">
-                    🔬
-                  </div>
-                  <div class="space-y-1 pb-1">
-                    <h2 class="text-lg font-bold text-on-surface flex items-center justify-center md:justify-start gap-1.5">
-                      <span>Espace Collaboratif</span>
-                      <span class="material-symbols-outlined text-sm text-primary" title="Organisation certifiée">verified</span>
-                    </h2>
-                    <p class="text-xs text-on-surface-variant font-normal">Identifiant unique : <strong class="font-mono text-primary">COLLAB-HUB</strong></p>
-                    <p class="text-[10px] text-on-surface-variant/85 mt-0.5">Wilaya de Jijel, Algérie · Forfait Pro</p>
-                  </div>
-                </div>
-
-                <!-- Org Actions -->
-                <div class="flex items-center gap-2 pb-1">
-                  <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Invitation generee !'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold transition hover:opacity-95 shadow-md shadow-primary/20 flex items-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-sm">person_add</span>
-                    <span>Inviter membre</span>
-                  </button>
-                  <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Parametres charges'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="px-3.5 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-xs font-bold text-on-surface transition cursor-pointer flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-sm">settings</span>
-                    <span>Gérer l'Espace</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Profile Content Split columns -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <!-- Left: Description, Space Status, Connected Apps -->
-              <div class="lg:col-span-8 space-y-6">
-                <!-- Description Box -->
-                <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-3">
-                  <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface">À propos de l'Espace</h3>
-                  <p class="text-xs text-on-surface-variant leading-relaxed">Un espace collaboratif pour développer des projets citoyens et des fonctionnalités open-source sur la plateforme MosaiX. Cet espace centralise les efforts de développement, d'ateliers et de partage de connaissances.</p>
-                </div>
-
-                <!-- Connected Apps list -->
-                <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
-                  <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface">Outils & Applications Activés</h3>
-                  <div class="space-y-3">
-                    ${APPS_CONNECTED.map(app => `
-                      <div class="p-3.5 rounded-xl bg-surface-container-low/50 border border-outline-variant/10 flex items-center gap-3.5 hover:border-primary/20 transition duration-200">
-                        <div class="w-10 h-10 rounded-lg bg-surface-variant flex items-center justify-center text-lg shadow-inner shrink-0">${app.icon}</div>
-                        <div class="flex-1 min-w-0">
-                          <h4 class="text-xs font-bold text-on-surface truncate">${escapeHtml(app.name)}</h4>
-                          <p class="text-[11px] text-on-surface-variant truncate mt-0.5">${escapeHtml(app.desc)}</p>
-                        </div>
-                        <span class="text-[9px] font-bold text-emerald-400 uppercase shrink-0">Actif</span>
-                      </div>
-                    `).join("")}
-                  </div>
-                </div>
-              </div>
-
-              <!-- Right: Space Directory & Quick stats -->
-              <div class="lg:col-span-4 space-y-6">
-                <!-- Directory Box -->
-                <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-3">
-                  <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface">Annuaire des Membres</h3>
-                    <span class="text-[10px] text-primary font-bold font-mono tabular-nums">${MEMBERS.length} actifs</span>
-                  </div>
-                  <div class="space-y-3 pt-1">
-                    ${MEMBERS.map(m => `
-                      <div class="flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-lg bg-surface-container-high border border-outline-variant/15 flex items-center justify-center text-sm shadow-inner shrink-0">${m.avatar}</div>
-                        <div class="flex-1 min-w-0">
-                          <h4 class="text-xs font-semibold text-on-surface truncate">${escapeHtml(m.name)}</h4>
-                          <p class="text-[10px] text-on-surface-variant truncate">${escapeHtml(m.role)}</p>
-                        </div>
-                      </div>
-                    `).join("")}
-                  </div>
-                </div>
-
-                <!-- Active Space Analytics -->
-                <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-3">
-                  <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface">Indicateurs d'Activité</h3>
-                  <div class="grid grid-cols-2 gap-3.5 text-center">
-                    <div class="p-3 rounded-xl bg-surface-container-low border border-outline-variant/10 flex flex-col gap-0.5">
-                      <span class="text-[9px] font-bold uppercase text-on-surface-variant">Publications</span>
-                      <span class="text-base font-bold text-primary font-mono tabular-nums">142</span>
-                    </div>
-                    <div class="p-3 rounded-xl bg-surface-container-low border border-outline-variant/10 flex flex-col gap-0.5">
-                      <span class="text-[9px] font-bold uppercase text-on-surface-variant">Réservations</span>
-                      <span class="text-base font-bold text-primary font-mono tabular-nums">78%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
+        subViewHtml = await renderSpaceProfile(spaceService, spaceParam, isGuest);
       } else {
-        // Standard view: list spaces
-        const cardsHtml = SPACES.map(s => `
-          <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 flex flex-col justify-between hover:border-primary/40 transition duration-200">
-            <div class="space-y-3">
-              <div class="flex justify-between items-start text-[10px]">
-                <span class="text-primary font-bold uppercase tracking-wider">
-                  ${escapeHtml(s.plan)}
-                </span>
-                <span class="font-bold uppercase tracking-wider ${
-                  s.status === 'Verified' ? 'text-emerald-400' : 'text-amber-400'
-                }">
-                  ${escapeHtml(s.status)}
-                </span>
-              </div>
-              <div>
-                <h3 class="text-xs font-bold text-on-surface mt-1">${escapeHtml(s.name)}</h3>
-                <p class="text-[10px] text-on-surface-variant mt-0.5 font-mono">Code : ${escapeHtml(s.code)}</p>
-                <span class="text-[11px] text-on-surface-variant mt-2 block font-mono tabular-nums"><strong class="text-on-surface font-bold font-sans">${s.members}</strong> membres inscrits</span>
-              </div>
+        // Standard view: public space directory (presentation fields only).
+        const spaces = await spaceService.listSpacesAsync();
+        subViewHtml = spaces.length === 0 ? `
+          <div class="space-y-6">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Espaces de Travail</h2>
+            <div class="glass-card rounded-2xl p-8 text-center space-y-4">
+              <div class="text-3xl">📁</div>
+              <h3 class="text-sm font-bold text-on-surface">Aucun espace pour le moment</h3>
+              <p class="text-xs text-on-surface-variant">Les espaces créés par la communauté apparaîtront ici.</p>
             </div>
-            <div class="pt-4 mt-4 border-t border-outline-variant/10">
-              <button onclick="document.cookie = 'mosaix_active_space=${escapeHtml(s.code)}; path=/'; const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Espace actif modifie : ${escapeHtml(s.code)}'; document.body.appendChild(t); setTimeout(()=>window.location.reload(), 1500);" class="w-full py-1.5 rounded-lg bg-primary hover:bg-primary/95 text-on-primary text-[10px] font-bold transition cursor-pointer">
-                Activer l'Espace
-              </button>
-            </div>
-          </div>
-        `).join("");
-
-        subViewHtml = `
+          </div>` : `
           <div class="space-y-6">
             <div class="flex justify-between items-center flex-wrap gap-2">
-              <h2 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Mes Espaces de Travail</h2>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Espaces de Travail</h2>
+              ${isGuest ? "" : `
               <a href="/spaces?view=new" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center gap-1 cursor-pointer">
                 <span class="material-symbols-outlined text-sm">add_box</span>
                 <span>Nouvel Espace</span>
-              </a>
+              </a>`}
             </div>
-
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              ${cardsHtml}
+              ${spaces.map((s) => {
+                const pub = toPublicSpace(s);
+                return `
+              <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 flex flex-col justify-between hover:border-primary/40 transition duration-200">
+                <div class="space-y-3">
+                  <div>
+                    <h3 class="text-xs font-bold text-on-surface mt-1">${escapeHtml(pub.name)}</h3>
+                    <p class="text-[10px] text-on-surface-variant mt-0.5 font-mono">@${escapeHtml(pub.slug)}</p>
+                    <span class="text-[11px] text-on-surface-variant mt-2 block font-mono tabular-nums"><strong class="text-on-surface font-bold font-sans">${pub.followersCount}</strong> suiveurs</span>
+                  </div>
+                </div>
+                <div class="pt-4 mt-4 border-t border-outline-variant/10">
+                  <a href="/spaces?view=profile&amp;space=${encodeURIComponent(pub.slug)}" class="block text-center w-full py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-[10px] font-bold transition cursor-pointer">
+                    Voir le profil
+                  </a>
+                </div>
+              </div>`;
+              }).join("")}
             </div>
           </div>
         `;
@@ -230,26 +142,26 @@ export function createSpacesDescriptor(): BacDescriptor {
 
       const contentHtml = `
         <div class="space-y-6">
-          
           <!-- Subnavigation Bar -->
           <div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center text-2xl">📁</div>
               <div>
                 <h1 class="text-sm font-bold text-on-surface">Spaces Hub</h1>
-                <p class="text-[11px] text-on-surface-variant">Cloisonnement multi-tenant de la plateforme (rôles, membres, isolation)</p>
+                <p class="text-[11px] text-on-surface-variant">Découverte des espaces et de leurs activités publiques</p>
               </div>
             </div>
             <div class="flex gap-2">
               <a href="/spaces?view=list" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === 'list' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
-                Mes Espaces
+                Espaces
               </a>
-              <a href="/spaces?view=profile" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === 'profile' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              <a href="/spaces?view=profile${spaceParam ? `&amp;space=${encodeURIComponent(String(spaceParam))}` : ""}" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === 'profile' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
                 Profil de l'Espace
               </a>
+              ${isGuest ? "" : `
               <a href="/spaces?view=new" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === 'new' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
                 Créer un Espace
-              </a>
+              </a>`}
             </div>
           </div>
 
@@ -261,8 +173,106 @@ export function createSpacesDescriptor(): BacDescriptor {
 
       return {
         contentHtml,
-        pageTitle: `Spaces — ${view === 'profile' ? "Profil de l'Espace" : 'Gestion d\'Espaces'}`,
+        pageTitle: `Spaces — ${view === 'profile' ? "Profil de l'Espace" : 'Espaces'}`,
       };
     },
   };
+}
+
+function guestLoginPrompt(title: string, message: string): BacRenderResult {
+  return {
+    contentHtml: `
+      <div class="space-y-6">
+        <div class="glass-card rounded-2xl p-8 text-center space-y-4">
+          <div class="text-3xl">🔒</div>
+          <h2 class="text-sm font-bold text-on-surface">${escapeHtml(title)}</h2>
+          <p class="text-xs text-on-surface-variant">${escapeHtml(message)}</p>
+          <a href="/login?next=%2Fspaces" class="inline-block px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold">Se connecter</a>
+        </div>
+      </div>`,
+    pageTitle: "Spaces — Connexion requise",
+  };
+}
+
+async function renderSpaceProfile(
+  spaceService: SpaceService,
+  spaceParam: unknown,
+  isGuest: boolean,
+): Promise<string> {
+  const spaces = await spaceService.listSpacesAsync();
+  let space: Space | undefined;
+  if (typeof spaceParam === "string" && spaceParam.length > 0) {
+    space =
+      spaces.find((s) => s.slug === spaceParam || s.id === spaceParam) ??
+      (await spaceService.getSpaceAsync(spaceParam));
+  }
+  space ??= spaces[0];
+  if (!space) {
+    return `
+      <div class="glass-card rounded-2xl p-8 text-center space-y-4">
+        <div class="text-3xl">📁</div>
+        <h3 class="text-sm font-bold text-on-surface">Aucun espace à afficher</h3>
+        <p class="text-xs text-on-surface-variant">Les espaces créés par la communauté apparaîtront ici.</p>
+      </div>`;
+  }
+  const pub = toPublicSpace(space);
+  // Members directory is members-only and never exposes emails.
+  const directory = isGuest ? "" : `
+              <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-3">
+                <div class="flex justify-between items-center">
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface">Annuaire des Membres</h3>
+                  <span class="text-[10px] text-primary font-bold font-mono tabular-nums">${space.team.length} actifs</span>
+                </div>
+                <div class="space-y-3 pt-1">
+                  ${space.team.map((m) => `
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-8 h-8 rounded-lg bg-surface-container-high border border-outline-variant/15 flex items-center justify-center text-sm shadow-inner shrink-0">👤</div>
+                      <div class="flex-1 min-w-0">
+                        <h4 class="text-xs font-semibold text-on-surface truncate">${escapeHtml(m.userId)}</h4>
+                        <p class="text-[10px] text-on-surface-variant truncate">${escapeHtml(m.role)}</p>
+                      </div>
+                    </div>`).join("")}
+                </div>
+              </div>`;
+  const management = isGuest ? "" : `
+              <div class="flex items-center gap-2 pb-1">
+                <a href="/commerce?seller=${encodeURIComponent(space.id)}" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold transition hover:opacity-95 shadow-md shadow-primary/20 flex items-center gap-1.5 cursor-pointer">
+                  <span class="material-symbols-outlined text-sm">storefront</span>
+                  <span>Voir les offres</span>
+                </a>
+              </div>`;
+
+  return `
+          <div class="space-y-6">
+            <div class="glass-card rounded-2xl border border-outline-variant/20 overflow-hidden bg-surface-container-low/40 relative">
+              <div class="p-6 flex flex-col md:flex-row items-center md:items-end justify-between relative z-10 gap-4">
+                <div class="flex flex-col md:flex-row items-center md:items-end gap-4 text-center md:text-left">
+                  <div class="w-24 h-24 rounded-2xl overflow-hidden border-4 border-surface bg-primary/20 flex items-center justify-center text-3xl font-bold text-primary shadow-xl shrink-0">
+                    📁
+                  </div>
+                  <div class="space-y-1 pb-1">
+                    <h2 class="text-lg font-bold text-on-surface flex items-center justify-center md:justify-start gap-1.5">
+                      <span>${escapeHtml(pub.name)}</span>
+                    </h2>
+                    <p class="text-xs text-on-surface-variant font-normal">Identifiant unique : <strong class="font-mono text-primary">@${escapeHtml(pub.slug)}</strong></p>
+                    <p class="text-[10px] text-on-surface-variant/85 mt-0.5">${escapeHtml(pub.category)} · ${pub.followersCount} suiveurs</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 pb-1">
+                  ${management}
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div class="lg:col-span-8 space-y-6">
+                <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-3">
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface">À propos de l'Espace</h3>
+                  <p class="text-xs text-on-surface-variant leading-relaxed">Espace ${escapeHtml(pub.category)} — suivez ses offres et ses activités depuis la vitrine.</p>
+                </div>
+              </div>
+              <div class="lg:col-span-4 space-y-6">
+                ${directory}
+              </div>
+            </div>
+          </div>`;
 }

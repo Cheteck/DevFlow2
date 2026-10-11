@@ -15,7 +15,7 @@ export class SpaceModel extends Model {
   followersCount!: number;
   customDomain?: string;
   enabledCapabilities!: string[];
-  updatedAt?: Date;
+  // updatedAt hérité de Model (@mosaix/orm) — ne pas redéclarer (TS2612).
 }
 
 export interface SpaceTeamMember {
