@@ -32,10 +32,10 @@
     }
   ],
   "permissions": [
-    "portfolio:vendable:create",
-    "portfolio:vendable:read",
-    "portfolio:vendable:publish",
-    "portfolio:vendable:search"
+    "portfolio:vendable:create:tenant",
+    "portfolio:vendable:read:tenant",
+    "portfolio:vendable:publish:tenant",
+    "portfolio:vendable:search:tenant"
   ],
   "events": [
     "portfolio.vendable.created",
@@ -44,9 +44,9 @@
   ],
   "experience": {
     "appCard": {
-      "title": "Catalogue & Produits",
+      "title": "Catalogue & Vendables",
       "icon": "🎨",
-      "description": "Gestion des catalogues d'offres, informations produits et publication"
+      "description": "Fiches vendables PIM : informations, caractéristiques, médias et publication (sans prix ni stock)"
     },
     "frontend": {
       "entrypoint": "./frontend/src/index.ts"

@@ -1,12 +1,15 @@
 /**
  * @apps/portfolio — PostgreSQL adapter for ProposalRepository.
  * Implements the domain-owned ProposalRepository port with Postgres persistence
- * on the `portfolio_proposals` table (migration 20260924120000).
+ * on the `portfolio.proposals` table (migrations 20260924120000 + v1.003 schema isolation).
  */
 
 import type { DatabasePort } from "@mosaix/ports-database";
 import type { Proposal, ProposalStatus } from "../domain/proposal.js";
 import type { ProposalRepository } from "../domain/proposal-repository.js";
+
+/** Canonical table since portfolio.catalog.v1.003 (schema isolation, no prefix). */
+const PROPOSALS_TABLE = `"portfolio"."proposals"`;
 
 const COLUMNS = [
   '"id"',
@@ -59,7 +62,7 @@ export class PostgresProposalRepository implements ProposalRepository {
   async save(proposal: Proposal): Promise<void> {
     const placeholders = Array.from({ length: 22 }, (_, i) => `$${i + 1}`).join(", ");
     await this.db.execute(
-      `INSERT INTO "portfolio_proposals" (${COLUMNS}) VALUES (${placeholders})`,
+      `INSERT INTO ${PROPOSALS_TABLE} (${COLUMNS}) VALUES (${placeholders})`,
       this.toRow(proposal),
     );
   }
@@ -67,7 +70,7 @@ export class PostgresProposalRepository implements ProposalRepository {
   async update(proposal: Proposal): Promise<void> {
     const values = this.toRow(proposal);
     await this.db.execute(
-      `UPDATE "portfolio_proposals" SET
+      `UPDATE ${PROPOSALS_TABLE} SET
         "spaceId" = $2, "proposerUserId" = $3, "suggestedReference" = $4, "type" = $5,
         "status" = $6, "content" = $7, "classification" = $8, "characteristics" = $9,
         "features" = $10, "variants" = $11, "media" = $12, "translations" = $13,
@@ -81,7 +84,7 @@ export class PostgresProposalRepository implements ProposalRepository {
 
   async findById(id: string): Promise<Proposal | null> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT ${COLUMNS} FROM "portfolio_proposals" WHERE "id" = $1`,
+      `SELECT ${COLUMNS} FROM ${PROPOSALS_TABLE} WHERE "id" = $1`,
       [id],
     );
     const row = rows[0];
@@ -90,7 +93,7 @@ export class PostgresProposalRepository implements ProposalRepository {
 
   async findBySpace(spaceId: string): Promise<Proposal[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT ${COLUMNS} FROM "portfolio_proposals" WHERE "spaceId" = $1`,
+      `SELECT ${COLUMNS} FROM ${PROPOSALS_TABLE} WHERE "spaceId" = $1`,
       [spaceId],
     );
     return rows.map((row) => this.hydrate(row));
@@ -98,7 +101,7 @@ export class PostgresProposalRepository implements ProposalRepository {
 
   async findByStatus(status: ProposalStatus): Promise<Proposal[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT ${COLUMNS} FROM "portfolio_proposals" WHERE "status" = $1`,
+      `SELECT ${COLUMNS} FROM ${PROPOSALS_TABLE} WHERE "status" = $1`,
       [status],
     );
     return rows.map((row) => this.hydrate(row));
@@ -106,7 +109,7 @@ export class PostgresProposalRepository implements ProposalRepository {
 
   async listAll(): Promise<Proposal[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT ${COLUMNS} FROM "portfolio_proposals"`,
+      `SELECT ${COLUMNS} FROM ${PROPOSALS_TABLE}`,
     );
     return rows.map((row) => this.hydrate(row));
   }

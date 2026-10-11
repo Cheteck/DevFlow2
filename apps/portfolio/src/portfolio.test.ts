@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
+import { Router } from "@mosaix/http";
 import { PortfolioService } from "./domain/portfolio-service.js";
 import { ProposalService } from "./domain/proposal-service.js";
 import { ProductWizardService } from "./domain/product-wizard.service.js";
-import { ShopAnalyticsService } from "./domain/shop-analytics.service.js";
-import { ShopInventoryReportService } from "./domain/shop-inventory-report.service.js";
-import { PortfolioBulkExporter } from "./domain/portfolio-bulk-media.js";
+import { OperationalKeyForbiddenError } from "./domain/portfolio-errors.js";
+import { PortfolioBulkExporter, PortfolioBulkImporter } from "./domain/portfolio-bulk-media.js";
 import { InMemoryVendableRepository } from "./infrastructure/in-memory-vendable-repository.js";
 import { InMemoryProposalRepository } from "./infrastructure/in-memory-proposal-repository.js";
-import { createPortfolioView } from "./presentation/portfolio-view.js";
+import { mountPortfolioRoutes } from "./composition-root.js";
+import { VendableWorkflow } from "./vendable-workflow.js";
+import { generatePortfolioOpenApi } from "./infrastructure/portfolio-controller.js";
+import { createPortfolioView, createPortfolioDescriptor } from "./presentation/portfolio-view.js";
 
 describe("@apps/portfolio Domain Services & Presentation Integration Suite", () => {
   it("should create and search vendables", async () => {
@@ -112,12 +115,9 @@ describe("@apps/portfolio Domain Services & Presentation Integration Suite", () 
     expect(s1.valid).toBe(true);
 
     const s2 = wizard.saveStep2(draft.draftId, {
-      basePrice: 180000,
-      currency: "DZD",
-      sku: "SKU-XIAOMI-18-WIZ",
-      stock: 20,
-      reorderPoint: 5,
-      variants: [],
+      variants: [
+        { name: "Version 1TB", sku: "SKU-XIAOMI-18-WIZ-1TB", attributes: { stockage: "1TB" } },
+      ],
     });
     expect(s2.valid).toBe(true);
 
@@ -142,19 +142,44 @@ describe("@apps/portfolio Domain Services & Presentation Integration Suite", () 
     expect(result.identity.status).toBe("In Review");
   });
 
-  it("should record traffic visits, generate inventory reports and bulk exports", async () => {
-    const analyticsService = new ShopAnalyticsService();
-    const summary = analyticsService.getTrafficSummary("space-jijel", "today");
-    expect(summary).toBeDefined();
-
-    const vendableRepo = new InMemoryVendableRepository();
-    const portfolioService = new PortfolioService(vendableRepo);
-    const inventoryService = new ShopInventoryReportService();
-    const report = await inventoryService.generateReport(portfolioService, "space-jijel");
-    expect(report.spaceId).toBe("space-jijel");
-
+  it("should export PIM-only bulk data and reject commercial fields", async () => {
     const csvExport = PortfolioBulkExporter.toCsv([]);
     expect(csvExport).toBeDefined();
+    expect(csvExport).not.toContain("price");
+
+    const { valid, errors } = PortfolioBulkImporter.fromCsv(
+      "id,title,category,price,stock\nv1,Table,Meubles,450,3",
+    );
+    expect(valid).toHaveLength(1);
+    expect(errors.some((e) => e.includes("commercial columns ignored"))).toBe(true);
+    expect(valid[0]).not.toHaveProperty("pricing");
+  });
+
+  it("should reject top-level pricing/inventory on create (PIM purity guard)", async () => {
+    const vendableRepo = new InMemoryVendableRepository();
+    const service = new PortfolioService(vendableRepo);
+
+    const base = {
+      identity: { id: "vnd_com_01", reference: "REF-COM-01", type: "Product" as const, status: "Draft" as const },
+      content: { fr: { name: "Produit commercial" } },
+      characteristics: { attributes: {} },
+      classification: {},
+      media: [],
+      variants: [],
+      relations: [],
+    };
+
+    await expect(
+      service.createVendable({ ...base, pricing: { basePrice: 10, currency: "EUR" } } as never),
+    ).rejects.toBeInstanceOf(OperationalKeyForbiddenError);
+
+    await expect(
+      service.createVendable({
+        ...base,
+        identity: { ...base.identity, id: "vnd_com_02", reference: "REF-COM-02" },
+        variants: [{ id: "v1", reference: "V1", inventory: { stock: 1 } }],
+      } as never),
+    ).rejects.toBeInstanceOf(OperationalKeyForbiddenError);
   });
 
   it("should render portfolio UI view with tabs and dashboard metrics", async () => {
@@ -171,5 +196,95 @@ describe("@apps/portfolio Domain Services & Presentation Integration Suite", () 
 
     const bulkResult = await view.render({ query: { view: "bulk" } });
     expect(bulkResult.contentHtml).toContain("Import & Export de Masse");
+  });
+
+  it("should expose a shell descriptor mapping execution context to the view", async () => {
+    const descriptor = createPortfolioDescriptor();
+    expect(descriptor.id).toBe("@apps/portfolio");
+    expect(descriptor.routePrefix).toBe("/portfolio");
+    expect(descriptor.requiredPermissions).toContain("portfolio:vendable:read:tenant");
+    await expect(descriptor.isAvailable()).resolves.toBe(true);
+
+    const rendered = await descriptor.render({
+      tenantId: "tenant_test",
+      spaceId: null,
+      user: { id: "usr_1", roles: ["admin"], permissions: [] },
+      theme: { mode: "light" },
+      request: { path: "/portfolio", query: { view: "dashboard" }, headers: {} },
+    });
+    expect(rendered.contentHtml).toContain("Indicateurs de Qualité du Catalogue");
+  });
+
+  it("should enforce Guard authorization and map domain errors on HTTP routes", async () => {
+    const vendableRepo = new InMemoryVendableRepository();
+    const service = new PortfolioService(vendableRepo);
+    const workflow = new VendableWorkflow();
+    const router = new Router();
+    mountPortfolioRoutes(router, {
+      portfolioService: service,
+      vendableRepository: vendableRepo,
+      vendableWorkflow: workflow,
+    });
+
+    const anonymous = await router.handle({
+      method: "GET",
+      path: "/portfolio/catalog",
+      headers: {},
+    });
+    expect(anonymous.statusCode).toBe(401);
+
+    const principal = { sub: "usr_admin", tenantId: "tenant_test", roles: ["admin"] };
+
+    const badCreate = await router.handle({
+      method: "POST",
+      path: "/portfolio/vendables",
+      headers: {},
+      principal,
+      body: { name: "", type: "product" },
+    });
+    expect(badCreate.statusCode).toBe(400);
+
+    const created = await router.handle({
+      method: "POST",
+      path: "/portfolio/vendables",
+      headers: {},
+      principal,
+      body: { name: "Route guard test", type: "product" },
+    });
+    expect(created.statusCode).toBe(201);
+
+    const missing = await router.handle({
+      method: "POST",
+      path: "/portfolio/vendables/publish",
+      headers: {},
+      principal,
+      body: { id: "vend_unknown" },
+    });
+    expect(missing.statusCode).toBe(404);
+  });
+
+  it("should generate an OpenAPI spec without error", () => {
+    const vendableRepo = new InMemoryVendableRepository();
+    const service = new PortfolioService(vendableRepo);
+    const workflow = new VendableWorkflow();
+    const router = new Router();
+    mountPortfolioRoutes(router, {
+      portfolioService: service,
+      vendableRepository: vendableRepo,
+      vendableWorkflow: workflow,
+    });
+
+    const spec = generatePortfolioOpenApi(router) as {
+      openapi: string;
+      paths: Record<string, unknown>;
+    };
+    expect(spec.openapi).toBe("3.0.0");
+    expect(Object.keys(spec.paths)).toEqual(
+      expect.arrayContaining([
+        "/portfolio/catalog",
+        "/portfolio/vendables",
+        "/portfolio/vendables/publish",
+      ]),
+    );
   });
 });

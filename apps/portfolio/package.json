@@ -21,7 +21,9 @@
   "dependencies": {
     "@mosaix/contracts": "workspace:*",
     "@mosaix/core": "workspace:*",
+    "@mosaix/http": "workspace:*",
     "@mosaix/sdk": "workspace:*",
+    "@mosaix/security": "workspace:*",
     "@mosaix/types": "workspace:*",
     "zod": "^3.23.8"
   },

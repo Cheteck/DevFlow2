@@ -63,13 +63,13 @@ export class PortfolioService {
     "pricing",
     "stock",
     "inventory",
+    "reorder",
     "seller",
     "available",
     "availability",
     "booking",
     "order",
     "transaction",
-    "pricing_period",
   ];
 
   private static ALLOWED_WORKFLOW_TRANSITIONS: Partial<
@@ -111,17 +111,30 @@ export class PortfolioService {
   }
 
   /**
-   * Reject any transactional/operational keys inside attributes, specifications, or metadata.
+   * Reject any transactional/operational keys inside attributes, specifications, or metadata,
+   * as well as top-level commercial fields (pricing/inventory) that the PIM model forbids.
+   * Runtime probing (not type-level) : callers may pass plain JSON carrying removed fields.
    */
   private validateNoOperationalKeys(vendable: Vendable): void {
     const checkKey = (key: string) => {
-      const lower = key.toLowerCase();
+      // Token-based matching (camelCase / snake / kebab / spaces) : "stockage"
+      // (descriptive, FR) must not match forbidden token "stock".
+      const tokens = key
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .split(/[^A-Za-z0-9]+/)
+        .map((t) => t.toLowerCase())
+        .filter((t) => t.length > 0);
       for (const forbidden of PortfolioService.FORBIDDEN_OPERATIONAL_KEYS) {
-        if (lower.includes(forbidden)) {
+        if (tokens.includes(forbidden)) {
           throw new OperationalKeyForbiddenError(key);
         }
       }
     };
+
+    const raw = vendable as unknown as Record<string, unknown>;
+    if (raw["pricing"] !== undefined || raw["inventory"] !== undefined) {
+      throw new OperationalKeyForbiddenError("pricing/inventory");
+    }
 
     if (vendable.characteristics.attributes) {
       Object.keys(vendable.characteristics.attributes).forEach(checkKey);
@@ -140,6 +153,13 @@ export class PortfolioService {
 
     if (vendable.variants) {
       vendable.variants.forEach((v) => {
+        const rawVariant = v as unknown as Record<string, unknown>;
+        if (
+          rawVariant["pricing"] !== undefined ||
+          rawVariant["inventory"] !== undefined
+        ) {
+          throw new OperationalKeyForbiddenError("variant.pricing/inventory");
+        }
         if (v.characteristics?.attributes) {
           Object.keys(v.characteristics.attributes).forEach(checkKey);
         }
@@ -196,9 +216,12 @@ export class PortfolioService {
 
   /**
    * Find a vendable by ID.
+   * Quality is computed on read (ADR-0018: never stored).
    */
   async findVendable(id: string): Promise<Vendable | undefined> {
-    return this.repository.findById(id);
+    const found = await this.repository.findById(id);
+    if (!found) return undefined;
+    return { ...found, quality: this.calculateCompleteness(found) };
   }
 
   /**
@@ -271,10 +294,11 @@ export class PortfolioService {
   }
 
   /**
-   * List all vendables.
+   * List all vendables (quality computed on read, ADR-0018).
    */
   async listVendables(): Promise<Vendable[]> {
-    return this.repository.findAll();
+    const all = await this.repository.findAll();
+    return all.map((v) => ({ ...v, quality: this.calculateCompleteness(v) }));
   }
 
   /**
@@ -381,8 +405,12 @@ export class PortfolioService {
 
     const offset = Math.max(0, criteria.offset ?? 0);
     const limit = criteria.limit ?? filtered.length;
-    if (offset === 0 && limit >= filtered.length) return filtered;
-    return filtered.slice(offset, offset + Math.max(0, limit));
+    const withQuality = filtered.map((v) => ({
+      ...v,
+      quality: this.calculateCompleteness(v),
+    }));
+    if (offset === 0 && limit >= filtered.length) return withQuality;
+    return withQuality.slice(offset, offset + Math.max(0, limit));
   }
 
   /**

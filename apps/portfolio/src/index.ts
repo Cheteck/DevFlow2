@@ -10,15 +10,17 @@ import type { ApplicationManifest } from "@mosaix/contracts";
 import type { DatabasePort } from "@mosaix/ports-database";
 import { PortfolioService } from "./domain/portfolio-service.js";
 import type { VendableRepository } from "./domain/vendable-repository.js";
-import { InMemoryVendableRepository } from "./infrastructure/in-memory-vendable-repository.js";
 import { PostgresVendableRepository } from "./infrastructure/postgres-vendable-repository.js";
 import { ProposalService } from "./domain/proposal-service.js";
 import type { ProposalRepository } from "./domain/proposal-repository.js";
-import { InMemoryProposalRepository } from "./infrastructure/in-memory-proposal-repository.js";
 import { PostgresProposalRepository } from "./infrastructure/postgres-proposal-repository.js";
-import { InMemoryGuard } from "@mosaix/support";
 import { VendableWorkflow } from "./vendable-workflow.js";
 import { mountPortfolioRoutes } from "./composition-root.js";
+import {
+  registerPortfolioApplication,
+  type VendableCreatedPayload,
+  type VendablePublishedPayload,
+} from "./application/portfolio-application.js";
 
 // =============================================================
 // SECTION 1 — MANIFEST
@@ -75,8 +77,11 @@ export class PortfolioServiceProvider {
     } else if (this.adapters.databasePort) {
       repository = new PostgresVendableRepository(this.adapters.databasePort);
     } else {
-      InMemoryGuard.reportFallback("InMemoryVendableRepository", "missing DatabasePort in PortfolioAdapters");
-      repository = new InMemoryVendableRepository();
+      // Pas de stockage en memoire hors tests : exiger un DatabasePort
+      // (Postgres) ou un repository explicite (tests uniquement).
+      throw new Error(
+        "[PortfolioAdapters] DatabasePort requis : passez databasePort (Postgres) ou vendableRepository (tests uniquement).",
+      );
     }
 
     container.instance("vendableRepository", repository);
@@ -89,8 +94,9 @@ export class PortfolioServiceProvider {
     } else if (this.adapters.databasePort) {
       proposalRepository = new PostgresProposalRepository(this.adapters.databasePort);
     } else {
-      InMemoryGuard.reportFallback("InMemoryProposalRepository", "missing DatabasePort in PortfolioAdapters");
-      proposalRepository = new InMemoryProposalRepository();
+      throw new Error(
+        "[PortfolioAdapters] DatabasePort requis : passez databasePort (Postgres) ou proposalRepository (tests uniquement).",
+      );
     }
 
     container.instance("proposalRepository", proposalRepository);
@@ -102,8 +108,14 @@ export class PortfolioServiceProvider {
 
   async boot(container: Container, router: Router): Promise<MosaixApp> {
     const kernel = container.resolve<RuntimeKernel>("kernel");
+    let tenant: TenantIdentity;
+    try {
+      tenant = container.resolve<TenantIdentity>("tenant");
+    } catch {
+      tenant = { organizationId: "default" };
+    }
     const app = MosaixApp.register(
-      { manifest: MANIFEST as unknown as ApplicationManifest, tenant: { organizationId: "default" } },
+      { manifest: MANIFEST as unknown as ApplicationManifest, tenant },
       kernel
     );
 
@@ -111,8 +123,18 @@ export class PortfolioServiceProvider {
     const vendableWorkflow = container.resolve(VendableWorkflow);
     const vendableRepository = container.resolve<VendableRepository>("vendableRepository");
 
+    registerPortfolioApplication(app);
+
     app.provideCapability("portfolio.vendable.create", async (input) => {
-      return portfolioService.createVendable(input as never);
+      const created = await portfolioService.createVendable(input as never);
+      const payload: VendableCreatedPayload = {
+        vendableId: created.identity.id,
+        reference: created.identity.reference,
+        type: created.identity.type,
+        status: created.identity.status,
+      };
+      await app.publish("portfolio.vendable.created", "1.0.0", payload);
+      return created;
     });
 
     app.provideCapability("portfolio.vendable.read", async (input) => {
@@ -127,11 +149,18 @@ export class PortfolioServiceProvider {
       const status = (
         (publishStatuses as readonly string[]).includes(inp.status ?? "") ? inp.status : "Draft"
       ) as (typeof publishStatuses)[number];
-      return vendableWorkflow.publish({
+      const result = await vendableWorkflow.publish({
         vendableId: inp.vendableId ?? "",
         status,
         qualityPassed: inp.qualityPassed ?? true,
       });
+      const payload: VendablePublishedPayload = {
+        vendableId: inp.vendableId ?? "",
+        reference: inp.vendableId ?? "",
+        status: "Published",
+      };
+      await app.publish("portfolio.vendable.published", "1.0.0", payload);
+      return result;
     });
 
     app.provideCapability("portfolio.vendable.search", async (input) => {
@@ -140,7 +169,7 @@ export class PortfolioServiceProvider {
     });
 
     // Single route source: legacy composition-root mounts here (no string dup).
-    mountPortfolioRoutes(router, { vendableRepository, vendableWorkflow });
+    mountPortfolioRoutes(router, { portfolioService, vendableRepository, vendableWorkflow });
 
     return app;
   }
@@ -173,12 +202,12 @@ export * from "./domain/portfolio-search.port.js";
 export * from "./domain/portfolio-bulk-media.js";
 export * from "./domain/portfolio-errors.js";
 export * from "./domain/product-wizard.service.js";
-export * from "./domain/shop-inventory-report.service.js";
-export * from "./domain/shop-analytics.service.js";
 
 export * from "./domain/proposal.js";
 export * from "./domain/proposal-repository.js";
 export * from "./domain/proposal-service.js";
+export * from "./infrastructure/in-memory-vendable-repository.js";
+export * from "./infrastructure/postgres-vendable-repository.js";
 export * from "./infrastructure/in-memory-proposal-repository.js";
 export * from "./infrastructure/postgres-proposal-repository.js";
 export * from "./vendable-workflow.js";

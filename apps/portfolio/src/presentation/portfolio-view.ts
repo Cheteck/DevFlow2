@@ -1,11 +1,13 @@
-import { BacRenderResult } from "@mosaix/contracts";
+import type {
+  BacDescriptor,
+  BacExecutionContext,
+  BacRenderResult,
+} from "@mosaix/contracts";
 
 interface SampleVendable {
   ref: string;
   name: string;
   type: "Product" | "Service" | "Subscription" | "DigitalAsset";
-  price: string;
-  stock: number;
   status: "Published" | "Draft" | "Archived" | "InReview";
   qualityScore: number;
   features: Record<string, string>;
@@ -17,8 +19,6 @@ const PRODUCTS: SampleVendable[] = [
     ref: "VND-XIAOMI-18PRO",
     name: "Xiaomi 18 Pro Max 5G (8500mAh / 1TB)",
     type: "Product",
-    price: "185 000 DZD",
-    stock: 42,
     status: "Published",
     qualityScore: 95,
     category: "Smartphones & Mobiles",
@@ -28,8 +28,6 @@ const PRODUCTS: SampleVendable[] = [
     ref: "VND-SAMSUNG-S26",
     name: "Samsung Galaxy S26 Ultra 1TB Titanium",
     type: "Product",
-    price: "240 000 DZD",
-    stock: 15,
     status: "Published",
     qualityScore: 98,
     category: "Smartphones & Mobiles",
@@ -39,8 +37,6 @@ const PRODUCTS: SampleVendable[] = [
     ref: "VND-CAJ-CERAMIC",
     name: "Poudre de Céramique CAJ Jijel Pureté 99%",
     type: "Product",
-    price: "4 500 DZD / kg",
-    stock: 120,
     status: "Published",
     qualityScore: 88,
     category: "Artisanat / Matériaux",
@@ -50,8 +46,6 @@ const PRODUCTS: SampleVendable[] = [
     ref: "VND-MACBOOK-M4",
     name: "Apple MacBook Pro 16 M4 Max 64GB",
     type: "Product",
-    price: "480 000 DZD",
-    stock: 5,
     status: "Draft",
     qualityScore: 72,
     category: "Ordinateurs & Accessoires",
@@ -346,7 +340,7 @@ export function createPortfolioView() {
                 <span>·</span>
                 <span>Type: ${escapeHtml(p.type)}</span>
                 <span>·</span>
-                <span>Stock: <strong class="tabular-nums">${p.stock}</strong></span>
+                <span>Complétude: <strong class="tabular-nums">${p.qualityScore}%</strong></span>
               </div>
 
               <div class="mt-3 p-2.5 rounded-xl bg-surface-container-lowest/50 border border-outline-variant/10 space-y-1">
@@ -360,7 +354,7 @@ export function createPortfolioView() {
             </div>
 
             <div class="pt-4 border-t border-outline-variant/10 flex items-center justify-between mt-4">
-              <span class="text-xs font-mono tabular-nums font-bold text-primary">${escapeHtml(p.price)}</span>
+              <span class="text-xs font-mono tabular-nums font-bold text-primary">${escapeHtml(p.ref)}</span>
               <button onclick="alert('Fiche produit complète avec checklist qualité ouverte !');" class="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 text-[10px] font-bold text-on-surface cursor-pointer">
                 Fiche & Qualité (${p.qualityScore}%)
               </button>
@@ -429,6 +423,31 @@ export function createPortfolioView() {
         contentHtml,
         pageTitle: "Portfolio — Gestion de Catalogue",
       };
+    },
+  };
+}
+
+/**
+ * Shell-facing BAC descriptor (dynamic discovery by bac-orchestrator).
+ * Maps the shell execution context onto the view renderer.
+ */
+export function createPortfolioDescriptor(): BacDescriptor {
+  const view = createPortfolioView();
+  return {
+    id: "@apps/portfolio",
+    name: "Portfolio & Product Information",
+    version: "1.0.0",
+    routePrefix: "/portfolio",
+    icon: "🎨",
+    isEnabled: true,
+    requiredPermissions: ["portfolio:vendable:read:tenant"],
+
+    async isAvailable(): Promise<boolean> {
+      return true;
+    },
+
+    async render(context: BacExecutionContext): Promise<BacRenderResult> {
+      return view.render({ query: context.request.query });
     },
   };
 }

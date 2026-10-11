@@ -22,8 +22,8 @@ export class PortfolioBulkExporter {
       "id",
       "title",
       "category",
-      "price",
-      "currency",
+      "reference",
+      "type",
       "status",
       "slug",
     ];
@@ -31,8 +31,8 @@ export class PortfolioBulkExporter {
       v.identity.id,
       `"${PortfolioBulkExporter.titleOf(v).replace(/"/g, '""')}"`,
       v.classification.categories?.[0] ?? "",
-      v.pricing?.basePrice ?? 0,
-      v.pricing?.currency ?? "EUR",
+      v.identity.reference,
+      v.identity.type,
       v.identity.status,
       v.seo?.slug ?? "",
     ]);
@@ -41,6 +41,49 @@ export class PortfolioBulkExporter {
 }
 
 export class PortfolioBulkImporter {
+  /**
+   * Commercial columns are PIM-excluded (responsibilities.md § "Wizards, imports et exports").
+   * They are ignored on import and reported per row, never persisted.
+   */
+  private static readonly IGNORED_COMMERCIAL_COLUMNS = new Set([
+    "price",
+    "currency",
+    "pricing",
+    "stock",
+    "inventory",
+    "cost",
+    "margin",
+    "promotion",
+    "discount",
+    "availability",
+  ]);
+
+  private static stripCommercialFields(
+    item: Record<string, unknown>,
+  ): { stripped: boolean } {
+    let stripped = false;
+    for (const key of ["pricing", "inventory"]) {
+      if (item[key] !== undefined) {
+        delete item[key];
+        stripped = true;
+      }
+    }
+    const variants = item["variants"];
+    if (Array.isArray(variants)) {
+      for (const v of variants) {
+        if (typeof v === "object" && v !== null) {
+          const variant = v as Record<string, unknown>;
+          if (variant["pricing"] !== undefined || variant["inventory"] !== undefined) {
+            delete variant["pricing"];
+            delete variant["inventory"];
+            stripped = true;
+          }
+        }
+      }
+    }
+    return { stripped };
+  }
+
   static fromJson(jsonStr: string): { valid: Vendable[]; errors: string[] } {
     try {
       const parsed = JSON.parse(jsonStr);
@@ -57,6 +100,11 @@ export class PortfolioBulkImporter {
         if (!item.id || !item.title) {
           errors.push(`Row ${idx}: Missing id or title`);
         } else {
+          const record = item as Record<string, unknown>;
+          const { stripped } = PortfolioBulkImporter.stripCommercialFields(record);
+          if (stripped) {
+            errors.push(`Row ${idx}: commercial fields ignored (PIM-only import).`);
+          }
           valid.push(item as Vendable);
         }
       });
@@ -90,6 +138,14 @@ export class PortfolioBulkImporter {
       if (!row.id || !row.title) {
         errors.push(`Line ${i + 1}: Required fields 'id' or 'title' missing.`);
       } else {
+        const ignored = Object.keys(row).filter((h) =>
+          PortfolioBulkImporter.IGNORED_COMMERCIAL_COLUMNS.has(h),
+        );
+        if (ignored.length > 0) {
+          errors.push(
+            `Line ${i + 1}: commercial columns ignored (PIM-only import): ${ignored.join(", ")}.`,
+          );
+        }
         valid.push({
           identity: {
             id: row.id,
@@ -103,10 +159,6 @@ export class PortfolioBulkImporter {
           media: [],
           variants: [],
           relations: [],
-          pricing: {
-            basePrice: row.price ? parseFloat(row.price) : 0,
-            currency: row.currency || "EUR",
-          },
         });
       }
     }
@@ -123,44 +175,24 @@ export interface CdnSignedUrlOptions {
 }
 
 export interface PortfolioMediaManagerOptions {
-  cdnBaseUrl?: string;
-  secretKey?: string;
-}
-
-function resolveEnv(key: string): string | undefined {
-  const v = typeof process !== "undefined" ? process.env?.[key] : undefined;
-  return v && v.length > 0 ? v : undefined;
+  cdnBaseUrl: string;
+  secretKey: string;
 }
 
 export class PortfolioMediaManager {
   private readonly cdnBaseUrl: string;
   private readonly secretKey: string;
 
-  constructor(
-    cdnBaseUrl?: string | PortfolioMediaManagerOptions,
-    secretKey?: string,
-  ) {
-    const opts: PortfolioMediaManagerOptions =
-      typeof cdnBaseUrl === "object" && cdnBaseUrl !== null
-        ? cdnBaseUrl
-        : { cdnBaseUrl: cdnBaseUrl as string | undefined, secretKey };
-    this.cdnBaseUrl =
-      opts.cdnBaseUrl ??
-      resolveEnv("MOSAIX_CDN_BASE_URL") ??
-      "https://cdn.mosaix.local";
-    this.secretKey =
-      opts.secretKey ??
-      resolveEnv("MOSAIX_CDN_SECRET") ??
-      "mosaix-cdn-secret-dev-only";
-    if (
-      typeof process !== "undefined" &&
-      process.env?.NODE_ENV === "production" &&
-      this.secretKey.includes("dev-only")
-    ) {
+  constructor(options: PortfolioMediaManagerOptions) {
+    // No process.env reads, no dev fallback: secrets must be injected explicitly
+    // (future: SecretsPort/ConfigPort). PIM never exposes secrets.
+    if (!options.cdnBaseUrl || !options.secretKey) {
       throw new Error(
-        "MOSAIX_CDN_SECRET must be set in production (no dev fallback).",
+        "PortfolioMediaManager requires explicit { cdnBaseUrl, secretKey } options.",
       );
     }
+    this.cdnBaseUrl = options.cdnBaseUrl;
+    this.secretKey = options.secretKey;
   }
 
   generateSignedUrl(
