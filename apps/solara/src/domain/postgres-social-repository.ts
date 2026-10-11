@@ -33,7 +33,7 @@ export class PostgresSocialRepository {
 
   async savePost(post: Post): Promise<void> {
     await this.db.query(
-      `INSERT INTO solara_posts (id, "actorId", "actorType", "publicationType", "targetType", "targetId", content, "mediaUrls", metadata, "likeCount", "commentsCount", "createdAt")
+      `INSERT INTO "solara"."posts" (id, "actorId", "actorType", "publicationType", "targetType", "targetId", content, "mediaUrls", metadata, "likeCount", "commentsCount", "createdAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        ON CONFLICT (id) DO UPDATE SET
          "actorId" = $2,
@@ -66,7 +66,7 @@ export class PostgresSocialRepository {
   async getPost(id: string): Promise<Post | null> {
     const rows = await this.db.query<Record<string, unknown>>(
       `SELECT id, "actorId", "actorType", "publicationType", "targetType", "targetId", content, "mediaUrls", metadata, "likeCount", "commentsCount", "createdAt"
-       FROM solara_posts WHERE id = $1`,
+       FROM "solara"."posts" WHERE id = $1`,
       [id],
     );
     if (rows.length === 0) return null;
@@ -77,7 +77,7 @@ export class PostgresSocialRepository {
     const safeLimit = Math.min(Math.max(limit, 1), 200);
     const rows = await this.db.query<Record<string, unknown>>(
       `SELECT id, "actorId", "actorType", "publicationType", "targetType", "targetId", content, "mediaUrls", metadata, "likeCount", "commentsCount", "createdAt"
-       FROM solara_posts ORDER BY "createdAt" DESC LIMIT $1`,
+       FROM "solara"."posts" ORDER BY "createdAt" DESC, id DESC LIMIT $1`,
       [safeLimit],
     );
     return rows.map((r) => this.hydratePost(r));
@@ -85,7 +85,7 @@ export class PostgresSocialRepository {
 
   async saveComment(postId: string, comment: Comment): Promise<void> {
     await this.db.query(
-      `INSERT INTO solara_comments (id, "postId", "actorId", "actorType", content, "createdAt")
+      `INSERT INTO "solara"."comments" (id, "postId", "actorId", "actorType", content, "createdAt")
        VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (id) DO UPDATE SET
          content = $5,
@@ -96,7 +96,7 @@ export class PostgresSocialRepository {
 
   async getComments(postId: string): Promise<Comment[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT id, "postId", "actorId", "actorType", content, "createdAt" FROM solara_comments WHERE "postId" = $1 ORDER BY "createdAt"`,
+      `SELECT id, "postId", "actorId", "actorType", content, "createdAt" FROM "solara"."comments" WHERE "postId" = $1 ORDER BY "createdAt", id`,
       [postId],
     );
     return rows.map((r): Comment => ({
@@ -111,16 +111,16 @@ export class PostgresSocialRepository {
 
   async addFollower(targetActorId: string, follower: FollowerRelation): Promise<void> {
     await this.db.query(
-      `INSERT INTO solara_followers (id, "followerActorId", "followerActorType", "targetActorId", "targetActorType", "createdAt")
+      `INSERT INTO "solara"."followers" (id, "followerActorId", "followerActorType", "targetActorId", "targetActorType", "createdAt")
        VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT ("followerActorId", "targetActorId") DO NOTHING`,
+       ON CONFLICT ("followerActorType", "followerActorId", "targetActorType", "targetActorId") DO NOTHING`,
       [follower.id, follower.followerActorId, follower.followerActorType, follower.targetActorId, follower.targetActorType, toIso(follower.createdAt)],
     );
   }
 
   async getFollowers(targetActorId: string): Promise<FollowerRelation[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT id, "followerActorId", "followerActorType", "targetActorId", "targetActorType", "createdAt" FROM solara_followers WHERE "targetActorId" = $1`,
+      `SELECT id, "followerActorId", "followerActorType", "targetActorId", "targetActorType", "createdAt" FROM "solara"."followers" WHERE "targetActorId" = $1`,
       [targetActorId],
     );
     return rows.map((r): FollowerRelation => ({
@@ -134,10 +134,12 @@ export class PostgresSocialRepository {
   }
 
   async saveReaction(targetType: "post" | "comment", targetId: string, reaction: SocialReaction): Promise<void> {
+    // One active reaction per actor and target: concurrent duplicates collapse
+    // onto the natural key, changing the type in place.
     await this.db.query(
-      `INSERT INTO solara_reactions (id, "targetType", "targetId", "actorId", "actorType", type, "createdAt")
+      `INSERT INTO "solara"."reactions" (id, "targetType", "targetId", "actorId", "actorType", type, "createdAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (id) DO UPDATE SET
+       ON CONFLICT ("targetType", "targetId", "actorType", "actorId") DO UPDATE SET
          type = $6,
          "actorType" = $5`,
       [reaction.id, targetType, targetId, reaction.actorId, reaction.actorType ?? "user", reaction.type, toIso(reaction.createdAt)],
@@ -146,7 +148,7 @@ export class PostgresSocialRepository {
 
   async getReactions(targetType: "post" | "comment", targetId: string): Promise<SocialReaction[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT id, "targetType", "targetId", "actorId", "actorType", type, "createdAt" FROM solara_reactions WHERE "targetType" = $1 AND "targetId" = $2`,
+      `SELECT id, "targetType", "targetId", "actorId", "actorType", type, "createdAt" FROM "solara"."reactions" WHERE "targetType" = $1 AND "targetId" = $2`,
       [targetType, targetId],
     );
     return rows.map((r): SocialReaction => ({
@@ -162,14 +164,14 @@ export class PostgresSocialRepository {
 
   async incrementLikeCount(postId: string, delta: number): Promise<void> {
     await this.db.query(
-      `UPDATE solara_posts SET "likeCount" = "likeCount" + $1 WHERE id = $2`,
+      `UPDATE "solara"."posts" SET "likeCount" = "likeCount" + $1 WHERE id = $2`,
       [delta, postId],
     );
   }
 
   async incrementCommentsCount(postId: string, delta: number): Promise<void> {
     await this.db.query(
-      `UPDATE solara_posts SET "commentsCount" = "commentsCount" + $1 WHERE id = $2`,
+      `UPDATE "solara"."posts" SET "commentsCount" = "commentsCount" + $1 WHERE id = $2`,
       [delta, postId],
     );
   }

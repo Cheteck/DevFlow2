@@ -371,6 +371,9 @@ export class SolaraSocialService {
     targetActorType: SocialActorType,
     targetActorId: string
   ): Promise<FollowerRelation> {
+    if (followerActorType === targetActorType && followerActorId === targetActorId) {
+      throw new Error("Un acteur ne peut pas se suivre lui-même.");
+    }
     const key = `${targetActorType}:${targetActorId}`;
     const relation: FollowerRelation = {
       id: `flw-${crypto.randomUUID()}`,

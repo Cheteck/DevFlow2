@@ -1,4 +1,5 @@
 import { Controller, type HttpRequest, type HttpResponse } from "@mosaix/sdk";
+import { Guard, type UserContext } from "@mosaix/security";
 import { SolaraSocialService, type SocialActorType, type DefaultPublicationType } from "../domain/social.model";
 import {
   FeedRanker,
@@ -12,17 +13,47 @@ import {
 } from "@mosaix/feed-engine";
 
 export class SolaraController extends Controller {
+  private readonly guard = new Guard();
+
   constructor(private socialService: SolaraSocialService = new SolaraSocialService()) {
     super();
   }
 
-  async listPublicationTypes(_req: HttpRequest): Promise<HttpResponse> {
-    const types = this.socialService.publicationTypeRegistry.listPublicationTypes();
-    return this.json({ publicationTypes: types });
+  private toUserContext(req: HttpRequest): UserContext | null {
+    const principal = req.principal;
+    if (!principal) return null;
+    return {
+      sub: principal.sub,
+      roles: principal.roles ?? [],
+      permissions: principal.permissions ?? [],
+    };
+  }
+
+  private denialOrError(err: unknown): HttpResponse<{ error: string }> {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.startsWith("Unauthorized")) {
+      return this.json({ error: message }, 401);
+    }
+    if (message.startsWith("Forbidden")) {
+      return this.json({ error: message }, 403);
+    }
+    return this.internalError(message);
+  }
+
+  async listPublicationTypes(req: HttpRequest): Promise<HttpResponse> {
+    try {
+      await this.guard.authorize(this.toUserContext(req), "solara:feed:read");
+      const types = this.socialService.publicationTypeRegistry.listPublicationTypes();
+      return this.json({ publicationTypes: types });
+    } catch (err) {
+      return this.denialOrError(err);
+    }
   }
 
   async listFeed(req: HttpRequest): Promise<HttpResponse> {
-    const targetType = req.query?.["targetType"];
+    try {
+      await this.guard.authorize(this.toUserContext(req), "solara:feed:read");
+      const targetType = req.query?.["targetType"];
     const targetId = req.query?.["targetId"];
     const publicationType = req.query?.["publicationType"];
     const mode = req.query?.["mode"] || "for_you"; // "for_you" | "trending" | "chronological" | "media" | "ranked"
@@ -66,10 +97,15 @@ export class SolaraController extends Controller {
       hasMore: paginated.hasMore,
       nextCursor: paginated.nextCursor
     });
+    } catch (err) {
+      return this.denialOrError(err);
+    }
   }
 
   async trackAdTelemetry(req: HttpRequest): Promise<HttpResponse> {
-    const body = req.body as {
+    try {
+      await this.guard.authorize(this.toUserContext(req), "solara:moderate:content");
+      const body = req.body as {
       campaignId: string;
       postId: string;
       viewerActorId?: string;
@@ -90,10 +126,15 @@ export class SolaraController extends Controller {
 
     const metrics = SponsorshipTelemetry.getMetrics(body.campaignId);
     return this.json({ tracked: true, currentMetrics: metrics });
+    } catch (err) {
+      return this.denialOrError(err);
+    }
   }
 
   async createPost(req: HttpRequest): Promise<HttpResponse> {
-    const body = req.body as {
+    try {
+      await this.guard.authorize(this.toUserContext(req), "solara:post:create");
+      const body = req.body as {
       actorType: SocialActorType;
       actorId: string;
       targetType: "feed" | "space" | "group" | "event";
@@ -125,10 +166,15 @@ export class SolaraController extends Controller {
       const errorMsg = err instanceof Error ? err.message : String(err);
       return this.badRequest(errorMsg);
     }
+    } catch (err) {
+      return this.denialOrError(err);
+    }
   }
 
   async addComment(req: HttpRequest): Promise<HttpResponse> {
-    const body = req.body as {
+    try {
+      await this.guard.authorize(this.toUserContext(req), "solara:comment:add");
+      const body = req.body as {
       postId: string;
       actorType: SocialActorType;
       actorId: string;
@@ -146,10 +192,15 @@ export class SolaraController extends Controller {
       const errorMsg = err instanceof Error ? err.message : String(err);
       return this.badRequest(errorMsg);
     }
+    } catch (err) {
+      return this.denialOrError(err);
+    }
   }
 
   async addReaction(req: HttpRequest): Promise<HttpResponse> {
-    const body = req.body as {
+    try {
+      await this.guard.authorize(this.toUserContext(req), "solara:reaction:add");
+      const body = req.body as {
       targetType: "post" | "comment";
       targetId: string;
       actorType: SocialActorType;
@@ -168,10 +219,15 @@ export class SolaraController extends Controller {
       const errorMsg = err instanceof Error ? err.message : String(err);
       return this.badRequest(errorMsg);
     }
+    } catch (err) {
+      return this.denialOrError(err);
+    }
   }
 
   async followActor(req: HttpRequest): Promise<HttpResponse> {
-    const body = req.body as {
+    try {
+      await this.guard.authorize(this.toUserContext(req), "solara:follower:add");
+      const body = req.body as {
       followerActorType: SocialActorType;
       followerActorId: string;
       targetActorType: SocialActorType;
@@ -182,12 +238,15 @@ export class SolaraController extends Controller {
       return this.badRequest("followerActorType, followerActorId, targetActorType and targetActorId are required.");
     }
 
-    const relation = this.socialService.followActor(
+    const relation = await this.socialService.followActor(
       body.followerActorType,
       body.followerActorId,
       body.targetActorType,
       body.targetActorId
     );
     return this.created({ message: "Abonnement enregistré avec succès", relation });
+    } catch (err) {
+      return this.denialOrError(err);
+    }
   }
 }

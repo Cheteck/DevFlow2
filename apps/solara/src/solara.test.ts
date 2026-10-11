@@ -12,6 +12,20 @@ function registerSolaraAdminPages() {
   ];
 }
 
+const TEST_PRINCIPAL = {
+  sub: "tester-1",
+  tenantId: "t1",
+  roles: [],
+  permissions: [
+    "solara:feed:read",
+    "solara:post:create",
+    "solara:comment:add",
+    "solara:reaction:add",
+    "solara:follower:add",
+    "solara:moderate:content",
+  ],
+};
+
 describe("MosaiX Solara Extensible Social Engine Suite", () => {
   it("instantiates Composition Root with Container, Router, and SolaraSocialService", async () => {
     const composition = await createSolaraComposition();
@@ -29,6 +43,7 @@ describe("MosaiX Solara Extensible Social Engine Suite", () => {
       method: "GET",
       path: "/solara/types",
       headers: {},
+      principal: TEST_PRINCIPAL,
     });
 
     expect(typesRes.statusCode).toBe(200);
@@ -46,6 +61,7 @@ describe("MosaiX Solara Extensible Social Engine Suite", () => {
       method: "POST",
       path: "/solara/posts",
       headers: {},
+      principal: TEST_PRINCIPAL,
       body: {
         actorType: "space",
         actorId: "space-mosaix-tech",
@@ -69,6 +85,7 @@ describe("MosaiX Solara Extensible Social Engine Suite", () => {
       method: "POST",
       path: "/solara/posts",
       headers: {},
+      principal: TEST_PRINCIPAL,
       body: {
         actorType: "space",
         actorId: "space-mosaix-tech",
@@ -95,6 +112,7 @@ describe("MosaiX Solara Extensible Social Engine Suite", () => {
       method: "POST",
       path: "/solara/posts",
       headers: {},
+      principal: TEST_PRINCIPAL,
       body: {
         actorType: "user",
         actorId: "usr-spammer",
@@ -115,6 +133,7 @@ describe("MosaiX Solara Extensible Social Engine Suite", () => {
       method: "POST",
       path: "/solara/followers",
       headers: {},
+      principal: TEST_PRINCIPAL,
       body: {
         followerActorType: "user",
         followerActorId: "usr-alex",
@@ -136,4 +155,98 @@ describe("MosaiX Solara Extensible Social Engine Suite", () => {
     expect(adminPages[0]?.applicationId).toBe("@apps/solara");
     expect(adminPages[0]?.pageId).toBe("social-moderation");
   });
+
+  it("rejects self-follow at service level (v1.003 guard)", async () => {
+    const composition = (await createSolaraComposition());
+
+    await expect(
+      composition.socialService.followActor("user", "usr-alex", "user", "usr-alex"),
+    ).rejects.toThrow("lui-m\u00eame");
+  });
+
+  it("upserts reactions on the natural key (v1.003, no duplicates)", async () => {
+    const { PostgresSocialRepository } = await import("./domain/postgres-social-repository.js");
+    const seen: string[] = [];
+    const fakeDb = {
+      capabilities: { dialect: "postgres", transactions: true, lock: {} },
+      execute: async () => 1,
+      query: async (sql: string) => {
+        seen.push(sql);
+        return [];
+      },
+      transaction: async (fn: (tx: never) => Promise<never>) => fn({} as never),
+      acquireMigrationLock: async () => ({ release: async () => {} }),
+    };
+    const repo = new PostgresSocialRepository(fakeDb as never);
+    await repo.saveReaction("post", "p1", {
+      id: "react-1",
+      targetType: "post",
+      targetId: "p1",
+      actorType: "user",
+      actorId: "usr-alex",
+      type: "like",
+      createdAt: new Date(),
+    });
+
+    expect(
+      seen.some((s) => s.indexOf('ON CONFLICT ("targetType", "targetId", "actorType", "actorId")') !== -1),
+    ).toBe(true);
+  });
+
+  it("dedupes follows on the full actor quad (v1.003)", async () => {
+    const { PostgresSocialRepository } = await import("./domain/postgres-social-repository.js");
+    const seen: string[] = [];
+    const fakeDb = {
+      capabilities: { dialect: "postgres", transactions: true, lock: {} },
+      execute: async () => 1,
+      query: async (sql: string) => {
+        seen.push(sql);
+        return [];
+      },
+      transaction: async (fn: (tx: never) => Promise<never>) => fn({} as never),
+      acquireMigrationLock: async () => ({ release: async () => {} }),
+    };
+    const repo = new PostgresSocialRepository(fakeDb as never);
+    await repo.addFollower("space-x", {
+      id: "flw-1",
+      followerActorType: "user",
+      followerActorId: "usr-alex",
+      targetActorType: "space",
+      targetActorId: "space-x",
+      createdAt: new Date(),
+    });
+
+    expect(
+      seen.some((s) =>
+        s.indexOf('ON CONFLICT ("followerActorType", "followerActorId", "targetActorType", "targetActorId")') !== -1,
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects unauthenticated (401) and unauthorized (403) controller calls", async () => {
+    const composition = (await createSolaraComposition());
+
+    const noPrincipal = await composition.controller.listPublicationTypes({
+      method: "GET",
+      path: "/solara/types",
+      headers: {},
+    });
+    expect(noPrincipal.statusCode).toBe(401);
+
+    const noPermission = await composition.controller.createPost({
+      method: "POST",
+      path: "/solara/posts",
+      headers: {},
+      principal: { sub: "guest-1", tenantId: "t1", roles: [], permissions: [] },
+      body: {
+        actorType: "user",
+        actorId: "usr-guest",
+        targetType: "feed",
+        targetId: "global",
+        content: "Bonjour le fil",
+      },
+    });
+    expect(noPermission.statusCode).toBe(403);
+  });
 });
+

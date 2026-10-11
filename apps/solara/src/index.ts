@@ -9,6 +9,13 @@ import type { DatabasePort } from "@mosaix/ports-database";
 
 import { SolaraAppServiceProvider } from "./infrastructure/solara-service-provider.js";
 import { SolaraSocialService, type SocialActorType } from "./domain/social.model.js";
+import {
+  solaraEventPayloadSchemas,
+  type SolaraPostPublishedPayload,
+  type SolaraCommentCreatedPayload,
+  type SolaraReactionAddedPayload,
+  type SolaraFollowerAddedPayload,
+} from "./events/solara-events.js";
 
 // =============================================================
 // SECTION 1 — MANIFEST
@@ -23,15 +30,24 @@ export const MANIFEST = {
   database: { strategy: "per-app" },
   capabilities: [
     { id: "solara.post.create", version: "1.0.0" },
+    { id: "solara.comment.add", version: "1.0.0" },
+    { id: "solara.reaction.add", version: "1.0.0" },
+    { id: "solara.follower.add", version: "1.0.0" },
     { id: "solara.feed.read", version: "1.0.0" },
   ],
   permissions: [
     "solara:post:create",
+    "solara:comment:add",
+    "solara:reaction:add",
+    "solara:follower:add",
     "solara:feed:read",
+    "solara:moderate:content",
   ],
   events: [
-    "solara.post.created",
-    "solara.post.commented",
+    "solara.post.published",
+    "solara.comment.created",
+    "solara.reaction.added",
+    "solara.follower.added",
   ],
   experience: {
     appCard: {
@@ -64,7 +80,7 @@ export class SolaraServiceProvider {
     await this.innerProvider.register(container);
   }
 
-  boot(container: Container, router: Router): void {
+  boot(container: Container, router: Router): MosaixApp {
     this.innerProvider.boot(container, router);
 
     const kernel = container.resolve<RuntimeKernel>("kernel");
@@ -76,18 +92,92 @@ export class SolaraServiceProvider {
     const socialService = container.resolve(SolaraSocialService);
     app.provideCapability("solara.post.create", async (input) => {
       const inp = input as { actorType?: string; actorId?: string; targetType?: string; targetId?: string; content?: string };
-      return socialService.createPost(
+      const post = await socialService.createPost(
         (inp.actorType ?? "user") as SocialActorType,
         inp.actorId ?? "",
         (inp.targetType ?? "feed") as "feed" | "space" | "group" | "event",
         inp.targetId ?? "",
         inp.content ?? "",
       );
+      const payload: SolaraPostPublishedPayload = {
+        postId: post.id,
+        actorId: post.actorId,
+        publicationType: post.publicationType,
+        targetType: post.targetType,
+        targetId: post.targetId,
+        createdAt: post.createdAt.toISOString(),
+      };
+      await app.publish("solara.post.published", "1.0.0", payload);
+      return post;
+    });
+
+    app.provideCapability("solara.comment.add", async (input) => {
+      const inp = input as { postId?: string; actorType?: string; actorId?: string; content?: string };
+      const comment = await socialService.addComment(
+        inp.postId ?? "",
+        (inp.actorType ?? "user") as SocialActorType,
+        inp.actorId ?? "",
+        inp.content ?? "",
+      );
+      const payload: SolaraCommentCreatedPayload = {
+        commentId: comment.id,
+        postId: comment.postId,
+        actorId: comment.actorId,
+        createdAt: comment.createdAt.toISOString(),
+      };
+      await app.publish("solara.comment.created", "1.0.0", payload);
+      return comment;
+    });
+
+    app.provideCapability("solara.reaction.add", async (input) => {
+      const inp = input as { targetType?: string; targetId?: string; actorType?: string; actorId?: string; type?: string };
+      const reaction = await socialService.addReaction(
+        (inp.targetType ?? "post") as "post" | "comment",
+        inp.targetId ?? "",
+        (inp.actorType ?? "user") as SocialActorType,
+        inp.actorId ?? "",
+        (inp.type ?? "like") as "like" | "love" | "laugh" | "surprised" | "sad" | "angry",
+      );
+      const payload: SolaraReactionAddedPayload = {
+        reactionId: reaction.id,
+        targetType: reaction.targetType,
+        targetId: reaction.targetId,
+        actorId: reaction.actorId,
+        type: reaction.type,
+      };
+      await app.publish("solara.reaction.added", "1.0.0", payload);
+      return reaction;
+    });
+
+    app.provideCapability("solara.follower.add", async (input) => {
+      const inp = input as { followerActorType?: string; followerActorId?: string; targetActorType?: string; targetActorId?: string };
+      const relation = await socialService.followActor(
+        (inp.followerActorType ?? "user") as SocialActorType,
+        inp.followerActorId ?? "",
+        (inp.targetActorType ?? "user") as SocialActorType,
+        inp.targetActorId ?? "",
+      );
+      const payload: SolaraFollowerAddedPayload = {
+        followerActorId: relation.followerActorId,
+        targetActorId: relation.targetActorId,
+      };
+      await app.publish("solara.follower.added", "1.0.0", payload);
+      return relation;
     });
 
     app.provideCapability("solara.feed.read", async () => {
       return socialService.listFeed("feed", "", undefined);
     });
+
+    for (const type of Object.keys(solaraEventPayloadSchemas) as Array<keyof typeof solaraEventPayloadSchemas>) {
+      app.registerEventSchema({
+        type,
+        version: "1.0.0",
+        schema: solaraEventPayloadSchemas[type] as unknown as Record<string, unknown>,
+      });
+    }
+
+    return app;
   }
 
   shutdown(container: Container): void {
@@ -118,4 +208,5 @@ export * from "./domain/social.model.js";
 export * from "./domain/solara-moderation-pipeline.js";
 export * from "./domain/solara-feed-realtime.js";
 export * from "./domain/social-auto-share-plugin.js";
+export * from "./events/solara-events.js";
 export * from "./presentation/solara-view.js";

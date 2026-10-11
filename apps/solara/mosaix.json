@@ -29,17 +29,24 @@
     {
       "id": "solara.follower.add",
       "version": "1.0.0"
+    },
+    {
+      "id": "solara.feed.read",
+      "version": "1.0.0"
     }
   ],
   "permissions": [
     "solara:post:create",
     "solara:comment:add",
+    "solara:reaction:add",
     "solara:follower:add",
+    "solara:feed:read",
     "solara:moderate:content"
   ],
   "events": [
     "solara.post.published",
     "solara.comment.created",
+    "solara.reaction.added",
     "solara.follower.added"
   ],
   "experience": {
