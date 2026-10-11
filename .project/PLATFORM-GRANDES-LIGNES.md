@@ -25,7 +25,7 @@ Une plateforme où **chaque Space est une entité autonome** (page Facebook : bo
 | **booking** Réservation | réserve | `booking_slots/reservations/waitlists/reminders` | `BookingSlot{capacity,reservedCount}` + `iCalendar RFC5545` | — |
 | **solidarity** Humanitaire | coordonne | `solidarity_*` 7 tables `incidents/needs/donations/resources/hubs/missions/distributions` + `GeoZone` Haversine + `Merkle` | PostGIS |
 | **imperia** Gouvernance | gouverne | `imperia_audit_logs/policies/dlq/circuit_breakers/settings` `governance-slot-resolver` | `PlatformThemeService`, `Maintenance` `allowedRoles` | — |
-| **subscription** Abonnement | facture | `user_subscriptions/coupons/invoices/metering_buckets` | `BillingInterval month|year`, `Trial`, `Prorata` | — |
+| **subscription** Abonnement récurrent | engage (calcule le dû, ne facture ni n'encaisse) | `user_subscriptions/metering_buckets` (+ `coupons`→Commerce, `invoices`→Billing, transitoires) | `BillingInterval month\|year`, `Trial`, `Prorata`, entitlements | jamais `invoice/payment/notification` |
 | **delivery** *(horizon 3b)* | livre | `delivery_methods(cod|express/pickup) + delivery_boys + deliveries(orderId, boyId, codAmount, proofUrl)` | `assigned→delivered` `proofUrl`, COD Algérie `cod_pending→delivered` | jamais `price` |
 | **wallet** *(moyen terme)* | encaisse | `wallets/wallet_transactions escrow_hold→release` | `hold buyer→platform → release platform→seller net` `Money` | PSP `SATIM/CIB` plus tard |
 

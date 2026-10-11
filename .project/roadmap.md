@@ -24,7 +24,7 @@
     - [x] Value Objects universels `Money` & `Timestamp`.
     - [x] Tables RBAC & Audit (`permissions`, `roles`, `role_permissions`, `space_members`, `permission_overrides`, `acting_as_audit_events`, `role_audit_events`).
     - [x] Complete DB schema alignment across all 10 BACs.
-    - [x] Commerce source unique `offer/stock/price` (`portfolio_variants` sans `price/stock`, `CommerceOffer.priceInCents`) + Propsitions `portfolio_proposals` v1.3.
+    - [x] Commerce source unique `offer/price` + disponibilité via `InventoryPort` (`portfolio_variants` sans `price/stock`, `CommerceOffer.priceInCents`, cf. `apps/commerce/responsibilities.md`) + Propositions `portfolio_proposals` v1.3.
 
 - [ ] **Phase 3b : Commerce COD & Wallet + Livraison** (ne pas implementer sans demande explicite)
     - [ ] COD Algérie par défaut : `commerce_payment_intents` `cod_pending→delivered`, `CheckoutOrderWorkflow` no-op `PaymentPort`, livraison confirme `cod_delivered`.

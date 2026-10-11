@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-09 — Wiring BAC : priorité explicite + contrats publics de composition
+
+### Fixed
+- **P1 — `BacOrchestrator.registerDynamicLoader()` évince le descripteur caché** (`src/shell/orchestrator/bac-orchestrator.ts`) : politique last-registration-wins documentée — le wiring Postgres de `wireBacDescriptors()` remplace le fallback statique même si celui-ci a été résolu (et caché) avant. Fini le gel silencieux d'un descripteur non wiré. Divergence assumée vs suppression pure des built-ins : ils restent le mode dégradé (boot jamais bloqué, vitrine honnête) et le chemin des tests/orchestrateur standalone.
+- **Test** : `bac-orchestrator.test.ts` — « late wired loader replaces cached fallback » (load fallback → re-register → load retourne le wiré).
+
+### Added
+- **P2 — Contrats publics de composition** : `apps/commerce/src/composition-root.ts` (`createCommerceWiredDescriptor(db)` / `createCommerceFallbackDescriptor()`), `apps/spaces/src/composition-root.ts` (idem). `src/server/bac-wiring.ts` n'importe plus que ces 2 contrats (2 dynamic imports au lieu de 8 imports profonds `domain/`/`infrastructure/`/`presentation/`). Suit la convention existante (`solara`, `portfolio`, `solidarity`, `beam` ont déjà leur `composition-root.ts`) et le pattern `app-composition-root` d'ESLint.
+- **Tests** : `commerce-composition-root.test.ts`, `spaces-composition-root.test.ts` (fallback + wired, basenames uniques selon la règle du repo).
+- **P4 — Frontières ESLint exécutoires pour `src/server/**`** (`eslint.config.mjs`) : type `server` + `no-restricted-imports` (imports statiques) + `no-restricted-syntax` sur `ImportExpression` (dynamic `import()`). Sondes négatives vérifiées : chaque règle mord sur un import profond et reste verte sur les contrats publics. Constat documenté : `boundaries/element-types` est aveugle aux specifiers ESM `.js` non résolvables (sonde `app-domain → app-infrastructure` silencieuse, ne mord qu'en `.ts` résolvable) — `app-composition-root` autorise désormais `app-general` (présentation) en connaissance de cause.
+
+### Deferred (backlog)
+- **P3 — Observabilité du wiring** : garder le fail-soft (`console.error` + fallback, cohérent avec `start.ts`/orchestrateur qui n'ont pas de logger injecté au boot) ; décider quels BACs sont critiques (fail-fast) vs dégradables, distinguer module-absent vs init-error. Pas de changement de comportement dans cette passe.
+- **Durcir `src/shell/**`** (orchestrateur + migrations en imports profonds legacy) — hors scope, scopeé `src/server/**` uniquement.
+
 ## 2026-09-25 — Feed Engine unifié (branche stateful + couche ranking main)
 
 ### Added
