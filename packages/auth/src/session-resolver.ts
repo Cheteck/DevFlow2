@@ -8,6 +8,7 @@ import type { IdentityStore, Identity } from "@mosaix/ports-identity-store";
 export interface PlatformSessionContext {
   sessionId: string;
   identityId: string;
+  tenantId: string;
   identity: Identity;
   createdAt: string;
   updatedAt: string;
@@ -27,31 +28,50 @@ export class SessionResolver {
     if (!rawSession) return null;
 
     if (rawSession.expiresAt && new Date(rawSession.expiresAt).getTime() < Date.now()) {
-      await this.sessionStore.delete(sessionId);
+      // Best effort: expired sessions must never resolve. Revocation is the
+      // port-level primitive (`revoke`), not `delete` (which does not exist
+      // on `SessionStore`). A failing cleanup must not resurrect the session.
+      try {
+        await this.sessionStore.revoke(sessionId);
+      } catch {
+        // ignore cleanup failure — the session is still rejected below
+      }
       return null;
     }
 
-    let identity: Identity | null = null;
-    if (this.identityStore && rawSession.identityId) {
-      identity = await this.identityStore.findById(rawSession.identityId);
-    }
+    if (rawSession.revokedAt !== undefined) return null;
 
-    const fallbackIdentity: Identity = identity || {
-      id: rawSession.identityId || "guest",
-      tenantId: "default",
-      status: "active",
-      createdAt: rawSession.createdAt || new Date().toISOString(),
-      updatedAt: rawSession.updatedAt || new Date().toISOString(),
-      externalIdentities: [],
-      attributes: {},
-    };
+    let identity: Identity;
+    if (this.identityStore && rawSession.identityId) {
+      const found = await this.identityStore.findById(rawSession.identityId);
+      // Fail closed: a valid session without a resolvable identity is NOT
+      // an anonymous guest — it is an incomplete account. Never fabricate
+      // a guest identity here; callers map `null` to the anonymous state.
+      if (!found) return null;
+      identity = found;
+    } else {
+      // No identity store wired: derive the identity reference from the
+      // server-side session record only (never from client input). This is
+      // a session-bound reference, not an applicative profile — the
+      // `UserProfile` projection stays outside `@mosaix/auth` (ADR-0017).
+      identity = {
+        id: rawSession.identityId,
+        tenantId: rawSession.tenantId,
+        status: "active",
+        createdAt: rawSession.createdAt,
+        updatedAt: rawSession.createdAt,
+        externalIdentities: [],
+        attributes: {},
+      };
+    }
 
     return {
       sessionId: rawSession.id,
       identityId: rawSession.identityId,
-      identity: fallbackIdentity,
+      tenantId: rawSession.tenantId,
+      identity,
       createdAt: rawSession.createdAt,
-      updatedAt: rawSession.updatedAt,
+      updatedAt: rawSession.createdAt,
       expiresAt: rawSession.expiresAt,
     };
   }

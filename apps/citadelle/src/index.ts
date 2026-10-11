@@ -13,17 +13,12 @@ import { UuidGeneratorAdapter } from "@mosaix/adapter-id-uuid";
 import { IdentityController } from "./infrastructure/identity-controller.js";
 import { UserService } from "./domain/user-service.js";
 import { InMemoryUserRepository } from "./infrastructure/in-memory-user-repository.js";
-import { InMemoryIdentityStore } from "./infrastructure/in-memory-identity-store.js";
-import { InMemorySessionStore } from "./infrastructure/in-memory-session-store.js";
-import { InMemoryTokenStore } from "./infrastructure/in-memory-token-store.js";
-import { InMemoryCredentialStore } from "./infrastructure/in-memory-credential-store.js";
 import { InMemorySecretsAdapter } from "./infrastructure/in-memory-secrets-adapter.js";
 import {
   InMemorySocialAccountRepository,
   type SocialAccountRepository,
 } from "./infrastructure/social-account-repository.js";
 import { RegistrationWizardService } from "./domain/registration-wizard.service.js";
-import { InMemoryGuard } from "@mosaix/support";
 import {
   identityEventPayloadSchemas,
   identityUserCreatedEvent,
@@ -67,12 +62,14 @@ import { SQLiteIdentityStoreAdapter } from "@mosaix/adapter-identity-store-sqlit
 import { SQLiteCredentialStoreAdapter } from "@mosaix/adapter-credential-store-sqlite";
 import { SQLiteTokenStoreAdapter } from "@mosaix/adapter-token-store-sqlite";
 import { SQLiteSessionStoreAdapter } from "@mosaix/adapter-session-store-sqlite";
+import { PostgresSessionStoreAdapter } from "@mosaix/adapter-session-store-postgres";
 
 const defaultAdapters = {
   // Pas de UserRepository Postgres : le mapping canonique modèle `User` vs
   // `identities` du shell appartient à la vague citadelle (backlog
   // DB-BAC-OWNERSHIP) et aucun adapter n'existe dans `packages/` (interdit
   // d'en créer ici). Reste InMemory par conception, pas par oubli.
+  // eslint-disable-next-line no-restricted-syntax -- couche 2 : aucun adapter persistant pour User/social/secrets/wizard ; exiger une DB ici supprimerait la feature.
   userRepository: () => new InMemoryUserRepository(),
 };
 
@@ -101,8 +98,20 @@ export class CitadelleServiceProvider {
     const useDatabase = !!dbPort;
     const isSqlite = useDatabase && dbPort!.capabilities.dialect === "sqlite";
 
-    if (!useDatabase && !this.adapters.identityStore) {
-      InMemoryGuard.reportFallback("InMemoryIdentityStore", "missing databasePort in CitadelleAdapters");
+    // Pas de stockage en memoire hors tests : chaque store possede un adapter
+    // persistant (SQLite + Postgres), donc l'absence de DatabasePort sans
+    // override explicite est une erreur de composition, pas un fallback.
+    for (const [storeName, store] of Object.entries({
+      identityStore: this.adapters.identityStore,
+      sessionStore: this.adapters.sessionStore,
+      tokenStore: this.adapters.tokenStore,
+      credentialStore: this.adapters.credentialStore,
+    })) {
+      if (!useDatabase && !store) {
+        throw new Error(
+          `[CitadelleAdapters] DatabasePort requis : passez databasePort ou ${storeName} (tests uniquement).`,
+        );
+      }
     }
 
     // Postgres : l'auth repose sur les tables shell-owned (`shell.core.v1.001`
@@ -112,51 +121,39 @@ export class CitadelleServiceProvider {
     // DB-BAC-OWNERSHIP (voir `infrastructure/migrations.ts`).
     const identityStore =
       this.adapters.identityStore ??
-      (useDatabase
-        ? (isSqlite
-          ? new SQLiteIdentityStoreAdapter(dbPort!)
-          : new PostgresIdentityStoreAdapter(dbPort!))
-        : new InMemoryIdentityStore());
+      (isSqlite
+        ? new SQLiteIdentityStoreAdapter(dbPort!)
+        : new PostgresIdentityStoreAdapter(dbPort!));
 
-    // Sessions : aucun PostgresSessionStoreAdapter n'existe dans
-    // `packages/adapters/` (seuls `sqlite` et `redis`), et il est interdit à
-    // cette vague d'en créer un dans `packages/`. Le SQLite adapter n'est PAS
-    // réutilisable sur Postgres (dialecte sqlite, placeurs `?`, table shell
-    // `sessions`) et le Redis adapter exige un client Redis, pas un
-    // DatabasePort. Postgres retombe donc explicitement sur InMemory, gap
-    // tracé (guard + backlog vague citadelle) au lieu d'un ternaire muet.
+    // Sessions : SQLite et Postgres ont un adapter dedie ; sans DatabasePort
+    // ni store explicite, echec franc (aucune session volatile silencieuse).
     let sessionStore: SessionStore;
     if (this.adapters.sessionStore) {
       sessionStore = this.adapters.sessionStore;
     } else if (useDatabase && isSqlite) {
       sessionStore = new SQLiteSessionStoreAdapter(dbPort!);
+    } else if (useDatabase) {
+      sessionStore = new PostgresSessionStoreAdapter(dbPort!);
     } else {
-      if (useDatabase && !isSqlite) {
-        InMemoryGuard.reportFallback(
-          "InMemorySessionStore",
-          "no PostgresSessionStoreAdapter in packages/adapters — sessions stay in-memory on Postgres (backlog)",
-        );
-      }
-      sessionStore = new InMemorySessionStore();
+      throw new Error(
+        "[CitadelleAdapters] DatabasePort requis : passez databasePort ou sessionStore (tests uniquement).",
+      );
     }
 
     const tokenStore =
       this.adapters.tokenStore ??
-      (useDatabase
-        ? (isSqlite
-          ? new SQLiteTokenStoreAdapter(dbPort!)
-          : new PostgresTokenStoreAdapter(dbPort!))
-        : new InMemoryTokenStore());
+      (isSqlite
+        ? new SQLiteTokenStoreAdapter(dbPort!)
+        : new PostgresTokenStoreAdapter(dbPort!));
 
     const credentialStore =
       this.adapters.credentialStore ??
-      (useDatabase
-        ? (isSqlite
-          ? new SQLiteCredentialStoreAdapter(dbPort!)
-          : new PostgresCredentialStoreAdapter(dbPort!))
-        : new InMemoryCredentialStore());
+      (isSqlite
+        ? new SQLiteCredentialStoreAdapter(dbPort!)
+        : new PostgresCredentialStoreAdapter(dbPort!));
 
     const idGenerator = new UuidGeneratorAdapter();
+    // eslint-disable-next-line no-restricted-syntax -- couche 2 : EnvSecretsAdapter existe mais exige un cablage env ; en attendant, secrets en memoire explicites (jamais en prod via InMemoryGuard des chemins critiques).
     const secretsAdapter = new InMemorySecretsAdapter();
 
     const authManager = new AuthManager(
@@ -183,7 +180,9 @@ export class CitadelleServiceProvider {
     // nouveau package). Versions persistantes (table `social_accounts`,
     // wizard persistant, OAuth stocké) = backlog vague citadelle.
     const socialAccountRepository =
-      this.adapters.socialAccountRepository ?? new InMemorySocialAccountRepository();
+      this.adapters.socialAccountRepository ??
+      // eslint-disable-next-line no-restricted-syntax -- couche 2 : aucun adapter persistant ; exiger une DB ici supprimerait la feature.
+      new InMemorySocialAccountRepository();
     const registrationWizard =
       this.adapters.registrationWizard ?? new RegistrationWizardService();
 

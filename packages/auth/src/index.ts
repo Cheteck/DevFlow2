@@ -23,6 +23,9 @@ export type { ProviderRegistryOptions } from "./provider-registry";
 export { SessionManager } from "./session-manager";
 export type { SessionManagerOptions } from "./session-manager";
 
+export { SessionResolver } from "./session-resolver";
+export type { PlatformSessionContext } from "./session-resolver";
+
 export { ChallengeManager } from "./challenge-manager";
 export type { ChallengeManagerOptions, Challenge } from "./challenge-manager";
 

@@ -2,6 +2,18 @@ import { describe, expect, it } from "vitest";
 import { RuntimeKernel } from "@mosaix/sdk";
 import { createCitadelleApp, MANIFEST } from "./index";
 import { IdentityController } from "./infrastructure/identity-controller";
+import { InMemoryIdentityStore } from "./infrastructure/in-memory-identity-store";
+import { InMemorySessionStore } from "./infrastructure/in-memory-session-store";
+import { InMemoryTokenStore } from "./infrastructure/in-memory-token-store";
+import { InMemoryCredentialStore } from "./infrastructure/in-memory-credential-store";
+
+// Tests uniquement : stores en memoire explicites (fail-fast hors tests).
+const testAdapters = () => ({
+  identityStore: new InMemoryIdentityStore(),
+  sessionStore: new InMemorySessionStore(),
+  tokenStore: new InMemoryTokenStore(),
+  credentialStore: new InMemoryCredentialStore(),
+});
 
 describe("Citadelle Canonical Application Suite", () => {
   it("exports valid MANIFEST and creates app via factory", async () => {
@@ -9,7 +21,7 @@ describe("Citadelle Canonical Application Suite", () => {
     const kernel = new RuntimeKernel();
     const tenant = { id: "test-tenant", organizationId: "test-org" };
 
-    const { container, router, app } = await createCitadelleApp(kernel, tenant);
+    const { container, router, app } = await createCitadelleApp(kernel, tenant, testAdapters());
     expect(container).toBeDefined();
     expect(router).toBeDefined();
     expect(app.manifest.id).toBe("@apps/citadelle");
@@ -30,7 +42,7 @@ describe("Citadelle Canonical Application Suite", () => {
   it("handles login via wired IdentityController after registration", async () => {
     const kernel = new RuntimeKernel();
     const tenant = { id: "test-tenant", organizationId: "test-org" };
-    const { container } = await createCitadelleApp(kernel, tenant);
+    const { container } = await createCitadelleApp(kernel, tenant, testAdapters());
     const controller = container.resolve<IdentityController>(IdentityController);
     const email = `user-${Date.now()}@mosaix.dev`;
 
