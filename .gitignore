@@ -42,6 +42,13 @@ prompt (2).txt
 
 # Environment variables
 .env
+.opencode.json
+opencode.json
+checksum.cjs
+analyses/
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
 .env.local
 .env.*.local
 .env.test
