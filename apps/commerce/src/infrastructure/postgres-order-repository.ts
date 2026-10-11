@@ -25,6 +25,7 @@ const ORDER_COLUMNS = [
   "createdAt",
   "updatedAt",
   "deletedAt",
+  "idempotencyKey",
 ] as const;
 
 const ORDER_SELECT = ORDER_COLUMNS.map((c) => `"${c}"`).join(", ");
@@ -69,6 +70,7 @@ function toModel(row: Record<string, unknown>): OrderModel {
     totalAmount: Number(row["totalAmount"] ?? 0),
     taxAmount: Number(row["taxAmount"] ?? 0),
     discountCode: (row["discountCode"] as string | null) ?? undefined,
+    idempotencyKey: (row["idempotencyKey"] as string | null) ?? undefined,
     shippingAddress: parseJson(row["shippingAddress"], undefined),
     billingAddress: parseJson(row["billingAddress"], undefined),
     lineItems: parseJson(row["lineItems"], []),
@@ -93,13 +95,13 @@ export class PostgresOrderRepository implements OrderRepositoryPort {
     order.touch();
     const extras = order as unknown as Record<string, unknown>;
     await this.db.query(
-      `INSERT INTO commerce_orders (${ORDER_SELECT})
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      `INSERT INTO "commerce"."orders" (${ORDER_SELECT})
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        ON CONFLICT (id) DO UPDATE SET
          "userId" = $2, "vendableId" = $3, "customerId" = $4, status = $5,
          currency = $6, "totalAmount" = $7, "taxAmount" = $8, "discountCode" = $9,
          "shippingAddress" = $10, "billingAddress" = $11, "lineItems" = $12,
-         "updatedAt" = $14, "deletedAt" = $15`,
+         "updatedAt" = $14, "deletedAt" = $15, "idempotencyKey" = $16`,
       [
         order.id as string,
         order.userId,
@@ -116,15 +118,27 @@ export class PostgresOrderRepository implements OrderRepositoryPort {
         order.createdAt ?? new Date(),
         order.updatedAt ?? new Date(),
         extras["deletedAt"] ?? null,
+        order.idempotencyKey ?? null,
       ],
     );
     return order;
   }
 
+  async findByIdempotencyKey(key: string): Promise<OrderModel | null> {
+    const rows = await this.db.query<Record<string, unknown>>(
+      `SELECT ${ORDER_SELECT}
+       FROM "commerce"."orders" WHERE "idempotencyKey" = $1 AND "deletedAt" IS NULL`,
+      [key],
+    );
+    const row = rows[0];
+    if (!row) return null;
+    return toModel(row);
+  }
+
   async findById(id: string): Promise<OrderModel | null> {
     const rows = await this.db.query<Record<string, unknown>>(
       `SELECT ${ORDER_SELECT}
-       FROM commerce_orders WHERE id = $1 AND "deletedAt" IS NULL`,
+       FROM "commerce"."orders" WHERE id = $1 AND "deletedAt" IS NULL`,
       [id],
     );
     const row = rows[0];
@@ -135,21 +149,31 @@ export class PostgresOrderRepository implements OrderRepositoryPort {
   async findAll(): Promise<OrderModel[]> {
     const rows = await this.db.query<Record<string, unknown>>(
       `SELECT ${ORDER_SELECT}
-       FROM commerce_orders WHERE "deletedAt" IS NULL`,
+       FROM "commerce"."orders" WHERE "deletedAt" IS NULL`,
+    );
+    return rows.map((r: Record<string, unknown>) => toModel(r));
+  }
+
+  async findByUserId(userId: string): Promise<OrderModel[]> {
+    const rows = await this.db.query<Record<string, unknown>>(
+      `SELECT ${ORDER_SELECT}
+       FROM "commerce"."orders" WHERE "userId" = $1 AND "deletedAt" IS NULL
+       ORDER BY "createdAt" DESC`,
+      [userId],
     );
     return rows.map((r: Record<string, unknown>) => toModel(r));
   }
 
   async delete(id: string): Promise<boolean> {
     const result = await this.db.execute(
-      `UPDATE commerce_orders SET "deletedAt" = $1 WHERE id = $2 AND "deletedAt" IS NULL`,
+      `UPDATE "commerce"."orders" SET "deletedAt" = $1 WHERE id = $2 AND "deletedAt" IS NULL`,
       [new Date().toISOString(), id],
     );
     return result > 0;
   }
 
   async clear(): Promise<void> {
-    await this.db.execute(`DELETE FROM commerce_orders`);
+    await this.db.execute(`DELETE FROM "commerce"."orders"`);
   }
 }
 
@@ -171,8 +195,19 @@ export class InMemoryOrderRepository implements OrderRepositoryPort {
     return this.orders.get(id) ?? null;
   }
 
+  async findByIdempotencyKey(key: string): Promise<OrderModel | null> {
+    for (const order of this.orders.values()) {
+      if (order.idempotencyKey === key) return order;
+    }
+    return null;
+  }
+
   async findAll(): Promise<OrderModel[]> {
     return Array.from(this.orders.values());
+  }
+
+  async findByUserId(userId: string): Promise<OrderModel[]> {
+    return Array.from(this.orders.values()).filter((o) => o.userId === userId);
   }
 
   async delete(id: string): Promise<boolean> {

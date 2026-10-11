@@ -1,12 +1,16 @@
 import * as crypto from "node:crypto";
 import { OrderModel, type OrderStatus } from './order.model.js';
+import { OrderStateMachine } from './order-state-machine.js';
 import { OrderValidationError, OrderNotFoundError } from './commerce.errors.js';
 import { CheckoutOrderWorkflow, type PaymentPort, type InventoryPort } from '../workflows/checkout-order.workflow.js';
 
 export interface OrderRepositoryPort {
   save(order: OrderModel): Promise<OrderModel>;
   findById(id: string): Promise<OrderModel | null>;
+  findByIdempotencyKey(key: string): Promise<OrderModel | null>;
   findAll(): Promise<OrderModel[]>;
+  /** Scoped read: only the buyer's own orders (never expose all). */
+  findByUserId(userId: string): Promise<OrderModel[]>;
   delete(id: string): Promise<boolean>;
   clear?(): Promise<void>;
 }
@@ -46,6 +50,17 @@ export class OrderService {
     const idempotenceKey = params.idempotenceKey || `idemp-${order.id}`;
     order.totalAmount = orderAmount;
 
+    // Double-submit protection: an explicit idempotence key replays the
+    // original order instead of creating (and charging) a second one.
+    // The DB partial UNIQUE on idempotencyKey is the last line of defense.
+    if (params.idempotenceKey) {
+      const existing = await this.orderRepository.findByIdempotencyKey(params.idempotenceKey);
+      if (existing) {
+        return { order: existing, sagaState: { replayed: true, orderId: existing.id } };
+      }
+    }
+    order.idempotencyKey = idempotenceKey;
+
     const initialState = {
       orderId: order.id,
       amount: orderAmount,
@@ -78,9 +93,19 @@ export class OrderService {
     return this.orderRepository.findAll();
   }
 
+  /** Buyer-scoped listing for the orders view (no cross-user leak). */
+  async listOrdersByUser(userId: string): Promise<OrderModel[]> {
+    return this.orderRepository.findByUserId(userId);
+  }
+
   /** Persisted status transition (e.g. webhook payment confirmation). */
   async setOrderStatus(id: string, status: OrderStatus): Promise<OrderModel> {
     const order = await this.getOrderById(id);
+    if (!OrderStateMachine.allowsTransition(order.status, status)) {
+      throw new OrderValidationError(
+        `Transition interdite: impossible de passer de '${order.status}' à '${status}'.`,
+      );
+    }
     order.status = status;
     await this.orderRepository.save(order);
     return order;

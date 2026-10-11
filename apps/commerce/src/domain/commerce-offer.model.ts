@@ -60,6 +60,8 @@ export interface CommerceOfferRepositoryPort {
   getOfferById(id: string): Promise<CommerceOffer | null>;
   listOffersBySeller(sellerType: SellerEntityType, sellerId: string): Promise<CommerceOffer[]>;
   listOffersByVendable(vendableId: string): Promise<CommerceOffer[]>;
+  /** Public vitrine: ACTIVE offers newest-first. */
+  listActiveOffers(limit?: number): Promise<CommerceOffer[]>;
 }
 
 /**
@@ -150,6 +152,16 @@ export class CommerceOfferService {
     return Array.from(this.offers.values()).filter(
       (o) => o.vendableId === vendableId && o.status === "ACTIVE"
     );
+  }
+
+  /** Public vitrine feed: all ACTIVE offers, newest first. */
+  async listAllActive(limit = 48): Promise<CommerceOffer[]> {
+    if (this.repository) {
+      return this.repository.listActiveOffers(limit);
+    }
+    return Array.from(this.offers.values())
+      .filter((o) => o.status === "ACTIVE")
+      .slice(0, Math.min(Math.max(limit, 1), 200));
   }
 
   calculatePayout(offer: CommerceOffer, totalQuantity: number = 1): PayoutBreakdown {

@@ -13,7 +13,10 @@ export interface PaymentIntent {
   amount: number;
   currency: string;
   status: PaymentIntentStatus;
-  clientSecret?: string;
+  /** PSP-side references (v1.003). Never store client secrets. */
+  provider?: string;
+  providerPaymentId?: string;
+  idempotencyKey?: string;
   amountReceived: number;
   amountRefunded: number;
   metadata?: Record<string, string>;

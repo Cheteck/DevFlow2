@@ -47,6 +47,8 @@ export class OrderModel extends Model {
   totalAmount: number = 0;
   taxAmount: number = 0;
   discountCode?: string;
+  /** Double-submit protection (partial UNIQUE in DB, enforced in OrderService). */
+  idempotencyKey?: string;
   shippingAddress?: OrderAddress;
   billingAddress?: OrderAddress;
   lineItems: OrderLineItem[] = [];

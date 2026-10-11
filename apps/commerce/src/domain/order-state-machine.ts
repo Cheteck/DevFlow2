@@ -57,6 +57,13 @@ export class OrderStateMachine {
     return this.getNextState(current, event) !== null;
   }
 
+  /** Direct edge check current → target (used by setOrderStatus/webhooks). */
+  static allowsTransition(from: OrderStatus, to: OrderStatus): boolean {
+    if (from === to) return true;
+    const edges = this.TRANSITIONS[from] ?? {};
+    return Object.values(edges).includes(to);
+  }
+
   static transition(current: OrderStatus, event: OrderTransitionEvent): StateTransitionResult {
     const next = this.getNextState(current, event);
     if (!next) {
