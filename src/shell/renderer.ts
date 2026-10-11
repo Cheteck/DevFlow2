@@ -498,7 +498,30 @@ export function renderSecondarySidebar(
 }
 
 // -----------------------------------------------------------------------------
+// ANONYMOUS AUTH BUTTONS (AUTH-07 — rendered instead of the user menu when
+// the request carries no valid session; never a persona, never a menu)
+// -----------------------------------------------------------------------------
+export function renderAuthButtons(requestPath = "/"): string {
+  const next = encodeURIComponent(requestPath || "/");
+  return `
+    <div class="flex items-center gap-2 shrink-0" id="auth-buttons">
+      <a
+        href="/login?next=${next}"
+        class="px-3 py-1.5 rounded-xl text-xs font-semibold text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 border border-transparent hover:border-outline-variant/20 transition"
+      >Se connecter</a>
+      <a
+        href="/register?next=${next}"
+        class="px-3 py-1.5 rounded-xl text-xs font-bold bg-primary text-on-primary hover:bg-primary/90 shadow-sm shadow-primary/25 transition"
+      >Créer un compte</a>
+    </div>
+  `;
+}
+
+// -----------------------------------------------------------------------------
 // USER SWITCHER & CONTEXT DROPDOWN HEADER COMPONENT (PRE-PRODUCTION GRADE)
+// AUTHENTICATED ONLY: callers must branch on `SsrAuthContext` and render
+// `renderAuthButtons()` for anonymous requests. Passing a fallback local
+// profile as proof of authentication is forbidden.
 // -----------------------------------------------------------------------------
 export function renderUserSwitcherWidget(
   user: UserProfile,

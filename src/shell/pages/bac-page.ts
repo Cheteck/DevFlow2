@@ -10,11 +10,13 @@ import {
   renderSecondarySidebar,
   renderMobileDrawer,
   renderMobileBottomNav,
+  renderAuthButtons,
   renderUserSwitcherWidget,
   renderHeaderSearchAndDevControls,
   renderShellToastContainer,
   renderShellConfirmModal,
 } from "../renderer.js";
+import type { SsrAuthContext } from "../ssr-auth-context.js";
 import { getShellClientScripts } from "../client/shell-client-scripts.js";
 import { getTailwindThemeColors } from "../theme/theme-bridge.js";
 
@@ -33,6 +35,16 @@ export interface BacPageOptions {
   renderedContent: string;
   contributionsCount: number;
   requestUrl?: string;
+  /**
+   * Discriminated request identity (AUTH-07). Missing = anonymous
+   * (fail closed): auth buttons render, never the user menu.
+   */
+  auth?: SsrAuthContext;
+  /**
+   * Policy-derived navigation profile (see `buildNavProfile()`). Display
+   * only — the route guard stays the enforcement point.
+   */
+  navProfile?: UserProfile;
 }
 
 export function renderBacPage(opts: BacPageOptions): string {
@@ -47,6 +59,8 @@ export function renderBacPage(opts: BacPageOptions): string {
     contributionsCount,
     requestUrl,
   } = opts;
+  const navbarAuth: SsrAuthContext = opts.auth ?? { kind: "anonymous" };
+  const nav = opts.navProfile ?? currentUser;
 
   return `<!DOCTYPE html>
 <html class="${activeMode === "dark" ? "dark" : activeMode === "high-contrast" ? "high-contrast" : ""}" lang="fr" data-theme-mode="${activeMode}">
@@ -80,13 +94,13 @@ export function renderBacPage(opts: BacPageOptions): string {
   <div class="flex min-h-screen">
     
     <!-- PRIMARY SIDEBAR (RBAC FILTERED) -->
-    ${renderPrimarySidebar(currentUser, matchedApp.route, currentSpace)}
+    ${renderPrimarySidebar(nav, matchedApp.route, currentSpace)}
 
     <!-- SECONDARY CONTEXTUAL SIDEBAR (PERMISSION FILTERED) -->
-    ${renderSecondarySidebar(currentUser, matchedApp.id, requestUrl || matchedApp.route, currentSpace)}
+    ${renderSecondarySidebar(nav, matchedApp.id, requestUrl || matchedApp.route, currentSpace)}
 
     <!-- MOBILE NAVIGATION DRAWER -->
-    ${renderMobileDrawer(currentUser, matchedApp.route, activeMode)}
+    ${renderMobileDrawer(nav, matchedApp.route, activeMode)}
 
     <!-- MAIN WORKSPACE AREA -->
     <div class="main-workspace flex-1 flex flex-col min-w-0 md:ml-[72px] lg:ml-[336px]">
@@ -138,8 +152,8 @@ export function renderBacPage(opts: BacPageOptions): string {
 
           <div class="hidden lg:block h-5 w-px bg-outline-variant/20"></div>
 
-          <!-- USER SWITCHER WIDGET -->
-          ${renderUserSwitcherWidget(currentUser, currentSpace)}
+          <!-- USER SWITCHER WIDGET (authenticated/demo) or AUTH BUTTONS (anonymous) -->
+          ${navbarAuth.kind === "anonymous" ? renderAuthButtons(requestUrl || "/") : renderUserSwitcherWidget(navbarAuth.profile, currentSpace)}
         </div>
       </header>
 
@@ -160,7 +174,7 @@ export function renderBacPage(opts: BacPageOptions): string {
     </div>
   </div>
 
-  ${renderMobileBottomNav(matchedApp.route, currentUser, currentSpace)}
+  ${renderMobileBottomNav(matchedApp.route, nav, currentSpace)}
   ${renderShellToastContainer()}
   ${renderShellConfirmModal()}
 

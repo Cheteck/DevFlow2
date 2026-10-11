@@ -25,10 +25,23 @@ export class BacOrchestrator {
     this.registerDiscoveredWorkspaceApps();
   }
 
+  /**
+   * Registers (or replaces) the dynamic loader for a BAC.
+   *
+   * Priority policy (explicit, last-registration-wins): a loader registered
+   * later replaces any earlier one — e.g. `wireBacDescriptors()` at boot
+   * overrides the builtin static-fallback loaders with Postgres-backed ones.
+   * Any already-cached descriptor for that BAC is evicted so a descriptor
+   * resolved before the wiring can never freeze the stale (unwired) version.
+   */
   registerDynamicLoader(id: string, loader: () => Promise<BacDescriptor>): void {
     const cleanId = id.replace(/^@apps\//, "");
     this.dynamicLoaders.set(cleanId, loader);
     this.dynamicLoaders.set(id, loader);
+    // Evict a possibly cached fallback so the next loadDescriptor() resolves
+    // through the newly registered (wired) loader.
+    this.descriptors.delete(cleanId);
+    this.descriptors.delete(id);
   }
 
   private registerBuiltinDynamicLoaders(): void {

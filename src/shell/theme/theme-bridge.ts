@@ -139,6 +139,7 @@ export function initThemeBridge(
       const db = container.resolve<StoreDb>("databasePort");
       store = new PostgresThemeAssignmentsStore(db);
     } else {
+      // eslint-disable-next-line no-restricted-syntax -- couche 2 : assignments de theme UI sans DatabasePort ici (aucun container au boot SSR) ; a cabler au boot comme les feature flags. Defaut d'affichage uniquement, jamais de donnee metier.
       store = new InMemoryThemeAssignmentsStore();
     }
 

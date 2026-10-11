@@ -21,6 +21,7 @@ import { handleUserAndSpaceRoutes } from "./routes/user-routes.js";
 import { handleFeatureFlagRoutes } from "./routes/feature-flag-routes.js";
 import { handleCompositionRoutes } from "./routes/composition-routes.js";
 import { handleAuthRoutes } from "./routes/auth-routes.js";
+import { handleMcpRoutes } from "./routes/mcp-routes.js";
 import { handleFeedRoutes } from "./routes/feed-routes.js";
 import { handleComplianceAndSystemRoutes } from "./routes/compliance-routes.js";
 import { handleMobileRoutes } from "./routes/mobile-routes.js";
@@ -134,6 +135,11 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
     handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.feedService, ctx.db),
   );
+
+// 10. MCP over Streamable HTTP (remote MCP clients)
+apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
+  handleMcpRoutes(req, res, parsedUrl, ctx.db),
+);
 
 export async function dispatchApiRequest(
   req: http.IncomingMessage,

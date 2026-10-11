@@ -22,6 +22,17 @@ import {
   type UserProfile,
 } from "./shell/profiles.js";
 import {
+  buildSsrAuthContext,
+  type SsrAuthContext,
+} from "./shell/ssr-auth-context.js";
+import {
+  resolveBacAccess,
+  parseBacView,
+  buildNavProfile,
+  resolveSafeNext,
+} from "./shell/bac-access.js";
+import { renderLoginPage, renderRegisterPage } from "./shell/pages/auth-pages.js";
+import {
   standardRateLimiter,
   strictRateLimiter,
 } from "./shell/rate-limiter.js";
@@ -40,6 +51,7 @@ import { getPlatformFeatureFlags } from "./shell/feature-flags.js";
 // Server decoupling modules
 import { handleMaintenanceGate } from "./server/middleware/maintenance-gate.js";
 import { dispatchApiRequest } from "./server/api-dispatcher.js";
+import { wireBacDescriptors } from "./server/bac-wiring.js";
 import { renderBacPage } from "./shell/pages/bac-page.js";
 import { renderHomePage } from "./shell/pages/home-page.js";
 
@@ -55,6 +67,11 @@ const PORT = app.env.resolvedPort;
 
 // Initialize platform feature flags with database adapter for persistent storage
 await getPlatformFeatureFlags(app.dbAdapter);
+
+// Connect BAC descriptors to their domain services (Postgres-backed).
+// A wiring failure never blocks boot: the static fallback renders honest
+// empty states and the error is logged loudly.
+await wireBacDescriptors(app.dbAdapter);
 
 // Static MIME types (module-level: never rebuilt per request).
 const STATIC_MIME_TYPES: Record<string, string> = {
@@ -164,6 +181,17 @@ const server = http.createServer(async (req, res) => {
     // demo credential — never a trust boundary; production gates live in
     // SecurityGuard + isDemoMode().
     const currentUser: UserProfile = getActiveUserProfile(req, parsedUrl);
+    // AUTH-07: request identity for the navbar boundary. Real sessions win;
+    // demo personas only when demo mode is on; otherwise explicit anonymous
+    // (auth buttons, never the user menu). Sidebar/authorization flows keep
+    // using `currentUser` until AUTH-05 ports land — the navbar is the only
+    // consumer of `ssrAuth` for now.
+    const ssrAuth: SsrAuthContext = await buildSsrAuthContext(req, parsedUrl);
+    // Navigation profile derived from the SAME access policy as the route
+    // guard below (never `allowedBacs` as a competing authority). Display
+    // only — enforcement happens in the guard.
+    const bacCatalogIds = apps.map((a) => a.id.replace(/^@apps\//, ""));
+    const navProfile: UserProfile = buildNavProfile(ssrAuth, bacCatalogIds);
     const activeSpaceProfile = await getActiveSpaceProfile(req, parsedUrl, app.dbAdapter);
     const currentSpace = activeSpaceProfile ? activeSpaceProfile.id : null;
     const themeCookie = (req.headers.cookie || "").match(
@@ -206,6 +234,39 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // 4b. Public auth pages (login functional, register = waiting room).
+    // Authenticated/demo sessions have no business here → back to `next`.
+    if (pathname === "/login" || pathname === "/register") {
+      if (req.method !== "GET") {
+        res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end("Method not allowed");
+        return;
+      }
+      const safeNext = resolveSafeNext(parsedUrl.searchParams.get("next"));
+      if (ssrAuth.kind !== "anonymous") {
+        res.writeHead(302, { Location: safeNext });
+        res.end();
+        return;
+      }
+      const html =
+        pathname === "/login"
+          ? renderLoginPage({
+              activeMode: currentThemeMode,
+              sharedStyles,
+              safeNext,
+              requestUrl: req.url,
+            })
+          : renderRegisterPage({
+              activeMode: currentThemeMode,
+              sharedStyles,
+              safeNext,
+              requestUrl: req.url,
+            });
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(html);
+      return;
+    }
+
     // 5. BAC Workspace Views Routing
     const matchedApp = apps.find(
       (app) => pathname === app.route || pathname.startsWith(app.route + "/"),
@@ -213,21 +274,32 @@ const server = http.createServer(async (req, res) => {
 
     if (matchedApp) {
       const cleanAppId = matchedApp.id.replace(/^@apps\//, "");
-      const isAllowed =
-        currentUser.allowedBacs.includes("*") ||
-        currentUser.allowedBacs.includes(matchedApp.id) ||
-        currentUser.allowedBacs.includes(cleanAppId) ||
-        (cleanAppId === "citadelle" &&
-          currentUser.allowedBacs.includes("identity")) ||
-        (cleanAppId === "identity" &&
-          currentUser.allowedBacs.includes("citadelle"));
+      // Global BAC access policy (guest boundary): same resolver as nav
+      // filtering. `?view=` normalization is shared so a request can never
+      // be authorized under one interpretation and rendered under another.
+      const parsedView = parseBacView(parsedUrl.searchParams);
+      // Ambiguous `?view=` (repeated param) is refused outright — never
+      // authorized under one interpretation and rendered under another.
+      const decision = parsedView.ambiguous
+        ? ssrAuth.kind === "anonymous"
+          ? { kind: "login" as const }
+          : { kind: "forbidden" as const }
+        : resolveBacAccess(ssrAuth, cleanAppId, parsedView.view);
 
-      if (!isAllowed) {
+      if (decision.kind !== "allowed") {
+        if (decision.kind === "login") {
+          const here = pathname + (parsedUrl.search || "");
+          res.writeHead(302, {
+            Location: `/login?next=${encodeURIComponent(resolveSafeNext(here))}`,
+          });
+          res.end();
+          return;
+        }
         res.writeHead(403, { "Content-Type": "text/html; charset=utf-8" });
         res.end(`
         <div style="font-family:sans-serif; text-align:center; padding:50px;">
           <h2 style="color:#ef4444;">Accès non autorisé</h2>
-          <p>Votre profil (${escapeHtml(currentUser.roleLabel)}) n'a pas accès au module <strong>${escapeHtml(matchedApp.name)}</strong>.</p>
+          <p>Votre profil (${escapeHtml(navProfile.roleLabel)}) n'a pas accès au module <strong>${escapeHtml(matchedApp.name)}</strong>.</p>
           <a href="/" style="color:#6366f1;">&larr; Retour à l'accueil</a>
         </div>
       `);
@@ -248,14 +320,20 @@ const server = http.createServer(async (req, res) => {
         bacOrchestrator.getDescriptor(matchedApp.id);
 
       if (descriptor) {
+        // Least privilege for anonymous renders: BAC views must never see
+        // member roles/permissions through the execution context.
+        const execUser =
+          ssrAuth.kind === "anonymous"
+            ? { id: "guest", roles: [] as string[], permissions: [] as string[] }
+            : {
+                id: currentUser.id,
+                roles: [currentUser.role],
+                permissions: currentUser.permissions,
+              };
         const executionContext: BacExecutionContext = {
           tenantId: "default",
           spaceId: currentSpace,
-          user: {
-            id: currentUser.id,
-            roles: [currentUser.role],
-            permissions: currentUser.permissions,
-          },
+          user: execUser,
           theme: {
             // "system" has no runtime rendering — resolve to light (matches SSR default branch).
             mode: currentThemeMode === "system" ? "light" : currentThemeMode,
@@ -292,6 +370,8 @@ const server = http.createServer(async (req, res) => {
         renderedContent,
         contributionsCount: appContributions.length,
         requestUrl: req.url,
+        auth: ssrAuth,
+        navProfile,
       });
 
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -300,6 +380,13 @@ const server = http.createServer(async (req, res) => {
     }
 
     // 6. Dynamic Default BAC Resolution & Workspace Root Routing
+    // Anonymous visitors get the public marketplace vitrine instead of the
+    // personalized hub (tranche decision: `/` → `/commerce`).
+    if (ssrAuth.kind === "anonymous" && pathname === "/") {
+      res.writeHead(302, { Location: "/commerce" });
+      res.end();
+      return;
+    }
     const platformSettings = await platformSettingsService.getSettings();
     const defaultBacResolution = await bacOrchestrator.resolveDefaultBac(
       platformSettings,
@@ -309,6 +396,23 @@ const server = http.createServer(async (req, res) => {
     if (defaultBacResolution) {
       const { descriptor } = defaultBacResolution;
       const cleanAppId = descriptor.id.replace(/^@apps\//, "");
+      // Same global policy as explicit BAC routes: the default BAC is not
+      // a backdoor for anonymous visitors (e.g. unknown path rendering the
+      // solara feed).
+      const defaultDecision = resolveBacAccess(ssrAuth, cleanAppId, "");
+      if (defaultDecision.kind === "login") {
+        const here = pathname + (parsedUrl.search || "");
+        res.writeHead(302, {
+          Location: `/login?next=${encodeURIComponent(resolveSafeNext(here))}`,
+        });
+        res.end();
+        return;
+      }
+      if (defaultDecision.kind === "forbidden") {
+        res.writeHead(403, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(`<div style="font-family:sans-serif; text-align:center; padding:50px;"><h2 style="color:#ef4444;">Accès non autorisé</h2><a href="/" style="color:#6366f1;">&larr; Retour à l'accueil</a></div>`);
+        return;
+      }
       // Live read (D-01): never cache the plugin registry across requests.
       const bacEntry = DynamicBacRegistry.getAll().find(
         (b) => b.id === descriptor.id || b.id === cleanAppId,
@@ -318,11 +422,14 @@ const server = http.createServer(async (req, res) => {
       const executionContext: BacExecutionContext = {
         tenantId: "default",
         spaceId: currentSpace,
-        user: {
-          id: currentUser.id,
-          roles: [currentUser.role],
-          permissions: currentUser.permissions,
-        },
+        user:
+          ssrAuth.kind === "anonymous"
+            ? { id: "guest", roles: [] as string[], permissions: [] as string[] }
+            : {
+                id: currentUser.id,
+                roles: [currentUser.role],
+                permissions: currentUser.permissions,
+              },
         theme: {
           // "system" has no runtime rendering — resolve to light (matches SSR default branch).
           mode: currentThemeMode === "system" ? "light" : currentThemeMode,
@@ -353,6 +460,8 @@ const server = http.createServer(async (req, res) => {
         renderedContent: renderResult.contentHtml,
         contributionsCount: appContributions.length,
         requestUrl: req.url,
+        auth: ssrAuth,
+        navProfile,
       });
 
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -371,6 +480,12 @@ const server = http.createServer(async (req, res) => {
     </div>
   `;
 
+    // Fallback: personalized hub is never served to anonymous visitors.
+    if (ssrAuth.kind === "anonymous") {
+      res.writeHead(302, { Location: "/commerce" });
+      res.end();
+      return;
+    }
     const homeHtml = renderHomePage({
       activeMode: currentThemeMode,
       sharedStyles,
@@ -379,6 +494,8 @@ const server = http.createServer(async (req, res) => {
       feedPosts: [],
       widgetsHtml,
       requestUrl: req.url,
+      auth: ssrAuth,
+      navProfile,
     });
 
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });

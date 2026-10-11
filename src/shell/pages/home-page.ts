@@ -11,11 +11,13 @@ import {
   renderSecondarySidebar,
   renderMobileDrawer,
   renderMobileBottomNav,
+  renderAuthButtons,
   renderUserSwitcherWidget,
   renderHeaderSearchAndDevControls,
   renderShellToastContainer,
   renderShellConfirmModal,
 } from "../renderer.js";
+import type { SsrAuthContext } from "../ssr-auth-context.js";
 import { renderHeadBlock } from "../ssr-engine.js";
 import { renderThemeStyleTag } from "../theme/theme-bridge.js";
 import { getShellClientScripts } from "../client/shell-client-scripts.js";
@@ -28,6 +30,16 @@ export interface HomePageOptions {
   feedPosts: FeedPost[];
   widgetsHtml: string;
   requestUrl?: string;
+  /**
+   * Discriminated request identity (AUTH-07). Missing = anonymous
+   * (fail closed): auth buttons render, never the user menu.
+   */
+  auth?: SsrAuthContext;
+  /**
+   * Policy-derived navigation profile (see `buildNavProfile()`). Display
+   * only — the route guard stays the enforcement point.
+   */
+  navProfile?: UserProfile;
 }
 
 export function renderHomePage(opts: HomePageOptions): string {
@@ -40,6 +52,8 @@ export function renderHomePage(opts: HomePageOptions): string {
     widgetsHtml,
     requestUrl,
   } = opts;
+  const navbarAuth: SsrAuthContext = opts.auth ?? { kind: "anonymous" };
+  const nav = opts.navProfile ?? currentUser;
 
   return `<!DOCTYPE html>
 <html class="${activeMode === "dark" ? "dark" : activeMode === "high-contrast" ? "high-contrast" : ""}" lang="fr" data-theme-mode="${activeMode}">
@@ -51,13 +65,13 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
   <div class="flex min-h-screen">
 
     <!-- 1. PRIMARY SIDEBAR (RBAC FILTERED) -->
-    ${renderPrimarySidebar(currentUser, "/", currentSpace)}
+    ${renderPrimarySidebar(nav, "/", currentSpace)}
 
     <!-- 2. SECONDARY CONTEXTUAL SIDEBAR (PERMISSION FILTERED) -->
-    ${renderSecondarySidebar(currentUser, "shell_home", requestUrl || "/", currentSpace)}
+    ${renderSecondarySidebar(nav, "shell_home", requestUrl || "/", currentSpace)}
 
     <!-- MOBILE NAVIGATION DRAWER -->
-    ${renderMobileDrawer(currentUser, "/", activeMode)}
+    ${renderMobileDrawer(nav, "/", activeMode)}
 
     <!-- 3. MAIN CONTENT CONTAINER -->
     <div class="main-workspace flex-1 flex flex-col min-w-0 md:ml-[72px] lg:ml-[336px]">
@@ -114,8 +128,8 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
 
           <div class="hidden lg:block h-5 w-px bg-outline-variant/20"></div>
 
-          <!-- USER SWITCHER WIDGET -->
-          ${renderUserSwitcherWidget(currentUser, currentSpace)}
+          <!-- USER SWITCHER WIDGET (authenticated/demo) or AUTH BUTTONS (anonymous) -->
+          ${navbarAuth.kind === "anonymous" ? renderAuthButtons(requestUrl || "/") : renderUserSwitcherWidget(navbarAuth.profile, currentSpace)}
         </div>
 
       </header>
@@ -392,7 +406,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
     </div>
   </div>
 
-  ${renderMobileBottomNav("/", currentUser, currentSpace)}
+  ${renderMobileBottomNav("/", nav, currentSpace)}
   ${renderShellToastContainer()}
   ${renderShellConfirmModal()}
 

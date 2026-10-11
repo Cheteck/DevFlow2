@@ -74,20 +74,56 @@ import { migration as beamMessagingMigration } from "../../apps/beam/src/infrast
 import { migration as spacesMigration } from "../../apps/spaces/src/infrastructure/migrations/20260922162100_create_spaces_tables.js";
 import { migration as portfolioTablesMigration } from "../../apps/portfolio/src/infrastructure/migrations/20260922162000_create_portfolio_tables.js";
 import { migration as portfolioProposalsMigration } from "../../apps/portfolio/src/infrastructure/migrations/20260924120000_create_portfolio_proposals.js";
+import { migration as portfolioSchemaMigration } from "../../apps/portfolio/src/infrastructure/migrations/20260925120000_move_to_portfolio_schema.js";
+import { migration as portfolioHardeningMigration } from "../../apps/portfolio/src/infrastructure/migrations/20260925130000_harden_data_integrity.js";
+import { migration as portfolioNormalizeMigration } from "../../apps/portfolio/src/infrastructure/migrations/20261010080000_normalize_pim_to_dedicated_tables.js";
+import { migration as portfolioNormalizeFixesMigration } from "../../apps/portfolio/src/infrastructure/migrations/20261010100000_normalize_pim_fixes.js";
+import { migration as beamSchemaMigration } from "../../apps/beam/src/infrastructure/migrations/20260926090000_move_to_beam_schema.js";
+import { migration as bookingSchemaMigration } from "../../apps/booking/src/infrastructure/migrations/20260926091000_move_to_booking_schema.js";
+import { migration as bookingHardeningMigration } from "../../apps/booking/src/infrastructure/migrations/20260926140000_harden_booking.js";
+import { migration as commerceSchemaMigration } from "../../apps/commerce/src/infrastructure/migrations/20260926092000_move_to_commerce_schema.js";
+import { migration as commerceHardeningMigration } from "../../apps/commerce/src/infrastructure/migrations/20260926110000_harden_commerce.js";
+import { migration as imperiaSchemaMigration } from "../../apps/imperia/src/infrastructure/migrations/20260926093000_move_to_imperia_schema.js";
+import { migration as solaraSchemaMigration } from "../../apps/solara/src/infrastructure/migrations/20260926094000_move_to_solara_schema.js";
+import { migration as solaraHardeningMigration } from "../../apps/solara/src/infrastructure/migrations/20260926130000_harden_solara.js";
+import { migration as solidaritySchemaMigration } from "../../apps/solidarity/src/infrastructure/migrations/20260926095000_move_to_solidarity_schema.js";
+import { migration as solidarityAllocationsMigration } from "../../apps/solidarity/src/infrastructure/migrations/20261010090000_add_solidarity_allocations.js";
+import { migration as spacesSchemaMigration } from "../../apps/spaces/src/infrastructure/migrations/20260926096000_move_to_spaces_schema.js";
+import { migration as spacesHardeningMigration } from "../../apps/spaces/src/infrastructure/migrations/20260926150000_harden_spaces.js";
+import { migration as subscriptionSchemaMigration } from "../../apps/subscription/src/infrastructure/migrations/20260926097000_move_to_subscription_schema.js";
+import { migration as subscriptionHardeningMigration } from "../../apps/subscription/src/infrastructure/migrations/20260926160000_harden_subscription.js";
 
 /** Canonical Phase-0 ids (`owner.module.version.sequence_name`). */
 export const BAC_CANONICAL_IDS = {
   beam: "beam.messaging.v1.001_create_messaging_tables",
+  beamSchema: "beam.messaging.v1.002_move_to_schema",
   booking: "booking.scheduling.v1.001_create_booking_tables",
+  bookingSchema: "booking.scheduling.v1.002_move_to_schema",
+  bookingHardening: "booking.scheduling.v1.003_harden_booking",
   citadelle: "citadelle.auth.v1.001_create_auth_tables",
   commerce: "commerce.shop.v1.001_create_commerce_tables",
+  commerceSchema: "commerce.shop.v1.002_move_to_schema",
+  commerceHardening: "commerce.shop.v1.003_harden_commerce",
   imperia: "imperia.ops.v1.001_create_imperia_tables",
+  imperiaSchema: "imperia.ops.v1.002_move_to_schema",
   portfolioTables: "portfolio.catalog.v1.001_create_portfolio_tables",
   portfolioProposals: "portfolio.catalog.v1.002_create_proposals",
+  portfolioSchema: "portfolio.catalog.v1.003_move_to_schema",
+  portfolioHardening: "portfolio.catalog.v1.004_harden_data_integrity",
+  portfolioNormalize: "portfolio.catalog.v1.005_normalize_pim",
+  portfolioNormalizeFixes: "portfolio.catalog.v1.006_normalize_fixes",
   solara: "solara.social.v1.001_create_social_tables",
+  solaraSchema: "solara.social.v1.002_move_to_schema",
+  solaraHardening: "solara.social.v1.003_harden_social",
   solidarity: "solidarity.relief.v1.001_create_solidarity_tables",
+  solidaritySchema: "solidarity.relief.v1.002_move_to_schema",
+  solidarityAllocations: "solidarity.relief.v1.003_allocations",
   spaces: "spaces.membership.v1.001_create_spaces_tables",
+  spacesSchema: "spaces.membership.v1.002_move_to_schema",
+  spacesHardening: "spaces.membership.v1.003_harden_rbac",
   subscription: "subscription.billing.v1.001_create_billing_tables",
+  subscriptionSchema: "subscription.billing.v1.002_move_to_schema",
+  subscriptionHardening: "subscription.billing.v1.003_harden_billing",
 } as const;
 
 /** Registration rank for every BAC provider: after shell-core (rank 0). */
@@ -219,18 +255,48 @@ export function createBacMigrationProviders(): readonly MigrationProvider[] {
       BAC_CANONICAL_IDS.beam,
       beamMessagingMigration,
     ),
+    new StaticMigrationProvider(
+      "beam",
+      BAC_CANONICAL_IDS.beamSchema,
+      beamSchemaMigration,
+    ),
     new CanonicalIdProvider(new BookingPostgresMigrationProvider(), [
       BAC_CANONICAL_IDS.booking,
     ]),
+    new StaticMigrationProvider(
+      "booking",
+      BAC_CANONICAL_IDS.bookingSchema,
+      bookingSchemaMigration,
+    ),
+    new StaticMigrationProvider(
+      "booking",
+      BAC_CANONICAL_IDS.bookingHardening,
+      bookingHardeningMigration,
+    ),
     new CanonicalIdProvider(new CitadellePostgresMigrationProvider(), [
       BAC_CANONICAL_IDS.citadelle,
     ]),
     new CanonicalIdProvider(new CommercePostgresMigrationProvider(), [
       BAC_CANONICAL_IDS.commerce,
     ]),
+    new StaticMigrationProvider(
+      "commerce",
+      BAC_CANONICAL_IDS.commerceSchema,
+      commerceSchemaMigration,
+    ),
+    new StaticMigrationProvider(
+      "commerce",
+      BAC_CANONICAL_IDS.commerceHardening,
+      commerceHardeningMigration,
+    ),
     new CanonicalIdProvider(new ImperiaPostgresMigrationProvider(), [
       BAC_CANONICAL_IDS.imperia,
     ]),
+    new StaticMigrationProvider(
+      "imperia",
+      BAC_CANONICAL_IDS.imperiaSchema,
+      imperiaSchemaMigration,
+    ),
     new StaticMigrationProvider(
       "portfolio",
       BAC_CANONICAL_IDS.portfolioTables,
@@ -241,18 +307,78 @@ export function createBacMigrationProviders(): readonly MigrationProvider[] {
       BAC_CANONICAL_IDS.portfolioProposals,
       portfolioProposalsMigration,
     ),
+    new StaticMigrationProvider(
+      "portfolio",
+      BAC_CANONICAL_IDS.portfolioSchema,
+      portfolioSchemaMigration,
+    ),
+    new StaticMigrationProvider(
+      "portfolio",
+      BAC_CANONICAL_IDS.portfolioHardening,
+      portfolioHardeningMigration,
+    ),
+    new StaticMigrationProvider(
+      "portfolio",
+      BAC_CANONICAL_IDS.portfolioNormalize,
+      portfolioNormalizeMigration,
+    ),
+    new StaticMigrationProvider(
+      "portfolio",
+      BAC_CANONICAL_IDS.portfolioNormalizeFixes,
+      portfolioNormalizeFixesMigration,
+    ),
     new CanonicalIdProvider(new SolaraPostgresMigrationProvider(), [
       BAC_CANONICAL_IDS.solara,
     ]),
+    new StaticMigrationProvider(
+      "solara",
+      BAC_CANONICAL_IDS.solaraSchema,
+      solaraSchemaMigration,
+    ),
+    new StaticMigrationProvider(
+      "solara",
+      BAC_CANONICAL_IDS.solaraHardening,
+      solaraHardeningMigration,
+    ),
     new CanonicalIdProvider(new SolidarityPostgresMigrationProvider(), [
       BAC_CANONICAL_IDS.solidarity,
     ]),
+    new StaticMigrationProvider(
+      "solidarity",
+      BAC_CANONICAL_IDS.solidaritySchema,
+      solidaritySchemaMigration,
+    ),
+    new StaticMigrationProvider(
+      "solidarity",
+      BAC_CANONICAL_IDS.solidarityAllocations,
+      solidarityAllocationsMigration,
+    ),
     new StaticMigrationProvider(
       "spaces",
       BAC_CANONICAL_IDS.spaces,
       spacesMigration,
     ),
+    new StaticMigrationProvider(
+      "spaces",
+      BAC_CANONICAL_IDS.spacesSchema,
+      spacesSchemaMigration,
+    ),
+    new StaticMigrationProvider(
+      "spaces",
+      BAC_CANONICAL_IDS.spacesHardening,
+      spacesHardeningMigration,
+    ),
     new SubscriptionPhase0Provider(),
+    new StaticMigrationProvider(
+      "subscription",
+      BAC_CANONICAL_IDS.subscriptionSchema,
+      subscriptionSchemaMigration,
+    ),
+    new StaticMigrationProvider(
+      "subscription",
+      BAC_CANONICAL_IDS.subscriptionHardening,
+      subscriptionHardeningMigration,
+    ),
   ];
 }
 
