@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Router } from "@mosaix/sdk";
 import { registerAuthRoutes } from "../src/server/routes/auth-routes.js";
+import { InMemorySecretsAdapter } from "../apps/citadelle/src/infrastructure/in-memory-secrets-adapter.js";
 
 interface TestRouteHandler {
   path: string;
@@ -12,7 +13,7 @@ interface TestRouteHandler {
   }>;
 }
 
-describe("HTTP Auth Bridge Routes Integration & Security Gate Suite (AUTH-08)", () => {
+describe("HTTP Auth Bridge Routes Integration & Security Gate Suite (AUTH-08 & AUTH-E2E)", () => {
   it("should respond with unauthenticated session status when no session cookie is present", async () => {
     const router = new Router();
     registerAuthRoutes(router);
@@ -53,5 +54,20 @@ describe("HTTP Auth Bridge Routes Integration & Security Gate Suite (AUTH-08)", 
     const response = await loginRoute!.handler({ body: {} });
     expect(response.statusCode).toBe(400);
     expect(response.body.error).toBeDefined();
+  });
+
+  it("enforces fail-fast guardrail forbidding InMemorySecretsAdapter in production (GAP-03 / AUTH-E2E)", () => {
+    const origNodeEnv = process.env.NODE_ENV;
+    const origDemoMode = process.env.MOSAIX_DEMO_USERS;
+
+    try {
+      process.env.NODE_ENV = "production";
+      process.env.MOSAIX_DEMO_USERS = "false";
+
+      expect(() => new InMemorySecretsAdapter()).toThrow("[Security] InMemorySecretsAdapter is forbidden in production");
+    } finally {
+      process.env.NODE_ENV = origNodeEnv;
+      process.env.MOSAIX_DEMO_USERS = origDemoMode;
+    }
   });
 });

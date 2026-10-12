@@ -3,6 +3,14 @@ import type { SecretsPort } from "@mosaix/ports-secrets";
 export class InMemorySecretsAdapter implements SecretsPort {
   private secrets = new Map<string, string>();
 
+  constructor() {
+    if (process.env.NODE_ENV === "production" && process.env.MOSAIX_DEMO_USERS !== "true") {
+      throw new Error(
+        "[Security] InMemorySecretsAdapter is forbidden in production environments (AUTH-E2E / GAP-03)."
+      );
+    }
+  }
+
   async getSecret(key: string): Promise<string | undefined> {
     return this.secrets.get(key) ?? process.env[key];
   }

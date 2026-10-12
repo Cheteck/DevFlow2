@@ -1,6 +1,6 @@
 # MosaiX / IJIDeals — BACKLOG (pilotage livraison)
 
-- **Dernière mise à jour :** 2026-10-12 — mise à jour complète et réconciliation des statuts suite aux livraisons récentes
+- **Dernière mise à jour :** 2026-10-12 — mise à jour complète suite aux livraisons `PRICE-02`
 - **Principe :** ce fichier répond à « Que doit-on faire ensuite ? ». L'historique vit en `.project/archive/`, les décisions en `.project/decisions/`, l'architecture en `.project/architecture/` et `apps/*/responsibilities.md`.
 - **Règle de comptage :** le nombre de tâches ouvertes se recompte depuis le registre ci-dessous, jamais depuis un paragraphe manuel.
 
@@ -49,4 +49,4 @@
 | PRICE-01 | Contrat de prix et historique | DONE | P1 | Prix de base offre + journal append-only `priceHistory` + `resolveEffectivePrice()` (ADR-0021) |
 | PROMO-01 | Moteur de promotions | DONE | P2 | Implémenté via `PromotionEngine` dans `promotion-engine.ts` |
 | COUPON-01 | Codes et consommation des coupons | DONE | P2 | Implémenté via `CouponService` dans `coupon-service.ts` |
-| PRICE-02 | Remises figées en commande + traçabilité | OPEN | P2 | Snapshot commercial par ligne, devise, arrondis, annulations sans réécriture (dép. PRICE-01 + PROMO-01) |
+| PRICE-02 | Remises figées en commande + traçabilité | DONE | P2 | Freeze commercial line item snapshot dans `OrderService.createOrder()` |

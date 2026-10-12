@@ -4,6 +4,7 @@
  */
 
 import { featureAsync } from "@mosaix/sdk";
+import { CapabilityRegistry } from "@mosaix/intelligence";
 import { MCPToolRegistry, mcpToolRegistry } from "../tool-registry";
 import { MCPResourceRegistry, mcpResourceRegistry } from "../resource-registry";
 import { MCPPromptRegistry, mcpPromptRegistry } from "../prompt-registry";
@@ -117,10 +118,20 @@ export class MCPGateway {
         }
 
         case "tools/list": {
+          // Dynamically surface registered tools from MCPToolRegistry AND CapabilityRegistry (INT-MCP-02)
+          const registeredTools = this.toolRegistry.listTools();
+          const intelligenceCaps = CapabilityRegistry.getInstance().list();
+          const capabilityTools = intelligenceCaps.map((cap) => ({
+            name: `intelligence_${cap.name.replace(/\./g, "_")}`,
+            description: cap.description,
+            inputSchema: cap.inputSchema,
+            requiredPermission: `intelligence:${cap.category}:execute`,
+          }));
+
           return {
             jsonrpc: "2.0",
             id,
-            result: { tools: this.toolRegistry.listTools() },
+            result: { tools: [...registeredTools, ...capabilityTools] },
           };
         }
 
