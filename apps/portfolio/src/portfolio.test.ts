@@ -186,13 +186,13 @@ describe("@apps/portfolio Domain Services & Presentation Integration Suite", () 
     const view = createPortfolioView();
 
     const dashboardResult = await view.render({ query: { view: "dashboard" } });
-    expect(dashboardResult.contentHtml).toContain("Indicateurs de Qualité du Catalogue");
+    expect(dashboardResult.contentHtml).toContain("Statut du Catalogue Réel");
 
     const featuresResult = await view.render({ query: { view: "features" } });
-    expect(featuresResult.contentHtml).toContain("CS-Cart EAV Engine");
+    expect(featuresResult.contentHtml).toContain("Catalogue des Caractéristiques");
 
     const categoriesResult = await view.render({ query: { view: "categories" } });
-    expect(categoriesResult.contentHtml).toContain("Arborescence & Taxonomie des Catégories");
+    expect(categoriesResult.contentHtml).toContain("Arborescence des Catégories");
 
     const bulkResult = await view.render({ query: { view: "bulk" } });
     expect(bulkResult.contentHtml).toContain("Import & Export de Masse");
@@ -212,7 +212,7 @@ describe("@apps/portfolio Domain Services & Presentation Integration Suite", () 
       theme: { mode: "light" },
       request: { path: "/portfolio", query: { view: "dashboard" }, headers: {} },
     });
-    expect(rendered.contentHtml).toContain("Indicateurs de Qualité du Catalogue");
+    expect(rendered.contentHtml).toContain("Statut du Catalogue Réel");
   });
 
   it("should enforce Guard authorization and map domain errors on HTTP routes", async () => {
