@@ -33,7 +33,7 @@
   "experience": {
     "appCard": {
       "title": "Boutique & Commandes",
-      "icon": "🛒",
+      "icon": "🏪",
       "description": "Gestion des paniers, exécution de commandes et paiements sécurisés"
     },
     "frontend": {

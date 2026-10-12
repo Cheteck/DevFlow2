@@ -35,7 +35,8 @@
     "appCard": {
       "title": "Stock & Inventaire",
       "icon": "📦",
-      "description": "Niveaux de stock, réservations et signaux de réapprovisionnement (sans prix)"
+      "description": "Niveaux de stock, réservations et signaux de réapprovisionnement (sans prix)",
+      "showInNavigation": false
     },
     "frontend": {
       "entrypoint": "./frontend/src/index.ts"

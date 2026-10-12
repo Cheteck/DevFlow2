@@ -43,7 +43,8 @@
     "appCard": {
       "title": "Abonnements & Facturation",
       "icon": "💳",
-      "description": "Gestion des forfaits récurrents, facturation à l'usage et limitation d'accès par capability-gating"
+      "description": "Gestion des forfaits récurrents, facturation à l'usage et limitation d'accès par capability-gating",
+      "showInNavigation": false
     },
     "frontend": {
       "entrypoint": "./frontend/src/index.ts"
