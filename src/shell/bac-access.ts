@@ -141,17 +141,28 @@ export function resolveBacAccess(
 }
 
 /**
- * Navigation BAC ids derived from the SAME policy (default view per BAC).
- * Sidebars/drawers filter on this list — it is a projection for display,
- * the guard above remains the enforcement point.
+ * Navigation BAC ids derived from the SAME policy (default view per BAC)
+ * plus the manifest visibility flag. Sidebars/drawers filter on this list —
+ * it is a projection for display, the guard above remains the enforcement
+ * point. Engine BACs (`showInNavigation: false`) never appear, even though
+ * their routes stay reachable (e.g. subscription via Imperia).
  */
+export interface NavigableBac {
+  id: string;
+  /** False for engine BACs (manifest `showInNavigation: false`). */
+  navigable?: boolean;
+}
+
 export function visibleBacIds(
   auth: SsrAuthContext,
-  catalogIds: readonly string[],
+  catalog: readonly (string | NavigableBac)[],
 ): string[] {
-  return catalogIds.filter(
-    (id) => resolveBacAccess(auth, id).kind === "allowed",
-  );
+  return catalog
+    .filter((entry) =>
+      typeof entry === "string" ? true : entry.navigable !== false,
+    )
+    .map((entry) => (typeof entry === "string" ? entry : entry.id))
+    .filter((id) => resolveBacAccess(auth, id).kind === "allowed");
 }
 
 /**
@@ -162,9 +173,9 @@ export function visibleBacIds(
  */
 export function buildNavProfile(
   auth: SsrAuthContext,
-  catalogIds: readonly string[],
+  catalog: readonly (string | NavigableBac)[],
 ): UserProfile {
-  const allowedBacs = visibleBacIds(auth, catalogIds);
+  const allowedBacs = visibleBacIds(auth, catalog);
   if (auth.kind === "anonymous") {
     return { ...ANONYMOUS_NAV_PROFILE, allowedBacs };
   }

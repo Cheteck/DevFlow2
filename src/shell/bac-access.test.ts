@@ -173,6 +173,20 @@ describe("visibleBacIds + buildNavProfile (navigation derived from policy)", () 
     expect(visible).not.toContain("beam");
   });
 
+  it("hides engine BACs from navigation even when the policy allows them", () => {
+    const catalog = [
+      "commerce",
+      { id: "subscription", navigable: false },
+      { id: "inventory", navigable: false },
+      { id: "solara", navigable: true },
+    ];
+    const member = visibleBacIds(MEMBER, catalog);
+    expect(member).toContain("commerce");
+    expect(member).toContain("solara");
+    expect(member).not.toContain("subscription");
+    expect(member).not.toContain("inventory");
+  });
+
   it("shows everything except imperia to members, all to admins", () => {
     const member = visibleBacIds(MEMBER, KNOWN_BACS);
     expect(member).toContain("solara");

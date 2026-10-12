@@ -33,7 +33,6 @@ export interface BacPageOptions {
   currentUser: UserProfile;
   currentSpace: string | null;
   renderedContent: string;
-  contributionsCount: number;
   requestUrl?: string;
   /**
    * Discriminated request identity (AUTH-07). Missing = anonymous
@@ -56,7 +55,6 @@ export function renderBacPage(opts: BacPageOptions): string {
     currentUser,
     currentSpace,
     renderedContent,
-    contributionsCount,
     requestUrl,
   } = opts;
   const navbarAuth: SsrAuthContext = opts.auth ?? { kind: "anonymous" };
@@ -162,11 +160,6 @@ export function renderBacPage(opts: BacPageOptions): string {
         <div class="glass-card rounded-2xl p-6 space-y-6">
           <div class="bac-content-section">
             ${renderedContent}
-          </div>
-
-          <div class="pt-4 border-t border-outline-variant/20 flex justify-between items-center text-xs text-on-surface-variant">
-            <span>Contrats enregistrés : <strong class="text-on-surface">${contributionsCount} contributions</strong></span>
-            <a href="/" class="text-primary hover:underline font-semibold">&larr; Retour au réseau MosaiX</a>
           </div>
         </div>
       </main>

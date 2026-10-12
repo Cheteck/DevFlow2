@@ -11,7 +11,7 @@ import type {
   PlatformSettings,
 } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
-import { apps } from "../discovery.js";
+import { apps, renderBacIcon } from "../discovery.js";
 import { DynamicBacRegistry } from "../dynamic-bac-registry.js";
 
 export class BacOrchestrator {
@@ -313,7 +313,7 @@ export class BacOrchestrator {
           return {
             contentHtml: `
               <div class="p-8 text-center space-y-3">
-                <span class="text-4xl">${app.icon}</span>
+                <span class="text-4xl">${renderBacIcon(app.icon)}</span>
                 <h2 class="text-xl font-bold text-on-surface">${escapeHtml(app.name)}</h2>
                 <p class="text-sm text-on-surface-variant">${escapeHtml(app.description)}</p>
               </div>

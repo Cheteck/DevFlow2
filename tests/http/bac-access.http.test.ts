@@ -190,6 +190,13 @@ describe("HTTP BAC access — anonymous (demo off)", () => {
     expect(html).toContain('id="auth-buttons"');
     expect(html).not.toContain('id="user-menu-dropdown"');
     expect(html).not.toContain("Utilisateur local");
+    // Guest sidebar: marketplace + spaces only (policy-derived).
+    expect(html).toContain('href="/commerce"');
+    expect(html).toContain('href="/spaces"');
+    expect(html).not.toContain('href="/solara"');
+    expect(html).not.toContain('href="/beam"');
+    expect(html).not.toContain('href="/imperia"');
+    expect(html).not.toContain('href="/subscription"');
   });
 
   it("GET /commerce?view=cart redirects to login with next", async () => {
@@ -208,10 +215,11 @@ describe("HTTP BAC access — anonymous (demo off)", () => {
     }
   });
 
-  it("GET /beam and /imperia redirect anonymous visitors to login", async () => {
-    for (const p of ["/beam", "/imperia"]) {
+  it("GET /beam, /portfolio and /imperia redirect anonymous visitors to login", async () => {
+    for (const p of ["/beam", "/portfolio", "/portfolio?view=search", "/booking", "/imperia"]) {
       const res = await getRaw(server.baseUrl, p);
       expect(res.status).toBe(302);
+      expect((res.headers.get("location") ?? "").startsWith("/login?next=")).toBe(true);
     }
   });
 

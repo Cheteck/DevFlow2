@@ -46,6 +46,7 @@ import {
   getResolvedTheme,
 } from "./shell/theme/theme-bridge.js";
 import { renderBacAdminSafely } from "./shell/renderer.js";
+import { PRIMARY_RAIL_SHARED_CSS } from "./shell/renderer.js";
 import { getPlatformFeatureFlags } from "./shell/feature-flags.js";
 
 // Server decoupling modules
@@ -117,6 +118,9 @@ function getSharedStyles(mode: ThemeMode): string {
     .sidebar-collapsed .main-workspace {
       margin-left: 72px !important;
     }
+    /* Rail primaire minimisé (bug pré-existant) : .no-scrollbar manquait sur
+       les pages BAC + tooltips flottants. Source unique : renderer.ts. */
+    ${PRIMARY_RAIL_SHARED_CSS}
   `;
 }
 
@@ -190,8 +194,7 @@ const server = http.createServer(async (req, res) => {
     // Navigation profile derived from the SAME access policy as the route
     // guard below (never `allowedBacs` as a competing authority). Display
     // only — enforcement happens in the guard.
-    const bacCatalogIds = apps.map((a) => a.id.replace(/^@apps\//, ""));
-    const navProfile: UserProfile = buildNavProfile(ssrAuth, bacCatalogIds);
+    const navProfile: UserProfile = buildNavProfile(ssrAuth, apps);
     const activeSpaceProfile = await getActiveSpaceProfile(req, parsedUrl, app.dbAdapter);
     const currentSpace = activeSpaceProfile ? activeSpaceProfile.id : null;
     const themeCookie = (req.headers.cookie || "").match(
@@ -368,7 +371,6 @@ const server = http.createServer(async (req, res) => {
         currentUser,
         currentSpace,
         renderedContent,
-        contributionsCount: appContributions.length,
         requestUrl: req.url,
         auth: ssrAuth,
         navProfile,
@@ -413,12 +415,6 @@ const server = http.createServer(async (req, res) => {
         res.end(`<div style="font-family:sans-serif; text-align:center; padding:50px;"><h2 style="color:#ef4444;">Accès non autorisé</h2><a href="/" style="color:#6366f1;">&larr; Retour à l'accueil</a></div>`);
         return;
       }
-      // Live read (D-01): never cache the plugin registry across requests.
-      const bacEntry = DynamicBacRegistry.getAll().find(
-        (b) => b.id === descriptor.id || b.id === cleanAppId,
-      );
-      const appContributions = bacEntry ? bacEntry.contributions : [];
-
       const executionContext: BacExecutionContext = {
         tenantId: "default",
         spaceId: currentSpace,
@@ -458,7 +454,6 @@ const server = http.createServer(async (req, res) => {
         currentUser,
         currentSpace,
         renderedContent: renderResult.contentHtml,
-        contributionsCount: appContributions.length,
         requestUrl: req.url,
         auth: ssrAuth,
         navProfile,

@@ -7,13 +7,67 @@ import {
   isDemoMode,
 } from "./profiles.js";
 import { shellRegistry } from "@mosaix/core";
-import { apps, APP_ICONS } from "./discovery.js";
+import { apps, renderBacIcon } from "./discovery.js";
 import {
   platformFeatureFlags,
   DEFAULT_PLATFORM_FLAGS,
 } from "./feature-flags.js";
 import { IMPERIA_NAV_SECTIONS } from "./imperia-nav.js";
 import "./contextual-actions";
+
+/**
+ * CSS partagé du rail primaire — source unique embarquée par `getSharedStyles`
+ * (`src/start.ts`) sur TOUTES les pages. Indépendant du mode : couleurs via
+ * les variables `--color-*` du thème compilé (light/dark/high-contrast).
+ *
+ * Couvre le bug pré-existant du rail minimisé :
+ * - `.no-scrollbar` manquait sur les pages BAC (`renderBacPage` n'inclut pas
+ *   `renderHeadBlock`) → scrollbars visibles dans le rail ;
+ * - les tooltips absolus débordaient du rail 76px (positionnés au-delà de son
+ *   bord droit) dans un conteneur `overflow-y-auto` (axe X → `auto`) → scroll
+ *   horizontal + zone vide. Ils sont remplacés par le conteneur fixed unique
+ *   `#rail-tooltip`.
+ */
+export const PRIMARY_RAIL_SHARED_CSS = `
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .rail-tip {
+    position: fixed;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 220px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: var(--color-surface-container-highest);
+    border: 1px solid var(--color-outline-variant);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%) translateX(6px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .rail-tip-visible {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+  .rail-tip-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-on-surface);
+    white-space: nowrap;
+  }
+  .rail-tip-sub {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--color-primary);
+    white-space: nowrap;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rail-tip { transition: none; }
+  }
+`;
 
 function getUserAllowedBacs(user?: UserProfile): string[] {
   if (user && Array.isArray(user.allowedBacs)) {
@@ -72,44 +126,29 @@ export function renderPrimarySidebar(
   return `
     <div class="hidden md:flex flex-col items-center w-[76px] shrink-0 bg-surface-container-lowest/90 backdrop-blur-2xl border-r border-outline-variant/15 py-5 z-[60] fixed left-0 top-0 h-full shadow-2xl select-none">
       <!-- App Brand Logo & Quick Command Trigger -->
-      <a href="/" class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-primary via-indigo-500 to-secondary flex items-center justify-center mb-4 shadow-lg shadow-primary/25 hover:scale-105 active:scale-95 transition-all duration-300 relative group/brand border border-primary/20">
+      <a href="/" data-rail-tip="MosaiX Platform" data-rail-sub="Système Décentralisé" aria-label="MosaiX Platform — Système Décentralisé" class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-primary via-indigo-500 to-secondary flex items-center justify-center mb-4 shadow-lg shadow-primary/25 hover:scale-105 active:scale-95 transition-all duration-300 relative group/brand border border-primary/20">
         <span class="material-symbols-outlined text-surface-container-lowest font-extrabold text-2xl group-hover:rotate-12 transition-transform">auto_awesome</span>
-
-        <!-- Premium Brand Tooltip -->
-        <div class="absolute left-[84px] px-3 py-2 rounded-xl bg-surface-container-highest/95 border border-outline-variant/30 text-xs font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover/brand:opacity-100 group-hover/brand:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-2xl z-[70] backdrop-blur-xl">
-          <div class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-            <span>MosaiX Platform</span>
-          </div>
-          <span class="block text-[10px] text-on-surface-variant/80 font-normal mt-0.5">Système Décentralisé</span>
-        </div>
       </a>
 
       <!-- Quick Command Trigger Button -->
-      <button onclick="if(typeof openCommandPalette==='function'){openCommandPalette();}else{const f=document.getElementById('secondary-sidebar-filter');if(f)f.focus();}" class="w-10 h-10 rounded-xl bg-surface-variant/30 hover:bg-surface-variant/60 text-on-surface-variant hover:text-on-surface flex items-center justify-center mb-3 transition-all duration-200 group/cmd relative cursor-pointer border border-outline-variant/10">
+      <button onclick="if(typeof openCommandPalette==='function'){openCommandPalette();}else{const f=document.getElementById('secondary-sidebar-filter');if(f)f.focus();}" data-rail-tip="Recherche Rapide" data-rail-sub="Raccourci ⌘K" aria-label="Recherche rapide — raccourci ⌘K" class="w-10 h-10 rounded-xl bg-surface-variant/30 hover:bg-surface-variant/60 text-on-surface-variant hover:text-on-surface flex items-center justify-center mb-3 transition-all duration-200 group/cmd relative cursor-pointer border border-outline-variant/10">
         <span class="material-symbols-outlined text-lg group-hover/cmd:scale-110 transition-transform">search</span>
-        <div class="absolute left-[84px] px-2.5 py-1.5 rounded-lg bg-surface-container-highest border border-outline-variant/30 text-[11px] font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover/cmd:opacity-100 group-hover/cmd:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-xl z-[70]">
-          Recherche Rapide <span class="ml-1 text-[9px] font-mono px-1 py-0.5 rounded bg-surface-variant text-primary border border-primary/20">⌘K</span>
-        </div>
       </button>
 
       <div class="w-8 h-px bg-outline-variant/15 mb-3"></div>
 
-      <!-- BAC Navigation Icons (RBAC Filtered) -->
-      <nav id="mosaix-slot-shell-sidebar-primary" data-mosaix-slot="shell.sidebar.primary" class="flex flex-col gap-3 w-full items-center overflow-y-auto no-scrollbar py-1 transition-all">
+      <!-- BAC Navigation Icons (RBAC Filtered) : axe X verrouillé (jamais de
+           scroll horizontal), scroll Y masqué mais actif. Les tooltips sont
+           rendus par le conteneur flottant #rail-tooltip (fixed) piloté par
+           [data-rail-tip] — aucun élément absolu ne déborde du rail. -->
+      <nav id="mosaix-slot-shell-sidebar-primary" data-mosaix-slot="shell.sidebar.primary" aria-label="Navigation principale" class="flex flex-col gap-3 w-full items-center overflow-y-auto overflow-x-hidden no-scrollbar py-1 transition-all">
         <!-- Home Navigation Item -->
-        <a class="w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 group relative ${activeRoute === "/" ? "text-primary bg-primary/15 font-bold shadow-md shadow-primary/10 border border-primary/30" : "text-on-surface-variant/80 hover:text-on-surface hover:bg-surface-variant/40 border border-transparent"}" href="/">
+        <a data-rail-tip="Accueil Fil Social" data-rail-sub="Flux Général MosaiX" aria-label="Accueil Fil Social — Flux Général MosaiX" class="w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 group relative ${activeRoute === "/" ? "text-primary bg-primary/15 font-bold shadow-md shadow-primary/10 border border-primary/30" : "text-on-surface-variant/80 hover:text-on-surface hover:bg-surface-variant/40 border border-transparent"}" href="/">
           <span class="material-symbols-outlined text-xl group-hover:scale-110 transition-transform">home</span>
 
           <!-- Active Pill Indicator -->
           <div class="absolute left-0 w-1 bg-primary rounded-r-full transition-all duration-300 origin-left
                       ${activeRoute === "/" ? "h-7 scale-y-100 shadow-sm shadow-primary/50" : "h-2 scale-y-0 group-hover:h-4 group-hover:scale-y-100"}"></div>
-
-          <!-- Premium Floating Tooltip -->
-          <div class="absolute left-[84px] px-3 py-2 rounded-xl bg-surface-container-highest/95 border border-outline-variant/30 text-xs font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-2xl z-[70] backdrop-blur-xl">
-            <span>Accueil Fil Social</span>
-            <span class="block text-[10px] text-primary font-medium mt-0.5">Flux Général MosaiX</span>
-          </div>
         </a>
 
         <div class="w-8 h-px bg-outline-variant/15 my-0.5"></div>
@@ -122,8 +161,8 @@ export function renderPrimarySidebar(
               activeRoute.startsWith(app.route + "/");
             const isBeam = app.id === "@apps/beam" || app.id === "beam";
             return `
-            <a class="w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 group relative ${isActive ? "text-primary bg-primary/15 font-bold shadow-md shadow-primary/10 border border-primary/30" : "text-on-surface-variant/80 hover:text-on-surface hover:bg-surface-variant/40 border border-transparent"}" href="${app.route}">
-              <span class="text-xl group-hover:scale-110 transition-transform">${app.icon}</span>
+            <a data-rail-tip="${escapeHtml(app.name)}" data-rail-sub="${escapeHtml(app.category)}" aria-label="${escapeHtml(app.name)} — ${escapeHtml(app.category)}" class="w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 group relative ${isActive ? "text-primary bg-primary/15 font-bold shadow-md shadow-primary/10 border border-primary/30" : "text-on-surface-variant/80 hover:text-on-surface hover:bg-surface-variant/40 border border-transparent"}" href="${app.route}">
+              <span class="text-xl group-hover:scale-110 transition-transform">${renderBacIcon(app.icon)}</span>
 
               <!-- Badge notification indicator for Beam/Solara -->
               ${isBeam ? `<span class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-surface animate-pulse"></span>` : ""}
@@ -131,12 +170,6 @@ export function renderPrimarySidebar(
               <!-- Active Pill Indicator -->
               <div class="absolute left-0 w-1 bg-primary rounded-r-full transition-all duration-300 origin-left
                           ${isActive ? "h-7 scale-y-100 shadow-sm shadow-primary/50" : "h-2 scale-y-0 group-hover:h-4 group-hover:scale-y-100"}"></div>
-
-              <!-- Premium Floating Tooltip -->
-              <div class="absolute left-[84px] px-3 py-2 rounded-xl bg-surface-container-highest/95 border border-outline-variant/30 text-xs font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-2xl z-[70] backdrop-blur-xl">
-                <span>${escapeHtml(app.name)}</span>
-                <span class="block text-[10px] text-primary/80 font-medium mt-0.5">${escapeHtml(app.category)}</span>
-              </div>
             </a>
           `;
           })
@@ -145,25 +178,19 @@ export function renderPrimarySidebar(
 
       <!-- Bottom User Profile Avatar & Mobile Drawer Toggle -->
       <div class="mt-auto flex flex-col gap-3 w-full items-center pt-3 border-t border-outline-variant/15">
-        <button onclick="toggleMobileDrawer()" class="lg:hidden w-10 h-10 rounded-xl bg-surface-variant/40 text-on-surface flex items-center justify-center relative group/mob cursor-pointer hover:bg-surface-variant/70 transition-colors" title="Menu Mobile">
+        <button onclick="toggleMobileDrawer()" data-rail-tip="Menu Mobile" aria-label="Menu mobile" class="lg:hidden w-10 h-10 rounded-xl bg-surface-variant/40 text-on-surface flex items-center justify-center relative group/mob cursor-pointer hover:bg-surface-variant/70 transition-colors" title="Menu Mobile">
           <span class="material-symbols-outlined text-lg">menu</span>
-          <div class="absolute left-[84px] px-3 py-2 rounded-xl bg-surface-container-highest border border-outline-variant/30 text-xs font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover/mob:opacity-100 group-hover/mob:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-xl z-[70]">
-            Menu Mobile
-          </div>
         </button>
 
-        <!-- Synchronized Bottom Profile Avatar (Displays active Space if selected) -->
-        <a href="/identity" class="w-11 h-11 ${activeSpace ? "rounded-2xl" : "rounded-full"} border-2 ${activeSpace ? "border-emerald-500/60 hover:border-emerald-400 shadow-lg shadow-emerald-500/20" : "border-outline-variant/30 hover:border-primary shadow-lg shadow-indigo-500/10"} transition-all duration-300 cursor-pointer flex items-center justify-center ${activeSpace ? "bg-emerald-600/20 text-emerald-400" : "bg-indigo-600/25 text-primary"} font-bold text-base relative group/avatar">
+        <!-- Synchronized Bottom Profile Avatar (guests go to login, never /identity) -->
+        <a href="${isGuestProfile(user) ? `/login?next=${encodeURIComponent(activeRoute)}` : "/identity"}" data-rail-tip="${escapeHtml(displayLabel)}" data-rail-sub="${escapeHtml(displayRole)}" aria-label="${escapeHtml(displayLabel)} — ${escapeHtml(displayRole)}" class="w-11 h-11 ${activeSpace ? "rounded-2xl" : "rounded-full"} border-2 ${activeSpace ? "border-emerald-500/60 hover:border-emerald-400 shadow-lg shadow-emerald-500/20" : "border-outline-variant/30 hover:border-primary shadow-lg shadow-indigo-500/10"} transition-all duration-300 cursor-pointer flex items-center justify-center ${activeSpace ? "bg-emerald-600/20 text-emerald-400" : "bg-indigo-600/25 text-primary"} font-bold text-base relative group/avatar">
           <span>${displayAvatar}</span>
           <span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full ${activeSpace ? "bg-emerald-400" : "bg-emerald-500"} border-2 border-surface flex items-center justify-center text-[7px] font-bold text-surface-container-lowest">✓</span>
-
-          <!-- Premium Profile Tooltip -->
-          <div class="absolute left-[84px] bottom-0 px-3 py-2 rounded-xl bg-surface-container-highest/95 border border-outline-variant/30 text-xs font-bold text-on-surface opacity-0 translate-x-3 pointer-events-none group-hover/avatar:opacity-100 group-hover/avatar:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-2xl z-[70] backdrop-blur-xl">
-            <span>${escapeHtml(displayLabel)}</span>
-            <span class="block text-[10px] ${activeSpace ? "text-emerald-400" : "text-primary"} font-medium mt-0.5">${escapeHtml(displayRole)}</span>
-          </div>
         </a>
       </div>
+
+      <!-- Floating rail tooltip (single fixed container: aucun débordement in-flow) -->
+      <div id="rail-tooltip" role="tooltip" aria-hidden="true" class="rail-tip"></div>
     </div>
   `;
 }
@@ -389,8 +416,8 @@ export function renderSecondarySidebar(
 
   const { context, actions } = contextContribution;
   const contextIcon =
-    APP_ICONS[cleanBacId] ||
-    APP_ICONS[activeBacId] ||
+    shellRegistry.getIconForBac(cleanBacId, "") ||
+    shellRegistry.getIconForBac(activeBacId, "") ||
     (cleanBacId === "shell_home" ? "🌐" : "⚡");
   const cta = getCtaConfig(cleanBacId, context.ctaLabel);
 
@@ -480,10 +507,15 @@ export function renderSecondarySidebar(
 
       <!-- Context Call to Action & Space Indicator -->
       <div class="mt-auto pt-3 border-t border-outline-variant/15 flex flex-col gap-2">
+        ${isGuestProfile(user) ? `
+        <a href="/login?next=${encodeURIComponent(currentUrl)}" class="w-full bg-primary hover:bg-primary/90 text-on-primary font-bold py-2.5 px-4 rounded-xl transition-all duration-200 shadow-md shadow-primary/25 flex items-center justify-center gap-2 cursor-pointer text-xs border border-primary/30">
+          <span class="material-symbols-outlined text-sm">login</span>
+          <span>Se connecter</span>
+        </a>` : `
         <button onclick="${cta.action}" class="w-full bg-primary hover:bg-primary/90 text-on-primary font-bold py-2.5 px-4 rounded-xl transition-all duration-200 shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer text-xs border border-primary/30">
           <span class="material-symbols-outlined text-sm">${cta.icon}</span>
           <span>${escapeHtml(cta.label)}</span>
-        </button>
+        </button>`}
 
         <div class="flex items-center justify-between px-1 text-[10px] text-on-surface-variant/60">
           <span class="flex items-center gap-1.5 truncate">
@@ -858,7 +890,7 @@ export function renderMobileDrawer(
                       activeRoute.startsWith(app.route + "/");
                     return `
                     <a href="${app.route}" class="flex items-center gap-3 p-2.5 rounded-xl text-on-surface hover:bg-surface-variant/40 font-semibold text-xs transition ${isActive ? "bg-primary/10 text-primary border border-primary/20" : "bg-surface-container/40 border border-outline-variant/10"}">
-                      <span class="text-base shrink-0">${app.icon}</span>
+                      <span class="text-base shrink-0">${renderBacIcon(app.icon)}</span>
                       <div class="min-w-0 flex-1">
                         <p class="truncate leading-tight">${escapeHtml(app.name)}</p>
                         <p class="text-[9px] text-on-surface-variant/70 truncate">${escapeHtml(app.category)}</p>
@@ -890,7 +922,33 @@ export function renderMobileDrawer(
 // -----------------------------------------------------------------------------
 // MOBILE BOTTOM NAVIGATION BAR (FIXED BOTTOM BAR WITH 5 CANONICAL ACTIONS)
 // -----------------------------------------------------------------------------
-export function renderMobileCreateSheet(): string {
+/**
+ * True for the anonymous navigation profile (see ANONYMOUS_NAV_PROFILE).
+ * Centralizes the guest check so no renderer branch re-derives it from
+ * roles, cookies or localStorage.
+ */
+function isGuestProfile(user?: UserProfile): boolean {
+  return !!user && user.id === "guest";
+}
+
+export function renderMobileCreateSheet(user?: UserProfile): string {
+  // Guests get a login prompt, never member-only creation shortcuts
+  // (/spaces?action=create, /portfolio?admin=new, /beam, /booking, /imperia).
+  if (isGuestProfile(user)) {
+    return `
+    <div id="mobile-create-sheet" class="fixed inset-0 z-[110] hidden bg-black/60 backdrop-blur-sm items-end sm:items-center justify-center transition-opacity duration-300 animate-fade-in" onclick="toggleMobileCreateSheet()">
+      <div class="w-full max-w-lg sm:max-w-md bg-surface-container-high rounded-t-3xl sm:rounded-2xl p-5 border-t sm:border border-outline-variant/25 shadow-2xl overflow-hidden animate-slide-up-mobile pb-8 sm:pb-5" onclick="event.stopPropagation()">
+        <div class="bottom-sheet-handle sm:hidden"></div>
+        <div class="text-center space-y-4 py-4">
+          <div class="text-3xl">🔒</div>
+          <h3 class="font-bold text-sm text-on-surface">Connectez-vous pour créer</h3>
+          <p class="text-[11px] text-on-surface-variant">Publications, espaces, réservations et votes nécessitent un compte.</p>
+          <a href="/login?next=/" class="inline-block px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold">Se connecter</a>
+        </div>
+      </div>
+    </div>
+  `;
+  }
   return `
     <div id="mobile-create-sheet" class="fixed inset-0 z-[110] hidden bg-black/60 backdrop-blur-sm items-end sm:items-center justify-center transition-opacity duration-300 animate-fade-in" onclick="toggleMobileCreateSheet()">
       <div class="w-full max-w-lg sm:max-w-md bg-surface-container-high rounded-t-3xl sm:rounded-2xl p-5 border-t sm:border border-outline-variant/25 shadow-2xl max-h-[85vh] flex flex-col justify-between overflow-hidden animate-slide-up-mobile pb-8 sm:pb-5" onclick="event.stopPropagation()">
@@ -984,7 +1042,24 @@ export function renderMobileCreateSheet(): string {
   `;
 }
 
-export function renderMobileNotificationsSheet(): string {
+export function renderMobileNotificationsSheet(user?: UserProfile): string {
+  // Guests have no personal notifications: render the empty state directly
+  // instead of fabricated items linking to /beam, /imperia or /booking.
+  if (isGuestProfile(user)) {
+    return `
+    <div id="mobile-notifications-sheet" class="fixed inset-0 z-[110] hidden bg-black/60 backdrop-blur-sm items-end sm:items-center justify-center transition-opacity duration-300 animate-fade-in" onclick="toggleMobileNotificationsSheet()">
+      <div class="w-full max-w-lg sm:max-w-md bg-surface-container-high rounded-t-3xl sm:rounded-2xl p-5 border-t sm:border border-outline-variant/25 shadow-2xl overflow-hidden animate-slide-up-mobile pb-8 sm:pb-5" onclick="event.stopPropagation()">
+        <div class="bottom-sheet-handle sm:hidden"></div>
+        <div class="text-center py-10 space-y-2">
+          <span class="material-symbols-outlined text-4xl text-primary/40">notifications_off</span>
+          <p class="font-bold text-xs text-on-surface">Connectez-vous pour vos alertes</p>
+          <p class="text-[10px] text-on-surface-variant">Les notifications personnelles nécessitent un compte.</p>
+          <a href="/login?next=/" class="inline-block mt-2 px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold">Se connecter</a>
+        </div>
+      </div>
+    </div>
+  `;
+  }
   return `
     <div id="mobile-notifications-sheet" class="fixed inset-0 z-[110] hidden bg-black/60 backdrop-blur-sm items-end sm:items-center justify-center transition-opacity duration-300 animate-fade-in" onclick="toggleMobileNotificationsSheet()">
       <div class="w-full max-w-lg sm:max-w-md bg-surface-container-high rounded-t-3xl sm:rounded-2xl p-5 border-t sm:border border-outline-variant/25 shadow-2xl max-h-[85vh] flex flex-col justify-between overflow-hidden animate-slide-up-mobile pb-8 sm:pb-5" onclick="event.stopPropagation()">
@@ -1098,8 +1173,8 @@ export function renderMobileBottomNav(
 
   return `
     <!-- Extra Mobile Sheets -->
-    ${renderMobileCreateSheet()}
-    ${renderMobileNotificationsSheet()}
+    ${renderMobileCreateSheet(user)}
+    ${renderMobileNotificationsSheet(user)}
 
     <!-- Bottom Navigation Bar (5 Canonical Items) -->
     <nav
@@ -1153,12 +1228,23 @@ export function renderMobileBottomNav(
         >
           <div class="relative p-1 rounded-xl">
             <span class="material-symbols-outlined text-2xl">notifications</span>
-            <span class="notification-unread-badge absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center ring-2 ring-surface animate-pulse">2</span>
+            ${isGuestProfile(user) ? "" : `<span class="notification-unread-badge absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center ring-2 ring-surface animate-pulse">2</span>`}
           </div>
           <span class="text-[10px] leading-none font-medium">Alertes</span>
         </button>
 
         <!-- 5. Account (Profil & Espaces) -->
+        ${isGuestProfile(user) ? `
+        <a
+          href="/login?next=${encodeURIComponent(activeRoute || "/")}"
+          class="min-h-[48px] min-w-[56px] flex flex-col items-center justify-center gap-1 rounded-xl text-on-surface-variant/75 hover:text-on-surface transition-all duration-200 active:scale-95 cursor-pointer"
+          title="Se connecter"
+        >
+          <div class="relative w-7 h-7 rounded-xl bg-surface-container border border-outline-variant/30 text-on-surface flex items-center justify-center text-xs font-bold shadow-sm">
+            <span class="material-symbols-outlined text-lg">login</span>
+          </div>
+          <span class="text-[10px] leading-none font-medium">Connexion</span>
+        </a>` : `
         <button
           onclick="toggleUserDropdown(event)"
           class="min-h-[48px] min-w-[56px] flex flex-col items-center justify-center gap-1 rounded-xl text-on-surface-variant/75 hover:text-on-surface transition-all duration-200 active:scale-95 cursor-pointer"
@@ -1169,7 +1255,7 @@ export function renderMobileBottomNav(
             <span class="user-presence-dot absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-surface"></span>
           </div>
           <span class="text-[10px] leading-none font-medium">Compte</span>
-        </button>
+        </button>`}
 
       </div>
     </nav>
@@ -1231,7 +1317,7 @@ export function renderCommandPaletteModal(): string {
                 (app) => `
               <a href="${app.route}" class="cmd-item flex items-center justify-between p-2.5 rounded-xl hover:bg-primary/10 transition group text-xs font-semibold text-on-surface">
                 <div class="flex items-center gap-3">
-                  <span class="text-lg p-1.5 rounded-lg bg-surface-container border border-outline-variant/20">${app.icon}</span>
+                  <span class="text-lg p-1.5 rounded-lg bg-surface-container border border-outline-variant/20">${renderBacIcon(app.icon)}</span>
                   <div>
                     <p class="font-bold text-on-surface group-hover:text-primary transition">${escapeHtml(app.name)}</p>
                     <p class="text-[10px] text-on-surface-variant">${escapeHtml(app.description || app.category)}</p>
@@ -1355,7 +1441,7 @@ export function renderDevInspectorDrawer(): string {
                 (app) => `
               <div class="p-3 rounded-xl bg-surface-container border border-outline-variant/20 flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                  <span class="text-xl p-1.5 rounded-lg bg-surface-container-highest">${app.icon}</span>
+                  <span class="text-xl p-1.5 rounded-lg bg-surface-container-highest">${renderBacIcon(app.icon)}</span>
                   <div>
                     <h4 class="font-bold text-xs text-on-surface">${escapeHtml(app.name)}</h4>
                     <p class="text-[10px] text-on-surface-variant font-mono">${app.id} • ${app.route}</p>
@@ -1519,7 +1605,7 @@ export function renderBacAdminSafely(
   _contributions: unknown[] = [],
 ): string {
   const cleanId = (appId || "").replace(/^@apps\//, "");
-  const icon = APP_ICONS[cleanId] || APP_ICONS[appId] || "📦";
+  const icon = shellRegistry.getIconForBac(cleanId, "📦");
   const title = cleanId.charAt(0).toUpperCase() + cleanId.slice(1);
 
   return `
@@ -1527,7 +1613,7 @@ export function renderBacAdminSafely(
       <div class="p-6 rounded-3xl bg-surface-container/60 border border-outline-variant/20 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div class="flex items-center gap-4">
           <div class="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-3xl shadow-inner">
-            ${icon}
+            ${renderBacIcon(icon)}
           </div>
           <div>
             <div class="flex items-center gap-2">

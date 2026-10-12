@@ -405,6 +405,68 @@ export function getShellClientScripts(): string {
           }
         };
 
+        // Primary rail floating tooltip: single fixed container (#rail-tooltip,
+        // SSR-rendered by renderPrimarySidebar). Per-item absolute tooltips
+        // were removed — they overflowed the 76px rail (positioned past its
+        // right edge) and produced the horizontal scroll + empty gutter. Content comes from
+        // [data-rail-tip]/[data-rail-sub] via textContent (XSS-safe).
+        (function initRailTooltip() {
+          function hideRailTip() {
+            const tip = document.getElementById('rail-tooltip');
+            if (tip) {
+              tip.classList.remove('rail-tip-visible');
+              tip.setAttribute('aria-hidden', 'true');
+            }
+          }
+          window.hideRailTip = hideRailTip;
+
+          function showRailTip(anchor) {
+            if (!anchor || typeof anchor.getAttribute !== 'function') return;
+            const title = anchor.getAttribute('data-rail-tip');
+            if (!title) return;
+            // Rail masqué (mobile <md) : aucun tooltip.
+            if (anchor.offsetParent === null && !anchor.getBoundingClientRect().width) return;
+            const tip = document.getElementById('rail-tooltip');
+            if (!tip) return;
+            const sub = anchor.getAttribute('data-rail-sub') || '';
+            tip.innerHTML = '';
+            const titleEl = document.createElement('span');
+            titleEl.className = 'rail-tip-title';
+            titleEl.textContent = title;
+            tip.appendChild(titleEl);
+            if (sub) {
+              const subEl = document.createElement('span');
+              subEl.className = 'rail-tip-sub';
+              subEl.textContent = sub;
+              tip.appendChild(subEl);
+            }
+            const rect = anchor.getBoundingClientRect();
+            if (!rect.width && !rect.height) return;
+            const maxLeft = Math.max(88, window.innerWidth - 232);
+            tip.style.left = Math.min(rect.right + 12, maxLeft) + 'px';
+            const half = 28;
+            tip.style.top = Math.max(half, Math.min(rect.top + rect.height / 2, window.innerHeight - half)) + 'px';
+            tip.classList.add('rail-tip-visible');
+            tip.setAttribute('aria-hidden', 'false');
+          }
+
+          document.addEventListener('mouseover', function(e) {
+            const anchor = e.target && e.target.closest ? e.target.closest('[data-rail-tip]') : null;
+            if (anchor) showRailTip(anchor);
+            else hideRailTip();
+          });
+          document.addEventListener('focusin', function(e) {
+            const anchor = e.target && e.target.closest ? e.target.closest('[data-rail-tip]') : null;
+            if (anchor) showRailTip(anchor);
+          });
+          document.addEventListener('focusout', hideRailTip);
+          document.addEventListener('scroll', hideRailTip, true);
+          window.addEventListener('resize', hideRailTip);
+          document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') hideRailTip();
+          });
+        })();
+
         // Initialize active locale, presence status, and theme mode
         setTimeout(() => {
           const activeLocale = localStorage.getItem('mosaix_active_locale') || 'fr';
