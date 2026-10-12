@@ -8,9 +8,9 @@ import { escapeHtml } from "@mosaix/support";
 
 export function createSubscriptionDescriptor(): BacDescriptor {
   const PLANS = [
-    { name: "Starter", price: "0.00 € / mois", features: ["1 Espace de Travail", "Support Communautaire"] },
-    { name: "Pro", price: "29.00 € / mois", features: ["Espaces Illimités", "Support Prioritaire", "Sceau Certifié"] },
-    { name: "Enterprise", price: "Sur mesure", features: ["Multi-Wilaya", "SLA Garanti", "Règles Rego Custom"] }
+    { id: "plan-starter", name: "Starter", price: "0.00 € / mois", features: ["1 Espace de Travail", "Support Communautaire"] },
+    { id: "plan-pro", name: "Pro", price: "29.00 € / mois", features: ["Espaces Illimités", "Support Prioritaire", "Sceau Certifié"] },
+    { id: "plan-enterprise", name: "Enterprise", price: "Sur mesure", features: ["Multi-Wilaya", "SLA Garanti", "Règles Rego Custom"] }
   ];
 
   return {
@@ -26,7 +26,15 @@ export function createSubscriptionDescriptor(): BacDescriptor {
       return true;
     },
 
-    async render(_context: BacExecutionContext): Promise<BacRenderResult> {
+    async render(context: BacExecutionContext): Promise<BacRenderResult> {
+      const selectedPlan = context.request.query.plan || null;
+      const notificationHtml = selectedPlan ? `
+        <div class="p-3 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary font-medium flex items-center justify-between animate-fade-in">
+          <span>✨ Votre demande de souscription au forfait <strong>${escapeHtml(selectedPlan)}</strong> a été enregistrée avec succès.</span>
+          <a href="/subscription" class="text-[10px] underline font-bold">Fermer</a>
+        </div>
+      ` : '';
+
       const cardsHtml = PLANS.map(p => `
         <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 flex flex-col justify-between space-y-4">
           <div class="space-y-2">
@@ -36,9 +44,9 @@ export function createSubscriptionDescriptor(): BacDescriptor {
               ${p.features.map(f => `<li>• ${escapeHtml(f)}</li>`).join("")}
             </ul>
           </div>
-          <button onclick="alert('Souscription modifiée !');" class="w-full py-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 text-xs font-bold text-on-surface cursor-pointer">
+          <a href="/subscription?plan=${encodeURIComponent(p.name)}" class="w-full text-center block py-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 text-xs font-bold text-on-surface transition cursor-pointer">
             Choisir ce forfait
-          </button>
+          </a>
         </div>
       `).join("");
 
@@ -51,6 +59,8 @@ export function createSubscriptionDescriptor(): BacDescriptor {
               <p class="text-[11px] text-on-surface-variant">Plans, forfaits et factures consolidées pour l'organisation</p>
             </div>
           </div>
+
+          ${notificationHtml}
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             ${cardsHtml}

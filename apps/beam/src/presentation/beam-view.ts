@@ -31,6 +31,7 @@ export function createBeamDescriptor(messagingService?: BeamMessagingService): B
       const user = context.user;
       const userId = user.id || "admin";
       const view = context.request.query.view || "chat";
+      const channelCreated = context.request.query.channelCreated === "true";
 
       // Load conversations
       const conversations = await service.listConversationsAsync(userId);
@@ -103,6 +104,13 @@ export function createBeamDescriptor(messagingService?: BeamMessagingService): B
         `;
       }).join("");
 
+      const channelNotificationHtml = channelCreated ? `
+        <div class="p-3 mb-3 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary font-medium flex items-center justify-between">
+          <span>✨ Demande de création de salon transmise aux modérateurs.</span>
+          <a href="/beam?view=channels" class="text-[10px] underline font-bold">Masquer</a>
+        </div>
+      ` : '';
+
       const contentHtml = `
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[500px]">
           
@@ -118,11 +126,12 @@ export function createBeamDescriptor(messagingService?: BeamMessagingService): B
 
             <div class="space-y-1.5">
               ${view === 'channels' ? `
+                ${channelNotificationHtml}
                 <div class="p-4 rounded-xl bg-surface-container/40 border border-outline-variant/15 text-center space-y-3">
                   <span class="text-xl">📢</span>
                   <h4 class="text-xs font-bold text-on-surface">Salons publics</h4>
                   <p class="text-[11px] text-on-surface-variant">Les salons thématiques sont configurés par l'équipe de modération.</p>
-                  <button onclick="alert('Demande de creation de salon envoyee')" class="px-3 py-1 rounded-lg bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/30 text-on-surface text-[10px] font-semibold transition cursor-pointer">Créer un salon</button>
+                  <a href="/beam?view=channels&channelCreated=true" class="inline-block px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/30 text-on-surface text-[10px] font-semibold transition cursor-pointer">Créer un salon</a>
                 </div>
               ` : convListHtml}
             </div>
