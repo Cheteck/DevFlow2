@@ -1,11 +1,15 @@
 /**
- * @apps/commerce/domain — Auction Core Engine with Reserve Price & Anti-Sniping
+ * @apps/commerce/domain — Auction Core Engine with Reserve Price & Anti-Sniping (AUCTION-PERSIST)
  * FEAT-04: Enchères [CŒUR + plugins périphériques] (commerce + portfolio + beam)
  */
 
 import * as crypto from "node:crypto";
 import type { OrderService } from "./order.service.js";
 import type { OrderModel } from "./order.model.js";
+import {
+  InMemoryAuctionRepository,
+  type AuctionRepositoryPort,
+} from "../infrastructure/postgres-auction-repository.js";
 
 export type AuctionStatus = "draft" | "active" | "closed" | "cancelled";
 
@@ -69,10 +73,18 @@ export interface PlaceBidResult {
 }
 
 export class AuctionService {
-  private auctions = new Map<string, Auction>();
+  private repository: AuctionRepositoryPort;
   private eventListeners = new Set<(event: string, payload: unknown) => void>();
 
-  createAuction(input: CreateAuctionInput): Auction {
+  constructor(repository?: AuctionRepositoryPort) {
+    this.repository = repository ?? new InMemoryAuctionRepository();
+  }
+
+  setRepository(repository: AuctionRepositoryPort): void {
+    this.repository = repository;
+  }
+
+  async createAuction(input: CreateAuctionInput): Promise<Auction> {
     if (input.startPrice < 0) {
       throw new Error("Le prix de départ doit être supérieur ou égal à zéro.");
     }
@@ -108,43 +120,38 @@ export class AuctionService {
       updatedAt: now.toISOString(),
     };
 
-    this.auctions.set(id, auction);
+    await this.repository.saveAuction(auction);
     this.emitEvent("commerce.auction.created", { auctionId: id, sellerId: input.sellerId });
     return auction;
   }
 
-  getAuction(id: string): Auction | null {
-    const auc = this.auctions.get(id);
+  async getAuction(id: string): Promise<Auction | null> {
+    const auc = await this.repository.getAuction(id);
     if (!auc) return null;
-    this.checkAutoClose(auc);
-    return { ...auc };
+    await this.checkAutoClose(auc);
+    return auc;
   }
 
-  listAuctions(filter?: { status?: AuctionStatus; sellerId?: string; spaceId?: string }): Auction[] {
-    const list = Array.from(this.auctions.values());
+  async listAuctions(filter?: { status?: AuctionStatus; sellerId?: string; spaceId?: string }): Promise<Auction[]> {
+    const list = await this.repository.listAuctions(filter);
     for (const auc of list) {
-      this.checkAutoClose(auc);
+      await this.checkAutoClose(auc);
     }
-    return list.filter((auc) => {
-      if (filter?.status && auc.status !== filter.status) return false;
-      if (filter?.sellerId && auc.sellerId !== filter.sellerId) return false;
-      if (filter?.spaceId && auc.sellerSpaceId !== filter.spaceId) return false;
-      return true;
-    });
+    return list;
   }
 
-  placeBid(
+  async placeBid(
     auctionId: string,
     bidderId: string,
     bidderName: string,
     amount: number
-  ): PlaceBidResult {
-    const auc = this.auctions.get(auctionId);
+  ): Promise<PlaceBidResult> {
+    const auc = await this.repository.getAuction(auctionId);
     if (!auc) {
       return { success: false, auction: {} as Auction, extended: false, error: "Enchère introuvable." };
     }
 
-    this.checkAutoClose(auc);
+    await this.checkAutoClose(auc);
 
     if (auc.status !== "active") {
       return { success: false, auction: { ...auc }, extended: false, error: `L'enchère n'est plus active (statut: ${auc.status}).` };
@@ -171,6 +178,7 @@ export class AuctionService {
     if (msRemaining <= 0) {
       auc.status = "closed";
       auc.updatedAt = now.toISOString();
+      await this.repository.saveAuction(auc);
       return { success: false, auction: { ...auc }, extended: false, error: "L'enchère est expirée." };
     }
 
@@ -210,6 +218,8 @@ export class AuctionService {
     auc.reserveMet = amount >= auc.reservePrice;
     auc.updatedAt = timestamp;
 
+    await this.repository.saveBid(auctionId, bid, auc);
+
     this.emitEvent("commerce.auction.bid_placed", {
       auctionId: auc.id,
       bidId,
@@ -231,7 +241,7 @@ export class AuctionService {
     auctionId: string,
     orderService?: OrderService
   ): Promise<{ auction: Auction; winningOrder?: OrderModel }> {
-    const auc = this.auctions.get(auctionId);
+    const auc = await this.repository.getAuction(auctionId);
     if (!auc) {
       throw new Error("Enchère introuvable.");
     }
@@ -276,10 +286,11 @@ export class AuctionService {
       });
     }
 
+    await this.repository.saveAuction(auc);
     return { auction: { ...auc }, winningOrder };
   }
 
-  private checkAutoClose(auc: Auction): void {
+  private async checkAutoClose(auc: Auction): Promise<void> {
     if (auc.status === "active") {
       const now = new Date();
       const end = new Date(auc.endTime);
@@ -289,6 +300,7 @@ export class AuctionService {
         if (auc.bidHistory.length > 0 && auc.highestBidderId && auc.currentBid >= auc.reservePrice) {
           auc.winningBid = auc.bidHistory[auc.bidHistory.length - 1];
         }
+        await this.repository.saveAuction(auc);
       }
     }
   }

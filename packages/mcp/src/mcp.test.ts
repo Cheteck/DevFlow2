@@ -9,6 +9,8 @@ import { MCPRateLimiter } from "./security/rate-limiter";
 import { PlatformToolProvider } from "./providers/platform";
 import { AppToolProvider } from "./providers/app";
 import { WorkflowToolProvider } from "./providers/workflows";
+import { MCPPrincipalResolver } from "./security/principal-resolver";
+import { JwtService } from "@mosaix/auth";
 
 describe("MosaiX MCP Server Agent Interoperability Layer", () => {
   let tools: MCPToolRegistry;
@@ -18,6 +20,7 @@ describe("MosaiX MCP Server Agent Interoperability Layer", () => {
   let auditLogger: MCPAuditLogger;
   let _permissionGate: MCPPermissionGate;
   let rateLimiter: MCPRateLimiter;
+  let testJwtService: JwtService;
 
   beforeEach(() => {
     tools = new MCPToolRegistry();
@@ -27,6 +30,11 @@ describe("MosaiX MCP Server Agent Interoperability Layer", () => {
     auditLogger = new MCPAuditLogger();
     _permissionGate = new MCPPermissionGate(auditLogger);
     rateLimiter = new MCPRateLimiter();
+
+    testJwtService = new JwtService({
+      secret: "mosaix-test-secret-key-1234567890",
+    });
+    MCPPrincipalResolver.setJwtService(testJwtService);
   });
 
   it("registers and lists platform, BAC, and workflow tools", () => {
@@ -68,8 +76,8 @@ describe("MosaiX MCP Server Agent Interoperability Layer", () => {
       },
     );
 
-    expect(res.result?.content[0].text).toContain("Boutique Amel Paris");
-    expect(res.result?.content[0].text).toContain("solara.post.create");
+    expect(res?.result?.content?.[0]?.text).toContain("Boutique Amel Paris");
+    expect(res?.result?.content?.[0]?.text).toContain("solara.post.create");
   });
 
   it("enforces agent rate limits via MCPRateLimiter", async () => {
@@ -93,11 +101,18 @@ describe("MosaiX MCP Server Agent Interoperability Layer", () => {
       },
     });
 
-    expect(res.error?.code).toBe(-32001);
-    expect(res.error?.message).toContain("spaces:space:create");
+    expect(res?.error?.code).toBe(-32001);
+    expect(res?.error?.message).toContain("spaces:space:create");
   });
 
-  it("resolves principals from auth headers via MCPPrincipalResolver", async () => {    WorkflowToolProvider.register(tools, prompts);
+  it("resolves valid principals from cryptographically signed auth headers via MCPPrincipalResolver (MCP-03c)", async () => {
+    WorkflowToolProvider.register(tools, prompts);
+
+    const validToken = testJwtService.sign({
+      sub: "agent-legit-007",
+      tenantId: "tenant-999",
+      scopes: ["spaces:space:create"],
+    });
 
     const res = await gateway.handleRequest(
       {
@@ -109,12 +124,56 @@ describe("MosaiX MCP Server Agent Interoperability Layer", () => {
           arguments: { spaceName: "Y", ownerUserId: "u", announcementText: "hi" },
         },
       },
-      { authHeader: "Bearer any-simulated-token" },
+      { authHeader: `Bearer ${validToken}` },
     );
 
-    // Simulated bearer carries mcp:admin (principal-resolver): allowed, pending real verification.
-    expect(res.error).toBeUndefined();
-    expect(res.result?.content[0].text).toContain("Y");
+    expect(res?.error).toBeUndefined();
+    expect(res?.result?.content?.[0]?.text).toContain("Y");
+  });
+
+  it("denies privileged tool calls when auth header contains fake or expired Bearer token (MCP-03c)", async () => {
+    WorkflowToolProvider.register(tools, prompts);
+
+    // 1. Fake token with unmatching signature
+    const fakeRes = await gateway.handleRequest(
+      {
+        jsonrpc: "2.0",
+        id: 31,
+        method: "tools/call",
+        params: {
+          name: "mosaix_create_business_space",
+          arguments: { spaceName: "Z", ownerUserId: "u", announcementText: "hi" },
+        },
+      },
+      { authHeader: "Bearer forged-token-value" },
+    );
+
+    expect(fakeRes?.error?.code).toBe(-32001);
+    expect(fakeRes?.error?.message).toContain("Permission denied");
+
+    // 2. Expired token signed with same secret
+    const expiredToken = testJwtService.sign({
+      sub: "agent-expired",
+      tenantId: "tenant-999",
+      scopes: ["spaces:space:create"],
+      exp: Math.floor(Date.now() / 1000) - 3600, // Expired 1 hour ago
+    });
+
+    const expiredRes = await gateway.handleRequest(
+      {
+        jsonrpc: "2.0",
+        id: 32,
+        method: "tools/call",
+        params: {
+          name: "mosaix_create_business_space",
+          arguments: { spaceName: "Z", ownerUserId: "u", announcementText: "hi" },
+        },
+      },
+      { authHeader: `Bearer ${expiredToken}` },
+    );
+
+    expect(expiredRes?.error?.code).toBe(-32001);
+    expect(expiredRes?.error?.message).toContain("Permission denied");
   });
 
   it("rejects invalid tool arguments before authorization (MCP-04)", async () => {
