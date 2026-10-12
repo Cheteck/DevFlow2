@@ -10,7 +10,7 @@ import * as path from "node:path";
 
 import type { ThemeMode, BacExecutionContext } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
-import { platformSettingsService } from "@mosaix/core";
+import { platformSettingsService, ConsoleLogger } from "@mosaix/core";
 import { createApplication } from "../bootstrap/index.js";
 
 // Shell services & state
@@ -55,6 +55,8 @@ import { dispatchApiRequest } from "./server/api-dispatcher.js";
 import { wireBacDescriptors } from "./server/bac-wiring.js";
 import { renderBacPage } from "./shell/pages/bac-page.js";
 import { renderHomePage } from "./shell/pages/home-page.js";
+
+const logger = new ConsoleLogger("ShellServer");
 
 // Single composition root (Laravel `bootstrap/app.php`): env → security →
 // database (connect only, PRAGMAs awaited) → migrations fail-fast →
@@ -425,7 +427,7 @@ const server = http.createServer(async (req, res) => {
                 id: currentUser.id,
                 roles: [currentUser.role],
                 permissions: currentUser.permissions,
-              },
+              };
         theme: {
           // "system" has no runtime rendering — resolve to light (matches SSR default branch).
           mode: currentThemeMode === "system" ? "light" : currentThemeMode,
@@ -496,7 +498,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(homeHtml);
   } catch (err: unknown) {
-    console.error("[ServerError]", err);
+    logger.error("[ServerError]", err instanceof Error ? err : new Error(String(err)));
     if (!res.headersSent) {
       res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -506,5 +508,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`MosaiX platform host listening on http://0.0.0.0:${PORT}`);
+  logger.info(`MosaiX platform host listening on http://0.0.0.0:${PORT}`);
 });

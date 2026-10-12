@@ -1,6 +1,6 @@
 # MosaiX / IJIDeals — BACKLOG (pilotage livraison)
 
-- **Dernière mise à jour :** 2026-10-12 — mise à jour automatique des tâches clôturées lors des récents commits (`MCP-03c`, `AUCTION-PERSIST`, `PORT-UI-00`, `PORT-UI-01`, `SHELL-UI-01`, `SHELL-PERM-01`, `SHELL-INV-01`, `SELL-FLOW-01`)
+- **Dernière mise à jour :** 2026-10-12 — mise à jour des statuts suite aux vérifications et livraisons
 - **Principe :** ce fichier répond à « Que doit-on faire ensuite ? ». L'historique vit en `.project/archive/`, les décisions en `.project/decisions/`, l'architecture en `.project/architecture/` et `apps/*/responsibilities.md`.
 - **Règle de comptage :** le nombre de tâches ouvertes se recompte depuis le registre ci-dessous, jamais depuis un paragraphe manuel.
 
@@ -46,7 +46,7 @@
 | SHELL-RENDER-01 | Shell : découper `renderer.ts` sans changer le comportement | OPEN | P2 | Caractérisation d'abord, CTA déclaratifs, suppression fallback `allowedBacs` (complète HYGIENE-SHELL) |
 | SELL-FLOW-01 | Approbation vendeur atomique (vendable + offre + events) | DONE | P1 | Saga `ProposalService.approve()` avec `OfferProvisioningPort` et création atomique de vendable/offre |
 | SELL-FLOW-02 | Parcours vendeur dans Space (« mettre en vente ») | OPEN | P2 | Formulaire Space (wizard réutilisé), fiche+prix+stock soumis, statuts/feedback, rien en vente avant offre ACTIVE |
-| PRICE-01 | Contrat de prix et historique | OPEN | P1 | Prix de base offre + journal append-only + `resolveEffectivePrice` ; proposé vs actif vs payé (ADR-0021, dép. SELL-FLOW-01) |
+| PRICE-01 | Contrat de prix et historique | DONE | P1 | Prix de base offre + journal append-only `priceHistory` + `resolveEffectivePrice()` (ADR-0021) |
 | PROMO-01 | Moteur de promotions | OPEN | P2 | % ou fixe, périodes, périmètre, éligibilité, plafonds, cumul explicite, garde-fous vendeurs (dép. PRICE-01) |
 | COUPON-01 | Codes et consommation des coupons | OPEN | P2 | Codes rattachés aux promos, minima, limites globales/par client, expiration, consommation atomique (dép. PROMO-01) |
 | PRICE-02 | Remises figées en commande + traçabilité | OPEN | P2 | Snapshot commercial par ligne, devise, arrondis, annulations sans réécriture (dép. PRICE-01 + PROMO-01) |
