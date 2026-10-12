@@ -174,6 +174,7 @@ export class PostgresSpaceRepository {
     };
     const plan = raw["subscriptionPlan"];
     const now = new Date();
+    const rawMetadata = raw["metadata"];
     return {
       id: String(raw["id"] ?? ""),
       name: String(raw["name"] ?? ""),
@@ -191,6 +192,9 @@ export class PostgresSpaceRepository {
       team: asTeam(raw["team"]),
       enabledCapabilities: asStringArray(raw["enabledCapabilities"]),
       publicNavigation: asStringArray(raw["publicNavigation"]),
+      ...(rawMetadata && typeof rawMetadata === "object" && !Array.isArray(rawMetadata)
+        ? { metadata: rawMetadata as Space["metadata"] }
+        : {}),
       createdAt: asDate(raw["createdAt"], now),
       ...(raw["updatedAt"] !== undefined && raw["updatedAt"] !== null
         ? { updatedAt: asDate(raw["updatedAt"], now) }
