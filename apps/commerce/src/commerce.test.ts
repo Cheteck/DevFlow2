@@ -4,6 +4,7 @@ import { createCommerceComposition, createCommerceApp, MANIFEST } from './index.
 import { InMemoryOrderRepository } from './infrastructure/postgres-order-repository.js';
 import { OrderModel } from './domain/order.model.js';
 import { RuntimeKernel } from '@mosaix/core';
+import { CommerceOfferService, resolveEffectivePrice } from './domain/commerce-offer.model.js';
 
 // Tests uniquement : repository en memoire explicite (fail-fast hors tests).
 const testRepository = () => new InMemoryOrderRepository();
@@ -18,6 +19,41 @@ describe('CommerceBAC End-to-End & Unit Tests', () => {
     expect(container).toBeDefined();
     expect(router).toBeDefined();
     expect(app.manifest.id).toBe('@apps/commerce');
+  });
+
+  it('maintains append-only price history and resolves effective price (PRICE-01, ADR-0021)', async () => {
+    const offerService = new CommerceOfferService();
+    const offer = await offerService.createOffer({
+      seller: { type: "space", id: "space-jijel" },
+      vendableId: "vnd-ceramics-01",
+      title: "Poudre de Céramique CAJ",
+      priceInCents: 5000,
+      currency: "EUR",
+      actorId: "usr-merchant-1",
+      initialReason: "Publication initiale",
+    });
+
+    expect(offer.priceInCents).toBe(5000);
+    expect(offer.priceHistory).toHaveLength(1);
+    expect(offer.priceHistory?.[0].priceInCents).toBe(5000);
+    expect(offer.priceHistory?.[0].reason).toBe("Publication initiale");
+
+    // Update price and verify append-only journal
+    const updated = await offerService.updatePrice(
+      offer.id,
+      4500,
+      "usr-merchant-1",
+      "Promotion d'ouverture"
+    );
+
+    expect(updated.priceInCents).toBe(4500);
+    expect(updated.priceHistory).toHaveLength(2);
+    expect(updated.priceHistory?.[1].priceInCents).toBe(4500);
+    expect(updated.priceHistory?.[1].reason).toBe("Promotion d'ouverture");
+
+    const effectiveMoney = resolveEffectivePrice(updated);
+    expect(effectiveMoney.amountInCents).toBe(4500);
+    expect(effectiveMoney.currency).toBe("EUR");
   });
 
   it('should instantiate OrderModel with default traits', () => {
@@ -174,7 +210,7 @@ describe('CommerceBAC End-to-End & Unit Tests', () => {
     );
 
     const { order } = await service.createOrder({ userId: 'usr-tr', vendableId: 'vend-tr', amount: 10 });
-    // Created orders settle to Paid or Cancelled depending on saga ports (demo ports succeed â†’ Paid).
+    // Created orders settle to Paid or Cancelled depending on saga ports (demo ports succeed -> Paid).
     const current = (await service.getOrderById(order.id)).status;
 
     if (current === 'Paid') {
@@ -186,5 +222,3 @@ describe('CommerceBAC End-to-End & Unit Tests', () => {
     }
   });
 });
-
-

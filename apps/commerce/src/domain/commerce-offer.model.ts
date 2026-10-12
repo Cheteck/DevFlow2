@@ -11,6 +11,14 @@ export interface SellerEntityRef {
 
 export type CommerceOfferStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "ARCHIVED";
 
+export interface PriceHistoryEntry {
+  priceInCents: number;
+  currency: string;
+  actorId: string;
+  reason: string;
+  updatedAt: string;
+}
+
 export interface CommerceOffer {
   id: string;
   seller: SellerEntityRef;
@@ -19,6 +27,7 @@ export interface CommerceOffer {
   description?: string;
   priceInCents: number;
   currency: string;
+  priceHistory?: PriceHistoryEntry[];
   status: CommerceOfferStatus;
   stockAllocation?: number; // undefined = unlimited / catalog controlled
   commissionRateBps: number; // e.g. 500 for 5.00%
@@ -53,6 +62,8 @@ export interface CreateOfferInput {
   };
   metadata?: Record<string, unknown>;
   initialStatus?: CommerceOfferStatus;
+  actorId?: string;
+  initialReason?: string;
 }
 
 export interface CommerceOfferRepositoryPort {
@@ -62,6 +73,13 @@ export interface CommerceOfferRepositoryPort {
   listOffersByVendable(vendableId: string): Promise<CommerceOffer[]>;
   /** Public vitrine: ACTIVE offers newest-first. */
   listActiveOffers(limit?: number): Promise<CommerceOffer[]>;
+}
+
+export function resolveEffectivePrice(
+  offer: CommerceOffer,
+  _context?: Record<string, unknown>
+): Money {
+  return Money.fromCents(offer.priceInCents, offer.currency);
 }
 
 /**
@@ -85,6 +103,18 @@ export class CommerceOfferService {
     }
 
     const now = new Date().toISOString();
+    const currency = input.currency ?? "EUR";
+    const actorId = input.actorId ?? input.seller.id;
+    const reason = input.initialReason ?? "Initial offer creation";
+
+    const initialPriceEntry: PriceHistoryEntry = {
+      priceInCents: input.priceInCents,
+      currency,
+      actorId,
+      reason,
+      updatedAt: now,
+    };
+
     const offer: CommerceOffer = {
       id: `off-${crypto.randomUUID()}`,
       seller: input.seller,
@@ -92,7 +122,8 @@ export class CommerceOfferService {
       title: input.title,
       description: input.description,
       priceInCents: input.priceInCents,
-      currency: input.currency ?? "EUR",
+      currency,
+      priceHistory: [initialPriceEntry],
       status: input.initialStatus ?? "ACTIVE",
       stockAllocation: input.stockAllocation,
       commissionRateBps: input.commissionRateBps ?? 500, // 5% default platform fee
@@ -101,6 +132,45 @@ export class CommerceOfferService {
       createdAt: now,
       updatedAt: now,
     };
+
+    this.offers.set(offer.id, offer);
+    if (this.repository) {
+      await this.repository.saveOffer(offer);
+    }
+
+    return offer;
+  }
+
+  async updatePrice(
+    offerId: string,
+    newPriceInCents: number,
+    actorId: string,
+    reason: string
+  ): Promise<CommerceOffer> {
+    if (newPriceInCents < 0) {
+      throw new Error("Price cannot be negative.");
+    }
+
+    const offer = await this.getOffer(offerId);
+    if (!offer) {
+      throw new Error(`CommerceOffer [${offerId}] not found.`);
+    }
+
+    const now = new Date().toISOString();
+    const entry: PriceHistoryEntry = {
+      priceInCents: newPriceInCents,
+      currency: offer.currency,
+      actorId,
+      reason,
+      updatedAt: now,
+    };
+
+    offer.priceInCents = newPriceInCents;
+    if (!offer.priceHistory) {
+      offer.priceHistory = [];
+    }
+    offer.priceHistory.push(entry);
+    offer.updatedAt = now;
 
     this.offers.set(offer.id, offer);
     if (this.repository) {
