@@ -7,10 +7,8 @@
  * reponses programmees pour prouver l'assemblage document.
  */
 import { describe, expect, it } from "vitest";
-import {
-  PostgresVendableRepository,
-  normalizeFeatureCode,
-} from "./postgres-vendable-repository.js";
+import { PostgresVendableRepository } from "./postgres-vendable-repository.js";
+import { normalizeFeatureCode } from "../domain/product-options.js";
 import type { Vendable } from "../domain/vendable.js";
 
 function splitTopLevel(body: string): string[] {
@@ -489,5 +487,92 @@ describe("PostgresVendableRepository normalise (ADR-0018)", () => {
       )
       .filter((c): c is string => typeof c === "string");
     expect(catSlugs).toEqual(["smart_phones"]);
+  });
+
+  it("distingue axes SKU (variation) et options simples (option)", async () => {
+    const seen: CannedDb = { statements: [] };
+    const params: Array<readonly unknown[]> = [];
+    const db = makeFakeDb([], seen);
+    const recordingDb = {
+      ...db,
+      query: async (
+        sql: string,
+        p?: readonly unknown[],
+      ): Promise<Record<string, unknown>[]> => {
+        params.push(p ?? []);
+        return db.query(sql, p);
+      },
+      execute: async (
+        sql: string,
+        p?: readonly unknown[],
+      ): Promise<number> => {
+        params.push(p ?? []);
+        return db.execute(sql, p);
+      },
+      transaction: async <T>(fn: (tx: unknown) => Promise<T>): Promise<T> =>
+        fn({
+          query: async (
+            sql: string,
+            p?: readonly unknown[],
+          ): Promise<Record<string, unknown>[]> => {
+            params.push(p ?? []);
+            return db.query(sql, p);
+          },
+          execute: async (
+            sql: string,
+            p?: readonly unknown[],
+          ): Promise<number> => {
+            params.push(p ?? []);
+            return db.execute(sql, p);
+          },
+        }),
+    };
+    const repo = new PostgresVendableRepository(recordingDb as never);
+    const base = sampleVendable();
+    await repo.save({
+      ...base,
+      identity: { ...base.identity, id: "vend_opt", reference: "OPT-1" },
+      characteristics: {
+        attributes: {
+          options: {
+            storage: {
+              modeling: "variantes SKU",
+              values: ["A", "B"],
+            },
+            color: { label: "Coloris", values: ["Black", "White"] },
+          },
+        },
+        specifications: {},
+      },
+      variants: [
+        {
+          id: "var_a",
+          reference: "OPT-1-A",
+          characteristics: { attributes: { size: "A" } },
+        },
+        {
+          id: "var_b",
+          reference: "OPT-1-B",
+          characteristics: { attributes: { size: "B" } },
+        },
+      ],
+    });
+    const groups = seen.statements
+      .map((s, i) =>
+        /INSERT INTO "portfolio"\."variation_groups"/.test(s)
+          ? (params[i]?.[2] as string)
+          : undefined,
+      )
+      .filter((c): c is string => typeof c === "string");
+    expect(groups.sort()).toEqual(["color", "storage"]);
+    const purposes = seen.statements
+      .map((s, i) =>
+        /INSERT INTO "portfolio"\."variation_group_features"/.test(s)
+          ? (params[i]?.[2] as string)
+          : undefined,
+      )
+      .filter((c): c is string => typeof c === "string");
+    expect(purposes).toContain("variation");
+    expect(purposes).toContain("option");
   });
 });

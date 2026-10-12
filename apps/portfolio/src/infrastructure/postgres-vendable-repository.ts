@@ -24,6 +24,7 @@ import type {
   DatabasePort,
 } from "@mosaix/ports-database";
 import type { VendableRepository } from "../domain/vendable-repository.js";
+import { normalizeFeatureCode } from "../domain/product-options.js";
 import type {
   Vendable,
   VendableContent,
@@ -65,25 +66,6 @@ function inferFeatureType(value: unknown): "N" | "C" | "T" {
   if (typeof value === "number") return "N";
   if (typeof value === "boolean") return "C";
   return "T";
-}
-
-/**
- * Canonicalisation anti-doublons des codes de features (ADR-0018) : casse,
- * accents, espaces et separateurs unifies ; les points structurants des
- * chemins pointes sont preserves. Idempotent. Applique a chaque point
- * d'ecriture pour que "Chipset", "chipset " et "CHIPSET" partagent une
- * seule ligne de catalogue. Les codes de groupes internes (`attributes`,
- * `spec:*`, `variant`) sont deja canoniques et ne passent pas par ici.
- */
-export function normalizeFeatureCode(raw: string): string {
-  return raw
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9.]+/g, "_")
-    .replace(/_+/g, "_")
-    .replace(/^[_.]+|[_.]+$/g, "");
 }
 
 function coerceValue(valueText: string, featureType: string): unknown {
@@ -305,6 +287,16 @@ export class PostgresVendableRepository implements VendableRepository {
   ): Promise<void> {
     await tx.execute(
       `DELETE FROM "portfolio"."variant_features" WHERE "variantId" IN (SELECT id FROM "portfolio"."variants" WHERE "vendableId" = $1)`,
+      [vendableId],
+    );
+    // Groupes de variation reconstruits a chaque save : purges pour ne
+    // jamais accumuler d'axes obsoletes.
+    await tx.execute(
+      `DELETE FROM "portfolio"."variation_group_features" WHERE "groupId" IN (SELECT id FROM "portfolio"."variation_groups" WHERE "parentVendableId" = $1)`,
+      [vendableId],
+    );
+    await tx.execute(
+      `DELETE FROM "portfolio"."variation_groups" WHERE "parentVendableId" = $1`,
       [vendableId],
     );
     await tx.execute(
@@ -542,9 +534,11 @@ export class PostgresVendableRepository implements VendableRepository {
       }
     }
 
-    // Variation groups rebuilt from SKU-bearing option axes (ADR-0018):
-    // one group per options key whose modeling mentions variants, linked to
-    // the variant features carrying more than one distinct value.
+    // Variation groups rebuilt from the options block (ADR-0019) : un
+    // groupe par cle d'option. Axes SKU (modeling mentionnant 'variante') :
+    // lies aux features de variantes a valeurs distinctes (purpose
+    // 'variation'). Autres axes (coloris, poids...) : lies a leur feature
+    // enumeree `options.{cle}.values` quand elle existe (purpose 'option').
     const options = vendable.characteristics.attributes?.["options"];
     if (options !== null && typeof options === "object" && !Array.isArray(options)) {
       const distinct = new Map<string, Set<string>>();
@@ -569,19 +563,26 @@ export class PostgresVendableRepository implements VendableRepository {
                 (option as Record<string, unknown>)["modeling"] ?? "",
               ).toLowerCase()
             : "";
-        if (!modeling.includes("variante")) continue;
         const groupId = `vg_${slugify(id)}_${slugify(key)}`;
         await tx.execute(
           `INSERT INTO "portfolio"."variation_groups" ("id", "parentVendableId", "code", "createdAt")
            VALUES ($1, $2, $3, $4)`,
           [groupId, id, key, now],
         );
-        for (const [featureCode, values] of distinct) {
-          if (values.size < 2) continue;
+        if (modeling.includes("variante")) {
+          for (const [featureCode, values] of distinct) {
+            if (values.size < 2) continue;
+            await tx.execute(
+              `INSERT INTO "portfolio"."variation_group_features" ("id", "groupId", "featureId", "purpose")
+               SELECT $1, $2, f."id", $3 FROM "portfolio"."features" AS f WHERE f."code" = $4`,
+              [`vgf_${slugify(id)}_${slugify(key)}_${slugify(featureCode)}`, groupId, "variation", featureCode],
+            );
+          }
+        } else {
           await tx.execute(
             `INSERT INTO "portfolio"."variation_group_features" ("id", "groupId", "featureId", "purpose")
              SELECT $1, $2, f."id", $3 FROM "portfolio"."features" AS f WHERE f."code" = $4`,
-            [`vgf_${slugify(id)}_${slugify(key)}_${slugify(featureCode)}`, groupId, "variation", featureCode],
+            [`vgf_${slugify(id)}_${slugify(key)}`, groupId, "option", `options.${key}.values`],
           );
         }
       }

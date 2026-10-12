@@ -13,6 +13,12 @@ import {
   DuplicateVariantReferenceError,
   OperationalKeyForbiddenError,
 } from "./portfolio-errors";
+import {
+  normalizeProductOptions,
+  validateProductOptions,
+  groupsToOptionsBlock,
+  type ProductOptionGroupInput,
+} from "./product-options";
 
 export interface SearchCriteria {
   id?: string | undefined;
@@ -299,6 +305,60 @@ export class PortfolioService {
   async listVendables(): Promise<Vendable[]> {
     const all = await this.repository.findAll();
     return all.map((v) => ({ ...v, quality: this.calculateCompleteness(v) }));
+  }
+
+  /**
+   * Options statuses autorises a la modification : jamais sur une fiche
+   * publiee/archivée (passer par une revision), jamais d'options montantes
+   * vers un statut sans revue.
+   */
+  private static readonly OPTIONS_EDITABLE_STATUSES: WorkflowStatus[] = [
+    "Draft",
+    "In Review",
+    "Validated",
+  ];
+
+  /**
+   * Definit (remplace) le bloc d'options d'un vendable : normalise, valide
+   * (codes, valeurs, incompatibilites, cles commerciales interdites) puis
+   * persiste via `updateVendable` (invariants + complétude recalcules).
+   */
+  async setProductOptions(
+    id: string,
+    groups: ProductOptionGroupInput[],
+  ): Promise<Vendable> {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new VendableNotFoundError(id);
+    }
+    if (
+      !PortfolioService.OPTIONS_EDITABLE_STATUSES.includes(
+        existing.identity.status,
+      )
+    ) {
+      throw new Error(
+        `Options non modifiables au statut [${existing.identity.status}] : repassez la fiche en Draft.`,
+      );
+    }
+    const normalized = normalizeProductOptions(groups);
+    const errors = validateProductOptions(normalized);
+    if (errors.length > 0) {
+      throw new Error(`Options produit invalides : ${errors.join("; ")}`);
+    }
+    const attributes = {
+      ...(existing.characteristics.attributes ?? {}),
+    };
+    if (normalized.length === 0) {
+      delete attributes["options"];
+    } else {
+      attributes["options"] = groupsToOptionsBlock(normalized);
+    }
+    return this.updateVendable(id, {
+      characteristics: {
+        attributes,
+        specifications: existing.characteristics.specifications,
+      },
+    });
   }
 
   /**

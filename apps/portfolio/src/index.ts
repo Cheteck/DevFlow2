@@ -201,6 +201,7 @@ export * from "./domain/portfolio-search.port.js";
 export * from "./domain/portfolio-bulk-media.js";
 export * from "./domain/portfolio-errors.js";
 export * from "./domain/product-wizard.service.js";
+export * from "./domain/product-options.js";
 
 export * from "./domain/proposal.js";
 export * from "./domain/proposal-repository.js";
