@@ -3,10 +3,20 @@ import type { ProposalRepository } from "./proposal-repository.js";
 import type { PortfolioService } from "./portfolio-service.js";
 import { uuidV7 } from "@mosaix/types";
 
+export interface OfferProvisioningPort {
+  provisionOffer(input: {
+    vendableId: string;
+    sellerSpaceId: string;
+    sellerUserId: string;
+    commercialTerms: Record<string, unknown>;
+  }): Promise<{ offerId: string }>;
+}
+
 export class ProposalService {
   constructor(
     private readonly proposalRepository: ProposalRepository,
-    private readonly portfolioService: PortfolioService
+    private readonly portfolioService: PortfolioService,
+    private readonly offerProvisioningPort?: OfferProvisioningPort
   ) {}
 
   async createDraft(
@@ -164,7 +174,10 @@ export class ProposalService {
     return prop;
   }
 
-  async approve(id: string, reviewerUserId: string): Promise<{ proposal: Proposal; vendableId: string }> {
+  async approve(
+    id: string,
+    reviewerUserId: string
+  ): Promise<{ proposal: Proposal; vendableId: string; offerId?: string }> {
     const prop = await this.proposalRepository.findById(id);
     if (!prop) throw new Error(`Proposal ${id} not found`);
     if (prop.status !== "InReview") throw new Error(`Proposal must be InReview to be approved`);
@@ -185,6 +198,18 @@ export class ProposalService {
       relations: [],
     });
 
+    let provisionedOfferId: string | undefined;
+
+    if (this.offerProvisioningPort && prop.content && (prop.content as Record<string, unknown>).commercialTerms) {
+      const res = await this.offerProvisioningPort.provisionOffer({
+        vendableId: createdVendable.identity.id,
+        sellerSpaceId: prop.spaceId,
+        sellerUserId: prop.proposerUserId,
+        commercialTerms: (prop.content as Record<string, unknown>).commercialTerms as Record<string, unknown>,
+      });
+      provisionedOfferId = res.offerId;
+    }
+
     prop.status = "Approved";
     prop.vendableId = createdVendable.identity.id;
     prop.reviewedBy = reviewerUserId;
@@ -192,6 +217,6 @@ export class ProposalService {
     prop.updatedAt = prop.reviewedAt;
 
     await this.proposalRepository.update(prop);
-    return { proposal: prop, vendableId: createdVendable.identity.id };
+    return { proposal: prop, vendableId: createdVendable.identity.id, offerId: provisionedOfferId };
   }
 }

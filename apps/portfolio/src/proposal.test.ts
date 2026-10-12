@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ProposalService } from "./domain/proposal-service.js";
+import { ProposalService, type OfferProvisioningPort } from "./domain/proposal-service.js";
 import { InMemoryProposalRepository } from "./infrastructure/in-memory-proposal-repository.js";
 import { PortfolioService } from "./domain/portfolio-service.js";
 import { InMemoryVendableRepository } from "./infrastructure/in-memory-vendable-repository.js";
@@ -47,6 +47,44 @@ describe("Portfolio Proposal Workflow (PRD-0010)", () => {
     expect(vendable).toBeDefined();
     expect(vendable?.identity.status).toBe("Published");
     expect(vendable?.identity.reference).toBe("XIAOMI-18-PRO-MAX");
+  });
+
+  it("should provision commercial offer atomically when OfferProvisioningPort is supplied (SELL-FLOW-01)", async () => {
+    const proposalRepo = new InMemoryProposalRepository();
+    const vendableRepo = new InMemoryVendableRepository();
+    const portfolioService = new PortfolioService(vendableRepo);
+
+    let provisionedInput: unknown = null;
+    const mockOfferPort: OfferProvisioningPort = {
+      async provisionOffer(input) {
+        provisionedInput = input;
+        return { offerId: "off_mock_123" };
+      },
+    };
+
+    const proposalService = new ProposalService(proposalRepo, portfolioService, mockOfferPort);
+
+    const draft = await proposalService.createDraft("space-caj-jijel", "usr-space-admin", {
+      suggestedReference: "XIAOMI-COMMERCIAL",
+      type: "Product",
+      content: {
+        fr: { name: "Xiaomi 18 Commercial Edition" },
+        commercialTerms: { priceInCents: 99900, currency: "EUR" },
+      },
+    });
+
+    await proposalService.submit(draft.id, "space-caj-jijel");
+    await proposalService.claimInReview(draft.id, "usr-platform-admin");
+
+    const result = await proposalService.approve(draft.id, "usr-platform-admin");
+
+    expect(result.offerId).toBe("off_mock_123");
+    expect(provisionedInput).toEqual({
+      vendableId: result.vendableId,
+      sellerSpaceId: "space-caj-jijel",
+      sellerUserId: "usr-space-admin",
+      commercialTerms: { priceInCents: 99900, currency: "EUR" },
+    });
   });
 
   it("should handle ChangesRequested workflow", async () => {
