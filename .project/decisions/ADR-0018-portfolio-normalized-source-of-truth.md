@@ -93,6 +93,11 @@ facettes impossibles, contraintes FK décoratives, lecteurs futurs trompés).
 - Ordre déterministe à la lecture (pas de colonne position) : media par
   `metadata.positionIndex`, variantes par `sku`, tags/categories/keywords par
   ordre alphabétique.
+- Anti-doublons : `normalizeFeatureCode` (casse/accents/espaces) + slugs
+  canoniques + `canonicalizeVendable` à l'écriture (premier écrit gagne) —
+  sans quoi des variantes d'écriture violaient les UNIQUE au lieu de
+  fusionner. Garde-fou : test d'arité INSERT + test de déduplication
+  (`postgres-vendable-repository.test.ts`).
 
 ---
 

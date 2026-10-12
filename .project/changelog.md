@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-11 — Fix pré-existant : rail primaire minimisé (scroll horizontal + zone vide)
+
+### Fixed
+- **Rail primaire 76px** (`src/shell/renderer.ts`) : les tooltips absolus de chaque icône (positionnés au-delà du bord droit du rail) débordaient dans le conteneur `overflow-y-auto` (axe X → `auto`) → scroll horizontal + zone vide à côté des icônes de BACs. Remplacés par `[data-rail-tip]`/`[data-rail-sub]` + `aria-label`, rendus par le conteneur fixed unique `#rail-tooltip` (`role="tooltip"`). Nav verrouillée `overflow-x-hidden` (scroll Y conservé).
+- **`.no-scrollbar` absent des pages BAC** (`src/start.ts` + `PRIMARY_RAIL_SHARED_CSS` exporté de `renderer.ts`) : `renderBacPage` n'inclut pas `renderHeadBlock` ; le CSS partagé (scrollbars masquées + `.rail-tip` en variables `--color-*` adaptatives light/dark/contraste, `prefers-reduced-motion` respecté) est désormais servi sur toutes les pages.
+- **Pilotage centralisé** (`getShellClientScripts`) : `initRailTip` (mouseover/focus, `textContent` anti-XSS, clamp viewport, masquage scroll/resize/Escape, rail masqué sur mobile ignoré).
+
+### Verified
+- 74 tests verts (`src/shell`, dont 5 nouveaux verrous `guest-surfaces.test.ts`).
+- Serveur réel booté (PG `mosaix_dev`) : `/` et `/commerce` → zéro `84px`, `#rail-tooltip` + `overflow-x-hidden` + `.no-scrollbar` présents dans le HTML servi.
+- ESLint propre sur les 4 fichiers touchés.
+
+## 2026-10-11 — Import annuaire Jijel (téléphonie) via tools MCP Spaces persistés
+
+### Added
+- **Tools MCP Spaces persistés** (`packages/mcp/src/providers/spaces.ts`, pattern `portfolio.ts`) : `spaces_space_create`, `spaces_space_read`, `spaces_space_search`, `spaces_space_bulk_import` (dedup par slug, 50 max/lot). Permissions alignées manifest (`spaces:space:create`/`read`, verrou `permission-alignment.test.ts`). Resources `spaces://directory` + prompt `spaces_shop_import_brief`. Wirés HTTP (`mcp-routes.ts`, Postgres via contrat public `index.ts`) + stdio (in-memory honnête).
+- **`Space.metadata` optionnel** (`space.model.ts` + `hydrate` Postgres) : adresse, téléphone, lat/lng, note, source — jamais inventés (validation rejette geo/rating hors bornes). `createSpaceFromTemplate` accepte `metadata` + slug unicode-safe (NFD).
+- **Seed Jijel** (`scripts/seed-jijel-spaces.ts`) : 13 magasins de téléphonie (Digital Store, Mobizone, Phone World, Mobilay, Dimo, TechZone, RTL, Vivre Mobile, Virgin, Casa Phone, AKN, AMIR, MASTER), `tenantId=jijel-dz`, `template=store`, via `tools/call` MCP. Idempotent (re-run : 0 créés / 13 ignorés).
+- **Tests** : `spaces-tools.test.ts` (4 tests : absence honnête, create+metadata, bulk dedup, validation geo).
+
+### Verified
+- 43 tests verts (`packages/mcp/src` + `apps/spaces/src`), ESLint propre sur les 10 fichiers touchés, 13 lignes `spaces.spaces` en Postgres `mosaix_dev`.
+
 ## 2026-10-09 — Wiring BAC : priorité explicite + contrats publics de composition
 
 ### Fixed

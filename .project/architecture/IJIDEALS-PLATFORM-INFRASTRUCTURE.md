@@ -44,13 +44,13 @@ IJIDeals is an integrated multi-application platform built on top of MosaiX runt
 The single source of truth for application metadata across the Shell, Guest Landing, and Auth App Hub is `PlatformAppRegistry` in `@mosaix/ui-runtime`:
 
 - **Identity (`@apps/identity`)** — Route: `/login` · Single Sign-On & Session Control.
-- **Spaces (`@apps/spaces`)** — Route: `/spaces/dashboard` · Space & Organization Management.
-- **Portfolio (`@apps/portfolio`)** — Route: `/portfolio/catalog` · Vendables & Product Catalog.
-- **Commerce (`@apps/commerce`)** — Route: `/commerce/checkout` · Order Checkout Sagas.
-- **Solara (`@apps/solara`)** — Route: `/solara/feed` · Community Feed & Social Network.
-- **Beam (`@apps/beam`)** — Route: `/beam/chat` · Real-time Messenger & Conversations.
+- **Spaces (`@apps/spaces`)** — Route: `/spaces` · Space & Organization Management.
+- **Portfolio (`@apps/portfolio`)** — Route: `/portfolio` · Vendables & Product Catalog.
+- **Commerce (`@apps/commerce`)** — Route: `/commerce` · Marketplace (vitrine publique ; vues `offers`/`cart`/`orders` via `?view=`).
+- **Solara (`@apps/solara`)** — Route: `/solara` · Community Feed & Social Network.
+- **Beam (`@apps/beam`)** — Route: `/beam` · Real-time Messenger & Conversations.
 - **Solidarity (`@apps/solidarity`)** — Route: `/solidarity` · Crisis Coordination & Mutual Aid.
-- **Imperia (`@apps/imperia`)** — Route: `/imperia/dashboard` · Platform Governance & Supervision.
+- **Imperia (`@apps/imperia`)** — Route: `/imperia` · Platform Governance & Supervision.
 
 ---
 

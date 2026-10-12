@@ -62,3 +62,44 @@ Ajouter le Xiaomi 18 Pro Max 5G (GSMArena) dans Portfolio **via MCP**, specs + v
   bootstrap sessions, mock Redis).
 - Preuves : `build:raw` vert, `pnpm lint` vert (0 erreur), 834 tests verts
   (restent les 3 CLI pré-existants ; HTTP 14/14 quand Docker répond).
+
+## Import massif GSMArena (50 URLs) — PAUSE rate-limit (2026-10-10)
+- 34/50 fiches en base (toutes Draft, tables normalisées) via
+  `scripts/import-gsmarena.ts` (idempotent, ~20 pages/min + jitter,
+  Retry-After honoré, stop sur 403 / 429x3, skip-sans-fetch des doublons).
+- Mur 429 après ~33 pages malgré 3s d'intervalle ; 2e tentative à 8-10s
+  toujours en 429 persistant → arrêt demandé, ne pas marteler (cooldown
+  côté GSMArena).
+- 16 URLs restantes à reprendre plus tard (délai suggéré 30s+, ou autre
+  session) : black_shark_pad_se-14777, poco_c81_pro-14635, poco_c81-14626,
+  poco_c81x-14627, redmi_k90_max_5g-14618, redmi_k_pad_2-14625,
+  redmi_pad_2_9_7-14636, redmi_a7_pro_5g-14616, redmi_a7-14623,
+  poco_m8s_5g-14615, redmi_r70m_5g-14600, redmi_r70_5g-14598,
+  redmi_note_15_special_edition_5g-14571, redmi_a7_pro-14463,
+  redmi_15a_5g-14565, poco_x8_pro_max_5g-14507
+  (préfixe https://www.gsmarena.com/ + suffixe .php).
+
+## Gestion des options produit (ADR-0019, même session)
+- Domaine `product-options.ts` : groupes typés + normalisation + validation
+  (codes, doublons, clés commerciales, références) + `validateConfiguration`
+  (requis + incompatibilités) + conversion bloc aller/retour.
+- `PortfolioService.setProductOptions` (Draft/In Review/Validated, remplacement
+  du bloc, invariants + complétude via `updateVendable`).
+- Persistance : tout groupe d'options obtient un `variation_groups`
+  (`purpose='variation'` axes SKU, `'option'` sinon) ; normalisation
+  centralisée côté domaine (doublons casse/accents unifiés).
+- Outil MCP `portfolio_vendable_options_set` (id ou référence).
+- Preuves : 62 tests ciblés verts, `build:raw` vert, `pnpm lint` vert, exercice
+  live sur la fiche Xiaomi (groupes color/storage_ram/weight vérifiés en base).
+  Suivi v1 : liaison variante↔valeur, media par valeur, offres Commerce.
+
+## Parcours vendeur + ADR-0020 (même session, validation avec réserves)
+- Vision validée : vendeur ignore le mot proposal, modération gate unique,
+  approbation = vendable + offre ; D1–D5 validés (formulaire Space, commercialTerms,
+  port, Space vendeur, offre ACTIVE).
+- Réserve D3 verrouillée en ADR-0020 : saga idempotente séquentielle (JAMAIS de
+  `transaction()` imbriquée — piège vérifié), UNIQUE partiel proposalId,
+  approvedTerms snapshot + auditTrail, fail explicite sans port, events par
+  contrats (`vendable.published` sans commercial, nouveau `commerce.offer.activated`).
+- Backlog : SELL-FLOW-01 (P1, critères précis) + SELL-FLOW-02 (P2) + PORT-UI-04
+  recâblé. Registre : 8 P0 · 12 P1 · 18 P2.
