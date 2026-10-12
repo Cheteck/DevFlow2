@@ -38,13 +38,21 @@ describe("toPublicSpace", () => {
 });
 
 describe("createSpacesDescriptor", () => {
-  it("lists real spaces with profile links", async () => {
+  it("lists real spaces with profile links and sell links", async () => {
     const descriptor = createSpacesDescriptor({ spaceService: await seededService() });
     const result = await descriptor.render!(ctx({}));
     expect(result.contentHtml).toContain("Atelier Test");
     expect(result.contentHtml).toContain("view=profile");
+    expect(result.contentHtml).toContain("view=sell");
     expect(result.contentHtml).not.toContain("Chambre d'Agriculture");
     expect(result.contentHtml).not.toContain("Tech Startup Hub");
+  });
+
+  it("renders sell submission form for authenticated sellers (SELL-FLOW-02)", async () => {
+    const descriptor = createSpacesDescriptor({ spaceService: await seededService() });
+    const result = await descriptor.render!(ctx({ view: "sell" }));
+    expect(result.contentHtml).toContain("Mettre un produit en vente");
+    expect(result.contentHtml).toContain("SELL-FLOW-02");
   });
 
   it("renders an honest empty state without a service", async () => {

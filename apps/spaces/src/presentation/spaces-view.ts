@@ -66,7 +66,44 @@ export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDesc
       const isGuest = (context.user.roles?.length ?? 0) === 0;
 
       let subViewHtml: string;
-      if (view === "new") {
+      if (view === "sell") {
+        if (isGuest) {
+          return guestLoginPrompt(
+            "Mettre en vente un produit",
+            "La soumission d'une offre commerciale nécessite un compte marchand dans cet espace.",
+          );
+        }
+        subViewHtml = `
+          <div class="glass-card p-6 rounded-2xl border border-outline-variant/20 max-w-xl mx-auto space-y-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Mettre un produit en vente (SELL-FLOW-02)</h3>
+            <p class="text-[11px] text-on-surface-variant leading-relaxed">Soumettez une proposition de produit et ses conditions commerciales à la modération du catalogue.</p>
+            <form id="sell-product-form" class="space-y-4 text-xs">
+              <div>
+                <label class="block text-[10px] font-bold uppercase text-on-surface-variant mb-1">Désignation du produit</label>
+                <input type="text" placeholder="Ex: Xiaomi 18 Pro Max 5G Ceramic Edition" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" required />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase text-on-surface-variant mb-1">Référence suggérée (SKU)</label>
+                <input type="text" placeholder="Ex: REF-XIAOMI-18-CERAMIC" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" required />
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-on-surface-variant mb-1">Prix proposé (€ / DZD)</label>
+                  <input type="number" placeholder="450.00" step="0.01" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" required />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-on-surface-variant mb-1">Allocation de stock</label>
+                  <input type="number" placeholder="10" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" required />
+                </div>
+              </div>
+              <div class="flex justify-end gap-2 pt-2">
+                <a href="/spaces" class="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 font-bold">Annuler</a>
+                <button type="submit" class="px-5 py-2 rounded-xl bg-primary text-on-primary font-bold shadow-md shadow-primary/25 cursor-pointer">Soumettre pour approbation</button>
+              </div>
+            </form>
+          </div>
+        `;
+      } else if (view === "new") {
         if (isGuest) {
           return guestLoginPrompt(
             "Créer un espace",
@@ -111,10 +148,16 @@ export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDesc
             <div class="flex justify-between items-center flex-wrap gap-2">
               <h2 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Espaces de Travail</h2>
               ${isGuest ? "" : `
-              <a href="/spaces?view=new" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center gap-1 cursor-pointer">
-                <span class="material-symbols-outlined text-sm">add_box</span>
-                <span>Nouvel Espace</span>
-              </a>`}
+              <div class="flex items-center gap-2">
+                <a href="/spaces?view=sell" class="px-3.5 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-on-surface font-bold text-xs flex items-center gap-1 cursor-pointer">
+                  <span class="material-symbols-outlined text-sm">storefront</span>
+                  <span>Mettre en vente</span>
+                </a>
+                <a href="/spaces?view=new" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center gap-1 cursor-pointer">
+                  <span class="material-symbols-outlined text-sm">add_box</span>
+                  <span>Nouvel Espace</span>
+                </a>
+              </div>`}
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               ${spaces.map((s) => {
@@ -128,9 +171,12 @@ export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDesc
                     <span class="text-[11px] text-on-surface-variant mt-2 block font-mono tabular-nums"><strong class="text-on-surface font-bold font-sans">${pub.followersCount}</strong> suiveurs</span>
                   </div>
                 </div>
-                <div class="pt-4 mt-4 border-t border-outline-variant/10">
-                  <a href="/spaces?view=profile&amp;space=${encodeURIComponent(pub.slug)}" class="block text-center w-full py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-[10px] font-bold transition cursor-pointer">
-                    Voir le profil
+                <div class="pt-4 mt-4 border-t border-outline-variant/10 flex items-center justify-between gap-2">
+                  <a href="/spaces?view=profile&amp;space=${encodeURIComponent(pub.slug)}" class="block text-center flex-1 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-[10px] font-bold transition cursor-pointer">
+                    Profil
+                  </a>
+                  <a href="/spaces?view=sell&amp;space=${encodeURIComponent(pub.slug)}" class="block text-center flex-1 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-[10px] font-bold transition cursor-pointer">
+                    Vendre
                   </a>
                 </div>
               </div>`;
@@ -159,6 +205,9 @@ export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDesc
                 Profil de l'Espace
               </a>
               ${isGuest ? "" : `
+              <a href="/spaces?view=sell" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === 'sell' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+                Mettre en Vente
+              </a>
               <a href="/spaces?view=new" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === 'new' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
                 Créer un Espace
               </a>`}
@@ -173,7 +222,7 @@ export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDesc
 
       return {
         contentHtml,
-        pageTitle: `Spaces — ${view === 'profile' ? "Profil de l'Espace" : 'Espaces'}`,
+        pageTitle: `Spaces — ${view === 'profile' ? "Profil de l'Espace" : view === 'sell' ? "Mettre en vente" : 'Espaces'}`,
       };
     },
   };
@@ -236,8 +285,12 @@ async function renderSpaceProfile(
               </div>`;
   const management = isGuest ? "" : `
               <div class="flex items-center gap-2 pb-1">
-                <a href="/commerce?seller=${encodeURIComponent(space.id)}" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold transition hover:opacity-95 shadow-md shadow-primary/20 flex items-center gap-1.5 cursor-pointer">
+                <a href="/spaces?view=sell&amp;space=${encodeURIComponent(space.id)}" class="px-3.5 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-on-surface text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
                   <span class="material-symbols-outlined text-sm">storefront</span>
+                  <span>Mettre en vente</span>
+                </a>
+                <a href="/commerce?seller=${encodeURIComponent(space.id)}" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold transition hover:opacity-95 shadow-md shadow-primary/20 flex items-center gap-1.5 cursor-pointer">
+                  <span class="material-symbols-outlined text-sm">visibility</span>
                   <span>Voir les offres</span>
                 </a>
               </div>`;

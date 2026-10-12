@@ -20,6 +20,7 @@ export function createPortfolioView(service: PortfolioService = portfolioService
     async render(context: { query?: Record<string, string> }): Promise<BacRenderResult> {
       const view = context.query?.view || "dashboard";
       const searchQuery = context.query?.search || "";
+      const selectedRef = context.query?.ref || "";
 
       let innerViewHtml: string;
 
@@ -47,7 +48,64 @@ export function createPortfolioView(service: PortfolioService = portfolioService
       const draftCount = vendables.filter((v) => v.status === "Draft").length;
       const archivedCount = vendables.filter((v) => v.status === "Archived").length;
 
-      if (view === "dashboard") {
+      if (view === "detail" && selectedRef) {
+        let vendable: Vendable | undefined = vendables.find((v) => v.code === selectedRef || v.id === selectedRef);
+        if (!vendable && activeService && typeof activeService.findVendable === "function") {
+          const found = await activeService.findVendable(selectedRef);
+          if (found) vendable = found;
+        }
+
+        if (vendable) {
+          const titleFr = vendable.title.fr || vendable.code;
+          const titleEn = vendable.title.en || "";
+          const descFr = vendable.description.fr || "Aucune description renseignée.";
+          const specs = vendable.characteristics?.specifications || {};
+
+          innerViewHtml = `
+            <div class="space-y-6">
+              <div class="flex items-center justify-between">
+                <a href="/portfolio?view=all" class="text-xs text-primary font-bold hover:underline">&larr; Retour au catalogue</a>
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                  vendable.status === 'Published' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                }">${escapeHtml(vendable.status)}</span>
+              </div>
+
+              <div class="glass-card p-6 rounded-2xl border border-outline-variant/20 space-y-6">
+                <div>
+                  <h2 class="text-lg font-bold text-on-surface">${escapeHtml(titleFr)}</h2>
+                  ${titleEn ? `<p class="text-xs text-on-surface-variant font-medium mt-0.5">${escapeHtml(titleEn)}</p>` : ''}
+                  <p class="text-xs text-on-surface-variant font-mono mt-1">Réf / Code: <span class="text-primary font-bold">${escapeHtml(vendable.code)}</span> · Type: ${escapeHtml(vendable.type)}</p>
+                </div>
+
+                <div class="p-4 rounded-xl bg-surface-container/60 border border-outline-variant/10 space-y-2">
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Description PIM</h3>
+                  <p class="text-xs text-on-surface leading-relaxed">${escapeHtml(descFr)}</p>
+                </div>
+
+                <div class="space-y-3">
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Spécifications & Attributs EAV</h3>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    ${Object.entries(specs).map(([k, v]) => `
+                      <div class="p-3 rounded-xl bg-surface-container/40 border border-outline-variant/10 flex justify-between items-center">
+                        <span class="font-medium text-on-surface-variant capitalize">${escapeHtml(k)}</span>
+                        <span class="font-bold text-on-surface">${escapeHtml(String(v))}</span>
+                      </div>
+                    `).join("")}
+                    ${Object.keys(specs).length === 0 ? '<p class="text-xs text-on-surface-variant italic col-span-2">Aucun attribut EAV renseigné.</p>' : ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          innerViewHtml = `
+            <div class="glass-card p-8 rounded-2xl border border-outline-variant/20 text-center space-y-4">
+              <p class="text-xs text-rose-400 font-bold">Fiche introuvable pour la référence [${escapeHtml(selectedRef)}].</p>
+              <a href="/portfolio?view=all" class="text-xs text-primary font-bold hover:underline">&larr; Retour au catalogue</a>
+            </div>
+          `;
+        }
+      } else if (view === "dashboard") {
         innerViewHtml = `
           <div class="space-y-6">
             <!-- Real KPI Summary Header -->
@@ -212,7 +270,7 @@ export function createPortfolioView(service: PortfolioService = portfolioService
 
             <div class="pt-4 border-t border-outline-variant/10 flex items-center justify-between mt-4">
               <span class="text-xs font-mono tabular-nums font-bold text-primary">${escapeHtml(v.code)}</span>
-              <a href="/portfolio/${encodeURIComponent(v.code)}" class="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 text-[10px] font-bold text-on-surface">
+              <a href="/portfolio?view=detail&ref=${encodeURIComponent(v.code)}" class="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 text-[10px] font-bold text-on-surface">
                 Voir Fiche
               </a>
             </div>
@@ -254,7 +312,7 @@ export function createPortfolioView(service: PortfolioService = portfolioService
               <a href="/portfolio?view=dashboard" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === 'dashboard' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
                 Dashboard
               </a>
-              <a href="/portfolio?view=all" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === 'all' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              <a href="/portfolio?view=all" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === 'all' || view === 'detail' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
                 Tous les Produits
               </a>
               <a href="/portfolio?view=features" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === 'features' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">

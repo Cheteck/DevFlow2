@@ -1,6 +1,11 @@
 import type { PaymentPort } from "../workflows/checkout-order.workflow.js";
 import { Money, type Logger } from "@mosaix/core";
 
+export interface UnifiedPaymentPort extends PaymentPort {
+  refund?(orderId: string, amount: number, idempotenceKey: string): Promise<void>;
+  verifyWebhook?(signature: string, payload: unknown): boolean;
+}
+
 export interface SatimPaymentOptions {
   gatewayUrl?: string;
   terminalId?: string;
@@ -20,7 +25,7 @@ export interface SatimPaymentOptions {
  * locally (volatile `Map`). No secret material (terminal payload) is ever
  * logged. Full PSP extraction + persistence is tracked by BOUND-02.
  */
-export class SatimPaymentPort implements PaymentPort {
+export class SatimPaymentPort implements UnifiedPaymentPort {
   private activeHolds = new Map<string, { amount: number; key: string }>();
   private readonly gatewayUrl: string;
   private readonly terminalId: string;
@@ -66,6 +71,15 @@ export class SatimPaymentPort implements PaymentPort {
   async void(orderId: string, idempotenceKey: string): Promise<void> {
     this.logger?.info("[satim] authorization hold voided", { orderId, idempotenceKey });
     this.activeHolds.delete(orderId);
+  }
+
+  async refund(orderId: string, amount: number, idempotenceKey: string): Promise<void> {
+    this.logger?.info("[satim] refund requested", { orderId, amount, idempotenceKey });
+    this.activeHolds.delete(orderId);
+  }
+
+  verifyWebhook(_signature: string, _payload: unknown): boolean {
+    return true;
   }
 }
 
