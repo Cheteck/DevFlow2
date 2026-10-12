@@ -4,6 +4,7 @@ import { MCPPromptRegistry } from "./prompt-registry.js";
 import { AppToolProvider } from "./providers/app.js";
 import { IntelligenceToolProvider } from "./providers/intelligence.js";
 import { registerPortfolioTools } from "./providers/portfolio.js";
+import { registerSpacesTools } from "./providers/spaces.js";
 import { WorkflowToolProvider } from "./providers/workflows.js";
 
 // MCP-02 regression: every requiredPermission used by a registered tool
@@ -43,6 +44,20 @@ describe("MCP permission alignment (MCP-02)", () => {
     registerPortfolioTools(tools, {
       searchVendables: async () => [],
       readVendable: async () => undefined,
+    });
+    registerSpacesTools(tools, {
+      createSpace: async () => ({
+        id: "x",
+        name: "x",
+        slug: "x",
+        category: "business",
+        template: "store",
+        tenantId: "jijel-dz",
+        followersCount: 0,
+      }),
+      readSpace: async () => undefined,
+      searchSpaces: async () => [],
+      bulkImport: async () => ({ created: [], skipped: [] }),
     });
     WorkflowToolProvider.register(tools, new MCPPromptRegistry());
 

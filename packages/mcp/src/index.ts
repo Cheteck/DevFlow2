@@ -9,6 +9,7 @@ export * from "./security/audit-logger";
 export * from "./providers/platform";
 export * from "./providers/app";
 export * from "./providers/portfolio";
+export * from "./providers/spaces";
 export * from "./providers/intelligence";
 
 export * from "./security/rate-limiter";

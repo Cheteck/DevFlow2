@@ -22,11 +22,17 @@ import {
   PlatformToolProvider,
   WorkflowToolProvider,
   createPortfolioBACClient,
+  createSpacesBACClient,
   registerPortfolioPrompts,
   registerPortfolioResources,
   registerPortfolioTools,
+  registerSpacesPrompts,
+  registerSpacesResources,
+  registerSpacesTools,
   type PortfolioBACClient,
   type PortfolioModuleLike,
+  type SpacesBACClient,
+  type SpacesModuleLike,
 } from "@mosaix/mcp";
 
 import type { DatabasePort } from "@mosaix/ports-database";
@@ -73,6 +79,33 @@ async function wirePortfolioClient(
   return undefined;
 }
 
+async function wireSpacesClient(db?: DatabasePort): Promise<SpacesBACClient | undefined> {
+  const candidates = [
+    "@apps/spaces",
+    new URL("../../../apps/spaces/src/index.ts", import.meta.url).href,
+  ];
+  for (const specifier of candidates) {
+    try {
+      // Contrat public du BAC uniquement (index.ts exporte SpaceService +
+      // PostgresSpaceRepository) — jamais les couches internes.
+      const spaces = (await import(specifier)) as SpacesModuleLike;
+      const RepositoryCtor = spaces.PostgresSpaceRepository;
+      const repository =
+        db?.capabilities.dialect === "postgres" && typeof RepositoryCtor === "function"
+          ? new RepositoryCtor(db)
+          : undefined;
+      if (!repository) {
+        console.warn("[mcp-routes] spaces MCP client on ephemeral in-memory store (no Postgres DatabasePort).");
+      }
+      const service = new spaces.SpaceService(repository);
+      return createSpacesBACClient(service);
+    } catch {
+      continue;
+    }
+  }
+  return undefined;
+}
+
 async function getGateway(db?: DatabasePort): Promise<MCPGateway> {
   const wantsPersistent = db?.capabilities.dialect === "postgres";
   if (!gatewayPromise || (wantsPersistent && !gatewayPersistent)) {
@@ -89,6 +122,10 @@ async function getGateway(db?: DatabasePort): Promise<MCPGateway> {
       registerPortfolioTools(tools, client);
       registerPortfolioResources(resources, client);
       registerPortfolioPrompts(prompts);
+      const spacesClient = await wireSpacesClient(db);
+      registerSpacesTools(tools, spacesClient);
+      registerSpacesResources(resources, spacesClient);
+      registerSpacesPrompts(prompts);
       return new MCPGateway(tools, resources, prompts);
     })();
   }

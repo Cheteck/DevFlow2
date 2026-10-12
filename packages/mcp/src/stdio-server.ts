@@ -19,6 +19,13 @@ import {
   createPortfolioBACClient,
   type PortfolioModuleLike,
 } from "./providers/portfolio.js";
+import {
+  registerSpacesTools,
+  registerSpacesResources,
+  registerSpacesPrompts,
+  createSpacesBACClient,
+  type SpacesModuleLike,
+} from "./providers/spaces.js";
 import { WorkflowToolProvider } from "./providers/workflows.js";
 
 // Register all providers
@@ -74,7 +81,49 @@ async function wirePortfolioTools(): Promise<void> {
   registerPortfolioPrompts(mcpPromptRegistry);
 }
 
+/**
+ * Wires deterministic Spaces tools to the real BAC via dynamic import.
+ * Stdio transport has no DatabasePort by construction → in-memory
+ * SpaceService (honest ephemeral parity, never silent storage).
+ */
+async function wireSpacesTools(): Promise<void> {
+  const candidates = [
+    "@apps/spaces",
+    new URL("../../../apps/spaces/src/index.ts", import.meta.url).href,
+  ];
+  let spaces: SpacesModuleLike | null = null;
+  let lastError: unknown = null;
+  for (const specifier of candidates) {
+    try {
+      spaces = (await import(specifier)) as SpacesModuleLike;
+      break;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  if (!spaces) {
+    console.error(
+      "[mcp-server] spaces tools unwired (@apps/spaces not resolvable):",
+      lastError instanceof Error ? lastError.message : String(lastError),
+    );
+    return;
+  }
+  try {
+    const service = new spaces.SpaceService(undefined);
+    const client = createSpacesBACClient(service);
+    registerSpacesTools(mcpToolRegistry, client);
+    registerSpacesResources(mcpResourceRegistry, client);
+  } catch (err) {
+    console.error(
+      "[mcp-server] spaces tools unwired (@apps/spaces not resolvable):",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+  registerSpacesPrompts(mcpPromptRegistry);
+}
+
 await wirePortfolioTools();
+await wireSpacesTools();
 
 const gateway = new MCPGateway();
 

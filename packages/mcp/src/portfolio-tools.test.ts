@@ -246,3 +246,81 @@ describe("Portfolio propose tool (MCP write seam, Draft-only)", () => {
     ).rejects.toThrow("already exists");
   });
 });
+
+describe("Portfolio options tool (MCP options seam)", () => {
+  const optionsClient: PortfolioBACClient = {
+    searchVendables: async () => [],
+    readVendable: async () => undefined,
+    setProductOptions: async (vendableId, _groups) => ({
+      id: vendableId,
+      reference: "REF-1",
+      type: "Product",
+      status: "Draft",
+      name: "Phone",
+    }),
+  };
+
+  it("registers no options tool for clients without the seam", () => {
+    const tools = new MCPToolRegistry();
+    registerPortfolioTools(tools, {
+      searchVendables: async () => [],
+      readVendable: async () => undefined,
+    });
+
+    expect(tools.getTool("portfolio_vendable_options_set")).toBeUndefined();
+  });
+
+  it("registers options_set with the create permission and forwards groups", async () => {
+    const seen: Array<{ id: string; groups: unknown }> = [];
+    const tools = new MCPToolRegistry();
+    registerPortfolioTools(tools, {
+      searchVendables: async () => [],
+      readVendable: async () => undefined,
+      setProductOptions: async (vendableId, groups) => {
+        seen.push({ id: vendableId, groups });
+        return {
+          id: vendableId,
+          reference: "REF-1",
+          type: "Product",
+          status: "Draft",
+          name: "Phone",
+        };
+      },
+    });
+
+    const tool = tools.getTool("portfolio_vendable_options_set");
+    expect(tool?.requiredPermission).toBe("portfolio:vendable:create:tenant");
+    expect(tool?.ownerApp).toBe("@apps/portfolio");
+
+    const out = (await tool?.handler({
+      id: "v1",
+      groups: [{ code: "color", values: [{ value: "Black" }] }],
+    })) as { id: string };
+    expect(out.id).toBe("v1");
+    expect(seen.length).toBe(1);
+
+    await expect(tool?.handler({ groups: [] })).rejects.toThrow(
+      "Missing required 'id'",
+    );
+    await expect(tool?.handler({ id: "v1" })).rejects.toThrow(
+      "Missing required 'groups' array",
+    );
+  });
+
+  it("surfaces BAC validation errors without swallowing them", async () => {
+    const tools = new MCPToolRegistry();
+    registerPortfolioTools(tools, {
+      ...optionsClient,
+      setProductOptions: async () => {
+        throw new Error("Options produit invalides : options[0] : code manquant");
+      },
+    });
+
+    await expect(
+      tools.getTool("portfolio_vendable_options_set")?.handler({
+        id: "v1",
+        groups: [{ values: [] }],
+      }),
+    ).rejects.toThrow("Options produit invalides");
+  });
+});

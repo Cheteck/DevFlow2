@@ -100,6 +100,15 @@ export interface PortfolioBACClient {
   proposeVendable?: (
     draft: PortfolioProposeDraft,
   ) => Promise<PortfolioVendableSummary>;
+  /**
+   * Optional options seam. Same honesty rule: only registered when present,
+   * delegating to `PortfolioService.setProductOptions` (validation + workflow
+   * guard enforced by the BAC, never by the transport).
+   */
+  setProductOptions?: (
+    vendableId: string,
+    groups: unknown,
+  ) => Promise<PortfolioVendableSummary>;
 }
 
 /** Full structural fiche surface consumed by the MCP wiring (never a static `@apps/*` import). */
@@ -114,6 +123,10 @@ export interface PortfolioServiceLike {
   findVendable(id: string): Promise<PortfolioVendableFull | undefined>;
   createVendable(
     draft: Record<string, unknown>,
+  ): Promise<PortfolioVendableFull>;
+  setProductOptions(
+    vendableId: string,
+    groups: unknown,
   ): Promise<PortfolioVendableFull>;
 }
 
@@ -163,6 +176,19 @@ export function createPortfolioBACClient(
           draft as unknown as Record<string, unknown>,
         ),
       ),
+    setProductOptions: async (vendableIdOrReference, groups) => {
+      const found =
+        (await service.findVendable(vendableIdOrReference)) ??
+        (await service.search({})).find(
+          (vendable) => vendable.identity.reference === vendableIdOrReference,
+        );
+      if (!found) {
+        throw new Error(`Vendable [${vendableIdOrReference}] not found.`);
+      }
+      return toSummary(
+        await service.setProductOptions(found.identity.id, groups),
+      );
+    },
   };
 }
 
@@ -461,6 +487,38 @@ export function registerPortfolioTools(
       handler: async (input: unknown) => {
         const draft = buildProposeDraft((input ?? {}) as PortfolioProposeInput);
         return propose(draft);
+      },
+    });
+  }
+
+  // Options seam: same optionality rule. Fiche must exist and be editable
+  // (Draft/In Review/Validated enforced by the BAC). No commercial scope
+  // exists in the manifest, so creation scope covers fiche enrichment.
+  if (typeof client.setProductOptions === "function") {
+    const setOptions = client.setProductOptions.bind(client);
+    tools.registerTool({
+      name: "portfolio_vendable_options_set",
+      description:
+        "Replace a Portfolio vendable's product options (colors, etc.): validated groups + values + incompatibilities, Draft/In Review/Validated only, descriptive only.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          groups: { type: "array", items: { type: "object" } },
+        },
+        required: ["id", "groups"],
+      },
+      requiredPermission: CREATE_PERMISSION,
+      ownerApp: "@apps/portfolio",
+      handler: async (input: unknown) => {
+        const args = (input ?? {}) as { id?: unknown; groups?: unknown };
+        if (typeof args.id !== "string" || args.id.length === 0) {
+          throw new Error("Missing required 'id' (vendable id or reference).");
+        }
+        if (!Array.isArray(args.groups)) {
+          throw new Error("Missing required 'groups' array.");
+        }
+        return setOptions(args.id, args.groups);
       },
     });
   }
