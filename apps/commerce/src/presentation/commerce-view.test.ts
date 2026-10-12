@@ -38,6 +38,13 @@ describe("createCommerceDescriptor", () => {
     expect(result.contentHtml).toContain("99.99 EUR");
     expect(result.contentHtml).not.toContain("Xiaomi");
     expect(result.contentHtml).not.toContain("Ali Express");
+    // Marketplace toolbar (client-side filter/sort over loaded offers)…
+    expect(result.contentHtml).toContain('id="offer-search"');
+    expect(result.contentHtml).toContain('id="offer-sort"');
+    expect(result.contentHtml).toContain("offer-card");
+    // …and no duplicated shell header nor fake category filter.
+    expect(result.contentHtml).not.toContain("Marché Décentralisé");
+    expect(result.contentHtml).not.toContain("Toutes les Catégories");
   });
 
   it("renders an honest empty state without a service", async () => {

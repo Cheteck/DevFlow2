@@ -28,7 +28,7 @@ export function createCommerceDescriptor(deps: CommerceDescriptorDeps = {}): Bac
     name: "Commerce Marketplace",
     version: "1.0.0",
     routePrefix: "/commerce",
-    icon: "🛒",
+    icon: "🏪",
     isEnabled: true,
     requiredPermissions: ["commerce:order:create"],
 
@@ -120,69 +120,105 @@ export function createCommerceDescriptor(deps: CommerceDescriptorDeps = {}): Bac
             <div class="text-3xl">🏪</div>
             <h3 class="text-sm font-bold text-on-surface">Aucune offre publiée pour le moment</h3>
             <p class="text-xs text-on-surface-variant">Les Spaces vendeurs n'ont pas encore publié d'offres. Revenez bientôt.</p>
-          </div>` : offers.map((o) => `
-          <div class="glass-card rounded-2xl p-5 border border-outline-variant/20 flex flex-col justify-between hover:border-primary/40 transition duration-200">
-            <div class="space-y-3">
-              <div class="flex justify-between items-start">
-                <h3 class="text-xs font-bold text-on-surface mt-1">${escapeHtml(o.title)}</h3>
-              </div>
-              ${o.description ? `<p class="text-[11px] text-on-surface-variant leading-relaxed">${escapeHtml(o.description)}</p>` : ""}
-              <div class="flex items-center gap-1.5 text-[10px] text-on-surface-variant/80">
-                <span>${escapeHtml(o.seller.name ?? o.seller.id)}</span>
-                <span aria-hidden="true" class="text-outline-variant/40">·</span>
-                <span>Stock : <strong class="font-mono tabular-nums">${o.stockAllocation ?? "illimité"}</strong></span>
-              </div>
+          </div>` : offers.map((o) => {
+          const searchable = `${o.title} ${o.description ?? ""} ${o.seller.name ?? o.seller.id}`.toLowerCase();
+          const initial = (o.seller.name ?? o.seller.id ?? "?").trim().charAt(0).toUpperCase() || "?";
+          return `
+          <article class="offer-card glass-card rounded-2xl border border-outline-variant/20 flex flex-col hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 transition duration-200 overflow-hidden"
+            data-search="${escapeHtml(searchable)}" data-price="${o.priceInCents}" data-created="${escapeHtml(o.createdAt)}">
+            <div class="h-28 bg-gradient-to-br from-primary/15 via-surface-container to-surface-container-low flex items-center justify-center text-4xl font-bold text-primary/60 select-none" aria-hidden="true">
+              ${escapeHtml(initial)}
             </div>
-            <div class="pt-4 mt-4 border-t border-outline-variant/10 flex items-center justify-between">
-              <span class="text-xs font-mono tabular-nums font-bold text-primary">${formatMoney(o.priceInCents, o.currency)}</span>
-              <a href="/commerce?view=cart" class="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/95 text-on-primary text-[10px] font-bold transition cursor-pointer">
+            <div class="p-4 space-y-2.5 flex flex-col flex-1">
+              <h3 class="text-xs font-bold text-on-surface leading-snug">${escapeHtml(o.title)}</h3>
+              <p class="text-[11px] text-on-surface-variant truncate">par ${escapeHtml(o.seller.name ?? o.seller.id)}</p>
+              <div class="flex items-center justify-between mt-auto pt-2">
+                <span class="text-sm font-mono tabular-nums font-bold text-primary">${formatMoney(o.priceInCents, o.currency)}</span>
+                <span class="text-[10px] ${o.stockAllocation ? "text-on-surface-variant" : "text-emerald-400"} font-semibold">${o.stockAllocation ? `Stock : ${o.stockAllocation}` : "En stock"}</span>
+              </div>
+              <a href="/commerce?view=cart" class="block text-center w-full py-2 rounded-xl bg-primary/10 hover:bg-primary hover:text-on-primary text-primary text-[11px] font-bold border border-primary/25 transition cursor-pointer">
                 Ajouter au panier
               </a>
             </div>
-          </div>
-        `).join("");
+          </article>`;
+        }).join("");
 
         subViewHtml = `
           <div class="space-y-6">
-            <div class="flex justify-between items-center flex-wrap gap-3">
-              <div>
-                <h2 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Marché Décentralisé</h2>
-                <p class="text-xs text-on-surface-variant mt-1">Explorez les offres d'achat direct et découvrez nos produits exclusifs.</p>
+            <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div class="relative flex-1 min-w-0">
+                <span class="material-symbols-outlined text-sm text-on-surface-variant/60 absolute left-3 top-2.5 pointer-events-none">search</span>
+                <input id="offer-search" type="search" placeholder="Rechercher dans les ${offers.length} offre(s) affichée(s)…"
+                  class="w-full bg-surface-container border border-outline-variant/20 focus:border-primary/50 rounded-xl pl-9 pr-3 py-2 text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none transition" />
+              </div>
+              <div class="flex items-center gap-3 shrink-0">
+                <span id="offer-count" class="text-[11px] text-on-surface-variant font-medium">${offers.length} offre(s)</span>
+                <select id="offer-sort" class="bg-surface-container border border-outline-variant/20 rounded-xl px-2.5 py-2 text-xs text-on-surface focus:outline-none cursor-pointer">
+                  <option value="new">Plus récentes</option>
+                  <option value="asc">Prix croissant</option>
+                  <option value="desc">Prix décroissant</option>
+                </select>
               </div>
             </div>
+            <p id="offer-empty-search" class="hidden text-xs text-on-surface-variant/70 italic text-center py-6">Aucune offre ne correspond à cette recherche.</p>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div id="offer-grid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               ${gridHtml}
             </div>
+          </div>
+          <script>
+          (function() {
+            var grid = document.getElementById('offer-grid');
+            var input = document.getElementById('offer-search');
+            var sort = document.getElementById('offer-sort');
+            var count = document.getElementById('offer-count');
+            var emptyMsg = document.getElementById('offer-empty-search');
+            if (!grid || !input || !sort) return;
+            function apply() {
+              var q = input.value.toLowerCase().trim();
+              var cards = Array.prototype.slice.call(grid.querySelectorAll('.offer-card'));
+              var visible = 0;
+              cards.forEach(function(card) {
+                var hit = !q || (card.getAttribute('data-search') || '').indexOf(q) !== -1;
+                card.classList.toggle('hidden', !hit);
+                if (hit) visible++;
+              });
+              var mode = sort.value;
+              var shown = cards.filter(function(card) { return !card.classList.contains('hidden'); });
+              shown.sort(function(a, b) {
+                if (mode === 'asc') return (+a.dataset.price) - (+b.dataset.price);
+                if (mode === 'desc') return (+b.dataset.price) - (+a.dataset.price);
+                return (b.dataset.created || '').localeCompare(a.dataset.created || '');
+              });
+              shown.forEach(function(card) { grid.appendChild(card); });
+              if (count) count.textContent = visible + ' offre(s)';
+              if (emptyMsg) emptyMsg.classList.toggle('hidden', visible !== 0);
+            }
+            input.addEventListener('input', apply);
+            sort.addEventListener('change', apply);
+          })();
+          </script>
           </div>
         `;
       }
 
+      // Compact in-view tabs (the shell header already shows the title —
+      // no duplicated header block here).
       const contentHtml = `
-        <div class="space-y-6">
-          <!-- Subnavigation -->
-          <div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center text-2xl">🛒</div>
-              <div>
-                <h1 class="text-sm font-bold text-on-surface">Marketplace</h1>
-                <p class="text-[11px] text-on-surface-variant">Achat direct et gestion des transactions</p>
-              </div>
-            </div>
-            <div class="flex gap-2">
-              <a href="/commerce?view=offers" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === 'offers' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
-                Boutique
-              </a>
-              ${isGuest ? "" : `
-              <a href="/commerce?view=cart" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${view === 'cart' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
-                <span class="material-symbols-outlined text-sm">shopping_cart</span>
-                <span>Panier</span>
-              </a>
-              <a href="/commerce?view=orders" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${view === 'orders' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
-                <span class="material-symbols-outlined text-sm">receipt_long</span>
-                <span>Commandes</span>
-              </a>`}
-            </div>
+        <div class="space-y-5">
+          <div class="flex gap-1 border-b border-outline-variant/15">
+            <a href="/commerce?view=offers" class="px-4 py-2 text-xs font-bold transition border-b-2 -mb-px ${view === 'offers' ? "border-primary text-primary" : "border-transparent text-on-surface-variant hover:text-on-surface"}">
+              Boutique
+            </a>
+            ${isGuest ? "" : `
+            <a href="/commerce?view=cart" class="px-4 py-2 text-xs font-bold transition border-b-2 -mb-px flex items-center gap-1.5 ${view === 'cart' ? "border-primary text-primary" : "border-transparent text-on-surface-variant hover:text-on-surface"}">
+              <span class="material-symbols-outlined text-sm">shopping_cart</span>
+              <span>Panier</span>
+            </a>
+            <a href="/commerce?view=orders" class="px-4 py-2 text-xs font-bold transition border-b-2 -mb-px flex items-center gap-1.5 ${view === 'orders' ? "border-primary text-primary" : "border-transparent text-on-surface-variant hover:text-on-surface"}">
+              <span class="material-symbols-outlined text-sm">receipt_long</span>
+              <span>Commandes</span>
+            </a>`}
           </div>
 
           <!-- Main Inner View -->
