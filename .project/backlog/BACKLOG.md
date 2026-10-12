@@ -200,6 +200,18 @@ Détails P0/P1 ci-dessous. P2/LATER en une ligne (pas de spec ici).
 - **Preuves :** `proposal-service.ts` (`approve`), `commerce-offer.model.ts`, migration v1.007, tests à joindre.
 - **Prochaine action :** migration + port + saga d'abord (sans UI), UI ensuite (SELL-FLOW-02, PORT-UI-04).
 
+### PRICE-01 — Contrat de prix et historique
+- **Statut :** OPEN · **Domaine :** Commerce · **Dépendances :** SELL-FLOW-01 (prix de départ des `approvedTerms`) · **Décision :** ADR-0021
+- **Risque :** prix écrasé sans trace (promotion qui réécrit le prix de base), montants non rejouables en litige, surcouche promo improvisée si l'interface de calcul n'est pas conçue d'abord.
+- **Objectif :** prix de base propriété de l'offre + journal append-only des changements effectifs + interface `resolveEffectivePrice(offre, contexte)` que PROMO-01 implémentera ; distinction prix proposé / prix actif / prix payé.
+- **Critères :**
+  - [ ] Prix de base versionné en journal append-only (valeur, devise, acteur, motif, horodatage) ; chaque changement effectif cohérent, idempotent et vérifiable.
+  - [ ] `resolveEffectivePrice` défini (signature + contrat, implémentation de base = prix actif) ; PROMO-01 s'y branchera sans toucher au prix de base.
+  - [ ] Garde-fous vendeur codés (bornes sur remises/durées à figer avec le propriétaire) ; `discountCode` nu sur Order consommé-et-vérifié ou supprimé.
+  - [ ] Seuils de remise et politique d'escalade modération tranchés (propriétaire) avant PROMO-01.
+- **Preuves :** `commerce-offer.model.ts`, migration prix, tests à joindre.
+- **Prochaine action :** figer journal + interface de calcul d'abord (PROMO-01 ensuite) ; trancher les seuils vendeur en parallèle.
+
 ### BOUND-07 — Garde-fou rôles métier vs identité
 - **Statut :** OPEN · **Domaine :** Citadelle/Archi
 - **Critères :** `citadelle.policy.evaluate` formalisé ; `merchant`/`delivery_partner` émis hors Citadelle (Spaces/Commerce) ou ADR.
