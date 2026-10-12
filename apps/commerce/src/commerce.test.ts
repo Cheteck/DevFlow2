@@ -56,6 +56,37 @@ describe('CommerceBAC End-to-End & Unit Tests', () => {
     expect(effectiveMoney.currency).toBe("EUR");
   });
 
+  it('freezes commercial line item snapshot on created orders (PRICE-02)', async () => {
+    const { OrderService } = await import('./domain/order.service.js');
+    const { DemoPaymentPort, DemoInventoryPort } = await import('./workflows/checkout-order.workflow.js');
+    const service = new OrderService(
+      new InMemoryOrderRepository(),
+      new DemoPaymentPort(),
+      new DemoInventoryPort(),
+    );
+
+    const { order } = await service.createOrder({
+      userId: 'usr-snap-1',
+      vendableId: 'vnd-ceramics-01',
+      amount: 45,
+      commercialSnapshot: {
+        vendableId: 'vnd-ceramics-01',
+        unitPriceInCents: 5000,
+        discountInCents: 500,
+        currency: 'EUR',
+        appliedPromotionId: 'promo_summer_500',
+        appliedCouponCode: 'SUMMER5',
+      },
+    });
+
+    expect(order.lineItems).toBeDefined();
+    expect(order.lineItems?.length).toBe(1);
+    const snap = (order.lineItems as Array<Record<string, unknown>>)[0];
+    expect(snap['unitPriceInCents']).toBe(5000);
+    expect(snap['discountInCents']).toBe(500);
+    expect(snap['appliedCouponCode']).toBe('SUMMER5');
+  });
+
   it('should instantiate OrderModel with default traits', () => {
     const order = new OrderModel();
     order.id = 'ord-test-1';

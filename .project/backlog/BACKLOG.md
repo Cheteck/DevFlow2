@@ -47,6 +47,6 @@
 | SELL-FLOW-01 | Approbation vendeur atomique (vendable + offre + events) | DONE | P1 | Saga `ProposalService.approve()` avec `OfferProvisioningPort` et création atomique de vendable/offre |
 | SELL-FLOW-02 | Parcours vendeur dans Space (« mettre en vente ») | DONE | P2 | Formulaire de mise en vente marchand `view=sell` implémenté dans `spaces-view.ts` |
 | PRICE-01 | Contrat de prix et historique | DONE | P1 | Prix de base offre + journal append-only `priceHistory` + `resolveEffectivePrice()` (ADR-0021) |
-| PROMO-01 | Moteur de promotions | OPEN | P2 | % ou fixe, périodes, périmètre, éligibilité, plafonds, cumul explicite, garde-fous vendeurs (dép. PRICE-01) |
-| COUPON-01 | Codes et consommation des coupons | OPEN | P2 | Codes rattachés aux promos, minima, limites globales/par client, expiration, consommation atomique (dép. PROMO-01) |
+| PROMO-01 | Moteur de promotions | DONE | P2 | Implémenté via `PromotionEngine` dans `promotion-engine.ts` |
+| COUPON-01 | Codes et consommation des coupons | DONE | P2 | Implémenté via `CouponService` dans `coupon-service.ts` |
 | PRICE-02 | Remises figées en commande + traçabilité | OPEN | P2 | Snapshot commercial par ligne, devise, arrondis, annulations sans réécriture (dép. PRICE-01 + PROMO-01) |

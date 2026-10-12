@@ -15,11 +15,21 @@ export interface OrderRepositoryPort {
   clear?(): Promise<void>;
 }
 
+export interface CommercialLineSnapshot {
+  vendableId: string;
+  unitPriceInCents: number;
+  discountInCents?: number;
+  currency: string;
+  appliedPromotionId?: string;
+  appliedCouponCode?: string;
+}
+
 export interface CreateOrderParams {
   userId: string;
   vendableId: string;
   amount?: number | undefined;
   idempotenceKey?: string;
+  commercialSnapshot?: CommercialLineSnapshot;
 }
 
 export class OrderService {
@@ -49,6 +59,14 @@ export class OrderService {
     const orderAmount = params.amount ?? 50;
     const idempotenceKey = params.idempotenceKey || `idemp-${order.id}`;
     order.totalAmount = orderAmount;
+
+    // Freeze commercial line item snapshot for traceability (PRICE-02)
+    const snapshot: CommercialLineSnapshot = params.commercialSnapshot ?? {
+      vendableId: params.vendableId,
+      unitPriceInCents: Math.round(orderAmount * 100),
+      currency: order.currency || "EUR",
+    };
+    order.lineItems = [snapshot];
 
     // Double-submit protection: an explicit idempotence key replays the
     // original order instead of creating (and charging) a second one.
