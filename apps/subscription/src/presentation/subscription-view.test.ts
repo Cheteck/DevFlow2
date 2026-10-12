@@ -1,31 +1,41 @@
 import { describe, it, expect } from "vitest";
 import { createSubscriptionDescriptor } from "./subscription-view.js";
+import { SubscriptionService } from "../domain/subscription.service.js";
 
-function ctx(query: Record<string, string> = {}) {
+function ctx(query: Record<string, string> = {}, userId = "user-1") {
   return {
     tenantId: "default",
     spaceId: null,
-    user: { id: "user-1", roles: ["member"], permissions: [] },
+    user: { id: userId, roles: ["member"], permissions: [] },
     theme: { mode: "dark" },
     request: { path: "/subscription", query, headers: {} },
   } as never;
 }
 
 describe("createSubscriptionDescriptor", () => {
-  it("renders subscription plans without alert() callbacks", async () => {
-    const descriptor = createSubscriptionDescriptor();
+  it("renders domain subscription plans dynamically without alert() callbacks", async () => {
+    const service = new SubscriptionService();
+    const descriptor = createSubscriptionDescriptor(service);
     const result = await descriptor.render!(ctx());
 
-    expect(result.contentHtml).toContain("Starter");
-    expect(result.contentHtml).toContain("Pro");
-    expect(result.contentHtml).toContain("Enterprise");
+    expect(result.contentHtml).toContain("Community Starter");
+    expect(result.contentHtml).toContain("Pro Créateur");
+    expect(result.contentHtml).toContain("Entreprise &amp; Collectivités");
     expect(result.contentHtml).not.toContain("alert(");
   });
 
-  it("renders selected plan confirmation message when query parameter is provided", async () => {
-    const descriptor = createSubscriptionDescriptor();
-    const result = await descriptor.render!(ctx({ plan: "Pro" }));
+  it("subscribes user and displays active plan banner when plan query parameter is provided", async () => {
+    const service = new SubscriptionService();
+    const descriptor = createSubscriptionDescriptor(service);
 
-    expect(result.contentHtml).toContain("Votre demande de souscription au forfait <strong>Pro</strong> a été enregistrée avec succès.");
+    const result = await descriptor.render!(ctx({ plan: "plan-pro-creator" }, "user-test-sub"));
+
+    expect(result.contentHtml).toContain("Votre souscription au forfait <strong>plan-pro-creator</strong> a été activée avec succès !");
+    expect(result.contentHtml).toContain("Abonnement Actif :");
+    expect(result.contentHtml).toContain("plan-pro-creator");
+
+    const sub = service.getUserSubscription("user-test-sub");
+    expect(sub).toBeDefined();
+    expect(sub?.planId).toBe("plan-pro-creator");
   });
 });
