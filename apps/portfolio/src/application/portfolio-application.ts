@@ -29,12 +29,6 @@ export interface VendablePublishedPayload {
   status: string;
 }
 
-export interface WorkflowUpdatedPayload {
-  vendableId: string;
-  from: string;
-  to: string;
-}
-
 export const PORTFOLIO_EVENT_SCHEMAS = [
   {
     type: "portfolio.vendable.created",
@@ -48,13 +42,6 @@ export const PORTFOLIO_EVENT_SCHEMAS = [
     version: "1.0.0",
     schema: {
       required: ["vendableId", "reference", "status"],
-    },
-  },
-  {
-    type: "portfolio.workflow.updated",
-    version: "1.0.0",
-    schema: {
-      required: ["vendableId", "from", "to"],
     },
   },
 ] as const;

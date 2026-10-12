@@ -48,7 +48,6 @@ export const MANIFEST = {
   events: [
     "portfolio.vendable.created",
     "portfolio.vendable.published",
-    "portfolio.workflow.updated",
   ],
   experience: {
     frontend: { entrypoint: "./frontend/src/index.ts" },

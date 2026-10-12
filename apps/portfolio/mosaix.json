@@ -39,8 +39,7 @@
   ],
   "events": [
     "portfolio.vendable.created",
-    "portfolio.vendable.published",
-    "portfolio.workflow.updated"
+    "portfolio.vendable.published"
   ],
   "experience": {
     "appCard": {

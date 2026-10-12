@@ -20,12 +20,12 @@
   },
   "dependencies": {
     "@mosaix/contracts": "workspace:*",
-    "@mosaix/core": "workspace:*",
     "@mosaix/http": "workspace:*",
+    "@mosaix/migrations": "workspace:*",
+    "@mosaix/ports-database": "workspace:*",
     "@mosaix/sdk": "workspace:*",
     "@mosaix/security": "workspace:*",
-    "@mosaix/types": "workspace:*",
-    "zod": "^3.23.8"
+    "@mosaix/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

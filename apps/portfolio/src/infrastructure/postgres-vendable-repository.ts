@@ -67,6 +67,25 @@ function inferFeatureType(value: unknown): "N" | "C" | "T" {
   return "T";
 }
 
+/**
+ * Canonicalisation anti-doublons des codes de features (ADR-0018) : casse,
+ * accents, espaces et separateurs unifies ; les points structurants des
+ * chemins pointes sont preserves. Idempotent. Applique a chaque point
+ * d'ecriture pour que "Chipset", "chipset " et "CHIPSET" partagent une
+ * seule ligne de catalogue. Les codes de groupes internes (`attributes`,
+ * `spec:*`, `variant`) sont deja canoniques et ne passent pas par ici.
+ */
+export function normalizeFeatureCode(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9.]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^[_.]+|[_.]+$/g, "");
+}
+
 function coerceValue(valueText: string, featureType: string): unknown {
   if (featureType === "N") {
     const num = Number(valueText);
@@ -121,14 +140,104 @@ function resolveAssignmentValue(row: {
   return { present: true, value: coerceValue(asString(row.valueText), row.featureType) };
 }
 
+/**
+ * Canonicalise un document avant ecriture : les cles (codes de features,
+ * slugs, langues) sont normalisees et le premier ecrit gagne. Sans cela,
+ * des variantes d'ecriture ("Chipset"/"chipset ") violeraient les
+ * contraintes d'unicite (UNIQUE vendable+feature, mappings) au lieu de
+ * fusionner. Idempotent et sans effet sur les documents deja canoniques.
+ */
+function canonicalizeAttributes(
+  attributes: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const seen = new Set<string>();
+  for (const [rawKey, value] of Object.entries(attributes)) {
+    const key = normalizeFeatureCode(rawKey);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out[key] = value;
+  }
+  return out;
+}
+
+function canonicalizeStrings(values: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of values) {
+    const key = slugify(raw);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(raw);
+  }
+  return out;
+}
+
+function canonicalizeVendable(vendable: Vendable): Vendable {
+  const content: VendableContent = {};
+  for (const [rawLang, entry] of Object.entries(vendable.content)) {
+    const lang = rawLang.trim().toLowerCase();
+    if (!lang || content[lang] !== undefined) continue;
+    content[lang] = entry;
+  }
+  const specifications: Record<string, unknown> = {};
+  for (const [rawGroup, specs] of Object.entries(
+    vendable.characteristics.specifications ?? {},
+  )) {
+    const group = normalizeFeatureCode(rawGroup);
+    if (!group || specifications[group] !== undefined) continue;
+    if (specs !== null && typeof specs === "object" && !Array.isArray(specs)) {
+      const clean: Record<string, unknown> = {};
+      for (const [rawKey, value] of Object.entries(
+        specs as Record<string, unknown>,
+      )) {
+        const key = normalizeFeatureCode(rawKey);
+        if (!key || key in clean) continue;
+        clean[key] = value;
+      }
+      specifications[group] = clean;
+    } else {
+      specifications[group] = specs;
+    }
+  }
+  return {
+    ...vendable,
+    content,
+    characteristics: {
+      attributes: canonicalizeAttributes(
+        vendable.characteristics.attributes ?? {},
+      ),
+      specifications,
+    },
+    classification: {
+      categories: canonicalizeStrings(
+        vendable.classification.categories ?? [],
+      ),
+      tags: canonicalizeStrings(vendable.classification.tags ?? []),
+      collections: vendable.classification.collections ?? [],
+    },
+    variants: vendable.variants.map((variant) => ({
+      ...variant,
+      characteristics: variant.characteristics
+        ? {
+            attributes: canonicalizeAttributes(
+              variant.characteristics.attributes ?? {},
+            ),
+          }
+        : undefined,
+    })),
+  };
+}
+
 export class PostgresVendableRepository implements VendableRepository {
   constructor(private readonly db: DatabasePort) {}
 
   async save(vendable: Vendable): Promise<void> {
+    const canonical = canonicalizeVendable(vendable);
     await this.db.transaction(async (tx) => {
-      await this.upsertHead(tx, vendable);
-      await this.deleteChildren(tx, vendable.identity.id);
-      await this.insertChildren(tx, vendable);
+      await this.upsertHead(tx, canonical);
+      await this.deleteChildren(tx, canonical.identity.id);
+      await this.insertChildren(tx, canonical);
     });
   }
 
@@ -258,13 +367,17 @@ export class PostgresVendableRepository implements VendableRepository {
     featureType: string,
     purpose = "additional",
   ): Promise<void> {
+    // Defense en profondeur : le code est canonicalise a chaque point
+    // d'ecriture, re-normalise ici pour tout appelant direct.
+    const clean = normalizeFeatureCode(code);
+    if (!clean) return;
     await tx.execute(
       `INSERT INTO "portfolio"."features" ("id", "groupId", "code", "featureType", "purpose", "createdAt")
        SELECT $1, g."id", $2, $3, $4, $5 FROM "portfolio"."feature_groups" AS g WHERE g."code" = $6
        ON CONFLICT DO NOTHING`,
       [
-        `feat_${slugify(code)}`,
-        code,
+        `feat_${slugify(clean)}`,
+        clean,
         featureType,
         purpose,
         new Date().toISOString(),
@@ -278,15 +391,17 @@ export class PostgresVendableRepository implements VendableRepository {
     featureCode: string,
     value: string,
   ): Promise<void> {
+    const code = normalizeFeatureCode(featureCode);
+    if (!code) return;
     await tx.execute(
       `INSERT INTO "portfolio"."feature_variants" ("id", "featureId", "variant", "createdAt")
        SELECT $1, f."id", $2, $3 FROM "portfolio"."features" AS f WHERE f."code" = $4
        ON CONFLICT DO NOTHING`,
       [
-        `fvar_${slugify(featureCode)}_${slugify(value)}`,
+        `fvar_${slugify(code)}_${slugify(value)}`,
         value,
         new Date().toISOString(),
-        featureCode,
+        code,
       ],
     );
   }
@@ -298,8 +413,10 @@ export class PostgresVendableRepository implements VendableRepository {
     const id = vendable.identity.id;
     const now = new Date().toISOString();
 
-    // Translations (+ keywords).
-    for (const [lang, content] of Object.entries(vendable.content)) {
+    // Translations (+ keywords). Langue canonicalisee (fr == FR).
+    for (const [rawLang, content] of Object.entries(vendable.content)) {
+      const lang = rawLang.trim().toLowerCase();
+      if (!lang) continue;
       await tx.execute(
         `INSERT INTO "portfolio"."translations" ("id", "vendableId", "lang", "name", "shortDescription", "description", "createdAt")
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -321,11 +438,15 @@ export class PostgresVendableRepository implements VendableRepository {
       }
     }
 
-    // Categories + tags (get-or-create by slug).
-    for (const category of vendable.classification.categories ?? []) {
+    // Categories + tags (get-or-create by slug canonique ; le libelle
+    // d'origine est preserve dans `name`, le slug normalise evite les
+    // doublons "Smart Phones"/"smartphones").
+    for (const rawCategory of vendable.classification.categories ?? []) {
+      const category = slugify(rawCategory);
+      if (!category) continue;
       await tx.execute(
         `INSERT INTO "portfolio"."categories" ("id", "slug", "name", "createdAt") VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
-        [`cat_${slugify(category)}`, category, category, now],
+        [`cat_${category}`, category, rawCategory, now],
       );
       await tx.execute(
         `INSERT INTO "portfolio"."vendable_categories" ("vendableId", "categoryId")
@@ -333,10 +454,12 @@ export class PostgresVendableRepository implements VendableRepository {
         [id, category],
       );
     }
-    for (const tag of vendable.classification.tags ?? []) {
+    for (const rawTag of vendable.classification.tags ?? []) {
+      const tag = slugify(rawTag);
+      if (!tag) continue;
       await tx.execute(
         `INSERT INTO "portfolio"."tags" ("id", "slug", "name", "createdAt") VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
-        [`tag_${slugify(tag)}`, tag, tag, now],
+        [`tag_${tag}`, tag, rawTag, now],
       );
       await tx.execute(
         `INSERT INTO "portfolio"."vendable_tags" ("vendableId", "tagId")
@@ -363,14 +486,18 @@ export class PostgresVendableRepository implements VendableRepository {
 
     // Characteristics: attributes + specifications through the feature catalog.
     await this.writeAttributes(tx, id, vendable.characteristics.attributes);
-    for (const [group, specs] of Object.entries(
+    for (const [rawGroup, specs] of Object.entries(
       vendable.characteristics.specifications ?? {},
     )) {
+      const group = normalizeFeatureCode(rawGroup);
+      if (!group) continue;
       await this.ensureGroup(tx, `spec:${group}`, `Specifications ${group}`);
       if (specs !== null && typeof specs === "object" && !Array.isArray(specs)) {
-        for (const [key, value] of Object.entries(
+        for (const [rawKey, value] of Object.entries(
           specs as Record<string, unknown>,
         )) {
+          const key = normalizeFeatureCode(rawKey);
+          if (!key) continue;
           await this.writeValue(
             tx,
             id,
@@ -395,12 +522,14 @@ export class PostgresVendableRepository implements VendableRepository {
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [variant.id, id, variant.reference, variantName, now, now],
       );
-      for (const [key, value] of Object.entries(
+      for (const [rawKey, value] of Object.entries(
         variant.characteristics?.attributes ?? {},
       )) {
         // Contrat d'entree propose/CSV : attributs de variante en texte.
         // 'T' systematique pour un round-trip exact (pas de coercition N).
         // Tableaux : meme joint ", " que les features vendable (ADR-0018).
+        const key = normalizeFeatureCode(rawKey);
+        if (!key) continue;
         await this.ensureFeature(tx, key, "variant", "T");
         const textValue = Array.isArray(value)
           ? value.map(String).join(", ")
@@ -420,16 +549,20 @@ export class PostgresVendableRepository implements VendableRepository {
     if (options !== null && typeof options === "object" && !Array.isArray(options)) {
       const distinct = new Map<string, Set<string>>();
       for (const variant of vendable.variants) {
-        for (const [key, value] of Object.entries(
+        for (const [rawKey, value] of Object.entries(
           variant.characteristics?.attributes ?? {},
         )) {
+          const key = normalizeFeatureCode(rawKey);
+          if (!key) continue;
           if (!distinct.has(key)) distinct.set(key, new Set());
           distinct.get(key)?.add(String(value));
         }
       }
-      for (const [key, option] of Object.entries(
+      for (const [rawKey, option] of Object.entries(
         options as Record<string, unknown>,
       )) {
+        const key = normalizeFeatureCode(rawKey);
+        if (!key) continue;
         const modeling =
           typeof option === "object" && option !== null
             ? String(
@@ -470,7 +603,9 @@ export class PostgresVendableRepository implements VendableRepository {
     attributes: Record<string, unknown>,
   ): Promise<void> {
     await this.ensureGroup(tx, "attributes", "Attributs descriptifs");
-    for (const [key, value] of Object.entries(attributes)) {
+    for (const [rawKey, value] of Object.entries(attributes)) {
+      const key = normalizeFeatureCode(rawKey);
+      if (!key) continue;
       if (value !== null && typeof value === "object" && !Array.isArray(value)) {
         const group = `attr:${key}`;
         await this.ensureGroup(tx, group, `Bloc ${key}`);
@@ -492,15 +627,17 @@ export class PostgresVendableRepository implements VendableRepository {
     path: string[],
     value: unknown,
   ): Promise<void> {
+    const clean = path.map(normalizeFeatureCode).filter((s) => s.length > 0);
+    if (clean.length === 0) return;
     if (value !== null && typeof value === "object" && !Array.isArray(value)) {
       for (const [subKey, subValue] of Object.entries(
         value as Record<string, unknown>,
       )) {
-        await this.writeNested(tx, vendableId, group, [...path, subKey], subValue);
+        await this.writeNested(tx, vendableId, group, [...clean, subKey], subValue);
       }
       return;
     }
-    await this.writeValue(tx, vendableId, group, path.join("."), value);
+    await this.writeValue(tx, vendableId, group, clean.join("."), value);
   }
 
   private async writeValue(
@@ -530,7 +667,7 @@ export class PostgresVendableRepository implements VendableRepository {
       }
       await tx.execute(
         `INSERT INTO "portfolio"."vendable_features" ("id", "vendableId", "featureId", "valueText", "createdAt")
-         SELECT $1, $2, f."id", $3 FROM "portfolio"."features" AS f WHERE f."code" = $4`,
+         SELECT $1, $2, f."id", $3, now() FROM "portfolio"."features" AS f WHERE f."code" = $4`,
         [randomUUID(), vendableId, elements.join(", "), code],
       );
       return;
@@ -540,7 +677,7 @@ export class PostgresVendableRepository implements VendableRepository {
     await this.ensureFeature(tx, code, group, featureType, purpose);
     await tx.execute(
       `INSERT INTO "portfolio"."vendable_features" ("id", "vendableId", "featureId", "valueText", "createdAt")
-       SELECT $1, $2, f."id", $3 FROM "portfolio"."features" AS f WHERE f."code" = $4`,
+       SELECT $1, $2, f."id", $3, now() FROM "portfolio"."features" AS f WHERE f."code" = $4`,
       [randomUUID(), vendableId, String(value), code],
     );
   }
