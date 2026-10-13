@@ -12,7 +12,7 @@ function ctx(query: Record<string, string>) {
   return {
     tenantId: "default",
     spaceId: null,
-    user: { id: "user-1", roles: ["member"], permissions: [] },
+    user: { id: "user-1", roles: ["member"], permissions: [], isAuthenticated: true },
     theme: { mode: "dark" },
     request: { path: "/solidarity", query, headers: {} },
   } as never;

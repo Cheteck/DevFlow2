@@ -6,7 +6,7 @@ function ctx(query: Record<string, string> = {}, userId = "user-1") {
   return {
     tenantId: "default",
     spaceId: null,
-    user: { id: userId, roles: ["member"], permissions: [] },
+    user: { id: userId, roles: ["member"], permissions: [], isAuthenticated: true },
     theme: { mode: "dark" },
     request: { path: "/subscription", query, headers: {} },
   } as never;

@@ -208,7 +208,7 @@ describe("@apps/portfolio Domain Services & Presentation Integration Suite", () 
     const rendered = await descriptor.render({
       tenantId: "tenant_test",
       spaceId: null,
-      user: { id: "usr_1", roles: ["admin"], permissions: [] },
+      user: { id: "usr_1", roles: ["admin"], permissions: [], isAuthenticated: true },
       theme: { mode: "light" },
       request: { path: "/portfolio", query: { view: "dashboard" }, headers: {} },
     });

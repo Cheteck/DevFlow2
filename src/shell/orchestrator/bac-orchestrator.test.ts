@@ -148,7 +148,7 @@ describe("BacOrchestrator", () => {
     const result = await orchestrator.renderBac("crashing-bac", {
       tenantId: "default",
       spaceId: null,
-      user: { id: "u-1", roles: ["member"], permissions: [] },
+      user: { id: "u-1", roles: ["member"], permissions: [], isAuthenticated: true },
       theme: { mode: "dark" },
       request: { path: "/crash", query: {}, headers: {} },
     });

@@ -12,7 +12,7 @@ function ctx(query: Record<string, string | string[]>, roles: string[] = ["membe
   return {
     tenantId: "default",
     spaceId: null,
-    user: { id: "user-1", roles, permissions: [] },
+    user: { id: "user-1", roles, permissions: [], isAuthenticated: true },
     theme: { mode: "dark" },
     request: { path: "/spaces", query, headers: {} },
   } as never;
