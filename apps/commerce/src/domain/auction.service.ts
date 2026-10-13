@@ -73,15 +73,27 @@ export interface PlaceBidResult {
 }
 
 export class AuctionService {
-  private repository: AuctionRepositoryPort;
+  private repository: AuctionRepositoryPort | undefined;
   private eventListeners = new Set<(event: string, payload: unknown) => void>();
 
   constructor(repository?: AuctionRepositoryPort) {
-    this.repository = repository ?? new InMemoryAuctionRepository();
+    // No eager default: instantiating the service (including the shared
+    // singleton below) must not create volatile storage nor log a fallback
+    // warning. The repository resolves lazily on first use — production
+    // wiring (bac-wiring.ts) injects Postgres before any operation runs.
+    this.repository = repository;
   }
 
   setRepository(repository: AuctionRepositoryPort): void {
     this.repository = repository;
+  }
+
+  private store(): AuctionRepositoryPort {
+    if (!this.repository) {
+      // eslint-disable-next-line no-restricted-syntax -- lazy default only: production wiring (composition-root) injects Postgres before first use; the InMemory constructor still reports via InMemoryGuard when this path is ever taken.
+      this.repository = new InMemoryAuctionRepository();
+    }
+    return this.repository;
   }
 
   async createAuction(input: CreateAuctionInput): Promise<Auction> {
@@ -120,20 +132,20 @@ export class AuctionService {
       updatedAt: now.toISOString(),
     };
 
-    await this.repository.saveAuction(auction);
+    await this.store().saveAuction(auction);
     this.emitEvent("commerce.auction.created", { auctionId: id, sellerId: input.sellerId });
     return auction;
   }
 
   async getAuction(id: string): Promise<Auction | null> {
-    const auc = await this.repository.getAuction(id);
+    const auc = await this.store().getAuction(id);
     if (!auc) return null;
     await this.checkAutoClose(auc);
     return auc;
   }
 
   async listAuctions(filter?: { status?: AuctionStatus; sellerId?: string; spaceId?: string }): Promise<Auction[]> {
-    const list = await this.repository.listAuctions(filter);
+    const list = await this.store().listAuctions(filter);
     for (const auc of list) {
       await this.checkAutoClose(auc);
     }
@@ -146,7 +158,7 @@ export class AuctionService {
     bidderName: string,
     amount: number
   ): Promise<PlaceBidResult> {
-    const auc = await this.repository.getAuction(auctionId);
+    const auc = await this.store().getAuction(auctionId);
     if (!auc) {
       return { success: false, auction: {} as Auction, extended: false, error: "Enchère introuvable." };
     }
@@ -178,7 +190,7 @@ export class AuctionService {
     if (msRemaining <= 0) {
       auc.status = "closed";
       auc.updatedAt = now.toISOString();
-      await this.repository.saveAuction(auc);
+      await this.store().saveAuction(auc);
       return { success: false, auction: { ...auc }, extended: false, error: "L'enchère est expirée." };
     }
 
@@ -218,7 +230,7 @@ export class AuctionService {
     auc.reserveMet = amount >= auc.reservePrice;
     auc.updatedAt = timestamp;
 
-    await this.repository.saveBid(auctionId, bid, auc);
+    await this.store().saveBid(auctionId, bid, auc);
 
     this.emitEvent("commerce.auction.bid_placed", {
       auctionId: auc.id,
@@ -241,7 +253,7 @@ export class AuctionService {
     auctionId: string,
     orderService?: OrderService
   ): Promise<{ auction: Auction; winningOrder?: OrderModel }> {
-    const auc = await this.repository.getAuction(auctionId);
+    const auc = await this.store().getAuction(auctionId);
     if (!auc) {
       throw new Error("Enchère introuvable.");
     }
@@ -286,7 +298,7 @@ export class AuctionService {
       });
     }
 
-    await this.repository.saveAuction(auc);
+    await this.store().saveAuction(auc);
     return { auction: { ...auc }, winningOrder };
   }
 
@@ -300,7 +312,7 @@ export class AuctionService {
         if (auc.bidHistory.length > 0 && auc.highestBidderId && auc.currentBid >= auc.reservePrice) {
           auc.winningBid = auc.bidHistory[auc.bidHistory.length - 1];
         }
-        await this.repository.saveAuction(auc);
+        await this.store().saveAuction(auc);
       }
     }
   }

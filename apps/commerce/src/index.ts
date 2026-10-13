@@ -29,10 +29,14 @@ export const MANIFEST = {
   capabilities: [
     { id: "commerce.order.create", version: "1.0.0" },
     { id: "commerce.order.read", version: "1.0.0" },
+    { id: "commerce.offer.publish", version: "1.0.0" },
+    { id: "commerce.offer.read", version: "1.0.0" },
   ],
   permissions: [
     "commerce:order:create:tenant",
     "commerce:order:read:tenant",
+    "commerce:offer:publish:tenant",
+    "commerce:offer:read:tenant",
   ],
   events: [
     "commerce.order.created",
@@ -150,5 +154,5 @@ export * from "./domain/commerce-offer.model.js";
 export * from "./domain/auction.service.js";
 export * from "./domain/delivery-partner.service.js";
 export * from "./infrastructure/postgres-order-repository.js";
-
+export * from "./infrastructure/postgres-offer-repository.js";
 

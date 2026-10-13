@@ -21,11 +21,21 @@
     {
       "id": "commerce.order.read",
       "version": "1.0.0"
+    },
+    {
+      "id": "commerce.offer.publish",
+      "version": "1.0.0"
+    },
+    {
+      "id": "commerce.offer.read",
+      "version": "1.0.0"
     }
   ],
   "permissions": [
     "commerce:order:create",
-    "commerce:order:read"
+    "commerce:order:read",
+    "commerce:offer:publish:tenant",
+    "commerce:offer:read:tenant"
   ],
   "events": [
     "commerce.order.created"

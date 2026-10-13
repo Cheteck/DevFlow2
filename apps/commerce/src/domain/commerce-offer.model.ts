@@ -47,6 +47,40 @@ export interface PayoutBreakdown {
   currency: string;
 }
 
+/**
+ * Centralized availability semantics for `stockAllocation`.
+ * Domain contract: `undefined` = unlimited catalog-controlled stock
+ * (always purchasable); a number = tracked allocation. The presentation
+ * layer must use this helper instead of inferring purchasability from
+ * truthiness — `0` is out of stock, negatives are invalid data.
+ */
+export type StockTone = "ok" | "warn" | "out" | "unknown";
+
+export interface OfferAvailability {
+  label: string;
+  tone: StockTone;
+  purchasable: boolean;
+}
+
+export function getOfferAvailability(stockAllocation?: number): OfferAvailability {
+  if (stockAllocation === undefined) {
+    return { label: "En stock", tone: "ok", purchasable: true };
+  }
+  if (!Number.isInteger(stockAllocation) || stockAllocation < 0) {
+    return { label: "Disponibilité indisponible", tone: "unknown", purchasable: false };
+  }
+  if (stockAllocation === 0) {
+    return { label: "Rupture de stock", tone: "out", purchasable: false };
+  }
+  if (stockAllocation === 1) {
+    return { label: "Plus qu'une unité", tone: "warn", purchasable: true };
+  }
+  if (stockAllocation <= 5) {
+    return { label: `Plus que ${stockAllocation} unités`, tone: "warn", purchasable: true };
+  }
+  return { label: `En stock (${stockAllocation})`, tone: "ok", purchasable: true };
+}
+
 export interface CreateOfferInput {
   seller: SellerEntityRef;
   vendableId: string;
