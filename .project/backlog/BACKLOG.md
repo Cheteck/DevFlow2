@@ -50,3 +50,6 @@
 | PROMO-01 | Moteur de promotions | DONE | P2 | Implémenté via `PromotionEngine` dans `promotion-engine.ts` |
 | COUPON-01 | Codes et consommation des coupons | DONE | P2 | Implémenté via `CouponService` dans `coupon-service.ts` |
 | PRICE-02 | Remises figées en commande + traçabilité | DONE | P2 | Freeze commercial line item snapshot dans `OrderService.createOrder()` |
+| AUTH-05 | Projection identité session→profil (IdentityProfilePort) | OPEN | P1 | `context.user.id` d'exécution = identité de session (commandes scoped, espaces) — cf. revue commerce-view |
+| COMMERCE-CART-01 | Backend panier réel (création/mutation/validation prix+stock) | OPEN | P2 | CTA actuel = badge honnête « bientôt disponible » ; checkout revalide prix+stock (BOUND-02) |
+| VUES-AUTHFLAG-01 | Brancher `isAuthenticated` dans les vues restantes (spaces, etc.) | OPEN | P2 | Même P1 rôles≠auth que commerce-view ; contrat déjà requis dans `BacExecutionContext` |
