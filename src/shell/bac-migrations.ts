@@ -83,6 +83,7 @@ import { migration as bookingSchemaMigration } from "../../apps/booking/src/infr
 import { migration as bookingHardeningMigration } from "../../apps/booking/src/infrastructure/migrations/20260926140000_harden_booking.js";
 import { migration as commerceSchemaMigration } from "../../apps/commerce/src/infrastructure/migrations/20260926092000_move_to_commerce_schema.js";
 import { migration as commerceHardeningMigration } from "../../apps/commerce/src/infrastructure/migrations/20260926110000_harden_commerce.js";
+import { migration as commerceOrderStatusMigration } from "../../apps/commerce/src/infrastructure/migrations/20261013000000_order_pending_payment.js";
 import { migration as imperiaSchemaMigration } from "../../apps/imperia/src/infrastructure/migrations/20260926093000_move_to_imperia_schema.js";
 import { migration as solaraSchemaMigration } from "../../apps/solara/src/infrastructure/migrations/20260926094000_move_to_solara_schema.js";
 import { migration as solaraHardeningMigration } from "../../apps/solara/src/infrastructure/migrations/20260926130000_harden_solara.js";
@@ -104,6 +105,7 @@ export const BAC_CANONICAL_IDS = {
   commerce: "commerce.shop.v1.001_create_commerce_tables",
   commerceSchema: "commerce.shop.v1.002_move_to_schema",
   commerceHardening: "commerce.shop.v1.003_harden_commerce",
+  commerceOrderStatus: "commerce.shop.v1.004_order_pending_payment",
   imperia: "imperia.ops.v1.001_create_imperia_tables",
   imperiaSchema: "imperia.ops.v1.002_move_to_schema",
   portfolioTables: "portfolio.catalog.v1.001_create_portfolio_tables",
@@ -288,6 +290,11 @@ export function createBacMigrationProviders(): readonly MigrationProvider[] {
       "commerce",
       BAC_CANONICAL_IDS.commerceHardening,
       commerceHardeningMigration,
+    ),
+    new StaticMigrationProvider(
+      "commerce",
+      BAC_CANONICAL_IDS.commerceOrderStatus,
+      commerceOrderStatusMigration,
     ),
     new CanonicalIdProvider(new ImperiaPostgresMigrationProvider(), [
       BAC_CANONICAL_IDS.imperia,

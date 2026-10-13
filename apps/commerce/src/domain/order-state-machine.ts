@@ -1,15 +1,11 @@
-/* AUDIT-RESET a055b8e (2026-10-13) — PERTE CONFIRMÉE.
- * La session annonçait "OrderStatus PendingPayment et OrderStateMachine transitions mis à jour",
- * et le message du commit a055b8e le revendique, mais ce fichier est ABSENT du commit et ne contient
- * aucune transition PendingPayment. `git log -S PendingPayment` est vide sur tout l'historique : le travail
- * a été réinitialisé avant le commit sans laisser de trace versionnée.
- * Restauration recommandée : réintroduire l'état PendingPayment + ses transitions (PAY depuis PendingPayment,
- * CANCEL/REFUND selon la saga checkout) puis valider par les tests Commerce (can/allowsTransition/transition).
- * Ne pas se fier au message de a055b8e comme preuve de l'état antérieur. */
+/* AUDIT-RESET a055b8e (2026-10-13) — PERTE CONFIRMÉE PUIS RESTAURÉE (V1.1, voir git log).
+ * Transitions PendingPayment absentes du commit ; restaurées ci-dessous (PAY → PendingPayment,
+ * CONFIRM → Paid, CANCEL depuis PendingPayment + tolérance legacy Pending → Paid pour les webhooks). */
 import type { OrderStatus } from "./order.model.js";
 
 export type OrderTransitionEvent =
   | "PAY"
+  | "CONFIRM"
   | "PROCESS"
   | "SHIP"
   | "DELIVER"
@@ -26,14 +22,19 @@ export interface StateTransitionResult {
 /**
  * Order State Machine
  * Deterministic transition rules for Commerce orders:
- * Pending -> Paid -> Processing -> Shipped -> Delivered
- * Cancellations allowed from Pending, Paid, Processing
+ * Pending -> PendingPayment -> Paid -> Processing -> Shipped -> Delivered
+ * (PAY authorizes the hold, CONFIRM captures it via payment webhook)
+ * Cancellations allowed from Pending, PendingPayment, Paid, Processing
  * Refunds allowed from Paid, Shipped, Delivered
  */
 export class OrderStateMachine {
   private static readonly TRANSITIONS: Record<OrderStatus, Partial<Record<OrderTransitionEvent, OrderStatus>>> = {
     Pending: {
-      PAY: "Paid",
+      PAY: "PendingPayment",
+      CANCEL: "Cancelled",
+    },
+    PendingPayment: {
+      CONFIRM: "Paid",
       CANCEL: "Cancelled",
     },
     Paid: {
@@ -69,8 +70,17 @@ export class OrderStateMachine {
   static allowsTransition(from: OrderStatus, to: OrderStatus): boolean {
     if (from === to) return true;
     const edges = this.TRANSITIONS[from] ?? {};
-    return Object.values(edges).includes(to);
+    if (Object.values(edges).includes(to)) return true;
+    return this.LEGACY_EDGES.some(([legacyFrom, legacyTo]) => legacyFrom === from && legacyTo === to);
   }
+
+  /**
+   * Pre-PendingPayment orders settled straight to Paid: webhooks confirming
+   * those legacy orders must keep working (see commerce-controller.handleWebhook).
+   */
+  private static readonly LEGACY_EDGES: ReadonlyArray<readonly [OrderStatus, OrderStatus]> = [
+    ["Pending", "Paid"],
+  ];
 
   static transition(current: OrderStatus, event: OrderTransitionEvent): StateTransitionResult {
     const next = this.getNextState(current, event);

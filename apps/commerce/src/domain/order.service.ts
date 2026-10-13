@@ -108,7 +108,9 @@ export class OrderService {
     const sagaState = await workflow.execute(initialState);
 
     if (sagaState.success && sagaState.context.paymentAuthorized && sagaState.context.inventoryReserved) {
-      order.status = 'Paid';
+      // Hold authorized but not yet captured: capture confirmation arrives via
+      // payment webhook (CONFIRM → Paid). Never mark Paid on saga success alone.
+      order.status = 'PendingPayment';
     } else {
       order.status = 'Cancelled';
     }

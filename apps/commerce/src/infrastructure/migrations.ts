@@ -25,6 +25,7 @@ export class CommercePostgresMigrationProvider implements MigrationProvider {
       table.string("customerId").nullable();
       table.enum("status", [
         "Pending",
+        "PendingPayment",
         "Paid",
         "Processing",
         "Shipped",

@@ -118,11 +118,11 @@ describe('CommerceBAC End-to-End & Unit Tests', () => {
     expect(response.body.id).toBeDefined();
     expect(response.body.userId).toBe('usr-999');
     expect(response.body.vendableId).toBe('vend-888');
-    expect(response.body.status).toBe('Paid');
+    expect(response.body.status).toBe('PendingPayment');
 
     const saved = await orderRepository.findById(response.body.id);
     expect(saved).toBeDefined();
-    expect(saved?.status).toBe('Paid');
+    expect(saved?.status).toBe('PendingPayment');
   });
 
   it('should return 400 Bad Request if userId is missing', async () => {
@@ -230,7 +230,7 @@ describe('CommerceBAC End-to-End & Unit Tests', () => {
     expect(await service.listOrders()).toHaveLength(1);
   });
 
-  it('should reject illegal status transitions via setOrderStatus', async () => {
+  it('should settle to PendingPayment then confirm to Paid via webhook semantics', async () => {
     const { OrderService } = await import('./domain/order.service.js');
     const { DemoPaymentPort, DemoInventoryPort } = await import('./workflows/checkout-order.workflow.js');
     const { InMemoryOrderRepository } = await import('./infrastructure/postgres-order-repository.js');
@@ -241,15 +241,30 @@ describe('CommerceBAC End-to-End & Unit Tests', () => {
     );
 
     const { order } = await service.createOrder({ userId: 'usr-tr', vendableId: 'vend-tr', amount: 10 });
-    // Created orders settle to Paid or Cancelled depending on saga ports (demo ports succeed -> Paid).
-    const current = (await service.getOrderById(order.id)).status;
+    // Saga authorizes the hold: order waits for capture confirmation, never Paid directly.
+    expect((await service.getOrderById(order.id)).status).toBe('PendingPayment');
 
-    if (current === 'Paid') {
-      await expect(service.setOrderStatus(order.id, 'Delivered')).rejects.toThrow('Transition interdite');
-      const processed = await service.setOrderStatus(order.id, 'Processing');
-      expect(processed.status).toBe('Processing');
-    } else {
-      await expect(service.setOrderStatus(order.id, 'Paid')).rejects.toThrow('Transition interdite');
-    }
+    await expect(service.setOrderStatus(order.id, 'Delivered')).rejects.toThrow('Transition interdite');
+    const paid = await service.setOrderStatus(order.id, 'Paid');
+    expect(paid.status).toBe('Paid');
+    const processed = await service.setOrderStatus(order.id, 'Processing');
+    expect(processed.status).toBe('Processing');
+    await expect(service.setOrderStatus(order.id, 'Paid')).rejects.toThrow('Transition interdite');
+  });
+
+  it('should drive the PendingPayment state machine edges (incl. legacy Pending→Paid webhook)', async () => {
+    const { OrderStateMachine } = await import('./domain/order-state-machine.js');
+
+    expect(OrderStateMachine.can('Pending', 'PAY')).toBe(true);
+    expect(OrderStateMachine.transition('Pending', 'PAY')).toMatchObject({ success: true, to: 'PendingPayment' });
+    expect(OrderStateMachine.can('PendingPayment', 'CONFIRM')).toBe(true);
+    expect(OrderStateMachine.transition('PendingPayment', 'CONFIRM')).toMatchObject({ success: true, to: 'Paid' });
+    expect(OrderStateMachine.can('PendingPayment', 'CANCEL')).toBe(true);
+    expect(OrderStateMachine.can('PendingPayment', 'DELIVER')).toBe(false);
+    expect(OrderStateMachine.transition('PendingPayment', 'DELIVER').success).toBe(false);
+    // Legacy orders settled straight to Paid: webhook confirmation must keep working.
+    expect(OrderStateMachine.allowsTransition('Pending', 'Paid')).toBe(true);
+    expect(OrderStateMachine.allowsTransition('PendingPayment', 'Paid')).toBe(true);
+    expect(OrderStateMachine.allowsTransition('Processing', 'Paid')).toBe(false);
   });
 });
