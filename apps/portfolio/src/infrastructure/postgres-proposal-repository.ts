@@ -5,7 +5,7 @@
  */
 
 import type { DatabasePort } from "@mosaix/ports-database";
-import type { Proposal, ProposalStatus } from "../domain/proposal.js";
+import type { Proposal, ProposalAuditEntry, ProposalStatus } from "../domain/proposal.js";
 import type { ProposalRepository } from "../domain/proposal-repository.js";
 
 /** Canonical table since portfolio.catalog.v1.003 (schema isolation, no prefix). */
@@ -34,6 +34,10 @@ const COLUMNS = [
   '"reviewedAt"',
   '"createdAt"',
   '"updatedAt"',
+  '"approvedTerms"',
+  '"approvedOfferId"',
+  '"idempotencyKey"',
+  '"auditTrail"',
 ].join(", ");
 
 function asString(value: unknown, fallback = ""): string {
@@ -60,7 +64,7 @@ export class PostgresProposalRepository implements ProposalRepository {
   constructor(private readonly db: DatabasePort) {}
 
   async save(proposal: Proposal): Promise<void> {
-    const placeholders = Array.from({ length: 22 }, (_, i) => `$${i + 1}`).join(", ");
+    const placeholders = Array.from({ length: 26 }, (_, i) => `$${i + 1}`).join(", ");
     await this.db.execute(
       `INSERT INTO ${PROPOSALS_TABLE} (${COLUMNS}) VALUES (${placeholders})`,
       this.toRow(proposal),
@@ -76,7 +80,9 @@ export class PostgresProposalRepository implements ProposalRepository {
         "features" = $10, "variants" = $11, "media" = $12, "translations" = $13,
         "platformFeedback" = $14, "rejectionReason" = $15, "reviewedBy" = $16,
         "reviewStartedAt" = $17, "vendableId" = $18, "submittedAt" = $19,
-        "reviewedAt" = $20, "createdAt" = $21, "updatedAt" = $22
+        "reviewedAt" = $20, "createdAt" = $21, "updatedAt" = $22,
+        "approvedTerms" = $23, "approvedOfferId" = $24, "idempotencyKey" = $25,
+        "auditTrail" = $26
        WHERE "id" = $1`,
       values,
     );
@@ -138,6 +144,10 @@ export class PostgresProposalRepository implements ProposalRepository {
       proposal.reviewedAt ?? null,
       proposal.createdAt,
       proposal.updatedAt,
+      JSON.stringify(proposal.approvedTerms ?? null),
+      proposal.approvedOfferId ?? null,
+      proposal.idempotencyKey ?? null,
+      JSON.stringify(proposal.auditTrail ?? []),
     ];
   }
 
@@ -165,6 +175,10 @@ export class PostgresProposalRepository implements ProposalRepository {
       reviewedAt: asNullableString(row.reviewedAt),
       createdAt: asString(row.createdAt),
       updatedAt: asString(row.updatedAt),
+      approvedTerms: asJson<Record<string, unknown> | null>(row.approvedTerms, null),
+      approvedOfferId: asNullableString(row.approvedOfferId),
+      idempotencyKey: asNullableString(row.idempotencyKey),
+      auditTrail: asJson<ProposalAuditEntry[]>(row.auditTrail, []),
     };
   }
 }

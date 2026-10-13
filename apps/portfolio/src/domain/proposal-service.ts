@@ -1,4 +1,4 @@
-import type { Proposal } from "./proposal.js";
+import type { Proposal, ProposalAuditEntry } from "./proposal.js";
 import type { ProposalRepository } from "./proposal-repository.js";
 import type { PortfolioService } from "./portfolio-service.js";
 import { uuidV7 } from "@mosaix/types";
@@ -18,6 +18,10 @@ export class ProposalService {
     private readonly portfolioService: PortfolioService,
     private readonly offerProvisioningPort?: OfferProvisioningPort
   ) {}
+
+  private appendTrail(prop: Proposal, by: string, action: ProposalAuditEntry["action"], detail?: string): void {
+    prop.auditTrail.push({ at: new Date().toISOString(), by, action, ...(detail ? { detail } : {}) });
+  }
 
   async createDraft(
     spaceId: string,
@@ -50,9 +54,14 @@ export class ProposalService {
       media: input.media ?? {},
       translations: input.translations ?? {},
       vendableId: null,
+      approvedTerms: null,
+      approvedOfferId: null,
+      idempotencyKey: null,
+      auditTrail: [],
       createdAt: now,
       updatedAt: now,
     };
+    this.appendTrail(proposal, proposerUserId, "created");
 
     await this.proposalRepository.save(proposal);
     return proposal;
@@ -106,6 +115,7 @@ export class ProposalService {
     prop.status = "Submitted";
     prop.submittedAt = new Date().toISOString();
     prop.updatedAt = prop.submittedAt;
+    this.appendTrail(prop, spaceId, "submitted");
 
     await this.proposalRepository.update(prop);
     return prop;
@@ -122,6 +132,7 @@ export class ProposalService {
     prop.reviewedBy = reviewerUserId;
     prop.reviewStartedAt = new Date().toISOString();
     prop.updatedAt = prop.reviewStartedAt;
+    this.appendTrail(prop, reviewerUserId, "claimed_in_review");
 
     await this.proposalRepository.update(prop);
     return prop;
@@ -137,6 +148,7 @@ export class ProposalService {
     prop.reviewedBy = reviewerUserId;
     prop.reviewedAt = new Date().toISOString();
     prop.updatedAt = prop.reviewedAt;
+    this.appendTrail(prop, reviewerUserId, "changes_requested", feedback);
 
     await this.proposalRepository.update(prop);
     return prop;
@@ -154,6 +166,7 @@ export class ProposalService {
     prop.reviewedBy = reviewerUserId;
     prop.reviewedAt = new Date().toISOString();
     prop.updatedAt = prop.reviewedAt;
+    this.appendTrail(prop, reviewerUserId, "rejected", reason);
 
     await this.proposalRepository.update(prop);
     return prop;
@@ -169,28 +182,64 @@ export class ProposalService {
 
     prop.status = "Withdrawn";
     prop.updatedAt = new Date().toISOString();
+    this.appendTrail(prop, spaceId, "withdrawn");
 
     await this.proposalRepository.update(prop);
     return prop;
   }
 
-  /* AUDIT-RESET a055b8e (2026-10-13) — PERTE PARTIELLE CONFIRMÉE (SELL-FLOW-01).
-   * approve() ci-dessous ne persiste qu'offerId (hérité du commit 0022dd6) : approvedTerms, auditTrail et
-   * clé d'idempotence annoncés par la session sont absents (fichier hors du commit a055b8e).
-   * Restauration : écrire ces champs sur Proposal avant update(), couvrir par proposal.test.ts
-   * (approbation + échec de provisionnement sans double création de vendable). */
+  /* AUDIT-RESET a055b8e (2026-10-13) — PERTE PARTIELLE CONFIRMÉE PUIS RESTAURÉE (V1.2, voir git log).
+   * approve() ne persistait qu'offerId (0022dd6) ; approvedTerms/auditTrail/idempotence restaurés
+   * ci-dessus (champs + trail append-only + replay idempotent). Ancien commentaire remplacé. */
   async approve(
     id: string,
-    reviewerUserId: string
+    reviewerUserId: string,
+    options?: {
+      /** Commercial terms frozen at approval (defaults to content.commercialTerms). */
+      approvedTerms?: Record<string, unknown>;
+      /** Idempotence key: replay with the same key returns the original approval. */
+      idempotencyKey?: string;
+    },
   ): Promise<{ proposal: Proposal; vendableId: string; offerId?: string }> {
     const prop = await this.proposalRepository.findById(id);
     if (!prop) throw new Error(`Proposal ${id} not found`);
+
+    // Idempotent replay: same key on an approved proposal returns the original
+    // outcome instead of creating a second vendable/offer.
+    if (prop.status === "Approved") {
+      if (options?.idempotencyKey && prop.idempotencyKey === options.idempotencyKey && prop.vendableId) {
+        return { proposal: prop, vendableId: prop.vendableId, offerId: prop.approvedOfferId ?? undefined };
+      }
+      throw new Error(`Proposal ${id} is already approved`);
+    }
     if (prop.status !== "InReview") throw new Error(`Proposal must be InReview to be approved`);
+
+    const approvedTerms =
+      options?.approvedTerms ??
+      ((prop.content as Record<string, unknown>).commercialTerms as Record<string, unknown> | undefined) ??
+      null;
+
+    // Atomicity order: provision the commercial offer BEFORE creating the canonical
+    // vendable, so a provisioning failure leaves no orphan published vendable behind.
+    // (A vendable-creation failure after a successful provisioning may leave an orphan
+    // offer instead — external side effect, surfaced to the reviewer via the thrown error.)
+    const newVendableId = `vendable_${uuidV7()}`;
+    let provisionedOfferId: string | undefined;
+
+    if (this.offerProvisioningPort && approvedTerms) {
+      const res = await this.offerProvisioningPort.provisionOffer({
+        vendableId: newVendableId,
+        sellerSpaceId: prop.spaceId,
+        sellerUserId: prop.proposerUserId,
+        commercialTerms: approvedTerms,
+      });
+      provisionedOfferId = res.offerId;
+    }
 
     // Create the canonical published Vendable via PortfolioService
     const createdVendable = await this.portfolioService.createVendable({
       identity: {
-        id: `vendable_${uuidV7()}`,
+        id: newVendableId,
         reference: prop.suggestedReference,
         type: prop.type,
         status: "Published",
@@ -203,23 +252,15 @@ export class ProposalService {
       relations: [],
     });
 
-    let provisionedOfferId: string | undefined;
-
-    if (this.offerProvisioningPort && prop.content && (prop.content as Record<string, unknown>).commercialTerms) {
-      const res = await this.offerProvisioningPort.provisionOffer({
-        vendableId: createdVendable.identity.id,
-        sellerSpaceId: prop.spaceId,
-        sellerUserId: prop.proposerUserId,
-        commercialTerms: (prop.content as Record<string, unknown>).commercialTerms as Record<string, unknown>,
-      });
-      provisionedOfferId = res.offerId;
-    }
-
     prop.status = "Approved";
     prop.vendableId = createdVendable.identity.id;
+    prop.approvedTerms = approvedTerms;
+    prop.approvedOfferId = provisionedOfferId ?? null;
+    prop.idempotencyKey = options?.idempotencyKey ?? null;
     prop.reviewedBy = reviewerUserId;
     prop.reviewedAt = new Date().toISOString();
     prop.updatedAt = prop.reviewedAt;
+    this.appendTrail(prop, reviewerUserId, "approved");
 
     await this.proposalRepository.update(prop);
     return { proposal: prop, vendableId: createdVendable.identity.id, offerId: provisionedOfferId };

@@ -78,6 +78,7 @@ import { migration as portfolioSchemaMigration } from "../../apps/portfolio/src/
 import { migration as portfolioHardeningMigration } from "../../apps/portfolio/src/infrastructure/migrations/20260925130000_harden_data_integrity.js";
 import { migration as portfolioNormalizeMigration } from "../../apps/portfolio/src/infrastructure/migrations/20261010080000_normalize_pim_to_dedicated_tables.js";
 import { migration as portfolioNormalizeFixesMigration } from "../../apps/portfolio/src/infrastructure/migrations/20261010100000_normalize_pim_fixes.js";
+import { migration as portfolioApprovalFieldsMigration } from "../../apps/portfolio/src/infrastructure/migrations/20261013010000_proposal_approval_fields.js";
 import { migration as beamSchemaMigration } from "../../apps/beam/src/infrastructure/migrations/20260926090000_move_to_beam_schema.js";
 import { migration as bookingSchemaMigration } from "../../apps/booking/src/infrastructure/migrations/20260926091000_move_to_booking_schema.js";
 import { migration as bookingHardeningMigration } from "../../apps/booking/src/infrastructure/migrations/20260926140000_harden_booking.js";
@@ -114,6 +115,7 @@ export const BAC_CANONICAL_IDS = {
   portfolioHardening: "portfolio.catalog.v1.004_harden_data_integrity",
   portfolioNormalize: "portfolio.catalog.v1.005_normalize_pim",
   portfolioNormalizeFixes: "portfolio.catalog.v1.006_normalize_fixes",
+  portfolioApprovalFields: "portfolio.catalog.v1.007_approval_fields",
   solara: "solara.social.v1.001_create_social_tables",
   solaraSchema: "solara.social.v1.002_move_to_schema",
   solaraHardening: "solara.social.v1.003_harden_social",
@@ -333,6 +335,11 @@ export function createBacMigrationProviders(): readonly MigrationProvider[] {
       "portfolio",
       BAC_CANONICAL_IDS.portfolioNormalizeFixes,
       portfolioNormalizeFixesMigration,
+    ),
+    new StaticMigrationProvider(
+      "portfolio",
+      BAC_CANONICAL_IDS.portfolioApprovalFields,
+      portfolioApprovalFieldsMigration,
     ),
     new CanonicalIdProvider(new SolaraPostgresMigrationProvider(), [
       BAC_CANONICAL_IDS.solara,
