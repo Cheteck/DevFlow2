@@ -28,7 +28,7 @@ function toBridgeMode(mode: string): "light" | "dark" | "high-contrast" {
 }
 
 /**
- * Renders HTML head block with LRU fragment caching.
+ * Renders HTML head block with LRU fragment caching and performance preconnects.
  */
 export function renderHeadBlock(
   pageTitle: string,
@@ -46,11 +46,11 @@ export function renderHeadBlock(
       <title>${escapeHtml(pageTitle)} — MosaiX Platform</title>
       <link rel="icon" type="image/svg+xml" href="/favicon.svg">
       <link rel="manifest" href="/site.webmanifest">
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       ${themeStyleTagHtml}
       <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
       <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-      <link rel="preconnect" href="https://fonts.googleapis.com">
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
       <script id="tailwind-config">
         tailwind.config = {
