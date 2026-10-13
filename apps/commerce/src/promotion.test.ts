@@ -3,12 +3,9 @@ import { PromotionEngine } from "./domain/promotion-engine.js";
 import { CouponService } from "./domain/coupon-service.js";
 import { Money } from "@mosaix/core";
 
-/* AUDIT-RESET a055b8e (2026-10-13) — TRAVAIL DE SESSION ABSENT.
- * La session annonçait "l'intégration et la validation des tests de non-cumul abusif des promotions
- * et coupons", mais ce fichier (suite PROMO-01/COUPON-01 du commit 7b452f4) ne contient aucun test
- * de non-cumul (grep "cumul" vide) et est absent du commit a055b8e.
- * Restauration : ajouter les cas promotion+coupon non cumulables (abusif refusé, légitime accepté)
- * contre PromotionEngine/CouponService, sans modifier les cas existants. */
+/* AUDIT-RESET a055b8e (2026-10-13) — TRAVAIL DE SESSION ABSENT PUIS RESTAURÉ (V1.4, voir git log).
+ * Aucun test de non-cumul n'existait (grep "cumul" vide) ; evaluateStack() + cas refus/combinaison
+ * ajoutés. Point d'application restant : le checkout (COMMERCE-CART-01) n'évalue pas encore les stacks. */
 
 describe("PROMO-01 & COUPON-01 — Promotion Engine and Coupon Redemption Suite", () => {
   let promoEngine: PromotionEngine;
@@ -113,5 +110,73 @@ describe("PROMO-01 & COUPON-01 — Promotion Engine and Coupon Redemption Suite"
     );
     expect(res3.success).toBe(false);
     expect(res3.error).toBe("Coupon invalide ou inactif.");
+  });
+
+  it("refuses abusive stacking of a non-stackable promotion (V1.4 restore)", () => {
+    const solo = promoEngine.createPromotion({
+      name: "Solo 20%",
+      type: "percentage",
+      value: 20,
+      currency: "EUR",
+      stackable: false,
+      startsAt: "2026-01-01T00:00:00.000Z",
+      endsAt: "2026-12-31T23:59:59.000Z",
+      active: true,
+    });
+    const extra = promoEngine.createPromotion({
+      name: "Extra 10 EUR",
+      type: "fixed_amount",
+      value: 1000,
+      currency: "EUR",
+      stackable: true,
+      startsAt: "2026-01-01T00:00:00.000Z",
+      endsAt: "2026-12-31T23:59:59.000Z",
+      active: true,
+    });
+    const now = new Date("2026-05-01T12:00:00.000Z");
+
+    // Alone: the non-stackable promotion applies.
+    const alone = promoEngine.evaluateStack([solo.id], Money.fromCents(10000, "EUR"), now);
+    expect(alone?.totalDiscount.amountInCents).toBe(2000);
+    expect(alone?.finalPrice.amountInCents).toBe(8000);
+
+    // Combined: refused, so a coupon bound to it cannot cumulate abusively.
+    expect(promoEngine.evaluateStack([solo.id, extra.id], Money.fromCents(10000, "EUR"), now)).toBeNull();
+    expect(promoEngine.evaluateStack([extra.id, solo.id], Money.fromCents(10000, "EUR"), now)).toBeNull();
+  });
+
+  it("combines stackable promotions sequentially and fails closed", () => {
+    const pct = promoEngine.createPromotion({
+      name: "Stack 10%",
+      type: "percentage",
+      value: 10,
+      currency: "EUR",
+      stackable: true,
+      startsAt: "2026-01-01T00:00:00.000Z",
+      endsAt: "2026-12-31T23:59:59.000Z",
+      active: true,
+    });
+    const fixed = promoEngine.createPromotion({
+      name: "Stack 5 EUR",
+      type: "fixed_amount",
+      value: 500,
+      currency: "EUR",
+      stackable: true,
+      startsAt: "2026-01-01T00:00:00.000Z",
+      endsAt: "2026-12-31T23:59:59.000Z",
+      active: true,
+    });
+    const now = new Date("2026-05-01T12:00:00.000Z");
+
+    // 100 EUR -> -10% (10 EUR) -> -5 EUR = 85 EUR.
+    const combined = promoEngine.evaluateStack([pct.id, fixed.id], Money.fromCents(10000, "EUR"), now);
+    expect(combined?.totalDiscount.amountInCents).toBe(1500);
+    expect(combined?.finalPrice.amountInCents).toBe(8500);
+    expect(combined?.appliedPromotionIds).toEqual([pct.id, fixed.id]);
+
+    // Fail-closed: unknown id, empty stack, currency mismatch.
+    expect(promoEngine.evaluateStack(["promo_missing"], Money.fromCents(10000, "EUR"), now)).toBeNull();
+    expect(promoEngine.evaluateStack([], Money.fromCents(10000, "EUR"), now)).toBeNull();
+    expect(promoEngine.evaluateStack([pct.id], Money.fromCents(10000, "USD"), now)).toBeNull();
   });
 });

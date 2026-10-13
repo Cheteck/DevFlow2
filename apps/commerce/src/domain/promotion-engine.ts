@@ -32,6 +32,12 @@ export interface DiscountCalculationResult {
   finalPrice: Money;
 }
 
+export interface StackEvaluationResult {
+  appliedPromotionIds: string[];
+  totalDiscount: Money;
+  finalPrice: Money;
+}
+
 export class PromotionEngine {
   private promotions = new Map<string, PromotionRule>();
 
@@ -95,6 +101,59 @@ export class PromotionEngine {
       originalPrice: itemPrice,
       discountAmount,
       finalPrice,
+    };
+  }
+
+  /**
+   * Anti-abuse stacking (V1.4): evaluates a combination of promotions against
+   * one price. A non-stackable promotion applies ONLY alone — combined with
+   * any other promotion the whole stack is refused (null, fail-closed), so a
+   * coupon bound to it cannot be cumulated abusively. Stackable promotions
+   * apply sequentially on the remaining price. Unknown/inactive promotions or
+   * unmet windows/minimums refuse the stack as well.
+   */
+  evaluateStack(
+    promoIds: string[],
+    itemPrice: Money,
+    now: Date = new Date(),
+  ): StackEvaluationResult | null {
+    const uniqueIds = [...new Set(promoIds)];
+    if (uniqueIds.length === 0) return null;
+
+    const promos: PromotionRule[] = [];
+    for (const id of uniqueIds) {
+      const promo = this.promotions.get(id);
+      if (!promo || !promo.active) return null;
+      promos.push(promo);
+    }
+
+    for (const promo of promos) {
+      if (now < new Date(promo.startsAt) || now > new Date(promo.endsAt)) return null;
+      if (promo.currency !== itemPrice.currency) return null;
+      if (promo.minOrderAmountInCents && itemPrice.amountInCents < promo.minOrderAmountInCents) {
+        return null;
+      }
+    }
+
+    if (promos.some((p) => !p.stackable) && promos.length > 1) return null;
+
+    let remainingCents = itemPrice.amountInCents;
+    let totalDiscountCents = 0;
+    for (const promo of promos) {
+      const step = this.evaluatePromotion(
+        promo.id,
+        Money.fromCents(remainingCents, itemPrice.currency),
+        now,
+      );
+      if (!step) return null;
+      totalDiscountCents += step.discountAmount.amountInCents;
+      remainingCents = step.finalPrice.amountInCents;
+    }
+
+    return {
+      appliedPromotionIds: promos.map((p) => p.id),
+      totalDiscount: Money.fromCents(totalDiscountCents, itemPrice.currency),
+      finalPrice: Money.fromCents(remainingCents, itemPrice.currency),
     };
   }
 }
