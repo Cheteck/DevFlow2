@@ -57,6 +57,10 @@ describe("SHELL-INV-01 — Shell Production Invariants & Security Boundaries", (
     ]);
   });
 
+  /* AUDIT-RESET a055b8e (2026-10-13) — MISE À JOUR DE SESSION ABSENTE, TESTS COHÉRENTS.
+   * Dernier commit de ce fichier : df95068 (antérieur à la session). L'invariant ci-dessous attend
+   * toContain("identity"), en cohérence avec profiles.ts actuel : si la décision identity→citadelle est
+   * reprise, mettre à jour ensemble ce test, security-shell-boundaries.test.ts et CANONICAL_BAC_IDS. */
   it("Invariant 4: All 11 MosaiX BACs are present in the canonical BAC catalog", () => {
     expect(CANONICAL_BAC_IDS.length).toBe(11);
     expect(CANONICAL_BAC_IDS).toContain("inventory");

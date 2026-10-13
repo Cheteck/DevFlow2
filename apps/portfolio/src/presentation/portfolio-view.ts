@@ -7,6 +7,13 @@ import { PortfolioService } from "../domain/portfolio-service.js";
 import { InMemoryVendableRepository } from "../infrastructure/in-memory-vendable-repository.js";
 import type { Vendable } from "../domain/vendable.js";
 
+/* AUDIT-RESET a055b8e (2026-10-13) — AUCUNE PERTE DÉTECTÉE.
+ * Le diff de a055b8e migre cette vue vers le PIM normalisé (identity.reference, content.fr.name,
+ * search({name})→tableau), en cohérence avec les commits PIM antérieurs ; les imports existent
+ * (infrastructure/in-memory-vendable-repository.ts, domain/vendable.ts). Fait partie du batch
+ * "and 14 more" mais son contenu correspond au travail de session.
+ * Vérification restante : search/findVendable + rendus dashboard/détail avant toute restauration. */
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")

@@ -174,6 +174,11 @@ export class ProposalService {
     return prop;
   }
 
+  /* AUDIT-RESET a055b8e (2026-10-13) — PERTE PARTIELLE CONFIRMÉE (SELL-FLOW-01).
+   * approve() ci-dessous ne persiste qu'offerId (hérité du commit 0022dd6) : approvedTerms, auditTrail et
+   * clé d'idempotence annoncés par la session sont absents (fichier hors du commit a055b8e).
+   * Restauration : écrire ces champs sur Proposal avant update(), couvrir par proposal.test.ts
+   * (approbation + échec de provisionnement sans double création de vendable). */
   async approve(
     id: string,
     reviewerUserId: string

@@ -124,6 +124,10 @@ export class MCPGateway {
           const capabilityTools = intelligenceCaps.map((cap) => ({
             name: `intelligence_${cap.name.replace(/\./g, "_")}`,
             description: cap.description,
+            /* AUDIT-RESET a055b8e (2026-10-13) — AUCUNE PERTE DÉTECTÉE.
+             * Fallback inputSchema {} quand la capability n'en expose pas (évite undefined dans tools/list) :
+             * seul changement de comportement, conforme au "build 0 erreur". Fait partie du batch "and 14 more".
+             * Tester tools/list avec capabilities sans schéma après toute restauration. */
             inputSchema: (cap as unknown as Record<string, unknown>).inputSchema || { type: "object", properties: {} },
             requiredPermission: `intelligence:${cap.category}:execute`,
           }));

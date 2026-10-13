@@ -66,6 +66,11 @@ export class OrderService {
       unitPriceInCents: Math.round(orderAmount * 100),
       currency: order.currency || "EUR",
     };
+    /* AUDIT-RESET a055b8e (2026-10-13) — HUNK PRÉSENT DANS LE COMMIT, PAS UN RESET.
+     * La construction ci-dessous remplace `order.lineItems = [snapshot]` : elle mélange les deux formes
+     * (unitPrice/subtotal + unitPriceInCents/discount/promotion) via `any`, avec titre et quantité en dur.
+     * Dette à vérifier contre checkout-order.workflow.ts, PRICE-02 et commerce.test.ts avant restauration
+     * (typer OrderLineItem au lieu de `any`, source de quantité/titre explicite). */
     const lineItem: any = {
       id: `li-${order.id}`,
       sku: params.vendableId,

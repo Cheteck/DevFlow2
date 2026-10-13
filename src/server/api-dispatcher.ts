@@ -26,6 +26,13 @@ import { handleFeedRoutes } from "./routes/feed-routes.js";
 import { handleComplianceAndSystemRoutes } from "./routes/compliance-routes.js";
 import { handleMobileRoutes } from "./routes/mobile-routes.js";
 
+/* AUDIT-RESET a055b8e (2026-10-13) — PERTE CONFIRMÉE (SELL-FLOW-02, par absence).
+ * La session annonçait la route POST /api/spaces/:spaceId/proposals câblée ici (via spaces-routes.ts),
+ * mais aucun handler proposals n'est enregistré (grep "proposals" vide dans src/server) et les fichiers
+ * src/server/routes/spaces-routes.ts + tests/spaces-proposals-route.test.ts n'existent ni dans l'index
+ * ni dans l'arbre de travail. Dernier commit de ce fichier : f1b343a (antérieur à la session).
+ * Restauration : recréer le module de route + son enregistrement ci-dessus + tests de soumission vendeur. */
+
 export interface ApiDispatcherContext {
   // Per-request theme resolved from the mosaix_theme_mode cookie.
   // No global mutable theme state (A-04): theme POSTs persist via cookie.

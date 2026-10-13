@@ -11,6 +11,9 @@ function ctx(query: Record<string, string> = {}) {
   } as never;
 }
 
+/* AUDIT-RESET a055b8e (2026-10-13) — AUCUNE PERTE DÉTECTÉE.
+ * Les deux cas ont été réécrits en cohérence avec beam-view.ts (plus de query channelCreated, assertion
+ * sur le message honnête). Relancer cette suite après toute restauration d'un parcours de création. */
 describe("createBeamDescriptor", () => {
   it("renders beam messaging view without fake actions", async () => {
     const descriptor = createBeamDescriptor();

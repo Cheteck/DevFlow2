@@ -3,6 +3,10 @@
  * Self-contained SSR presentation layer for MosaiX Subscription & Billing Engine.
  * Note: Subscription plans are currently seeded in-memory via SubscriptionService pending DB port migration.
  */
+/* AUDIT-RESET a055b8e (2026-10-13) — AUCUNE PERTE DÉTECTÉE.
+ * Le diff de a055b8e (notification conditionnée à subscriptionSuccess + ConsoleLogger) correspond à l'étape
+ * "UI honnêtes" : le parent affichait un succès dès ?plan= présent, même en cas d'échec de subscribe().
+ * Vérification restante : couvrir les chemins échec/guest avant toute restauration. */
 
 import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";

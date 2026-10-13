@@ -32,3 +32,10 @@ export interface Proposal {
   createdAt: string;
   updatedAt: string;
 }
+
+/* AUDIT-RESET a055b8e (2026-10-13) — PERTE CONFIRMÉE (delta SELL-FLOW-01).
+ * La session annonçait "Saga SELL-FLOW-01 complète avec offerId, approvedTerms, auditTrail, clé d'idempotence",
+ * mais l'interface ci-dessus ne porte ni approvedTerms, ni auditTrail, ni clé d'idempotence (grep vide sur
+ * tout apps/portfolio/src ; seul offerId survit via le commit antérieur 0022dd6). Fichier absent de a055b8e.
+ * Restauration recommandée : réajouter les trois champs + persistance dans proposal-service.approve() +
+ * tests d'approbation et d'échecs de provisionnement dans proposal.test.ts. */

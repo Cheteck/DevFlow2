@@ -4,6 +4,12 @@ import { InMemoryProposalRepository } from "./infrastructure/in-memory-proposal-
 import { PortfolioService } from "./domain/portfolio-service.js";
 import { InMemoryVendableRepository } from "./infrastructure/in-memory-vendable-repository.js";
 
+/* AUDIT-RESET a055b8e (2026-10-13) — DELTA DE SESSION ABSENT (SELL-FLOW-01).
+ * Les tests présents (lifecycle + provision d'offre) viennent du commit antérieur 0022dd6 ; les tests
+ * annoncés (approbation persistante avec approvedTerms/auditTrail/idempotence, échecs de provisionnement)
+ * sont absents, en cohérence avec proposal.ts/proposal-service.ts.
+ * Restauration : ajouter ces cas après restauration des champs, sans modifier les tests existants. */
+
 describe("Portfolio Proposal Workflow (PRD-0010)", () => {
   it("should handle proposal lifecycle: Draft -> Submitted -> InReview -> Approved -> Vendable Published", async () => {
     const proposalRepo = new InMemoryProposalRepository();

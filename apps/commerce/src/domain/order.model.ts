@@ -6,6 +6,13 @@
 import { Model, applyTraits, SoftDeleteTrait, TimestampableTrait } from "@mosaix/sdk";
 import type { SellerEntityRef } from "./commerce-offer.model.js";
 
+/* AUDIT-RESET a055b8e (2026-10-13) — PERTE CONFIRMÉE.
+ * La session annonçait l'ajout du statut "PendingPayment" à OrderStatus et le message de a055b8e le
+ * revendique, mais l'union ci-dessous (Pending..Refunded) ne le contient pas et `git log -S PendingPayment`
+ * est vide sur tout l'historique : réinitialisation avant commit, sans trace versionnée.
+ * Restauration recommandée : réintroduire "PendingPayment" dans l'union + migration partielle UNIQUE
+ * éventuelle, aligner order-state-machine.ts et checkout-order.workflow.ts, puis tests Commerce verts. */
+
 export type OrderStatus =
   | "Pending"
   | "Paid"

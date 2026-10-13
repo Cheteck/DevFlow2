@@ -292,6 +292,13 @@ export { isDemoMode };
 /**
  * SHELL-PERM-01: Canonical catalog of BAC IDs and permissions across all 11 MosaiX BACs.
  */
+/* AUDIT-RESET a055b8e (2026-10-13) — TRAVAIL DE SESSION NON RETROUVÉ, ÉTAT COHÉRENT.
+ * La session annonçait le remplacement de 'identity' par 'citadelle' dans CANONICAL_BAC_IDS (5 occurrences
+ * de "identity" subsistent dont ci-dessous ; dernier commit du fichier : df95068, antérieur à la session).
+ * État actuel cohérent : les deux suites de tests (shell-production-invariants, security-shell-boundaries)
+ * attendent toContain("identity"), et bac-access.ts gère déjà l'alias identity→citadelle. Aucune régression
+ * fonctionnelle — décision produit à reprendre explicitement (renommer l'ID canonique OU garder l'alias),
+ * en mettant à jour ensemble ce catalogue, les profils et les deux suites de tests. */
 export const CANONICAL_BAC_IDS = [
   "identity",
   "solara",

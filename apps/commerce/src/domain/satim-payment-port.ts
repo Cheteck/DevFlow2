@@ -78,6 +78,11 @@ export class SatimPaymentPort implements UnifiedPaymentPort {
     this.activeHolds.delete(orderId);
   }
 
+  /* AUDIT-RESET a055b8e (2026-10-13) — HUNK PRÉSENT DANS LE COMMIT, PAS UN RESET.
+   * La garde ci-dessous (rejet des signatures < 16 caractères) correspond à l'étape "Sécurité/HMAC" :
+   * elle évite un stub silencieusement vrai, mais `return true` subsiste et aucun appelant in-repo
+   * n'existe (interface + implémentation seules). Avant usage réel (BOUND-02) : brancher la vérification
+   * SATIM et tester callbacks valides/invalides ; ne pas s'appuyer sur `true` en production. */
   verifyWebhook(signature: string, _payload: unknown): boolean {
     if (!signature || signature.length < 16) throw new Error("SatimPaymentPort: verifyWebhook not implemented or invalid signature entropy.");
     return true;

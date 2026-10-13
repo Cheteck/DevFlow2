@@ -104,6 +104,10 @@ describe("SHELL-SEC-01 — Shell Production Security Boundaries", () => {
       expect(result.invalid).toEqual(["invalid-no-colon"]);
     });
 
+    /* AUDIT-RESET a055b8e (2026-10-13) — SUITE PRÉSENTE (commit a2ab3e3), ÉTAT COHÉRENT.
+     * Les assertions ci-dessous attendent toContain("identity"), en cohérence avec profiles.ts actuel :
+     * si la décision identity→citadelle est reprise, mettre à jour ensemble ce fichier,
+     * shell-production-invariants.test.ts et CANONICAL_BAC_IDS. */
     it("contains all 11 canonical BAC IDs in the platform registry catalog", () => {
       expect(CANONICAL_BAC_IDS).toHaveLength(11);
       expect(CANONICAL_BAC_IDS).toContain("identity");

@@ -2,6 +2,12 @@
  * @apps/beam — Autonomous BAC View & Descriptor
  * Self-contained SSR presentation layer for MosaiX Beam Messaging.
  */
+/* AUDIT-RESET a055b8e (2026-10-13) — AUCUNE PERTE DÉTECTÉE.
+ * Le diff de a055b8e (suppression du param channelCreated, de la notification "Demande transmise" et du
+ * faux lien "Créer un salon", remplacés par un bouton désactivé honnête) correspond à l'étape "UI honnêtes"
+ * annoncée par la session ; aucune référence channelCreated ne subsiste dans le repo et le test associé
+ * a été mis à jour en cohérence. Vérification restante : confirmer qu'aucune capability de création de
+ * salon n'était attendue côté domaine avant toute restauration d'un parcours de création. */
 
 import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";

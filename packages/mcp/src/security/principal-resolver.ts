@@ -53,6 +53,10 @@ export class MCPPrincipalResolver {
     }
 
     const scopes = new Set<string>();
+    /* AUDIT-RESET a055b8e (2026-10-13) — AUCUNE PERTE DÉTECTÉE.
+     * Cast de type uniquement (payload.scopes), sans changement de comportement : correspond au "build
+     * 0 erreur" de la session. Fait partie du batch "and 14 more". Relancer les tests d'alignement
+     * des permissions MCP après toute restauration. */
     if (Array.isArray((payload as unknown as Record<string, unknown>).scopes)) {
       ((payload as unknown as Record<string, unknown>).scopes as string[]).forEach((s) => scopes.add(s));
     }

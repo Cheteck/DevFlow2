@@ -1,3 +1,11 @@
+/* AUDIT-RESET a055b8e (2026-10-13) — PERTE CONFIRMÉE.
+ * La session annonçait "OrderStatus PendingPayment et OrderStateMachine transitions mis à jour",
+ * et le message du commit a055b8e le revendique, mais ce fichier est ABSENT du commit et ne contient
+ * aucune transition PendingPayment. `git log -S PendingPayment` est vide sur tout l'historique : le travail
+ * a été réinitialisé avant le commit sans laisser de trace versionnée.
+ * Restauration recommandée : réintroduire l'état PendingPayment + ses transitions (PAY depuis PendingPayment,
+ * CANCEL/REFUND selon la saga checkout) puis valider par les tests Commerce (can/allowsTransition/transition).
+ * Ne pas se fier au message de a055b8e comme preuve de l'état antérieur. */
 import type { OrderStatus } from "./order.model.js";
 
 export type OrderTransitionEvent =

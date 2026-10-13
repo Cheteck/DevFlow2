@@ -3,6 +3,13 @@ import { PromotionEngine } from "./domain/promotion-engine.js";
 import { CouponService } from "./domain/coupon-service.js";
 import { Money } from "@mosaix/core";
 
+/* AUDIT-RESET a055b8e (2026-10-13) — TRAVAIL DE SESSION ABSENT.
+ * La session annonçait "l'intégration et la validation des tests de non-cumul abusif des promotions
+ * et coupons", mais ce fichier (suite PROMO-01/COUPON-01 du commit 7b452f4) ne contient aucun test
+ * de non-cumul (grep "cumul" vide) et est absent du commit a055b8e.
+ * Restauration : ajouter les cas promotion+coupon non cumulables (abusif refusé, légitime accepté)
+ * contre PromotionEngine/CouponService, sans modifier les cas existants. */
+
 describe("PROMO-01 & COUPON-01 — Promotion Engine and Coupon Redemption Suite", () => {
   let promoEngine: PromotionEngine;
   let couponService: CouponService;

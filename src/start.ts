@@ -57,6 +57,10 @@ import { renderBacPage } from "./shell/pages/bac-page.js";
 import { renderHomePage } from "./shell/pages/home-page.js";
 
 const logger = new ConsoleLogger("info", { component: "ShellServer" });
+/* AUDIT-RESET a055b8e (2026-10-13) — AUCUNE PERTE DÉTECTÉE.
+ * Alignement d'API ConsoleLogger + mise en forme logger.error, conforme au "build 0 erreur" de la session.
+ * Fait partie du batch "and 14 more". Vérifier la signature ConsoleLogger et le boot (build + démarrage)
+ * après toute restauration. */
 
 // Single composition root (Laravel `bootstrap/app.php`): env → security →
 // database (connect only, PRAGMAs awaited) → migrations fail-fast →
