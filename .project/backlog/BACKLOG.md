@@ -1,6 +1,6 @@
 # MosaiX / IJIDeals — BACKLOG (pilotage livraison)
 
-- **Dernière mise à jour :** 2026-10-12 — mise à jour complète suite aux livraisons `PRICE-02`
+- **Dernière mise à jour :** 2026-10-13 — vagues V0 (sécurisation), V1 (restaurations) et V2 (vendeur E2E) ; preuves par tests/commits, voir PLAN-VAGUES.md
 - **Principe :** ce fichier répond à « Que doit-on faire ensuite ? ». L'historique vit en `.project/archive/`, les décisions en `.project/decisions/`, l'architecture en `.project/architecture/` et `apps/*/responsibilities.md`.
 - **Règle de comptage :** le nombre de tâches ouvertes se recompte depuis le registre ci-dessous, jamais depuis un paragraphe manuel.
 
@@ -44,8 +44,8 @@
 | SHELL-BAC-01 | Shell : statut explicite par BAC + wiring ciblé | OPEN | P2 | Matrice persistance/autorisation/cycle de vie/API/UX/tests par BAC |
 | SHELL-TRUTH-01 | Shell : supprimer les comportements trompeurs | OPEN | P2 | Compteurs fictifs, likes no-op, home-page morte : retirer ou expliciter |
 | SHELL-RENDER-01 | Shell : découper `renderer.ts` sans changer le comportement | OPEN | P2 | Caractérisation d'abord, CTA déclaratifs, suppression fallback `allowedBacs` (complète HYGIENE-SHELL) |
-| SELL-FLOW-01 | Approbation vendeur atomique (vendable + offre + events) | DONE | P1 | Saga `ProposalService.approve()` avec `OfferProvisioningPort` et création atomique de vendable/offre |
-| SELL-FLOW-02 | Parcours vendeur dans Space (« mettre en vente ») | DONE | P2 | Formulaire de mise en vente marchand `view=sell` implémenté dans `spaces-view.ts` |
+| SELL-FLOW-01 | Approbation vendeur atomique (vendable + offre + events) | DONE | P1 | Saga `ProposalService.approve()` avec `OfferProvisioningPort` ; delta restauré V1.2 (`approvedTerms`/`auditTrail`/`idempotence`, replay sans doublon, 15/15 `proposal+portfolio`) |
+| SELL-FLOW-02 | Parcours vendeur dans Space (« mettre en vente ») | DONE | P2 | E2E formulaire `view=sell`→POST `/api/spaces/:spaceId/proposals`→Draft (route+wiring V1.3 5/5, câblage SSR+redirect V2 8/8 route, 7/7 vue) |
 | PRICE-01 | Contrat de prix et historique | DONE | P1 | Prix de base offre + journal append-only `priceHistory` + `resolveEffectivePrice()` (ADR-0021) |
 | PROMO-01 | Moteur de promotions | DONE | P2 | Implémenté via `PromotionEngine` dans `promotion-engine.ts` |
 | COUPON-01 | Codes et consommation des coupons | DONE | P2 | Implémenté via `CouponService` dans `coupon-service.ts` |

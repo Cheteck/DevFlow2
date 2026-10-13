@@ -34,6 +34,33 @@ function readBody(req: http.IncomingMessage): Promise<string> {
   });
 }
 
+/**
+ * Browser forms post urlencoded; API clients post JSON. Both map onto the
+ * same proposal input. Form fields: name, reference, type, price (major
+ * units), currency, stock (optional integer → characteristics.stockAllocation).
+ */
+function parseBody(raw: string, contentType: string): Record<string, unknown> {
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    const params = new URLSearchParams(raw);
+    const out: Record<string, unknown> = {};
+    for (const key of ["name", "reference", "type", "price", "currency", "stock"]) {
+      const value = params.get(key);
+      if (value !== null) out[key] = value;
+    }
+    return out;
+  }
+  return JSON.parse(raw) as Record<string, unknown>;
+}
+
+function wantsHtml(req: http.IncomingMessage): boolean {
+  return (req.headers.accept ?? "").includes("text/html");
+}
+
+function redirect(res: http.ServerResponse, location: string): void {
+  res.writeHead(303, { Location: location });
+  res.end();
+}
+
 function json(res: http.ServerResponse, statusCode: number, data: unknown): void {
   res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(data));
@@ -71,25 +98,71 @@ export async function handleSpacesProposalRoutes(
 
   let body: Record<string, unknown>;
   try {
-    body = JSON.parse(await readBody(req)) as Record<string, unknown>;
+    body = parseBody(await readBody(req), req.headers["content-type"] ?? "");
   } catch {
-    json(res, 400, { error: "Malformed JSON body." });
+    json(res, 400, { error: "Malformed body (JSON or urlencoded expected)." });
     return true;
   }
 
-  const suggestedReference = typeof body.suggestedReference === "string" ? body.suggestedReference.trim() : "";
+  // JSON shape: { suggestedReference, type, content, ... }.
+  // Form shape: { reference, name, type, price, currency, stock }.
+  const suggestedReference = (
+    typeof body.suggestedReference === "string"
+      ? body.suggestedReference
+      : typeof body.reference === "string"
+        ? body.reference
+        : ""
+  ).trim();
   const type = typeof body.type === "string" ? body.type : "";
-  if (!suggestedReference) {
-    json(res, 400, { error: "Body requires 'suggestedReference' (non-empty string)." });
+  const fail = (statusCode: number, code: string, error: string): true => {
+    if (wantsHtml(req)) {
+      redirect(res, `/spaces?view=sell&space=${encodeURIComponent(spaceId)}&error=${code}`);
+      return true;
+    }
+    json(res, statusCode, { error });
     return true;
+  };
+  if (!suggestedReference) {
+    return fail(400, "missing_reference", "Body requires 'suggestedReference' (non-empty string).");
   }
   if (!(ALLOWED_TYPES as readonly string[]).includes(type)) {
-    json(res, 400, { error: `Body requires 'type' in ${ALLOWED_TYPES.join(", ")}.` });
-    return true;
+    return fail(400, "bad_type", `Body requires 'type' in ${ALLOWED_TYPES.join(", ")}.`);
   }
 
   const recordOf = (value: unknown): Record<string, unknown> =>
     value !== null && typeof value === "object" ? (value as Record<string, unknown>) : {};
+
+  // Form price: decimal major units → cents. JSON callers pass commercialTerms directly.
+  let commercialTerms = recordOf(body.commercialTerms);
+  const characteristics = recordOf(body.characteristics);
+  if (body.price !== undefined || body.name !== undefined || body.stock !== undefined) {
+    const price = typeof body.price === "string" && body.price.trim() !== "" ? Number(body.price) : NaN;
+    if (body.price !== undefined && !(Number.isFinite(price) && price > 0)) {
+      return fail(400, "bad_price", "Field 'price' must be a positive number.");
+    }
+    const currency =
+      typeof body.currency === "string" && body.currency.trim() !== "" ? body.currency.trim() : "EUR";
+    const contentName = typeof body.name === "string" ? body.name.trim() : "";
+    // Commercial terms live inside content (ProposalService convention:
+    // content.commercialTerms), not as a sibling field.
+    commercialTerms = {
+      ...(Number.isFinite(price) ? { priceInCents: Math.round(price * 100), currency } : {}),
+      ...commercialTerms,
+    };
+    const content = {
+      ...(contentName ? { fr: { name: contentName } } : {}),
+      ...recordOf(body.content),
+      ...(Object.keys(commercialTerms).length > 0 ? { commercialTerms } : {}),
+    };
+    if (body.stock !== undefined && String(body.stock).trim() !== "") {
+      const stock = Number(body.stock);
+      if (!Number.isInteger(stock) || stock < 0) {
+        return fail(400, "bad_stock", "Field 'stock' must be a non-negative integer.");
+      }
+      characteristics.stockAllocation = stock;
+    }
+    body = { ...body, content, characteristics };
+  }
 
   try {
     const draft = await deps.proposalService.createDraft(spaceId, userId, {
@@ -103,6 +176,10 @@ export async function handleSpacesProposalRoutes(
       media: recordOf(body.media),
       translations: recordOf(body.translations),
     });
+    if (wantsHtml(req)) {
+      redirect(res, `/spaces?view=sell&space=${encodeURIComponent(spaceId)}&submitted=${encodeURIComponent(draft.id)}`);
+      return true;
+    }
     json(res, 201, { id: draft.id, spaceId: draft.spaceId, status: draft.status });
     return true;
   } catch (err) {

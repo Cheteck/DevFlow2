@@ -73,27 +73,77 @@ export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDesc
             "La soumission d'une offre commerciale nécessite un compte marchand dans cet espace.",
           );
         }
-        subViewHtml = `
+        const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+        const submittedId = first(context.request.query.submitted);
+        const errorCode = first(context.request.query.error);
+        const targetSpace = spaceParam
+          ? (spaceService.getSpace(spaceParam) ?? spaceService.getSpaceByDomainOrSlug(spaceParam))
+          : undefined;
+        const errorMessages: Record<string, string> = {
+          missing_reference: "Référence produit manquante : renseignez le champ SKU.",
+          bad_type: "Type de produit invalide.",
+          bad_price: "Prix invalide : montant positif attendu.",
+          bad_stock: "Stock invalide : entier positif ou nul attendu.",
+        };
+        const bannerHtml = submittedId
+          ? `<div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-medium">Proposition <strong>${escapeHtml(submittedId)}</strong> transmise à la modération du catalogue.</div>`
+          : errorCode
+            ? `<div class="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-300 font-medium">${escapeHtml(errorMessages[errorCode] ?? "Soumission refusée : vérifiez les champs.")}</div>`
+            : "";
+        if (!targetSpace) {
+          const options = spaceService
+            .listSpaces()
+            .map(
+              (s) =>
+                `<a href="/spaces?view=sell&amp;space=${encodeURIComponent(s.id)}" class="block px-4 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-xs font-bold text-on-surface transition">${escapeHtml(s.name)}</a>`,
+            )
+            .join("");
+          subViewHtml = `
           <div class="glass-card p-6 rounded-2xl border border-outline-variant/20 max-w-xl mx-auto space-y-4">
             <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Mettre un produit en vente (SELL-FLOW-02)</h3>
+            <p class="text-[11px] text-on-surface-variant leading-relaxed">Choisissez l'espace marchand pour lequel soumettre la proposition.</p>
+            <div class="space-y-2">${options || '<p class="text-[11px] text-on-surface-variant">Aucun espace pour le moment.</p>'}</div>
+          </div>
+        `;
+        } else {
+          subViewHtml = `
+          <div class="glass-card p-6 rounded-2xl border border-outline-variant/20 max-w-xl mx-auto space-y-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Mettre un produit en vente (SELL-FLOW-02) — ${escapeHtml(targetSpace.name)}</h3>
             <p class="text-[11px] text-on-surface-variant leading-relaxed">Soumettez une proposition de produit et ses conditions commerciales à la modération du catalogue.</p>
-            <form id="sell-product-form" class="space-y-4 text-xs">
+            ${bannerHtml}
+            <form method="POST" action="/api/spaces/${encodeURIComponent(targetSpace.id)}/proposals" class="space-y-4 text-xs">
               <div>
                 <label class="block text-[10px] font-bold uppercase text-on-surface-variant mb-1">Désignation du produit</label>
-                <input type="text" placeholder="Ex: Xiaomi 18 Pro Max 5G Ceramic Edition" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" required />
+                <input name="name" type="text" placeholder="Ex: Xiaomi 18 Pro Max 5G Ceramic Edition" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" required />
               </div>
               <div>
                 <label class="block text-[10px] font-bold uppercase text-on-surface-variant mb-1">Référence suggérée (SKU)</label>
-                <input type="text" placeholder="Ex: REF-XIAOMI-18-CERAMIC" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" required />
+                <input name="reference" type="text" placeholder="Ex: REF-XIAOMI-18-CERAMIC" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" required />
               </div>
-              <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[10px] font-bold uppercase text-on-surface-variant mb-1">Type</label>
+                <select name="type" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition">
+                  <option value="Product">Produit</option>
+                  <option value="Service">Service</option>
+                  <option value="DigitalProduct">Produit numérique</option>
+                  <option value="Experience">Expérience</option>
+                </select>
+              </div>
+              <div class="grid grid-cols-3 gap-3">
+                <div class="col-span-1">
+                  <label class="block text-[10px] font-bold uppercase text-on-surface-variant mb-1">Prix proposé</label>
+                  <input name="price" type="number" placeholder="450.00" step="0.01" min="0.01" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" required />
+                </div>
                 <div>
-                  <label class="block text-[10px] font-bold uppercase text-on-surface-variant mb-1">Prix proposé (€ / DZD)</label>
-                  <input type="number" placeholder="450.00" step="0.01" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" required />
+                  <label class="block text-[10px] font-bold uppercase text-on-surface-variant mb-1">Devise</label>
+                  <select name="currency" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition">
+                    <option value="EUR">EUR (€)</option>
+                    <option value="DZD">DZD (دج)</option>
+                  </select>
                 </div>
                 <div>
                   <label class="block text-[10px] font-bold uppercase text-on-surface-variant mb-1">Allocation de stock</label>
-                  <input type="number" placeholder="10" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" required />
+                  <input name="stock" type="number" placeholder="10" step="1" min="0" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" />
                 </div>
               </div>
               <div class="flex justify-end gap-2 pt-2">
@@ -103,6 +153,7 @@ export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDesc
             </form>
           </div>
         `;
+        }
       } else if (view === "new") {
         if (isGuest) {
           return guestLoginPrompt(

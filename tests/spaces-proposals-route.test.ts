@@ -8,7 +8,7 @@ import { handleSpacesProposalRoutes } from "../src/server/routes/spaces-routes.j
  * La session annonçait ce test SELL-FLOW-02 ; ni lui ni spaces-routes.ts n'existaient
  * (ni suivis ni dans l'arbre). Restaurés ensemble + wiring api-dispatcher. */
 
-function fakeReq(method: string, url: string, body?: string): IncomingMessage {
+function fakeReq(method: string, url: string, body?: string, headers: Record<string, string> = {}): IncomingMessage {
   const stream = new Readable({
     read() {
       if (body !== undefined) {
@@ -20,15 +20,16 @@ function fakeReq(method: string, url: string, body?: string): IncomingMessage {
   return Object.assign(stream, {
     method,
     url,
-    headers: { host: "localhost:3000" },
+    headers: { host: "localhost:3000", ...headers },
   }) as unknown as IncomingMessage;
 }
 
-function fakeRes(): { res: ServerResponse; output: { statusCode: number; body: string } } {
-  const output = { statusCode: 0, body: "" };
+function fakeRes(): { res: ServerResponse; output: { statusCode: number; body: string; location?: string } } {
+  const output = { statusCode: 0, body: "", location: undefined as string | undefined };
   const res = {
-    writeHead: (statusCode: number) => {
+    writeHead: (statusCode: number, responseHeaders?: Record<string, string>) => {
       output.statusCode = statusCode;
+      if (responseHeaders?.Location) output.location = responseHeaders.Location;
     },
     end: (chunk?: unknown) => {
       output.body = typeof chunk === "string" ? chunk : JSON.stringify(chunk);
@@ -126,5 +127,69 @@ describe("POST /api/spaces/:spaceId/proposals (SELL-FLOW-02)", () => {
     expect(userId).toBe("usr-seller-1");
     expect(input.suggestedReference).toBe("XIAOMI-18");
     expect(JSON.parse(output.body)).toMatchObject({ id: "prop_test_1", status: "Draft" });
+  });
+
+  it("accepts urlencoded browser forms and maps price/stock (V2.1)", async () => {
+    const proposalService = serviceStub();
+    const { res, output } = fakeRes();
+    const form = new URLSearchParams({
+      name: "Xiaomi 18",
+      reference: "XIAOMI-18",
+      type: "Product",
+      price: "450.00",
+      currency: "EUR",
+      stock: "10",
+    }).toString();
+    const handled = await handleSpacesProposalRoutes(
+      fakeReq("POST", "/api/spaces/space-1/proposals", form, {
+        "content-type": "application/x-www-form-urlencoded",
+      }),
+      res,
+      new URL("http://localhost/api/spaces/space-1/proposals"),
+      { ...AUTH, proposalService },
+    );
+    expect(handled).toBe(true);
+    expect(output.statusCode).toBe(201);
+    const [, , input] = proposalService.createDraft.mock.calls[0] as unknown as [
+      string,
+      string,
+      { content: { fr: { name: string }; commercialTerms: { priceInCents: number } }; characteristics: { stockAllocation: number } },
+    ];
+    expect(input.content.fr.name).toBe("Xiaomi 18");
+    expect(input.content.commercialTerms).toMatchObject({ priceInCents: 45000, currency: "EUR" });
+    expect(input.characteristics.stockAllocation).toBe(10);
+  });
+
+  it("redirects browser forms to the sell view with the draft id (V2.1)", async () => {
+    const { res, output } = fakeRes();
+    const form = new URLSearchParams({ reference: "X", type: "Product" }).toString();
+    const handled = await handleSpacesProposalRoutes(
+      fakeReq("POST", "/api/spaces/space-9/proposals", form, {
+        "content-type": "application/x-www-form-urlencoded",
+        accept: "text/html",
+      }),
+      res,
+      new URL("http://localhost/api/spaces/space-9/proposals"),
+      { ...AUTH, proposalService: serviceStub() },
+    );
+    expect(handled).toBe(true);
+    expect(output.statusCode).toBe(303);
+    expect(output.location).toContain("/spaces?view=sell&space=space-9&submitted=prop_test_1");
+  });
+
+  it("rejects invalid form prices and stocks (V2.1)", async () => {
+    for (const extra of ["price=-5", "price=abc", "stock=-1", "stock=2.5"]) {
+      const { res, output } = fakeRes();
+      const handled = await handleSpacesProposalRoutes(
+        fakeReq("POST", "/api/spaces/space-1/proposals", `reference=X&type=Product&${extra}`, {
+          "content-type": "application/x-www-form-urlencoded",
+        }),
+        res,
+        new URL("http://localhost/api/spaces/space-1/proposals"),
+        { ...AUTH, proposalService: serviceStub() },
+      );
+      expect(handled).toBe(true);
+      expect(output.statusCode).toBe(400);
+    }
   });
 });

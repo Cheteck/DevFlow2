@@ -49,10 +49,30 @@ describe("createSpacesDescriptor", () => {
   });
 
   it("renders sell submission form for authenticated sellers (SELL-FLOW-02)", async () => {
-    const descriptor = createSpacesDescriptor({ spaceService: await seededService() });
-    const result = await descriptor.render!(ctx({ view: "sell" }));
+    const service = await seededService();
+    const spaceId = service.listSpaces()[0]?.id ?? "";
+    const descriptor = createSpacesDescriptor({ spaceService: service });
+    const result = await descriptor.render!(ctx({ view: "sell", space: spaceId }));
     expect(result.contentHtml).toContain("Mettre un produit en vente");
     expect(result.contentHtml).toContain("SELL-FLOW-02");
+    expect(result.contentHtml).toContain(`/api/spaces/${encodeURIComponent(spaceId)}/proposals`);
+    expect(result.contentHtml).toContain('name="reference"');
+  });
+
+  it("asks for a space before selling and confirms submitted drafts (SELL-FLOW-02)", async () => {
+    const service = await seededService();
+    const spaceId = service.listSpaces()[0]?.id ?? "";
+    const descriptor = createSpacesDescriptor({ spaceService: service });
+
+    const picker = await descriptor.render!(ctx({ view: "sell" }));
+    expect(picker.contentHtml).toContain("Choisissez l'espace marchand");
+
+    const confirmed = await descriptor.render!(ctx({ view: "sell", space: spaceId, submitted: "prop_123" }));
+    expect(confirmed.contentHtml).toContain("prop_123");
+    expect(confirmed.contentHtml).toContain("transmise à la modération");
+
+    const failed = await descriptor.render!(ctx({ view: "sell", space: spaceId, error: "bad_price" }));
+    expect(failed.contentHtml).toContain("Prix invalide");
   });
 
   it("renders an honest empty state without a service", async () => {
