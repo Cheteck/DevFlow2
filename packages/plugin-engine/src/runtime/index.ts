@@ -29,7 +29,7 @@ export class PluginRegistry {
 
   getPluginsForApp(appId: string): PluginDefinition[] {
     return Array.from(this.plugins.values()).filter(
-      (p) => p.manifest.targetAppId === appId
+      (p) => p.manifest.targetAppId === appId || p.manifest.extension?.target === appId
     );
   }
 
@@ -72,8 +72,9 @@ export class PluginLifecycleManager {
   ) {}
 
   validate(manifest: PluginManifest): { valid: boolean; error?: string } {
-    if (!manifest.id || !manifest.targetAppId || !manifest.entrypoint) {
-      return { valid: false, error: "Missing required manifest fields: id, targetAppId, or entrypoint." };
+    const target = manifest.targetAppId ?? manifest.extension?.target;
+    if (!manifest.id || !target || !manifest.entrypoint) {
+      return { valid: false, error: "Missing required manifest fields: id, target (targetAppId/extension.target), or entrypoint." };
     }
     if (!manifest.version) {
       return { valid: false, error: "Missing required manifest version." };

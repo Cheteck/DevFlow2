@@ -8,4 +8,11 @@ export class SolaraContentModeratorPlugin {
       throw new Error("Contenu rejeté : mot proscrit [spam]");
     }
   }
+
+  static hookHandler(payload: { content: string }): { content: string } {
+    if (payload.content.toLowerCase().includes("spam")) {
+      throw new Error("Contenu rejeté : mot proscrit [spam]");
+    }
+    return payload;
+  }
 }

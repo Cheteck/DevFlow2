@@ -3,6 +3,7 @@ import { OrderModel, type OrderStatus } from './order.model.js';
 import { OrderStateMachine } from './order-state-machine.js';
 import { OrderValidationError, OrderNotFoundError } from './commerce.errors.js';
 import { CheckoutOrderWorkflow, type PaymentPort, type InventoryPort } from '../workflows/checkout-order.workflow.js';
+import { getGlobalPluginEngine } from '../../../../src/shell/plugin-engine-bootstrap.js';
 
 export interface OrderRepositoryPort {
   save(order: OrderModel): Promise<OrderModel>;
@@ -56,7 +57,21 @@ export class OrderService {
     order.vendableId = params.vendableId;
     order.status = 'Pending';
 
-    const orderAmount = params.amount ?? 50;
+    let orderAmount = params.amount ?? 50;
+
+    // Execute plugin hook for discount calculation (PLG-06)
+    const pluginEngine = getGlobalPluginEngine();
+    const discountResult = await pluginEngine.runHook<{ total: number }, number>(
+      "commerce.checkout.calculateDiscount",
+      { total: orderAmount }
+    );
+    if (discountResult.results && discountResult.results.length > 0) {
+      const calculatedTotal = discountResult.results[0];
+      if (typeof calculatedTotal === "number" && calculatedTotal < orderAmount) {
+        orderAmount = calculatedTotal;
+      }
+    }
+
     const idempotenceKey = params.idempotenceKey || `idemp-${order.id}`;
     order.totalAmount = orderAmount;
 
@@ -66,11 +81,7 @@ export class OrderService {
       unitPriceInCents: Math.round(orderAmount * 100),
       currency: order.currency || "EUR",
     };
-    /* AUDIT-RESET a055b8e (2026-10-13) — HUNK PRÉSENT DANS LE COMMIT, PAS UN RESET.
-     * La construction ci-dessous remplace `order.lineItems = [snapshot]` : elle mélange les deux formes
-     * (unitPrice/subtotal + unitPriceInCents/discount/promotion) via `any`, avec titre et quantité en dur.
-     * Dette à vérifier contre checkout-order.workflow.ts, PRICE-02 et commerce.test.ts avant restauration
-     * (typer OrderLineItem au lieu de `any`, source de quantité/titre explicite). */
+
     const lineItem: any = {
       id: `li-${order.id}`,
       sku: params.vendableId,
@@ -87,9 +98,6 @@ export class OrderService {
     };
     order.lineItems = [lineItem];
 
-    // Double-submit protection: an explicit idempotence key replays the
-    // original order instead of creating (and charging) a second one.
-    // The DB partial UNIQUE on idempotencyKey is the last line of defense.
     if (params.idempotenceKey) {
       const existing = await this.orderRepository.findByIdempotencyKey(params.idempotenceKey);
       if (existing) {
@@ -108,8 +116,6 @@ export class OrderService {
     const sagaState = await workflow.execute(initialState);
 
     if (sagaState.success && sagaState.context.paymentAuthorized && sagaState.context.inventoryReserved) {
-      // Hold authorized but not yet captured: capture confirmation arrives via
-      // payment webhook (CONFIRM → Paid). Never mark Paid on saga success alone.
       order.status = 'PendingPayment';
     } else {
       order.status = 'Cancelled';

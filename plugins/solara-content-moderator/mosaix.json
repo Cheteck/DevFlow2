@@ -1,0 +1,10 @@
+{
+  "id": "@mosaix-plugin/solara-content-moderator",
+  "name": "Solara Content Moderator Plugin",
+  "version": "0.1.0",
+  "entrypoint": "./src/index.ts",
+  "extension": {
+    "target": "solara",
+    "point": "solara.post.beforeCreate"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "@mosaix-plugin/commerce-recently-viewed",
+  "name": "Commerce Recently Viewed Plugin",
+  "version": "0.1.0",
+  "entrypoint": "./src/index.ts",
+  "extension": {
+    "target": "commerce",
+    "point": "dashboard"
+  }
+}

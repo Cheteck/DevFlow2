@@ -1,0 +1,10 @@
+{
+  "id": "@mosaix-plugin/commerce-reviews",
+  "name": "Commerce Reviews Plugin",
+  "version": "0.1.0",
+  "entrypoint": "./src/index.ts",
+  "extension": {
+    "target": "commerce",
+    "point": "domain"
+  }
+}

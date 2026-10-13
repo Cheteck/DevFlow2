@@ -54,3 +54,10 @@
 | AUTH-05 | Projection identité session→profil (IdentityProfilePort) | OPEN | P1 | `context.user.id` d'exécution = identité de session (commandes scoped, espaces) — cf. revue commerce-view |
 | COMMERCE-CART-01 | Backend panier réel (création/mutation/validation prix+stock) | OPEN | P2 | CTA actuel = badge honnête « bientôt disponible » ; checkout revalide prix+stock (BOUND-02) |
 | VUES-AUTHFLAG-01 | Brancher `isAuthenticated` dans les vues restantes (spaces, etc.) | OPEN | P2 | Même P1 rôles≠auth que commerce-view ; contrat déjà requis dans `BacExecutionContext` |
+| PLG-01 | Unification contrat PluginManifest & schéma Zod | OPEN | P1 | Aligner PluginManifest entre @mosaix/contracts, schemas et plugin-engine (GAP-PLG-01) |
+| PLG-02 | Bootstrapping PluginEngine dans le Shell | OPEN | P1 | Ajouter provider plugin-engine dans bootstrap/providers.ts (GAP-PLG-05) |
+| PLG-03 | Manifestes mosaix.json pour plugins/* | OPEN | P1 | Créer mosaix.json pour les 6 plugins de plugins/* (GAP-PLG-03) |
+| PLG-04 | Migration Solara Moderator vers HookEngine | OPEN | P1 | Remplacer import statique par hook solara.post.beforeCreate (GAP-PLG-03) |
+| PLG-05 | Imperia PluginManager raccordé à PluginEngine | OPEN | P2 | Déserver catalogue simulé vers PluginEngine réel (GAP-PLG-04) |
+| PLG-06 | Hooks canoniques Checkout Commerce | OPEN | P2 | Déclencher commerce.checkout.calculateDiscount au checkout (GAP-PLG-05) |
+| PLG-07 | Diagnostic CLI & Guide développeur plugins | OPEN | P3 | Rédiger docs/plugins-guide.md et valider CLI plugin (GAP-PLG-01..05) |

@@ -1,3 +1,5 @@
+import { getGlobalPluginEngine } from "../../../../src/shell/plugin-engine-bootstrap.js";
+
 export type PrestaPluginCategory =
   | "commerce"
   | "security"
@@ -90,6 +92,30 @@ export class ImperiaPluginManagerService {
   }
 
   listPlugins(category?: PrestaPluginCategory): ImperiaPluginModule[] {
+    const engine = getGlobalPluginEngine();
+    const runtimePlugins = engine.registry.list();
+
+    // Sync runtime state into catalog
+    for (const rp of runtimePlugins) {
+      const existing = this.getPlugin(rp.manifest.id);
+      if (existing) {
+        existing.enabled = rp.state === "ACTIVE";
+        existing.installed = rp.state !== "UNLOADED";
+      } else {
+        this.registerPlugin({
+          id: rp.manifest.id,
+          name: rp.manifest.name || rp.manifest.id,
+          author: rp.manifest.metadata?.author || "Developer",
+          version: rp.manifest.version || "1.0.0",
+          category: (rp.manifest.extension?.target as PrestaPluginCategory) || "commerce",
+          description: rp.manifest.metadata?.description || "Plugin MosaiX",
+          installed: rp.state !== "UNLOADED",
+          enabled: rp.state === "ACTIVE",
+          configurable: Boolean(rp.manifest.settingsSchema),
+        });
+      }
+    }
+
     const list = Array.from(this.plugins.values());
     if (category) {
       return list.filter((p) => p.category === category);
@@ -106,6 +132,10 @@ export class ImperiaPluginManagerService {
     if (!plugin) throw new Error(`Module plugin [${id}] non trouvé.`);
     plugin.installed = true;
     plugin.enabled = true;
+    const engine = getGlobalPluginEngine();
+    if (engine.registry.has(id)) {
+      engine.registry.updateState(id, "ACTIVE");
+    }
     return plugin;
   }
 
@@ -114,6 +144,10 @@ export class ImperiaPluginManagerService {
     if (!plugin) throw new Error(`Module plugin [${id}] non trouvé.`);
     if (!plugin.installed) throw new Error(`Impossible d'activer un module non installé.`);
     plugin.enabled = true;
+    const engine = getGlobalPluginEngine();
+    if (engine.registry.has(id)) {
+      engine.registry.updateState(id, "ACTIVE");
+    }
     return plugin;
   }
 
@@ -121,6 +155,10 @@ export class ImperiaPluginManagerService {
     const plugin = this.getPlugin(id);
     if (!plugin) throw new Error(`Module plugin [${id}] non trouvé.`);
     plugin.enabled = false;
+    const engine = getGlobalPluginEngine();
+    if (engine.registry.has(id)) {
+      engine.registry.updateState(id, "DISABLED");
+    }
     return plugin;
   }
 
@@ -137,6 +175,10 @@ export class ImperiaPluginManagerService {
     if (!plugin) throw new Error(`Module plugin [${id}] non trouvé.`);
     plugin.installed = false;
     plugin.enabled = false;
+    const engine = getGlobalPluginEngine();
+    if (engine.registry.has(id)) {
+      engine.registry.updateState(id, "DISABLED");
+    }
     return plugin;
   }
 

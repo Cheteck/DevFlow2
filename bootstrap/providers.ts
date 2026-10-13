@@ -76,4 +76,9 @@ export const applicationProviders: readonly ProviderDescriptor[] = [
     module: "../src/shell/rate-limiter.js",
     describes: "Standard + strict API rate limiters.",
   },
+  {
+    name: "plugin-engine",
+    module: "../src/shell/plugin-engine-bootstrap.js",
+    describes: "Global PluginEngine singleton for lifecycle and hooks execution.",
+  },
 ];
