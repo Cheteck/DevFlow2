@@ -7,6 +7,7 @@ import { migrationCommands } from "./commands/migration-commands.js";
 import { seedCommands } from "./commands/seed-commands.js";
 import { keyCommands } from "./commands/key-commands.js";
 import { installCommands } from "./commands/install-commands.js";
+import { slopCommands } from "./commands/slop-commands.js";
 
 export interface CommandOptions {
   rootDir?: string;
@@ -29,6 +30,7 @@ export class MosaixCommandRouter {
       ...seedCommands,
       ...keyCommands,
       ...installCommands,
+      ...slopCommands,
     ]);
   }
 
