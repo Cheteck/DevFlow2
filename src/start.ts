@@ -331,13 +331,16 @@ const server = http.createServer(async (req, res) => {
       if (descriptor) {
         // Least privilege for anonymous renders: BAC views must never see
         // member roles/permissions through the execution context.
+        // isAuthenticated comes from the resolved session (ssrAuth), never
+        // from roles (VUES-AUTHFLAG-01).
         const execUser =
           ssrAuth.kind === "anonymous"
-            ? { id: "guest", roles: [] as string[], permissions: [] as string[] }
+            ? { id: "guest", roles: [] as string[], permissions: [] as string[], isAuthenticated: false as const }
             : {
                 id: currentUser.id,
                 roles: [currentUser.role],
                 permissions: currentUser.permissions,
+                isAuthenticated: true as const,
               };
         const executionContext: BacExecutionContext = {
           tenantId: "default",
@@ -426,11 +429,12 @@ const server = http.createServer(async (req, res) => {
         spaceId: currentSpace,
         user:
           ssrAuth.kind === "anonymous"
-            ? { id: "guest", roles: [] as string[], permissions: [] as string[] }
+            ? { id: "guest", roles: [] as string[], permissions: [] as string[], isAuthenticated: false as const }
             : {
                 id: currentUser.id,
                 roles: [currentUser.role],
                 permissions: currentUser.permissions,
+                isAuthenticated: true as const,
               },
         theme: {
           // "system" has no runtime rendering — resolve to light (matches SSR default branch).
