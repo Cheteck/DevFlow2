@@ -1,6 +1,7 @@
 # Plan en vagues — Restauration post-`a055b8e` + sortie release
 
 - **Créé :** 2026-10-13 · **Base :** HEAD `a055b8e`, audit `AUDIT-RESET` (19 fichiers commentés), analyse backlog-vs-code.
+- **État d'exécution (2026-10-13) : V0, V1, V2, V3 terminés et committés ; V4 partiel (preuves unitaires + build verts, E2E PG/serveur restants). Voir `../reports/session-2026-10-13-vagues-1-4.md`. Décision release : REPORT (gate P0 incomplète).**
 - **Principe :** aucune vague ne commence si la précédente n'a pas son critère de sortie (preuve = test/commit/log). Aucun batch agent « and N more » sans liste explicite des fichiers.
 - **Règle transversale :** logique métier inchangée hors vague assignée ; tout écart backlog-vs-code rouvre une tâche avec preuve.
 
