@@ -1,9 +1,13 @@
 import { Controller, type HttpRequest, type HttpResponse } from "@mosaix/sdk";
 import { OrderService } from "../domain/order.service.js";
 import { CommerceDomainError, OrderValidationError, OrderNotFoundError } from "../domain/commerce.errors.js";
+import type { SatimPaymentPort } from "../domain/satim-payment-port.js";
 
 export class CommerceController extends Controller {
-  constructor(private readonly orderService: OrderService) {
+  constructor(
+    private readonly orderService: OrderService,
+    private readonly webhookVerifier?: Pick<SatimPaymentPort, "verifyWebhook">,
+  ) {
     super();
   }
 
@@ -71,12 +75,21 @@ export class CommerceController extends Controller {
 
   async handleWebhook(req: HttpRequest): Promise<HttpResponse> {
     try {
-      const body = req.body as { type?: string; orderId?: string; status?: string } | undefined;
+      const body = req.body as { type?: string; orderId?: string; status?: string; signature?: string } | undefined;
       if (!body?.type || !body?.orderId) {
         return this.badRequest("Webhook body requires 'type' and 'orderId'.");
       }
 
       if (body.type === "payment_intent.succeeded" || body.type === "checkout.session.completed") {
+        // V3.1 (BOUND-02): never settle on an unsigned claim. Signature travels in
+        // `x-satim-signature` (fallback: body.signature for PSP variants).
+        if (!this.webhookVerifier) {
+          return this.json({ error: "Webhook verifier not wired." }, 503);
+        }
+        const signature = req.headers?.["x-satim-signature"] ?? body.signature ?? "";
+        if (!this.webhookVerifier.verifyWebhook(signature, body)) {
+          return this.json({ error: "Invalid webhook signature." }, 401);
+        }
         const order = await this.orderService.getOrderById(body.orderId);
         if (order) {
           await this.orderService.setOrderStatus(String(order.id), "Paid");

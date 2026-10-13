@@ -1,5 +1,6 @@
 import type { PaymentPort } from "../workflows/checkout-order.workflow.js";
 import { Money, type Logger } from "@mosaix/core";
+import * as crypto from "node:crypto";
 
 export interface UnifiedPaymentPort extends PaymentPort {
   refund?(orderId: string, amount: number, idempotenceKey: string): Promise<void>;
@@ -10,6 +11,8 @@ export interface SatimPaymentOptions {
   gatewayUrl?: string;
   terminalId?: string;
   returnUrlBase?: string;
+  /** HMAC secret for webhook verification (env SATIM_WEBHOOK_SECRET). Absent → fail-closed. */
+  webhookSecret?: string;
   logger?: Pick<Logger, "info" | "warn">;
 }
 
@@ -30,6 +33,7 @@ export class SatimPaymentPort implements UnifiedPaymentPort {
   private readonly gatewayUrl: string;
   private readonly terminalId: string;
   private readonly returnUrlBase: string;
+  private readonly webhookSecret: string;
   private readonly logger?: Pick<Logger, "info" | "warn">;
 
   constructor(options: SatimPaymentOptions = {}) {
@@ -38,6 +42,7 @@ export class SatimPaymentPort implements UnifiedPaymentPort {
     this.terminalId = options.terminalId ?? process.env.SATIM_TERMINAL_ID ?? "MOSAIX_TERM_01";
     this.returnUrlBase =
       options.returnUrlBase ?? process.env.MOSAIX_PUBLIC_BASE_URL ?? "https://mosaix.platform";
+    this.webhookSecret = options.webhookSecret ?? process.env.SATIM_WEBHOOK_SECRET ?? "";
     this.logger = options.logger;
   }
 
@@ -78,14 +83,30 @@ export class SatimPaymentPort implements UnifiedPaymentPort {
     this.activeHolds.delete(orderId);
   }
 
-  /* AUDIT-RESET a055b8e (2026-10-13) — HUNK PRÉSENT DANS LE COMMIT, PAS UN RESET.
-   * La garde ci-dessous (rejet des signatures < 16 caractères) correspond à l'étape "Sécurité/HMAC" :
-   * elle évite un stub silencieusement vrai, mais `return true` subsiste et aucun appelant in-repo
-   * n'existe (interface + implémentation seules). Avant usage réel (BOUND-02) : brancher la vérification
-   * SATIM et tester callbacks valides/invalides ; ne pas s'appuyer sur `true` en production. */
-  verifyWebhook(signature: string, _payload: unknown): boolean {
-    if (!signature || signature.length < 16) throw new Error("SatimPaymentPort: verifyWebhook not implemented or invalid signature entropy.");
-    return true;
+/* AUDIT-RESET a055b8e (2026-10-13) — HUNK PRÉSENT PUIS DURCI (V3.1, voir git log).
+ * La garde `< 16 caractères` + `return true` est remplacée par une vérification HMAC-SHA256
+ * fail-closed (voir verifyWebhook). Reste dû : alignement canonisation SATIM avant prod. */
+  /**
+   * Webhook authenticity (V3.1, BOUND-02): HMAC-SHA256 over the canonical
+   * `JSON.stringify` of the payload, compared timing-safe against the
+   * `x-satim-signature` header (`sha256=<hex>` or raw `<hex>`).
+   * Fail-closed: no configured secret → false, never true.
+   * Production MUST align the canonicalization with the SATIM signing spec
+   * before going live (see release gate); unit cover lives in
+   * `satim-webhook.test.ts`.
+   */
+  verifyWebhook(signature: string, payload: unknown): boolean {
+    if (!this.webhookSecret || !signature) return false;
+    const clean = signature.startsWith("sha256=") ? signature.slice("sha256=".length) : signature;
+    let presented: Buffer;
+    try {
+      presented = Buffer.from(clean, "hex");
+    } catch {
+      return false;
+    }
+    if (presented.length !== 32) return false;
+    const expected = crypto.createHmac("sha256", this.webhookSecret).update(JSON.stringify(payload)).digest();
+    return crypto.timingSafeEqual(presented, expected);
   }
 }
 

@@ -27,8 +27,9 @@ export class CommerceAppServiceProvider implements ServiceProvider {
     // Production runtime: real PSP adapter (BOUND-02). Inventory reservation
     // has no persistent adapter yet — checkout fails closed loudly until
     // one is wired, never a silent no-op.
-    const orderService = new OrderService(repository, new SatimPaymentPort());
-    const controller = new CommerceController(orderService);
+    const satimPort = new SatimPaymentPort();
+    const orderService = new OrderService(repository, satimPort);
+    const controller = new CommerceController(orderService, satimPort);
 
     container.instance("orderRepository", repository);
     container.instance(OrderService, orderService);
