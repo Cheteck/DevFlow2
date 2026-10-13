@@ -21,17 +21,19 @@ import { handleUserAndSpaceRoutes } from "./routes/user-routes.js";
 import { handleFeatureFlagRoutes } from "./routes/feature-flag-routes.js";
 import { handleCompositionRoutes } from "./routes/composition-routes.js";
 import { handleAuthRoutes } from "./routes/auth-routes.js";
+import { handleSpacesProposalRoutes } from "./routes/spaces-routes.js";
+import { ProposalService } from "../../apps/portfolio/src/domain/proposal-service.js";
+import { PortfolioService } from "../../apps/portfolio/src/domain/portfolio-service.js";
+import { PostgresProposalRepository } from "../../apps/portfolio/src/infrastructure/postgres-proposal-repository.js";
+import { PostgresVendableRepository } from "../../apps/portfolio/src/infrastructure/postgres-vendable-repository.js";
 import { handleMcpRoutes } from "./routes/mcp-routes.js";
 import { handleFeedRoutes } from "./routes/feed-routes.js";
 import { handleComplianceAndSystemRoutes } from "./routes/compliance-routes.js";
 import { handleMobileRoutes } from "./routes/mobile-routes.js";
 
-/* AUDIT-RESET a055b8e (2026-10-13) — PERTE CONFIRMÉE (SELL-FLOW-02, par absence).
- * La session annonçait la route POST /api/spaces/:spaceId/proposals câblée ici (via spaces-routes.ts),
- * mais aucun handler proposals n'est enregistré (grep "proposals" vide dans src/server) et les fichiers
- * src/server/routes/spaces-routes.ts + tests/spaces-proposals-route.test.ts n'existent ni dans l'index
- * ni dans l'arbre de travail. Dernier commit de ce fichier : f1b343a (antérieur à la session).
- * Restauration : recréer le module de route + son enregistrement ci-dessus + tests de soumission vendeur. */
+/* AUDIT-RESET a055b8e (2026-10-13) — PERTE CONFIRMÉE PUIS RESTAURÉE (V1.3, voir git log).
+ * Le wiring SELL-FLOW-02 manquait (spaces-routes.ts + test inexistants) ; route recréée,
+ * enregistrée ci-dessus (6b) et couverte par tests/spaces-proposals-route.test.ts. */
 
 export interface ApiDispatcherContext {
   // Per-request theme resolved from the mosaix_theme_mode cookie.
@@ -113,6 +115,21 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
 apiRouteRegistry.register((req, res, parsedUrl) =>
   handleAuthRoutes(req, res, parsedUrl),
 );
+
+// 6b. Space seller proposals — POST /api/spaces/:spaceId/proposals (SELL-FLOW-02).
+// Restored after the a055b8e loss (V1.3): repositories are thin wrappers over the
+// shared DatabasePort, so per-match construction is cheap and keeps the module testable.
+apiRouteRegistry.register((req, res, parsedUrl, ctx) => {
+  if (!/^\/api\/spaces\/[^/]+\/proposals$/.test(parsedUrl.pathname)) {
+    return false;
+  }
+  const portfolioService = new PortfolioService(new PostgresVendableRepository(ctx.db));
+  const proposalService = new ProposalService(new PostgresProposalRepository(ctx.db), portfolioService);
+  return handleSpacesProposalRoutes(req, res, parsedUrl, {
+    currentUserId: ctx.currentUser.id,
+    proposalService,
+  });
+});
 
 // 7. Feed & Realtime Posts API
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
