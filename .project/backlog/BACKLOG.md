@@ -8,11 +8,12 @@
 
 | ID | Titre | Statut | Pri | Prochaine action |
 |---|---|---|---|---|
-| MCP-03c | Vérification Bearer cryptographique MCP | DONE | P0 | Validé par tests d'authentification cryptographiques JWT (`JwtService`) |
+| MCP-03c | Vérification Bearer cryptographique MCP | DONE | P0 | Prouvé V3 : deny anonyme `-32001`, JWT valide accepté, faux/expiré rejetés (11/11 `mcp+permission-alignment`) |
 | AUCTION-PERSIST | Persister le moteur d'enchères | DONE | P0 | Validé par `PostgresAuctionRepository` + `SELECT FOR UPDATE` + tests de concurrence |
 | AUTH-E2E | Preuves auth réelle sur PG | VERIFY | P0 | E2E restart (valide survit, révoquée rejetée) + guard `InMemorySecretsAdapter` (`citadelle/index.ts:160`) + e2e login/logout/session |
 | DB-PGSQL-E2E | `db:setup` vert sur Postgres réelle | VERIFY | P0 | Câbler `PgClient` réel derrière `DB_CONNECTION=pgsql` + e2e ledger + seeds |
-| BOUND-02 | Extraire Payments derrière `PaymentPort` | DONE | P0 | `UnifiedPaymentPort` formalisé dans `satim-payment-port.ts` |
+| BOUND-02 | Extraire Payments derrière `PaymentPort` | DONE | P0 | `UnifiedPaymentPort` formalisé ; webhook HMAC-SHA256 fail-closed imposé avant CONFIRM (V3.1, 21/21 commerce). Reste : alignement canonisation SATIM avant prod réelle |
+| VIEW-E2E-A | Parcours Commerce/Portfolio utilisables | VERIFY | P1 | E2E `/commerce` (offres→panier→commande) + `/portfolio` (grille→fiche→search) — 10 vues existent, preuve manquante |
 | VIEW-E2E-A | Parcours Commerce/Portfolio utilisables | VERIFY | P1 | E2E `/commerce` (offres→panier→commande) + `/portfolio` (grille→fiche→search) — 10 vues existent, preuve manquante |
 | VIEW-E2E-B | Parcours Spaces/Citadelle utilisables | VERIFY | P1 | E2E `/spaces` (liste→création→membres/rôles) + `/citadelle` (profil/sessions/MFA) |
 | BOUND-07 | Garde-fou rôles métier vs identité | DONE | P1 | `CitadellePolicyEvaluator` formalisé dans `citadelle-policy.ts` et validé par tests unitaires |
@@ -37,7 +38,7 @@
 | PORT-UI-05 | Portfolio UI : import/export branchés | OPEN | P2 | Dropzone + rapports vers parser CSV réel (cf. PRD-0011-BC) |
 | PORT-UI-06 | Portfolio UI : i18n FR/EN/AR + SEO + a11y | OPEN | P2 | Sélecteur langue, meta par fiche, labels/aria |
 | PORT-UI-07 | Portfolio UI : tests sur données réelles + ménage | OPEN | P2 | Réécrire asserts sur mocks, supprimer manifeste slots mort, fixer vocabulaire EAV |
-| SHELL-SEC-01 | Shell : vérifier les frontières de sécurité | OPEN | P0 | Permissions effectives + handlers `/api/*` + multi-tenant + chemins SSR ; corriger toute divergence exploitable |
+| SHELL-SEC-01 | Shell : vérifier les frontières de sécurité | OPEN | P0 | Partiel V3 : suites frontières+invariants vertes 11/11. Reste : audit handlers `/api/*`, multi-tenant, chemins SSR ; corriger toute divergence exploitable |
 | SHELL-PERM-01 | Shell : source canonique des permissions | DONE | P1 | Catalogue `CANONICAL_BAC_IDS` et helpers de validation ajoutés |
 | SHELL-UI-01 | Shell : réparer le validateur UI (faux-vert) | DONE | P1 | Valideur de contrats UI réparé et exécuté avec succès |
 | SHELL-INV-01 | Shell : suite invariants production | DONE | P1 | Suite de tests d'invariants de production ajoutée dans `tests/shell-production-invariants.test.ts` |
