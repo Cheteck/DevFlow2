@@ -26,6 +26,13 @@ import {
   createSpacesBACClient,
   type SpacesModuleLike,
 } from "./providers/spaces.js";
+import {
+  registerCommerceTools,
+  registerCommerceResources,
+  registerCommercePrompts,
+  createCommerceBACClient,
+  type CommerceModuleLike,
+} from "./providers/commerce.js";
 import { WorkflowToolProvider } from "./providers/workflows.js";
 
 // Register all providers
@@ -124,6 +131,48 @@ async function wireSpacesTools(): Promise<void> {
 
 await wirePortfolioTools();
 await wireSpacesTools();
+await wireCommerceTools();
+
+/**
+ * Wires deterministic Commerce tools to the real BAC via dynamic import.
+ * Stdio transport has no DatabasePort by construction → in-memory
+ * CommerceOfferService (honest ephemeral parity, never silent storage).
+ */
+async function wireCommerceTools(): Promise<void> {
+  const candidates = [
+    "@apps/commerce",
+    new URL("../../../apps/commerce/src/index.ts", import.meta.url).href,
+  ];
+  let commerce: CommerceModuleLike | null = null;
+  let lastError: unknown = null;
+  for (const specifier of candidates) {
+    try {
+      commerce = (await import(specifier)) as CommerceModuleLike;
+      break;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  if (!commerce) {
+    console.error(
+      "[mcp-server] commerce tools unwired (@apps/commerce not resolvable):",
+      lastError instanceof Error ? lastError.message : String(lastError),
+    );
+    return;
+  }
+  try {
+    const service = new commerce.CommerceOfferService(undefined);
+    const client = createCommerceBACClient(service);
+    registerCommerceTools(mcpToolRegistry, client);
+    registerCommerceResources(mcpResourceRegistry, client);
+  } catch (err) {
+    console.error(
+      "[mcp-server] commerce tools unwired (@apps/commerce not resolvable):",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+  registerCommercePrompts(mcpPromptRegistry);
+}
 
 const gateway = new MCPGateway();
 

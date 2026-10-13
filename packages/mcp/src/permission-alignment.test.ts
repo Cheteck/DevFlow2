@@ -5,6 +5,7 @@ import { AppToolProvider } from "./providers/app.js";
 import { IntelligenceToolProvider } from "./providers/intelligence.js";
 import { registerPortfolioTools } from "./providers/portfolio.js";
 import { registerSpacesTools } from "./providers/spaces.js";
+import { registerCommerceTools } from "./providers/commerce.js";
 import { WorkflowToolProvider } from "./providers/workflows.js";
 
 // MCP-02 regression: every requiredPermission used by a registered tool
@@ -20,6 +21,8 @@ const KNOWN_PERMISSIONS = new Set([
   "imperia:topology:query",
   "commerce:order:create",
   "commerce:order:read",
+  "commerce:offer:publish:tenant",
+  "commerce:offer:read:tenant",
   "booking:slot:create",
   "booking:slot:read",
   "booking:reservation:create",
@@ -58,6 +61,19 @@ describe("MCP permission alignment (MCP-02)", () => {
       readSpace: async () => undefined,
       searchSpaces: async () => [],
       bulkImport: async () => ({ created: [], skipped: [] }),
+    });
+    registerCommerceTools(tools, {
+      listOffers: async () => [],
+      createOffer: async () => ({
+        id: "x",
+        title: "x",
+        priceInCents: 1,
+        currency: "DZD",
+        status: "ACTIVE",
+        sellerType: "space",
+        sellerId: "y",
+        vendableId: "z",
+      }),
     });
     WorkflowToolProvider.register(tools, new MCPPromptRegistry());
 

@@ -23,16 +23,22 @@ import {
   WorkflowToolProvider,
   createPortfolioBACClient,
   createSpacesBACClient,
+  createCommerceBACClient,
   registerPortfolioPrompts,
   registerPortfolioResources,
   registerPortfolioTools,
   registerSpacesPrompts,
   registerSpacesResources,
   registerSpacesTools,
+  registerCommercePrompts,
+  registerCommerceResources,
+  registerCommerceTools,
   type PortfolioBACClient,
   type PortfolioModuleLike,
   type SpacesBACClient,
   type SpacesModuleLike,
+  type CommerceBACClient,
+  type CommerceModuleLike,
 } from "@mosaix/mcp";
 
 import type { DatabasePort } from "@mosaix/ports-database";
@@ -106,6 +112,37 @@ async function wireSpacesClient(db?: DatabasePort): Promise<SpacesBACClient | un
   return undefined;
 }
 
+/**
+ * Builds the Commerce BAC client. When the server hands over its Postgres
+ * DatabasePort, offers persist through `PostgresCommerceOfferRepository`
+ * (`commerce.offers`) so MCP publications survive restarts and feed the
+ * public vitrine. Otherwise ephemeral InMemory (stdio parity) + warn.
+ */
+async function wireCommerceClient(db?: DatabasePort): Promise<CommerceBACClient | undefined> {
+  const candidates = [
+    "@apps/commerce",
+    new URL("../../../apps/commerce/src/index.ts", import.meta.url).href,
+  ];
+  for (const specifier of candidates) {
+    try {
+      const commerce = (await import(specifier)) as CommerceModuleLike;
+      const RepositoryCtor = commerce.PostgresCommerceOfferRepository;
+      const repository =
+        db?.capabilities.dialect === "postgres" && typeof RepositoryCtor === "function"
+          ? new RepositoryCtor(db)
+          : undefined;
+      if (!repository) {
+        console.warn("[mcp-routes] commerce MCP client on ephemeral in-memory store (no Postgres DatabasePort).");
+      }
+      const service = new commerce.CommerceOfferService(repository);
+      return createCommerceBACClient(service);
+    } catch {
+      continue;
+    }
+  }
+  return undefined;
+}
+
 async function getGateway(db?: DatabasePort): Promise<MCPGateway> {
   const wantsPersistent = db?.capabilities.dialect === "postgres";
   if (!gatewayPromise || (wantsPersistent && !gatewayPersistent)) {
@@ -126,6 +163,10 @@ async function getGateway(db?: DatabasePort): Promise<MCPGateway> {
       registerSpacesTools(tools, spacesClient);
       registerSpacesResources(resources, spacesClient);
       registerSpacesPrompts(prompts);
+      const commerceClient = await wireCommerceClient(db);
+      registerCommerceTools(tools, commerceClient);
+      registerCommerceResources(resources, commerceClient);
+      registerCommercePrompts(prompts);
       return new MCPGateway(tools, resources, prompts);
     })();
   }
