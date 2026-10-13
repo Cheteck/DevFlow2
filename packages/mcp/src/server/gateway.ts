@@ -124,7 +124,7 @@ export class MCPGateway {
           const capabilityTools = intelligenceCaps.map((cap) => ({
             name: `intelligence_${cap.name.replace(/\./g, "_")}`,
             description: cap.description,
-            inputSchema: cap.inputSchema,
+            inputSchema: (cap as unknown as Record<string, unknown>).inputSchema || { type: "object", properties: {} },
             requiredPermission: `intelligence:${cap.category}:execute`,
           }));
 

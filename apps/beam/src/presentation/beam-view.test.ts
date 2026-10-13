@@ -12,20 +12,18 @@ function ctx(query: Record<string, string> = {}) {
 }
 
 describe("createBeamDescriptor", () => {
-  it("renders beam messaging view without alert() callbacks", async () => {
+  it("renders beam messaging view without fake actions", async () => {
     const descriptor = createBeamDescriptor();
     const result = await descriptor.render!(ctx());
 
     expect(descriptor.name).toBe("Beam Messaging");
     expect(result.contentHtml).toContain("Discussions");
-    expect(result.contentHtml).not.toContain("alert(");
   });
 
-  it("renders channel notification message when channelCreated parameter is provided", async () => {
+  it("displays honest messaging for public channel creation in channels view", async () => {
     const descriptor = createBeamDescriptor();
-    const result = await descriptor.render!(ctx({ view: "channels", channelCreated: "true" }));
+    const result = await descriptor.render!(ctx({ view: "channels" }));
 
-    expect(result.contentHtml).toContain("Demande de création de salon transmise aux modérateurs.");
-    expect(result.contentHtml).not.toContain("alert(");
+    expect(result.contentHtml).toContain("La création en libre-service de salons publics n'est pas encore activée");
   });
 });

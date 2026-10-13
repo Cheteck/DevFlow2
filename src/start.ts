@@ -56,7 +56,7 @@ import { wireBacDescriptors } from "./server/bac-wiring.js";
 import { renderBacPage } from "./shell/pages/bac-page.js";
 import { renderHomePage } from "./shell/pages/home-page.js";
 
-const logger = new ConsoleLogger("ShellServer");
+const logger = new ConsoleLogger("info", { component: "ShellServer" });
 
 // Single composition root (Laravel `bootstrap/app.php`): env → security →
 // database (connect only, PRAGMAs awaited) → migrations fail-fast →
@@ -427,7 +427,7 @@ const server = http.createServer(async (req, res) => {
                 id: currentUser.id,
                 roles: [currentUser.role],
                 permissions: currentUser.permissions,
-              };
+              },
         theme: {
           // "system" has no runtime rendering — resolve to light (matches SSR default branch).
           mode: currentThemeMode === "system" ? "light" : currentThemeMode,
@@ -498,7 +498,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(homeHtml);
   } catch (err: unknown) {
-    logger.error("[ServerError]", err instanceof Error ? err : new Error(String(err)));
+    logger.error("[ServerError]", { err: String(err) });
     if (!res.headersSent) {
       res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
       const message = err instanceof Error ? err.message : "Unknown error";

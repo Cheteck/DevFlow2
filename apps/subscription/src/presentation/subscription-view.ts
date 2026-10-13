@@ -1,11 +1,15 @@
 /**
  * @apps/subscription — Autonomous BAC View & Descriptor
  * Self-contained SSR presentation layer for MosaiX Subscription & Billing Engine.
+ * Note: Subscription plans are currently seeded in-memory via SubscriptionService pending DB port migration.
  */
 
 import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
+import { ConsoleLogger } from "@mosaix/core";
 import { SubscriptionService } from "../domain/subscription.service.js";
+
+const logger = new ConsoleLogger("info", { component: "SubscriptionView" });
 
 export function createSubscriptionDescriptor(service?: SubscriptionService): BacDescriptor {
   const subscriptionService = service || new SubscriptionService();
@@ -27,13 +31,16 @@ export function createSubscriptionDescriptor(service?: SubscriptionService): Bac
       const user = context.user;
       const userId = user.id || "guest";
       const selectedPlanId = context.request.query.plan || null;
+      let subscriptionSuccess = false;
 
-      // Handle subscription request if query contains plan
+      // Handle subscription request if query contains plan and valid user
       if (selectedPlanId && userId !== "guest") {
         try {
           await subscriptionService.subscribe(userId, selectedPlanId);
+          subscriptionSuccess = true;
         } catch (err) {
-          console.warn("[Subscription] Subscription error:", err);
+          logger.error(`Subscription error for user ${userId}:`, { err: String(err) });
+          subscriptionSuccess = false;
         }
       }
 
@@ -41,7 +48,7 @@ export function createSubscriptionDescriptor(service?: SubscriptionService): Bac
       const activeSubscription = userId !== "guest" ? await subscriptionService.getUserSubscriptionAsync(userId) : undefined;
       const plans = subscriptionService.listPlans();
 
-      const notificationHtml = selectedPlanId ? `
+      const notificationHtml = subscriptionSuccess && selectedPlanId ? `
         <div class="p-3 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary font-medium flex items-center justify-between animate-fade-in">
           <span>✨ Votre souscription au forfait <strong>${escapeHtml(selectedPlanId)}</strong> a été activée avec succès !</span>
           <a href="/subscription" class="text-[10px] underline font-bold">Masquer</a>

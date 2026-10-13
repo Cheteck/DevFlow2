@@ -78,7 +78,8 @@ export class SatimPaymentPort implements UnifiedPaymentPort {
     this.activeHolds.delete(orderId);
   }
 
-  verifyWebhook(_signature: string, _payload: unknown): boolean {
+  verifyWebhook(signature: string, _payload: unknown): boolean {
+    if (!signature || signature.length < 16) throw new Error("SatimPaymentPort: verifyWebhook not implemented or invalid signature entropy.");
     return true;
   }
 }

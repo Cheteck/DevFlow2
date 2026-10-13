@@ -53,8 +53,8 @@ export class MCPPrincipalResolver {
     }
 
     const scopes = new Set<string>();
-    if (Array.isArray(payload.scopes)) {
-      payload.scopes.forEach((s) => scopes.add(s));
+    if (Array.isArray((payload as unknown as Record<string, unknown>).scopes)) {
+      ((payload as unknown as Record<string, unknown>).scopes as string[]).forEach((s) => scopes.add(s));
     }
     if (Array.isArray(payload.permissions)) {
       payload.permissions.forEach((p) => scopes.add(p));

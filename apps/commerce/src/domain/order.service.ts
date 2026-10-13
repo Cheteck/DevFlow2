@@ -66,7 +66,21 @@ export class OrderService {
       unitPriceInCents: Math.round(orderAmount * 100),
       currency: order.currency || "EUR",
     };
-    order.lineItems = [snapshot];
+    const lineItem: any = {
+      id: `li-${order.id}`,
+      sku: params.vendableId,
+      vendableId: params.vendableId,
+      title: "Article Commande",
+      quantity: 1,
+      unitPrice: snapshot.unitPriceInCents / 100,
+      subtotal: (snapshot.unitPriceInCents - (snapshot.discountInCents || 0)) / 100,
+      unitPriceInCents: snapshot.unitPriceInCents,
+      discountInCents: snapshot.discountInCents,
+      currency: snapshot.currency,
+      appliedPromotionId: snapshot.appliedPromotionId,
+      appliedCouponCode: snapshot.appliedCouponCode,
+    };
+    order.lineItems = [lineItem];
 
     // Double-submit protection: an explicit idempotence key replays the
     // original order instead of creating (and charging) a second one.
