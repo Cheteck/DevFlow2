@@ -1,135 +1,37 @@
 /**
- * @scripts/dev — dev supervisor: runs the platform with code watch and
- * restarts it when dotenv files change.
+ * @scripts/dev — MOSAIX // COMMAND CENTER entry point (`pnpm dev`).
  *
- * Why: `tsx --watch` only watches imported source files, never `.env`.
- * Since secrets now load from `.env` at boot (see `loadEnvFile`), editing
- * `.env` without a restart silently keeps stale config. This supervisor
- * respawns the child so the new env is picked up.
+ * Supervises the platform server (`tsx --watch src/start.ts`) and the MCP
+ * stdio server (`packages/mcp/src/stdio-server.ts`) with independent
+ * lifecycle management, .env watching, a live event timeline, bounded logs,
+ * keyboard shortcuts and graceful shutdown.
+ *
+ * TUI choice: hand-rolled ANSI renderer (zero new deps) instead of Ink/React —
+ * deterministic in tests/CI, safe on Windows, and keeps the MCP stdio
+ * protocol isolated (MCP stdout is piped + drained, never rendered).
+ * Flags: --no-tui (plain text), --debounce <ms>.
  *
  * Dev-only. Production (`pnpm start`) boots once and never watches.
  */
-import { spawn, type ChildProcess } from "node:child_process";
-import * as fs from "node:fs";
-import * as path from "node:path";
+import { DevSupervisor } from "../packages/dev-server/src/command-center/supervisor.js";
 
 const ROOT = process.cwd();
-// Keep in sync with `loadEnvFile()` defaults in @mosaix/core.
-const WATCHED_ENV_FILES = [".env", ".env.local"];
-const RESTART_DEBOUNCE_MS = 300;
 
-let child: ChildProcess | null = null;
-let mcpChild: ChildProcess | null = null;
-let restarting = false;
-let stopped = false;
+const args = process.argv.slice(2);
+const noTui = args.includes("--no-tui") || process.env.NO_TUI !== undefined;
+const debounceIdx = args.indexOf("--debounce");
+const debounceMs =
+  debounceIdx >= 0 ? Number(args[debounceIdx + 1]) || 300 : 300;
 
-function startChild(): void {
-  if (stopped) return;
-  // Static command (no user input) — shell:true resolves the tsx bin
-  // on Windows (.cmd) and POSIX alike.
-  child = spawn("tsx --watch src/start.ts", {
-    stdio: "inherit",
-    shell: true,
-    cwd: ROOT,
-    env: process.env,
-  });
-  child.on("exit", (code, signal) => {
-    child = null;
-    if (stopped || restarting) return;
-    console.log(
-      `[dev] server exited (code=${code ?? "?"} signal=${signal ?? "?"}). Waiting for changes… (Ctrl+C to quit)`,
-    );
-  });
-}
+const supervisor = new DevSupervisor({
+  root: ROOT,
+  apiCommand: process.platform === "win32" ? "npx.cmd" : "npx",
+  apiArgs: ["tsx", "--watch", "src/start.ts"],
+  mcpCommand: process.platform === "win32" ? "npx.cmd" : "npx",
+  mcpArgs: ["tsx", "packages/mcp/src/stdio-server.ts"],
+  watchedFiles: [".env", ".env.local"],
+  debounceMs,
+  noTui,
+});
 
-function startMcpServer(): void {
-  if (stopped) return;
-  // Never leak the previous MCP child on supervised restarts: kill it first.
-  if (mcpChild) {
-    try {
-      mcpChild.kill();
-    } catch {
-      /* already gone — the exit handler clears the reference */
-    }
-    mcpChild = null;
-  }
-  mcpChild = spawn("pnpm tsx packages/mcp/src/stdio-server.ts", {
-    stdio: ["pipe", "pipe", "inherit"],
-    shell: true,
-    cwd: ROOT,
-    env: process.env,
-  });
-  mcpChild.on("exit", (code, signal) => {
-    mcpChild = null;
-    if (stopped || restarting) return;
-    console.log(
-      `[dev] mcp server exited (code=${code ?? "?"} signal=${signal ?? "?"})`,
-    );
-  });
-}
-
-function restart(reason: string): void {
-  if (stopped || restarting || !child) {
-    if (!child && !stopped) startChild();
-    return;
-  }
-  restarting = true;
-  console.log(`[dev] ${reason} — restarting server…`);
-  child.once("exit", () => {
-    restarting = false;
-    startChild();
-    startMcpServer();
-  });
-  child.kill();
-}
-
-let debounce: NodeJS.Timeout | null = null;
-function scheduleRestart(file: string): void {
-  if (debounce) clearTimeout(debounce);
-  debounce = setTimeout(() => restart(`${file} changed`), RESTART_DEBOUNCE_MS);
-}
-
-for (const file of WATCHED_ENV_FILES) {
-  const filePath = path.join(ROOT, file);
-  // fs.watch throws when the file doesn't exist yet — poll for it instead
-  // so a later-created `.env.local` is still picked up.
-  try {
-    if (fs.existsSync(filePath)) {
-      fs.watch(filePath, () => scheduleRestart(file));
-      console.log(`[dev] watching ${file} for changes`);
-    } else {
-      const watcher = fs.watch(path.dirname(filePath), (event, name) => {
-        if (name === path.basename(filePath)) {
-          watcher.close();
-          scheduleRestart(file);
-          try {
-            fs.watch(filePath, () => scheduleRestart(file));
-          } catch {
-            /* deleted before we could watch — next save re-triggers via restart */
-          }
-        }
-      });
-    }
-  } catch (err) {
-    console.warn(`[dev] cannot watch ${file}: ${String(err)}`);
-  }
-}
-
-function shutdown(signal: string): void {
-  stopped = true;
-  if (debounce) clearTimeout(debounce);
-  if (child) {
-    child.kill(signal as NodeJS.Signals);
-  }
-  if (mcpChild) {
-    mcpChild.kill(signal as NodeJS.Signals);
-  }
-  // Give the child a moment, then exit even if it hangs (dev-only).
-  setTimeout(() => process.exit(0), 1000).unref();
-}
-
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-
-startChild();
-startMcpServer();
+await supervisor.start();
