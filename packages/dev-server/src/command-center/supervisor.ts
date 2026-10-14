@@ -17,11 +17,13 @@ import type {
   CommandCenterSnapshot,
   EventCategory,
   EventLevel,
+  HostStats,
   LogStream,
   RestartCycle,
   ServiceName,
   ServiceSnapshot,
   SupervisorOptions,
+  ViewFilters,
 } from "./supervisor-types.js";
 import { EventBus, EventHistory } from "./event-bus.js";
 import { ManagedProcess } from "./process-manager.js";
@@ -29,11 +31,22 @@ import { EnvWatcher, type EnvFileEvent } from "./env-watcher.js";
 import { RestartTracker } from "./restart-tracker.js";
 import { analyzeSnapshot } from "./diagnostics.js";
 import { TerminalRenderer, vtSupported } from "./terminal-renderer.js";
-import {
-  DEFAULT_FILTERS,
-  renderCommandCenter,
-  type ViewFilters,
-} from "./renderer.js";
+import { DEFAULT_FILTERS, renderCommandCenter } from "./renderer.js";
+import { filterPalette, clampIndex } from "./palette.js";
+
+/**
+ * API port ONLY when genuinely known: the child inherits our env, so an
+ * explicit MOSAIX_PORT/APP_PORT/PORT variable is authoritative. Anything
+ * else (core resolution, defaults) is never guessed — null means unknown.
+ */
+export function resolveKnownPort(
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const raw = env.MOSAIX_PORT ?? env.APP_PORT ?? env.PORT;
+  if (raw === undefined || raw === null) return null;
+  const port = String(raw).trim();
+  return /^\d{2,5}$/.test(port) ? port : null;
+}
 
 /**
  * Global state derived from REAL service states — never simulated.
@@ -83,6 +96,8 @@ export class DevSupervisor {
   private restartToken = 0;
   private watchPaused = false;
   private mcpDrainedBytes = 0;
+  private lastCpu: NodeJS.CpuUsage | null = null;
+  private lastCpuAt: number | null = null;
   private keypressHandler:
     | ((
         _chunk: Buffer,
@@ -355,9 +370,36 @@ export class DevSupervisor {
       cycles: this.tracker.getCycles(),
       diagnostics: [],
       restarts: this.sessionRestarts,
+      host: this.sampleHost(),
+      apiPort: resolveKnownPort(),
     };
     partial.diagnostics = analyzeSnapshot(partial);
     return partial;
+  }
+
+  /**
+   * Measured supervisor-process stats (scope labeled in the UI). CPU % is
+   * computed between consecutive samples; null until two samples exist.
+   * Never simulated, never child-attributed.
+   */
+  private sampleHost(): HostStats {
+    const mem = process.memoryUsage();
+    const now = Date.now();
+    const current = process.cpuUsage();
+    let cpuPct: number | null = null;
+    if (this.lastCpu && this.lastCpuAt !== null && now > this.lastCpuAt) {
+      const diff = process.cpuUsage(this.lastCpu);
+      const elapsedMs = now - this.lastCpuAt;
+      cpuPct = ((diff.user + diff.system) / 1000 / elapsedMs) * 100;
+      if (!Number.isFinite(cpuPct) || cpuPct < 0) cpuPct = null;
+    }
+    this.lastCpu = current;
+    this.lastCpuAt = now;
+    return {
+      rssMB: Math.round(mem.rss / 1024 / 1024),
+      heapMB: Math.round(mem.heapUsed / 1024 / 1024),
+      cpuPct,
+    };
   }
 
   // ---- TUI + keyboard ----
@@ -393,14 +435,29 @@ export class DevSupervisor {
           void this.shutdown("SIGINT");
           return;
         }
-        this.handleKey(key.name ?? key.sequence ?? "");
+        this.handleKey(key.name ?? key.sequence ?? "", Boolean(key.ctrl));
       };
       process.stdin.on("keypress", this.keypressHandler);
     }
   }
 
-  /** Keyboard shortcuts — every key performs a real action. */
-  handleKey(key: string): void {
+  /**
+   * Keyboard shortcuts — every key performs a real action. While the
+   * command palette is open, keystrokes edit the query instead (shortcuts
+   * never fire from a text input).
+   */
+  handleKey(key: string, ctrl = false): void {
+    if (ctrl && (key === "k" || key === "K")) {
+      this.filters.paletteOpen = !this.filters.paletteOpen;
+      this.filters.paletteQuery = "";
+      this.filters.paletteIndex = 0;
+      this.render();
+      return;
+    }
+    if (this.filters.paletteOpen) {
+      this.handlePaletteKey(key);
+      return;
+    }
     switch (key) {
       case "q":
       case "Q":
@@ -417,11 +474,13 @@ export class DevSupervisor {
       case "l":
       case "L":
         this.filters.showLogs = !this.filters.showLogs;
+        this.filters.logScroll = 0;
         this.render();
         break;
       case "e":
       case "E":
         this.filters.errorOnly = !this.filters.errorOnly;
+        this.filters.logScroll = 0;
         this.render();
         break;
       case "c":
@@ -429,6 +488,7 @@ export class DevSupervisor {
         // Clears the log VIEW; bounded diagnostic history (events/cycles)
         // is preserved.
         this.history.clearLogs();
+        this.filters.logScroll = 0;
         this.emit("SYSTEM", "Log view cleared (diagnostic history preserved)");
         break;
       case "p":
@@ -438,14 +498,136 @@ export class DevSupervisor {
       case "1":
         this.filters.serviceFilter =
           this.filters.serviceFilter === "api" ? "all" : "api";
+        this.filters.logScroll = 0;
         this.render();
         break;
       case "2":
         this.filters.serviceFilter =
           this.filters.serviceFilter === "mcp" ? "all" : "mcp";
+        this.filters.logScroll = 0;
         this.render();
         break;
+      case "up":
+        this.scrollLogs(1);
+        break;
+      case "down":
+        this.scrollLogs(-1);
+        break;
       default:
+        break;
+    }
+  }
+
+  /** Scroll the expanded log view (clamped, no-op when logs collapsed). */
+  private scrollLogs(delta: number): void {
+    if (!this.filters.showLogs) return;
+    this.filters.logScroll = Math.max(0, this.filters.logScroll + delta);
+    this.render();
+  }
+
+  private handlePaletteKey(key: string): void {
+    const matches = filterPalette(this.filters.paletteQuery);
+    switch (key) {
+      case "escape":
+        this.filters.paletteOpen = false;
+        this.filters.paletteQuery = "";
+        this.filters.paletteIndex = 0;
+        this.render();
+        return;
+      case "return":
+      case "enter": {
+        const index = clampIndex(this.filters.paletteIndex, matches.length);
+        const selected = matches[index];
+        this.filters.paletteOpen = false;
+        this.filters.paletteQuery = "";
+        this.filters.paletteIndex = 0;
+        if (selected) this.runPaletteCommand(selected.id);
+        else this.render();
+        return;
+      }
+      case "up":
+        this.filters.paletteIndex = clampIndex(
+          this.filters.paletteIndex - 1,
+          matches.length,
+        );
+        this.render();
+        return;
+      case "down":
+        this.filters.paletteIndex = clampIndex(
+          this.filters.paletteIndex + 1,
+          matches.length,
+        );
+        this.render();
+        return;
+      case "backspace":
+        this.filters.paletteQuery = this.filters.paletteQuery.slice(0, -1);
+        this.filters.paletteIndex = 0;
+        this.render();
+        return;
+      default:
+        break;
+    }
+    if (key.length === 1 && !key.startsWith("\x1b")) {
+      this.filters.paletteQuery += key;
+      this.filters.paletteIndex = 0;
+      this.render();
+    }
+  }
+
+  /** Executes a palette command — same real actions as the shortcuts. */
+  runPaletteCommand(id: string): void {
+    switch (id) {
+      case "restart-all":
+        void this.scheduleRestart("palette: restart all", "all");
+        break;
+      case "restart-api":
+        void this.scheduleRestart("palette: restart api", "api");
+        break;
+      case "restart-mcp":
+        void this.scheduleRestart("palette: restart mcp", "mcp");
+        break;
+      case "toggle-logs":
+        this.filters.showLogs = !this.filters.showLogs;
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "toggle-errors":
+        this.filters.errorOnly = !this.filters.errorOnly;
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "clear-logs":
+        this.history.clearLogs();
+        this.filters.logScroll = 0;
+        this.emit("SYSTEM", "Log view cleared (diagnostic history preserved)");
+        break;
+      case "toggle-watch":
+        this.toggleWatchPause();
+        break;
+      case "filter-api":
+        this.filters.serviceFilter = "api";
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "filter-mcp":
+        this.filters.serviceFilter = "mcp";
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "filter-all":
+        this.filters.serviceFilter = "all";
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "toggle-help":
+        this.filters.showHelp = !this.filters.showHelp;
+        this.render();
+        break;
+      case "quit":
+        void this.shutdown("SIGINT");
+        break;
+      default:
+        this.render();
         break;
     }
   }
@@ -473,8 +655,9 @@ export class DevSupervisor {
     const screen = this.screen;
     if (!this.useTui || !screen) return;
     const width = process.stdout.columns ?? 100;
+    const height = process.stdout.rows ?? 40;
     screen.requestPaint(() =>
-      renderCommandCenter(this.snapshot(), this.filters, { width }),
+      renderCommandCenter(this.snapshot(), this.filters, { width, height }),
     );
   }
 

@@ -106,6 +106,17 @@ export interface Diagnostic {
   code: string;
   message: string;
   hint: string;
+  /** Detection time (ms epoch). Stamped by the supervisor per snapshot. */
+  at: number;
+}
+
+export interface HostStats {
+  /** Supervisor process RSS in MB (measured, scope = supervisor). */
+  rssMB: number;
+  /** Supervisor process heap used in MB (measured, scope = supervisor). */
+  heapMB: number;
+  /** Supervisor process CPU % since previous sample (measured). Null until 2 samples. */
+  cpuPct: number | null;
 }
 
 export interface CommandCenterSnapshot {
@@ -119,8 +130,11 @@ export interface CommandCenterSnapshot {
   cycles: RestartCycle[];
   diagnostics: Diagnostic[];
   restarts: number;
+  /** Measured supervisor-process stats. Null fields mean "not sampled yet". */
+  host: HostStats | null;
+  /** API port genuinely known from the inherited env, or null (never guessed). */
+  apiPort: string | null;
 }
-
 export interface SupervisorOptions {
   root: string;
   apiCommand: string;
@@ -135,4 +149,18 @@ export interface SupervisorOptions {
   shutdownTimeoutMs?: number;
   readinessTimeoutMs?: number;
   noTui?: boolean;
+}
+
+/** Cockpit view state (filters + overlays). All toggles are functional. */
+export interface ViewFilters {
+  showLogs: boolean;
+  errorOnly: boolean;
+  serviceFilter: "all" | "api" | "mcp";
+  showHelp: boolean;
+  paused: boolean;
+  /** Lines scrolled up from the live tail (0 = live). Clamped by renderer. */
+  logScroll: number;
+  paletteOpen: boolean;
+  paletteQuery: string;
+  paletteIndex: number;
 }
