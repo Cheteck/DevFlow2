@@ -21,8 +21,15 @@ import {
   isUp,
   DEFAULT_FILTERS,
 } from "./renderer.js";
-import { DevSupervisor, computeOverall } from "./supervisor.js";
+import {
+  DevSupervisor,
+  computeOverall,
+  resolveKnownPort,
+} from "./supervisor.js";
 import { redactSecrets } from "./secret-guard.js";
+import { columnsForWidth, columnWidths, computeLayout } from "./layout.js";
+import { filterPalette, clampIndex } from "./palette.js";
+import { textBar } from "./format.js";
 import type {
   CommandCenterSnapshot,
   ServiceSnapshot,
@@ -359,23 +366,41 @@ describe("renderer cockpit", () => {
       width: 100,
       forceColor: false,
     });
-    expect(frame).toContain("MOSAIX // DEVELOPER COCKPIT");
+    expect(frame).toContain("MOSAIX // COMMAND CENTER");
     expect(frame).toContain("PLATFORM SERVER");
     expect(frame).toContain("MCP SERVER");
     // eslint-disable-next-line no-control-regex
     expect(/\x1b\[[0-9;]*m/.test(frame)).toBe(false);
   });
 
-  it("lays services side by side on wide terminals", () => {
+  it("lays panels side by side on wide terminals, stacked on narrow", () => {
     const snapshot = minimalSnapshot();
-    const frame = renderCommandCenter(snapshot, DEFAULT_FILTERS, {
-      width: 120,
-      forceColor: false,
-    });
-    const shared = stripAnsi(frame)
+    const wide = stripAnsi(
+      renderCommandCenter(snapshot, DEFAULT_FILTERS, {
+        width: 140,
+        height: 40,
+        forceColor: false,
+      }),
+    );
+    // Multi-column gutter present + bordered panel titles fused in edges.
+    const wideTitles = wide
       .split("\n")
-      .some((line) => line.includes("API") && line.includes("MCP"));
-    expect(shared).toBe(true);
+      .some((l) => l.includes("INFRASTRUCTURE") && l.includes("SESSIONS"));
+    expect(wideTitles).toBe(true);
+    expect(wide).toContain("DIAGNOSTICS");
+    expect(wide).toContain("RESTART TIME MACHINE");
+    const narrow = stripAnsi(
+      renderCommandCenter(snapshot, DEFAULT_FILTERS, {
+        width: 60,
+        height: 40,
+        forceColor: false,
+      }),
+    );
+    const narrowTitles = narrow
+      .split("\n")
+      .some((l) => l.includes("INFRASTRUCTURE") && l.includes("DIAGNOSTICS"));
+    expect(narrowTitles).toBe(false);
+    expect(narrow).toContain("INFRASTRUCTURE");
   });
 
   it("mentions both services in compact mode", () => {
@@ -443,17 +468,18 @@ describe("renderer cockpit", () => {
     snapshot.services[0].startupFailure = "port 3000 in use (EADDRINUSE)";
     snapshot.services[0].lastError =
       "Error: listen EADDRINUSE: address already in use :::3000";
+    snapshot.diagnostics = analyzeSnapshot(snapshot);
     const frame = renderCommandCenter(snapshot, DEFAULT_FILTERS, {
       width: 110,
       forceColor: false,
     });
     const plain = stripAnsi(frame);
-    expect(plain).toContain("INCIDENTS · 1");
+    expect(plain).toContain("DIAGNOSTICS");
     expect(plain).toContain("port 3000 in use (EADDRINUSE)");
     expect(plain).toContain("EADDRINUSE");
-    expect(plain).toContain("1 incident");
+    expect(plain).toContain("INCIDENTS 1");
     // A live-but-failed API is never counted as up.
-    expect(plain).toContain("1/2 up");
+    expect(plain).toContain("SERVICES 1/2");
   });
 
   it("never counts a live-but-unconfirmed API as up", () => {
@@ -464,7 +490,7 @@ describe("renderer cockpit", () => {
       width: 100,
       forceColor: false,
     });
-    expect(stripAnsi(frame)).toContain("1/2 up");
+    expect(stripAnsi(frame)).toContain("SERVICES 1/2");
     expect(isUp(snapshot.services[0])).toBe(false);
     expect(isUp(snapshot.services[1])).toBe(true);
   });
@@ -538,7 +564,9 @@ describe("diagnostics", () => {
     snapshot.services[0].state = "FAILED";
     snapshot.services[0].startupFailure = "port 3000 in use (EADDRINUSE)";
     const diags = analyzeSnapshot(snapshot);
-    const found = diags.find((d) => d.code === "API_STARTUP_FAILED");
+    // One incident per root cause: the specific conflict code wins.
+    expect(diags.filter((d) => d.level === "error")).toHaveLength(1);
+    const found = diags.find((d) => d.code === "API_PORT_CONFLICT");
     expect(found).toBeDefined();
     expect(found?.hint).toContain("MOSAIX_PORT");
   });
@@ -553,12 +581,154 @@ describe("diagnostics", () => {
     );
   });
 
-  it("flags an inactive watcher", () => {
+  it("flags an unavailable watcher as an error", () => {
     const snapshot = minimalSnapshot();
     snapshot.watch.active = false;
     const diags = analyzeSnapshot(snapshot);
-    expect(diags.some((d) => d.code === "WATCH_INACTIVE")).toBe(true);
+    const found = diags.find((d) => d.code === "ENV_WATCHER_UNAVAILABLE");
+    expect(found).toBeDefined();
+    expect(found?.level).toBe("error");
   });
+
+  it("flags port conflicts and session restart loops", () => {
+    const snapshot = minimalSnapshot();
+    snapshot.services[0].state = "FAILED";
+    snapshot.services[0].startupFailure = "port 3000 in use (EADDRINUSE)";
+    snapshot.restarts = 7;
+    const diags = analyzeSnapshot(snapshot);
+    expect(diags.some((d) => d.code === "API_PORT_CONFLICT")).toBe(true);
+    expect(diags.some((d) => d.code === "RESTART_LOOP_DETECTED")).toBe(true);
+    // Critical first.
+    expect(diags[0].level).toBe("error");
+  });
+});
+
+describe("cockpit grid + palette + measurements", () => {
+  it("adapts columns to width (3/2/1) with asymmetric weights", () => {
+    expect(columnsForWidth(140)).toBe(3);
+    expect(columnsForWidth(100)).toBe(2);
+    expect(columnsForWidth(60)).toBe(1);
+    const three = computeLayout(140, 40);
+    expect(three.grid).toHaveLength(3);
+    expect(three.grid.flat()).toContain("diagnostics");
+    const one = computeLayout(60, 40);
+    expect(one.grid).toHaveLength(1);
+    const widths = columnWidths(140, 3, [0.29, 0.42, 0.29]);
+    expect(widths.reduce((a, b) => a + b, 0)).toBe(140 - 2);
+    // Central column carries logs/activity: strictly widest.
+    expect(widths[1]).toBeGreaterThan(widths[0]);
+    expect(widths[1]).toBeGreaterThan(widths[2]);
+  });
+
+  it("filters palette commands by subsequence, clamps index", () => {
+    expect(filterPalette("")).toHaveLength(12);
+    const ids = filterPalette("rall").map((c) => c.id);
+    expect(ids).toContain("restart-all");
+    expect(filterPalette("zzz")).toHaveLength(0);
+    expect(clampIndex(99, 3)).toBe(2);
+    expect(clampIndex(-4, 3)).toBe(0);
+    expect(clampIndex(0, 0)).toBe(0);
+  });
+
+  it("scales restart bars to measured durations", () => {
+    const { bar, label } = textBar(4500, 9000, 8);
+    expect(bar).toHaveLength(8);
+    expect(bar.startsWith("████")).toBe(true);
+    expect(label).toBe("4s");
+    expect(textBar(0, 0, 8).bar).toBe("░".repeat(8));
+  });
+
+  it("resolves the API port only from explicit env (never guesses)", () => {
+    expect(resolveKnownPort({ MOSAIX_PORT: "3000" })).toBe("3000");
+    expect(resolveKnownPort({ PORT: "4000" })).toBe("4000");
+    expect(resolveKnownPort({ MOSAIX_PORT: "3000", PORT: "4000" })).toBe(
+      "3000",
+    );
+    expect(resolveKnownPort({})).toBeNull();
+    expect(resolveKnownPort({ PORT: "not-a-port" })).toBeNull();
+  });
+
+  it("renders the palette overlay with filtered commands", () => {
+    const snapshot = minimalSnapshot();
+    const frame = stripAnsi(
+      renderCommandCenter(
+        snapshot,
+        { ...DEFAULT_FILTERS, paletteOpen: true, paletteQuery: "log" },
+        { width: 140, height: 40, forceColor: false },
+      ),
+    );
+    expect(frame).toContain("COMMAND PALETTE");
+    expect(frame).toContain("Expand / collapse logs");
+  });
+
+  it("scrolls the expanded log tail up without losing the live line", () => {
+    const snapshot = minimalSnapshot();
+    const now = Date.now();
+    snapshot.logs = Array.from({ length: 20 }, (_, i) => ({
+      seq: i + 1,
+      at: now,
+      service: "api" as const,
+      stream: "stdout" as const,
+      text: `log-line-${String(i + 1).padStart(2, "0")}`,
+    }));
+    const live = stripAnsi(
+      renderCommandCenter(
+        snapshot,
+        { ...DEFAULT_FILTERS, showLogs: true, logScroll: 0 },
+        { width: 140, height: 40, forceColor: false },
+      ),
+    );
+    expect(live).toContain("log-line-20");
+    expect(live).not.toContain("log-line-01");
+    const scrolled = stripAnsi(
+      renderCommandCenter(
+        snapshot,
+        { ...DEFAULT_FILTERS, showLogs: true, logScroll: 8 },
+        { width: 140, height: 40, forceColor: false },
+      ),
+    );
+    expect(scrolled).toContain("log-line-01");
+    expect(scrolled).not.toContain("log-line-20");
+  });
+
+  it("shrinks budgets on short terminals (incidents stay visible)", () => {
+    const snapshot = minimalSnapshot();
+    snapshot.services[0].state = "FAILED";
+    snapshot.services[0].startupFailure = "port 3000 in use (EADDRINUSE)";
+    const frame = stripAnsi(
+      renderCommandCenter(snapshot, DEFAULT_FILTERS, {
+        width: 140,
+        height: 22,
+        forceColor: false,
+      }),
+    );
+    expect(frame).toContain("port 3000 in use (EADDRINUSE)");
+    expect(frame.split("\n").length).toBeLessThanOrEqual(24);
+  });
+
+  it("samples real host stats in the supervisor snapshot", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mosaix-host-"));
+    const supervisor = new DevSupervisor({
+      root: dir,
+      apiCommand: NODE,
+      apiArgs: SLEEPER,
+      mcpCommand: NODE,
+      mcpArgs: SLEEPER,
+      watchedFiles: [".env"],
+      noTui: true,
+      readinessTimeoutMs: 300,
+      shutdownTimeoutMs: 1000,
+    });
+    await supervisor.start();
+    const snap = supervisor.snapshot();
+    expect(snap.host).not.toBeNull();
+    expect(snap.host?.rssMB).toBeGreaterThan(0);
+    expect(snap.host?.heapMB).toBeGreaterThan(0);
+    // apiPort is env-derived or null — never a guessed literal.
+    expect(snap.apiPort === null || /^\d{2,5}$/.test(snap.apiPort)).toBe(true);
+    await supervisor.shutdown("SIGTERM");
+    fs.rmSync(dir, { recursive: true, force: true });
+  }, 20_000);
 });
 
 describe("DevSupervisor lifecycle", () => {
@@ -690,5 +860,7 @@ function minimalSnapshot(): CommandCenterSnapshot {
     cycles: [],
     diagnostics: [],
     restarts: 0,
+    host: { rssMB: 187, heapMB: 96, cpuPct: 2.1 },
+    apiPort: "3000",
   };
 }
