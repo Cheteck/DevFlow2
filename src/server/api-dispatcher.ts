@@ -69,6 +69,23 @@ export class ApiRouteRegistry {
 
 export const apiRouteRegistry = new ApiRouteRegistry();
 
+// System route registry (OCP): endpoints handled before the /api/ gate.
+export type SystemRouteMatch = (pathname: string) => boolean;
+
+export class SystemRouteRegistry {
+  private handlers: Array<{ match: SystemRouteMatch; handler: ApiRouteHandler }> = [];
+
+  register(match: SystemRouteMatch, handler: ApiRouteHandler): void {
+    this.handlers.push({ match, handler });
+  }
+
+  getHandlers(): Array<{ match: SystemRouteMatch; handler: ApiRouteHandler }> {
+    return [...this.handlers];
+  }
+}
+
+export const systemRouteRegistry = new SystemRouteRegistry();
+
 // 1. Maintenance API (FEAT-01)
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   handleMaintenanceRoutes(req, res, parsedUrl, ctx.currentUser),
@@ -166,6 +183,43 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   handleMcpRoutes(req, res, parsedUrl, ctx.db),
 );
 
+// Register built-in system routes (OCP: extensible via systemRouteRegistry.register)
+systemRouteRegistry.register(
+  (p) => p === "/healthz",
+  async (req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ status: "alive", timestamp: new Date().toISOString() }));
+    return true;
+  },
+);
+
+systemRouteRegistry.register(
+  (p) => p === "/readyz",
+  async (req, res) => {
+    const isReady = true;
+    res.writeHead(isReady ? 200 : 503, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ status: isReady ? "ready" : "not_ready", timestamp: new Date().toISOString() }));
+    return true;
+  },
+);
+
+systemRouteRegistry.register(
+  (p) => p === "/metrics",
+  async (req, res, parsedUrl) => handleMetricsRoute(req, res, parsedUrl),
+);
+
+systemRouteRegistry.register(
+  (p) => p === "/.well-known/assetlinks.json",
+  async (req, res, parsedUrl, ctx) =>
+    handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.feedService, ctx.db),
+);
+
+systemRouteRegistry.register(
+  (p) => p === "/__mosaix",
+  async (req, res, parsedUrl, ctx) =>
+    handleComplianceAndSystemRoutes(req, res, parsedUrl, ctx.currentUser, ctx.anonymizationOrchestrator, ctx.eventBackplane),
+);
+
 export async function dispatchApiRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -174,62 +228,11 @@ export async function dispatchApiRequest(
 ): Promise<boolean> {
   const pathname = parsedUrl.pathname;
 
-  // Standard Container Liveness Probe (Kubernetes / Cloud Run)
-  if (pathname === "/healthz") {
-    res.writeHead(200, {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    });
-    res.end(
-      JSON.stringify({ status: "alive", timestamp: new Date().toISOString() }),
-    );
-    return true;
-  }
-
-  // Standard Container Readiness Probe (Kubernetes / Cloud Run)
-  if (pathname === "/readyz") {
-    const isReady = true; // All 10 apps and modules loaded
-    res.writeHead(isReady ? 200 : 503, {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    });
-    res.end(
-      JSON.stringify({
-        status: isReady ? "ready" : "not_ready",
-        timestamp: new Date().toISOString(),
-      }),
-    );
-    return true;
-  }
-
-  // Minimal Prometheus exposition (OBS-METRICS-01): unauthenticated like the
-  // probes above, handled before the /api/ gate so scrapers never hit login.
-  if (pathname === "/metrics") {
-    return await handleMetricsRoute(req, res, parsedUrl);
-  }
-
-  // Android App Links verification standard endpoint
-  if (pathname === "/.well-known/assetlinks.json") {
-    return await handleMobileRoutes(
-      req,
-      res,
-      parsedUrl,
-      context.currentUser,
-      context.feedService,
-      context.db,
-    );
-  }
-
-  // System diagnostic endpoint is at /__mosaix
-  if (pathname === "/__mosaix") {
-    return await handleComplianceAndSystemRoutes(
-      req,
-      res,
-      parsedUrl,
-      context.currentUser,
-      context.anonymizationOrchestrator,
-      context.eventBackplane,
-    );
+  // System routes (registered, extensible) — handled before the /api/ gate.
+  for (const { match, handler } of systemRouteRegistry.getHandlers()) {
+    if (match(pathname)) {
+      return await handler(req, res, parsedUrl, context);
+    }
   }
 
   if (!pathname.startsWith("/api/")) {
