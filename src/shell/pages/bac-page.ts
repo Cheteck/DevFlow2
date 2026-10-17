@@ -67,12 +67,13 @@ export function renderBacPage(opts: BacPageOptions): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(matchedApp.name)} — MosaiX Experience</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <!-- Couleurs issues de themes/*.json (< neutralisé, pas de breakout script). sharedStyles/themeStyle : fragments internes, jamais de données utilisateur brutes. -->
   <script id="tailwind-config">
     tailwind.config = {
       darkMode: "class",
       theme: {
         extend: {
-          colors: ${JSON.stringify(getTailwindThemeColors(activeMode), null, 10)}
+          colors: ${JSON.stringify(getTailwindThemeColors(activeMode)).replace(/</g, "\\u003c")}
         }
       }
     };

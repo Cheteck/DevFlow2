@@ -30,6 +30,8 @@ function authShell(
 ): string {
   return `<!DOCTYPE html>
 <html class="${activeMode === "dark" ? "dark" : activeMode === "high-contrast" ? "high-contrast" : ""}" lang="fr" data-theme-mode="${activeMode}">
+<head>
+<!-- Fragments de confiance internes : style compilé themes/*.json + CSS partagé renderer (jamais de données utilisateur brutes). -->
 ${renderHeadBlock(title, activeMode, renderThemeStyleTag(activeMode), sharedStyles)}
   ${getShellClientScripts()}
 </head>

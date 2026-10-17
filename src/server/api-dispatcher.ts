@@ -30,6 +30,7 @@ import { handleMcpRoutes } from "./routes/mcp-routes.js";
 import { handleFeedRoutes } from "./routes/feed-routes.js";
 import { handleComplianceAndSystemRoutes } from "./routes/compliance-routes.js";
 import { handleMobileRoutes } from "./routes/mobile-routes.js";
+import { handleMetricsRoute } from "./routes/metrics-route.js";
 
 /* AUDIT-RESET a055b8e (2026-10-13) — PERTE CONFIRMÉE PUIS RESTAURÉE (V1.3, voir git log).
  * Le wiring SELL-FLOW-02 manquait (spaces-routes.ts + test inexistants) ; route recréée,
@@ -199,6 +200,12 @@ export async function dispatchApiRequest(
       }),
     );
     return true;
+  }
+
+  // Minimal Prometheus exposition (OBS-METRICS-01): unauthenticated like the
+  // probes above, handled before the /api/ gate so scrapers never hit login.
+  if (pathname === "/metrics") {
+    return await handleMetricsRoute(req, res, parsedUrl);
   }
 
   // Android App Links verification standard endpoint
