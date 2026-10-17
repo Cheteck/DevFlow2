@@ -2,7 +2,8 @@
  * HTTP integration tests for the global BAC access policy (guest boundary).
  *
  * Boots the REAL server (`tsx src/start.ts`) on ephemeral ports with an
- * isolated sqlite copy — no mocks. Proves the guard is actually wired:
+ * isolated postgres clone of the dev DB (structure + data, offers emptied
+ * for the empty-state baseline) — no mocks. Proves the guard is actually wired:
  * unit tests of the resolver cannot catch a guard that is never called.
  *
  * Suite A (MOSAIX_DEMO_USERS=false): anonymous matrix + forged cookies.
@@ -95,7 +96,41 @@ async function ensurePostgresDb(dbName: string): Promise<string> {
     ["exec", "mosaix-db-1", "sh", "-c", `pg_dump -U mosaix ${source} | psql -U mosaix -q ${dbName}`],
     dockerOpts,
   );
+  emptyCommerceVitrine(dbName, dockerOpts);
   return `postgresql://mosaix:mosaix@localhost:5432/${dbName}`;
+}
+
+/**
+ * Hermetic empty-state baseline: the "honest empty vitrine" test asserts an
+ * empty catalog, but the clone carries the dev database's real offers (seeds).
+ * Empty ONLY the offer tables in the throwaway test clone (never the source):
+ * missing tables (pre-schema-move clones) are skipped silently.
+ */
+function emptyCommerceVitrine(
+  dbName: string,
+  dockerOpts: { stdio: "ignore"; timeout: number; shell: boolean },
+): void {
+  for (const table of ["commerce.offers", "public.commerce_offers"]) {
+    try {
+      execFileSync(
+        "docker",
+        [
+          "exec",
+          "mosaix-db-1",
+          "psql",
+          "-U",
+          "mosaix",
+          "-d",
+          dbName,
+          "-c",
+          `TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`,
+        ],
+        dockerOpts,
+      );
+    } catch {
+      /* table absent from this clone — nothing to empty */
+    }
+  }
 }
 
 async function bootServer(port: number, demoUsers: boolean): Promise<BootedServer> {

@@ -119,8 +119,8 @@ describe("Backlog 2026-09-24 Features Suite", () => {
 
   // 🔴 FEAT-04: Enchères
   describe("FEAT-04: English Auction Engine with Reserve & Anti-Sniping [CŒUR + Plugins]", () => {
-    it("handles bids, tamper-evident audit trail, and anti-sniping", () => {
-      const auction = auctionService.createAuction({
+    it("handles bids, tamper-evident audit trail, and anti-sniping", async () => {
+      const auction = await auctionService.createAuction({
         vendableId: "vend_rare_vase",
         vendableTitle: "Vase Antique Céramique",
         sellerId: "usr_seller_1",
@@ -136,17 +136,17 @@ describe("Backlog 2026-09-24 Features Suite", () => {
       expect(auction.currentBid).toBe(100);
 
       // Seller cannot bid
-      const invalidSellerBid = auctionService.placeBid(auction.id, "usr_seller_1", "Seller", 150);
+      const invalidSellerBid = await auctionService.placeBid(auction.id, "usr_seller_1", "Seller", 150);
       expect(invalidSellerBid.success).toBe(false);
 
       // Valid Bid 1
-      const bid1 = auctionService.placeBid(auction.id, "usr_buyer_a", "Alice", 110);
+      const bid1 = await auctionService.placeBid(auction.id, "usr_buyer_a", "Alice", 110);
       expect(bid1.success).toBe(true);
       expect(bid1.auction.currentBid).toBe(110);
       expect(bid1.bid?.auditHash).toBeDefined();
 
       // Higher Bid 2 meeting reserve
-      const bid2 = auctionService.placeBid(auction.id, "usr_buyer_b", "Bob", 220);
+      const bid2 = await auctionService.placeBid(auction.id, "usr_buyer_b", "Bob", 220);
       expect(bid2.success).toBe(true);
       expect(bid2.auction.currentBid).toBe(220);
       expect(bid2.auction.reserveMet).toBe(true);
