@@ -22,6 +22,61 @@ export interface PspWebhookEvent {
   created: number;
 }
 
+export interface PspEventBackplane {
+  publish(type: string, payload: unknown): void;
+}
+
+export type PspEventHandler = (event: PspWebhookEvent, backplane: PspEventBackplane) => void;
+
+// Registre typé : extension = nouvelle entrée, aucune modification de dispatchPspEvent.
+const pspEventHandlers: Record<string, PspEventHandler> = {
+  "payment_intent.succeeded": (event, backplane) => {
+    backplane.publish("commerce.order.paid", {
+      orderId: event.data.orderId,
+      amountInCents: event.data.amountInCents,
+      currency: event.data.currency || "EUR",
+      timestamp: event.created || Date.now(),
+    });
+  },
+  "invoice.paid": (event, backplane) => {
+    backplane.publish("subscription.user.updated", {
+      userId: event.data.userId,
+      planId: event.data.planId,
+      status: "active",
+      timestamp: event.created || Date.now(),
+    });
+  },
+  "customer.subscription.updated": (event, backplane) => {
+    backplane.publish("subscription.user.updated", {
+      userId: event.data.userId,
+      planId: event.data.planId,
+      status: "active",
+      timestamp: event.created || Date.now(),
+    });
+  },
+  "customer.subscription.deleted": (event, backplane) => {
+    backplane.publish("subscription.user.cancelled", {
+      userId: event.data.userId,
+      planId: event.data.planId,
+      status: "canceled",
+      timestamp: event.created || Date.now(),
+    });
+  },
+};
+
+export function registerPspEventHandler(type: string, handler: PspEventHandler): void {
+  pspEventHandlers[type] = handler;
+}
+
+export function dispatchPspEvent(event: PspWebhookEvent, backplane: PspEventBackplane): void {
+  const handler = pspEventHandlers[event.type];
+  if (handler) {
+    handler(event, backplane);
+  } else {
+    console.warn(`[PspWebhookHandler] Unhandled webhook event type: ${event.type}`);
+  }
+}
+
 export class PspWebhookHandler {
   private readonly eventBackplane = DistributedEventBackplane.getInstance();
 
@@ -93,38 +148,8 @@ export class PspWebhookHandler {
         }
 
         // Process event types and dispatch to bounded contexts via Event Backplane
-        switch (event.type) {
-          case "payment_intent.succeeded":
-            this.eventBackplane.publish("commerce.order.paid", {
-              orderId: event.data.orderId,
-              amountInCents: event.data.amountInCents,
-              currency: event.data.currency || "EUR",
-              timestamp: event.created || Date.now(),
-            });
-            break;
-
-          case "invoice.paid":
-          case "customer.subscription.updated":
-            this.eventBackplane.publish("subscription.user.updated", {
-              userId: event.data.userId,
-              planId: event.data.planId,
-              status: "active",
-              timestamp: event.created || Date.now(),
-            });
-            break;
-
-          case "customer.subscription.deleted":
-            this.eventBackplane.publish("subscription.user.cancelled", {
-              userId: event.data.userId,
-              planId: event.data.planId,
-              status: "canceled",
-              timestamp: event.created || Date.now(),
-            });
-            break;
-
-          default:
-            console.warn(`[PspWebhookHandler] Unhandled webhook event type: ${event.type}`);
-        }
+        // (registry typé : extension = nouvelle entrée, voir dispatchPspEvent)
+        dispatchPspEvent(event, this.eventBackplane);
 
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ received: true, eventId: event.id, processedAt: new Date().toISOString() }));
