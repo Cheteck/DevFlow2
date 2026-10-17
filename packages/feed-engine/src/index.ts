@@ -478,6 +478,31 @@ registerFeedSortStrategy("score", (a, b, ctx) => {
   return scoreB - scoreA;
 });
 
+
+export type FeedTargetFilter = (
+  post: FeedPost,
+  ctx: {
+    spaceIds: Set<string>;
+    groupIds: Set<string>;
+    eventIds: Set<string>;
+    options: FeedAggregationOptions;
+  },
+) => boolean;
+
+const feedTargetFilterRegistry = new Map<string, FeedTargetFilter>();
+
+export function registerFeedTargetFilter(
+  targetType: string,
+  filter: FeedTargetFilter,
+): void {
+  feedTargetFilterRegistry.set(targetType, filter);
+}
+
+registerFeedTargetFilter("feed", () => true);
+registerFeedTargetFilter("space", (post, ctx) => ctx.spaceIds.has(post.targetId));
+registerFeedTargetFilter("group", (post, ctx) => ctx.groupIds.has(post.targetId));
+registerFeedTargetFilter("event", (post, ctx) => ctx.eventIds.has(post.targetId));
+
 export class FeedAggregator {
   public static aggregate(
     allPosts: FeedPost[],
@@ -525,18 +550,10 @@ export class FeedAggregator {
         return false;
       }
 
-      switch (post.targetType) {
-        case "feed":
-          return true;
-        case "space":
-          return spaceIds.has(post.targetId);
-        case "group":
-          return groupIds.has(post.targetId);
-        case "event":
-          return eventIds.has(post.targetId);
-        default:
-          return false;
-      }
+      const targetFilter = feedTargetFilterRegistry.get(post.targetType);
+      if (!targetFilter) return false;
+
+      return targetFilter(post, { spaceIds, groupIds, eventIds, options });
     });
 
     const sortBy = options.sortBy || "reverse_chronological";
