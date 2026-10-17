@@ -61,3 +61,7 @@
 | PLG-05 | Imperia PluginManager raccordé à PluginEngine | OPEN | P2 | Déserver catalogue simulé vers PluginEngine réel (GAP-PLG-04) |
 | PLG-06 | Hooks canoniques Checkout Commerce | OPEN | P2 | Déclencher commerce.checkout.calculateDiscount au checkout (GAP-PLG-05) |
 | PLG-07 | Diagnostic CLI & Guide développeur plugins | OPEN | P3 | Rédiger docs/plugins-guide.md et valider CLI plugin (GAP-PLG-01..05) |
+| MIG-IMMUT-01 | Garde CI : migrations appliquées immuables (snapshot checksums) | OPEN | P1 | Test snapshot des checksums du registre shell : toute édition en place d'une migration déjà appliquée (cf. incident `commerce.shop.v1.001` 2026-10-13) échoue en CI au lieu de casser le boot dev/prod |
+| CLI-MIGRATE-01 | CLI `migrate`/`rollback` sqlite : `database is not open` + seed vide | DONE | P1 | Corrigé 2026-10-14 : `closeCliDatabase()` (vide le cache bootstrap) dans les 8 `finally` CLI ; 19/19 `cli.test.ts` verts (repro + cycle migrate→seed→rollback prouvés) |
+| OBS-METRICS-01 | Exporteur `/metrics` Prometheus absent (prétention fausse) | DONE | P2 | Livré 2026-10-14 : `GET /metrics` exposition texte (3 jauges process, sans couplage DB), testé (4 tests) + vérifié live 200 |
+| TEST-RED-01 | 5 tests rouges prouvés pré-existants (différentiel stash 2026-10-13) | DONE | P1 | Tous corrigés 2026-10-14 : CLI×3 (fermeture), FEAT-04 (await), plugin-e2e (devDep + contrat errors[]), http (clone hermétique) + durcissement timeout auction-wiring (flaky 5 s sous charge). Suite : voir §suivi |
