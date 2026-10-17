@@ -14,7 +14,10 @@ import type {
   DatabaseManager,
 } from "@mosaix/database";
 import type { DatabasePort } from "@mosaix/ports-database";
-import { createCliApplication } from "../../../../bootstrap/index.js";
+import {
+  createCliApplication,
+  closeDatabase,
+} from "../../../../bootstrap/index.js";
 
 export interface CliDatabase {
   readonly manager: DatabaseManager;
@@ -31,4 +34,16 @@ export async function connectCliDatabase(
     skipComposition: true,
   });
   return { manager: app.manager, db: app.dbAdapter, config: app.config };
+}
+
+/**
+ * Close a CLI database connection. Commands MUST use this instead of
+ * `manager.close()` : the shell bootstrap caches the adapter by resolved
+ * config (`cachedBootstrap`), so closing only the manager leaves the next
+ * command on the same database holding a closed handle
+ * (`database is not open`). `closeDatabase()` closes the same manager AND
+ * invalidates the cache, forcing a fresh connection next time.
+ */
+export async function closeCliDatabase(): Promise<void> {
+  await closeDatabase();
 }

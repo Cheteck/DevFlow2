@@ -31,12 +31,18 @@ describe("Plugin Engine Modernization E2E Suite", () => {
     });
     expect(cleanRes.results).toBeDefined();
 
-    // Spam content -> rejects
-    await expect(
-      engine.runHook("solara.post.beforeCreate", {
-        content: "Buy cheap spam products!",
-      })
-    ).rejects.toThrow("mot proscrit [spam]");
+    // Spam content -> rejected: the engine collects hook errors (default
+    // parallel mode, stopOnError: false) instead of throwing — moderation
+    // blocks the content via errors[], results stay empty.
+    const spamRes = await engine.runHook("solara.post.beforeCreate", {
+      content: "Buy cheap spam products!",
+    });
+    expect(spamRes.results).toHaveLength(0);
+    expect(spamRes.errors).toHaveLength(1);
+    expect(spamRes.errors[0]?.pluginId).toBe(
+      "@mosaix-plugin/solara-content-moderator",
+    );
+    expect(spamRes.errors[0]?.error.message).toContain("mot proscrit [spam]");
   });
 
   it("calculates discounts dynamically via commerce.checkout.calculateDiscount hook", async () => {

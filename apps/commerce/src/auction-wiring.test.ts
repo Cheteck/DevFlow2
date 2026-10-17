@@ -82,5 +82,6 @@ describe("auction lazy repository default", () => {
     expect(warn).not.toHaveBeenCalledWith(
       expect.stringContaining("InMemoryAuctionRepository"),
     );
-  });
+    // Real composition import (~4 s alone, more under suite parallelism).
+  }, 30_000);
 });

@@ -22,7 +22,11 @@ import {
   type DatabasePort,
 } from "../../../migrations/src/index.js";
 import type { DatabaseManager } from "@mosaix/database";
-import { connectCliDatabase, type CliDatabase } from "./database-command.js";
+import {
+  connectCliDatabase,
+  closeCliDatabase,
+  type CliDatabase,
+} from "./database-command.js";
 // Shell-owned providers (aggregated registry). Relative import follows the
 // existing cross-package style of this file; the long-term home is a
 // dedicated shell-registry package (backlog).
@@ -57,7 +61,7 @@ export class MigrateCommand implements CliCommand {
   readonly description = "Run pending database schema migrations";
 
   async execute(ctx: CommandContext): Promise<CLIResult> {
-    const { cli, db, manager, connection } = await buildMigrationCli(ctx);
+    const { cli, db, connection } = await buildMigrationCli(ctx);
     try {
       const seed = ctx.args.includes("--seed");
       const result = await cli.migrate();
@@ -78,7 +82,7 @@ export class MigrateCommand implements CliCommand {
         result,
       );
     } finally {
-      await manager.close();
+      await closeCliDatabase();
     }
   }
 }
@@ -88,7 +92,7 @@ export class MigrateStatusCommand implements CliCommand {
   readonly description = "Check status of database migrations";
 
   async execute(ctx: CommandContext): Promise<CLIResult> {
-    const { cli, manager, connection } = await buildMigrationCli(ctx);
+    const { cli, connection } = await buildMigrationCli(ctx);
     try {
       const status = await cli.status();
       return ctx.respond(
@@ -96,7 +100,7 @@ export class MigrateStatusCommand implements CliCommand {
         status,
       );
     } finally {
-      await manager.close();
+      await closeCliDatabase();
     }
   }
 }
@@ -106,7 +110,7 @@ export class MigrateRollbackCommand implements CliCommand {
   readonly description = "Rollback database migrations";
 
   async execute(ctx: CommandContext): Promise<CLIResult> {
-    const { cli, manager, connection } = await buildMigrationCli(ctx);
+    const { cli, connection } = await buildMigrationCli(ctx);
     try {
       const stepsArg = ctx.args
         .find((a) => a.startsWith("--steps="))
@@ -117,11 +121,11 @@ export class MigrateRollbackCommand implements CliCommand {
         steps !== undefined && Number.isFinite(steps) ? steps : undefined,
       );
       return ctx.respond(
-        `Migration rollback completed on [${connection}].`,
+        `All migrations rolled back on [${connection}].`,
         result,
       );
     } finally {
-      await manager.close();
+      await closeCliDatabase();
     }
   }
 }
@@ -131,16 +135,16 @@ export class MigrateFreshCommand implements CliCommand {
   readonly description = "Drop all tables and re-run all migrations";
 
   async execute(ctx: CommandContext): Promise<CLIResult> {
-    const { cli, db, manager, connection } = await buildMigrationCli(ctx);
+    const { cli, db, connection } = await buildMigrationCli(ctx);
     try {
       await db.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
       const result = await cli.migrate();
       return ctx.respond(
-        `Database migrated fresh on [${connection}].`,
+        `Database migrations executed on [${connection}].`,
         result,
       );
     } finally {
-      await manager.close();
+      await closeCliDatabase();
     }
   }
 }
@@ -150,7 +154,7 @@ export class MigrateInstallCommand implements CliCommand {
   readonly description = "Create the migration repository table";
 
   async execute(ctx: CommandContext): Promise<CLIResult> {
-    const { db, config, manager } = await connectCliDatabase(ctx);
+    const { db, config } = await connectCliDatabase(ctx);
     const connection = describeConnection(config);
     try {
       await db.execute(`
@@ -167,7 +171,7 @@ export class MigrateInstallCommand implements CliCommand {
         { success: true },
       );
     } finally {
-      await manager.close();
+      await closeCliDatabase();
     }
   }
 }
@@ -177,17 +181,17 @@ export class MigrateResetCommand implements CliCommand {
   readonly description = "Rollback all database migrations";
 
   async execute(ctx: CommandContext): Promise<CLIResult> {
-    const { cli, manager, connection } = await buildMigrationCli(ctx);
+    const { cli, connection } = await buildMigrationCli(ctx);
     try {
       // No "all" target exists on the planner — a step count beyond any real
       // ledger size rolls everything back in one plan (planner slices to held).
       const result = await cli.rollback(Number.MAX_SAFE_INTEGER);
       return ctx.respond(
-        `All migrations rolled back on [${connection}].`,
+        `Database migrated fresh on [${connection}].`,
         result,
       );
     } finally {
-      await manager.close();
+      await closeCliDatabase();
     }
   }
 }
@@ -197,7 +201,7 @@ export class MigrateMarkCommand implements CliCommand {
   readonly description = "Mark a migration as applied without running it (usage: migrate:mark <migration-id>)";
 
   async execute(ctx: CommandContext): Promise<CLIResult> {
-    const { db, config, manager } = await connectCliDatabase(ctx);
+    const { db, config } = await connectCliDatabase(ctx);
     const connection = describeConnection(config);
     try {
       const migrationId = ctx.args.find(a => !a.startsWith("--"));
@@ -213,7 +217,7 @@ export class MigrateMarkCommand implements CliCommand {
         { success: true, migrationId },
       );
     } finally {
-      await manager.close();
+      await closeCliDatabase();
     }
   }
 }

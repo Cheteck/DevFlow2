@@ -86,6 +86,7 @@
     "@mosaix/intelligence": "workspace:*",
     "@mosaix/mcp": "workspace:*",
     "@mosaix/migrations": "workspace:*",
+    "@mosaix/plugin-engine": "workspace:*",
     "@mosaix/ports-credential-store": "workspace:*",
     "@mosaix/ports-database": "workspace:*",
     "@mosaix/ports-feature-flags": "workspace:*",
