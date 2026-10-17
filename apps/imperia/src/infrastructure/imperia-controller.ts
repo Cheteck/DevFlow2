@@ -5,7 +5,7 @@ import { PlatformTopologyService } from "../domain/platform-topology.service";
 import { PlatformSettingsService } from "../domain/platform-settings.service";
 import { GovernanceSlotResolver } from "../domain/governance-slot-resolver";
 import { AuditLogModel } from "../domain/audit-log.model";
-import { ImperiaPluginManagerService, type PrestaPluginCategory } from "../domain/plugin-manager.service";
+import { ImperiaPluginManagerService, type PrestaPluginCategory, getPluginActionHandler } from "../domain/plugin-manager.service";
 import { ControlPlaneSupervisorService } from "../domain/control-plane-supervisor.service";
 import { MigrationGovernanceService } from "../domain/migration-governance.service";
 import type { PostgresImperiaRepository } from "./postgres-imperia-repository.js";
@@ -210,29 +210,11 @@ export class ImperiaGovernanceController extends Controller {
     }
 
     try {
-      let updatedPlugin;
-      switch (body.action) {
-        case "install":
-          updatedPlugin = this.pluginManager.install(body.pluginId);
-          break;
-        case "enable":
-          updatedPlugin = this.pluginManager.enable(body.pluginId);
-          break;
-        case "disable":
-          updatedPlugin = this.pluginManager.disable(body.pluginId);
-          break;
-        case "reset":
-          updatedPlugin = this.pluginManager.reset(body.pluginId);
-          break;
-        case "uninstall":
-          updatedPlugin = this.pluginManager.uninstall(body.pluginId);
-          break;
-        case "configure":
-          updatedPlugin = this.pluginManager.configure(body.pluginId, body.configurationValues ?? {});
-          break;
-        default:
-          return this.badRequest(`Unsupported plugin action [${body.action}]`);
+      const handler = getPluginActionHandler(body.action);
+      if (!handler) {
+        return this.badRequest(`Unsupported plugin action [${body.action}]`);
       }
+      const updatedPlugin = handler(body.pluginId, this.pluginManager, body.configurationValues);
 
       this.recordAuditLog(this.actorId(req), `PLUGIN_${body.action.toUpperCase()}`, body.pluginId, "success", {
         pluginName: updatedPlugin.name,

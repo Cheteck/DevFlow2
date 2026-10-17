@@ -23,6 +23,30 @@ export interface ImperiaPluginModule {
   tabs?: Array<{ id: string; label: string; icon?: string }>;
 }
 
+export type PluginActionHandler = (
+  pluginId: string,
+  manager: ImperiaPluginManagerService,
+  values?: Record<string, unknown>,
+) => ImperiaPluginModule;
+
+const pluginActionRegistry = new Map<string, PluginActionHandler>();
+
+export function registerPluginAction(action: string, handler: PluginActionHandler): void {
+  pluginActionRegistry.set(action.toLowerCase(), handler);
+}
+
+export function getPluginActionHandler(action: string): PluginActionHandler | undefined {
+  return pluginActionRegistry.get(action.toLowerCase());
+}
+
+// Register built-in actions
+registerPluginAction("install", (id, mgr) => mgr.install(id));
+registerPluginAction("enable", (id, mgr) => mgr.enable(id));
+registerPluginAction("disable", (id, mgr) => mgr.disable(id));
+registerPluginAction("reset", (id, mgr) => mgr.reset(id));
+registerPluginAction("uninstall", (id, mgr) => mgr.uninstall(id));
+registerPluginAction("configure", (id, mgr, vals) => mgr.configure(id, vals ?? {}));
+
 export class ImperiaPluginManagerService {
   private plugins = new Map<string, ImperiaPluginModule>();
 

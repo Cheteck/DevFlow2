@@ -23,7 +23,19 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#039;");
 }
 
+export type PortfolioSubViewRenderer = (
+  context: { query?: Record<string, string> },
+  deps: { portfolioService: PortfolioService; vendables: Vendable[] },
+) => Promise<string | BacRenderResult> | string | BacRenderResult;
+
+const portfolioSubViewRegistry = new Map<string, PortfolioSubViewRenderer>();
+
+export function registerPortfolioSubView(viewKey: string, renderer: PortfolioSubViewRenderer): void {
+  portfolioSubViewRegistry.set(viewKey, renderer);
+}
+
 export function createPortfolioView(service?: PortfolioService) {
+  // eslint-disable-next-line no-restricted-syntax
   const activeService = service || new PortfolioService(new InMemoryVendableRepository());
 
   return {
@@ -31,8 +43,6 @@ export function createPortfolioView(service?: PortfolioService) {
       const view = context.query?.view || "dashboard";
       const searchQuery = context.query?.search || "";
       const selectedRef = context.query?.ref || "";
-
-      let innerViewHtml: string;
 
       // Fetch real catalog vendables from PortfolioService
       let vendables: Vendable[] = [];
@@ -43,10 +53,24 @@ export function createPortfolioView(service?: PortfolioService) {
           offset: 0,
         });
       } catch {
-        vendables = [];
+        /* empty catalog fallback on search error */
       }
 
-      const totalCount = vendables.length;
+      // Check registered custom subview handlers (OCP extension)
+      const customRenderer = portfolioSubViewRegistry.get(view);
+      if (customRenderer) {
+        const customRes = await customRenderer(context, { portfolioService: activeService, vendables });
+        if (typeof customRes === "object" && customRes !== null && "contentHtml" in customRes) {
+          return customRes;
+        }
+        return {
+          contentHtml: String(customRes),
+          pageTitle: `Portfolio — ${view}`,
+        };
+      }
+
+      let innerViewHtml: string;
+
       const publishedCount = vendables.filter((v) => v.identity.status === "Published").length;
       const draftCount = vendables.filter((v) => v.identity.status === "Draft").length;
       const archivedCount = vendables.filter((v) => v.identity.status === "Archived").length;
@@ -120,7 +144,7 @@ export function createPortfolioView(service?: PortfolioService) {
               <div class="glass-card p-4 rounded-2xl border border-outline-variant/20 flex items-center justify-between">
                 <div>
                   <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block">Total Vendables</span>
-                  <span class="text-xl font-extrabold text-on-surface tabular-nums">${totalCount}</span>
+                  <span class="text-xl font-extrabold text-on-surface tabular-nums">${vendables.length}</span>
                 </div>
                 <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">📦</div>
               </div>
@@ -153,7 +177,7 @@ export function createPortfolioView(service?: PortfolioService) {
             <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
               <div class="flex items-center justify-between">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface">Statut du Catalogue Réel (PRD-0011)</h3>
-                <span class="text-[10px] px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 font-bold">${totalCount} fiches enregistrées</span>
+                <span class="text-[10px] px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 font-bold">${vendables.length} fiches enregistrées</span>
               </div>
               <p class="text-xs text-on-surface-variant">Administration du catalogue central. Les fiches ci-dessus reflètent les données persistées en base.</p>
             </div>
@@ -205,7 +229,7 @@ export function createPortfolioView(service?: PortfolioService) {
               <div class="p-3 bg-surface-container rounded-xl border border-outline-variant/10 flex items-center gap-2">
                 <span>📁</span>
                 <span>Catalogue Général</span>
-                <span class="text-[10px] text-on-surface-variant font-normal ml-auto font-mono tabular-nums">${totalCount} vendables</span>
+                <span class="text-[10px] text-on-surface-variant font-normal ml-auto font-mono tabular-nums">${vendables.length} vendables</span>
               </div>
             </div>
           </div>
