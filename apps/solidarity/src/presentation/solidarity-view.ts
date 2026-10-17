@@ -1,71 +1,64 @@
 /**
- * @apps/solidarity — Autonomous BAC View & Descriptor
- * Vues operationnelles inspirees de la maquette (besoins, benevoles, HXL)
- * mais exprimees en conventions MosaiX : SSR, theme-tokens
- * (`on-surface`, `surface-container`, `primary`, `outline-variant`),
- * `material-symbols-outlined`, `escapeHtml`, zero PII, zero couleur en dur.
- *
- * Donnees reelles uniquement : le descripteur accepte un service en option
- * et rend des etats vides honnetes sans service — jamais de contenu fictif.
+ * @apps/solidarity — Presentation View & Descriptor
+ * Self-contained SSR view for Solidarity Hub (needs, ops, volunteers, OCHA reports).
  */
 
 import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
-import { calculateCoveragePercent } from "../domain/solidarity-operational-rules.js";
 
-type OpsNeedStatus = "OPEN" | "MATCHED" | "PARTIALLY" | "SATISFIED";
-
-interface OpsNeed {
+export interface OpsNeed {
   id: string;
   title: string;
   zone: string;
-  status: OpsNeedStatus;
   requested: number;
   distributed: number;
   unit: string;
+  status: "OPEN" | "CLOSED";
 }
 
-/** Minimal structural source: any service exposing stored needs. No infrastructure import. */
 export interface SolidarityOpsSource {
-  getNeeds(): Array<{
-    id: string;
-    type: string;
-    status: string;
-    quantityRequired: number;
-    quantitySatisfied: number;
-    geoZone: string;
-  }>;
+  listNeeds?(): OpsNeed[];
+  getNeeds?(): unknown[];
 }
 
-const NEED_STATUS_LABEL: Record<OpsNeedStatus, string> = {
-  OPEN: "Ouvert",
-  MATCHED: "Affecte",
-  PARTIALLY: "Partiel",
-  SATISFIED: "Couvert",
-};
+export type SolidaritySubViewRenderer = (
+  context: BacExecutionContext,
+  deps: { solidarityService?: SolidarityOpsSource; needs: OpsNeed[]; isAdmin: boolean },
+) => Promise<string | BacRenderResult> | string | BacRenderResult;
 
-function toOpsStatus(status: string): OpsNeedStatus {
-  if (status === "MATCHED") return "MATCHED";
-  if (status === "PARTIALLY_SATISFIED" || status === "PARTIALLY") return "PARTIALLY";
-  if (status === "SATISFIED") return "SATISFIED";
-  return "OPEN";
+const solidaritySubViewRegistry = new Map<string, SolidaritySubViewRenderer>();
+
+export function registerSolidaritySubView(viewKey: string, renderer: SolidaritySubViewRenderer): void {
+  solidaritySubViewRegistry.set(viewKey, renderer);
 }
 
-export function toOpsNeeds(source?: SolidarityOpsSource): OpsNeed[] {
-  if (!source) return [];
-  return source.getNeeds().map((n) => ({
-    id: n.id,
-    title: n.type,
-    zone: n.geoZone,
-    status: toOpsStatus(n.status),
-    requested: n.quantityRequired,
-    distributed: n.quantitySatisfied,
-    unit: "unit",
-  }));
+function calculateCoveragePercent(requested: number, distributed: number): number {
+  if (requested <= 0) return 0;
+  return Math.min(100, Math.round((distributed / requested) * 100));
 }
 
-function statusBadge(status: OpsNeedStatus): string {
-  return `<span class="text-[10px] font-bold uppercase tracking-wider text-primary">${escapeHtml(NEED_STATUS_LABEL[status])}</span>`;
+export function toOpsNeeds(service?: SolidarityOpsSource): OpsNeed[] {
+  if (service) {
+    if (typeof service.listNeeds === "function") {
+      return service.listNeeds();
+    }
+    if (typeof service.getNeeds === "function") {
+      const raw = service.getNeeds() || [];
+      return raw.map((item) => {
+        const n = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+        return {
+          id: String(n.id ?? ""),
+          title: String(n.type ?? n.title ?? "Besoin"),
+          zone: String(n.geoZone ?? n.zone ?? "Non spécifiée"),
+          requested: Number(n.quantityRequired ?? n.requested ?? 0),
+          distributed: Number(n.quantitySatisfied ?? n.distributed ?? 0),
+          unit: String(n.unit ?? "unité"),
+          status: n.status === "CLOSED" ? "CLOSED" : "OPEN",
+        };
+      });
+    }
+  }
+  return [];
 }
 
 function needCard(n: OpsNeed): string {
@@ -74,9 +67,11 @@ function needCard(n: OpsNeed): string {
   return `
           <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 flex flex-col justify-between hover:border-primary/40 transition duration-200">
             <div class="space-y-3">
-              <div class="flex justify-between items-start text-[10px]">
-                ${statusBadge(n.status)}
-                <span class="font-mono tabular-nums text-on-surface-variant">${escapeHtml(n.id)}</span>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${n.status === "OPEN" ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" : "bg-surface-container text-on-surface-variant"} font-mono">
+                  ${n.status}
+                </span>
+                <span class="text-[10px] font-mono text-on-surface-variant">#${escapeHtml(n.id)}</span>
               </div>
               <div>
                 <h3 class="text-xs font-bold text-on-surface mt-1">${escapeHtml(n.title)}</h3>
@@ -123,6 +118,19 @@ export function createSolidarityDescriptor(deps: { solidarityService?: Solidarit
       const user = context.user;
       const isAdmin = user.roles?.includes("admin") || user.id === "admin";
       const needs = toOpsNeeds(deps.solidarityService);
+
+      // Check registered custom subview handlers (OCP extension)
+      const customRenderer = solidaritySubViewRegistry.get(view);
+      if (customRenderer) {
+        const customRes = await customRenderer(context, { solidarityService: deps.solidarityService, needs, isAdmin });
+        if (typeof customRes === "object" && customRes !== null && "contentHtml" in customRes) {
+          return customRes;
+        }
+        return {
+          contentHtml: String(customRes),
+          pageTitle: `Solidarity — ${view}`,
+        };
+      }
 
       let innerViewHtml: string;
       if (view === "needs") {

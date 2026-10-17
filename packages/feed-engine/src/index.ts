@@ -449,6 +449,35 @@ export interface FeedAggregationOptions {
   now?: Date;
 }
 
+
+export type FeedSortStrategy = (
+  a: FeedPost,
+  b: FeedPost,
+  context: { referenceDate: Date },
+) => number;
+
+const feedSortStrategyRegistry = new Map<string, FeedSortStrategy>();
+
+export function registerFeedSortStrategy(
+  name: string,
+  strategy: FeedSortStrategy,
+): void {
+  feedSortStrategyRegistry.set(name, strategy);
+}
+
+registerFeedSortStrategy("chronological", (a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+registerFeedSortStrategy("reverse_chronological", (a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+registerFeedSortStrategy("engagement", (a, b) => {
+  const scoreA = a.likeCount + a.commentsCount * 2 + (a.repostCount || 0) * 3;
+  const scoreB = b.likeCount + b.commentsCount * 2 + (b.repostCount || 0) * 3;
+  return scoreB - scoreA;
+});
+registerFeedSortStrategy("score", (a, b, ctx) => {
+  const scoreA = FeedScorer.calculateScore(a, ctx.referenceDate);
+  const scoreB = FeedScorer.calculateScore(b, ctx.referenceDate);
+  return scoreB - scoreA;
+});
+
 export class FeedAggregator {
   public static aggregate(
     allPosts: FeedPost[],
@@ -513,29 +542,15 @@ export class FeedAggregator {
     const sortBy = options.sortBy || "reverse_chronological";
     const referenceDate = options.now || new Date();
 
+    const strategy =
+      feedSortStrategyRegistry.get(sortBy) ??
+      feedSortStrategyRegistry.get("reverse_chronological")!;
+
     return filtered.sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
 
-      switch (sortBy) {
-        case "chronological":
-          return a.createdAt.getTime() - b.createdAt.getTime();
-        case "engagement": {
-          const scoreA =
-            a.likeCount + a.commentsCount * 2 + (a.repostCount || 0) * 3;
-          const scoreB =
-            b.likeCount + b.commentsCount * 2 + (b.repostCount || 0) * 3;
-          return scoreB - scoreA;
-        }
-        case "score": {
-          const scoreA = FeedScorer.calculateScore(a, referenceDate);
-          const scoreB = FeedScorer.calculateScore(b, referenceDate);
-          return scoreB - scoreA;
-        }
-        case "reverse_chronological":
-        default:
-          return b.createdAt.getTime() - a.createdAt.getTime();
-      }
+      return strategy(a, b, { referenceDate });
     });
   }
 

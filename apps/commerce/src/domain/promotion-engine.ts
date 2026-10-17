@@ -6,7 +6,7 @@
 import * as crypto from "node:crypto";
 import { Money } from "@mosaix/core";
 
-export type DiscountType = "percentage" | "fixed_amount";
+export type DiscountType = "percentage" | "fixed_amount" | string;
 
 export interface PromotionRule {
   id: string;
@@ -37,6 +37,35 @@ export interface StackEvaluationResult {
   totalDiscount: Money;
   finalPrice: Money;
 }
+
+export type PromotionStrategy = (
+  promo: PromotionRule,
+  itemPrice: Money,
+) => { discountAmount: Money; finalPrice: Money };
+
+const promotionStrategyRegistry = new Map<string, PromotionStrategy>();
+
+export function registerPromotionStrategy(type: string, strategy: PromotionStrategy): void {
+  promotionStrategyRegistry.set(type, strategy);
+}
+
+// Built-in strategies
+registerPromotionStrategy("percentage", (promo, itemPrice) => {
+  let discountCents = Math.round((itemPrice.amountInCents * promo.value) / 100);
+  if (promo.maxDiscountInCents && discountCents > promo.maxDiscountInCents) {
+    discountCents = promo.maxDiscountInCents;
+  }
+  const discountAmount = Money.fromCents(discountCents, itemPrice.currency);
+  const finalPrice = Money.fromCents(itemPrice.amountInCents - discountCents, itemPrice.currency);
+  return { discountAmount, finalPrice };
+});
+
+registerPromotionStrategy("fixed_amount", (promo, itemPrice) => {
+  const discountCents = Math.min(itemPrice.amountInCents, promo.value);
+  const discountAmount = Money.fromCents(discountCents, itemPrice.currency);
+  const finalPrice = Money.fromCents(itemPrice.amountInCents - discountCents, itemPrice.currency);
+  return { discountAmount, finalPrice };
+});
 
 export class PromotionEngine {
   private promotions = new Map<string, PromotionRule>();
@@ -82,18 +111,10 @@ export class PromotionEngine {
       return null;
     }
 
-    let discountCents = 0;
-    if (promo.type === "percentage") {
-      discountCents = Math.round((itemPrice.amountInCents * promo.value) / 100);
-      if (promo.maxDiscountInCents && discountCents > promo.maxDiscountInCents) {
-        discountCents = promo.maxDiscountInCents;
-      }
-    } else {
-      discountCents = Math.min(itemPrice.amountInCents, promo.value);
-    }
+    const strategy = promotionStrategyRegistry.get(promo.type);
+    if (!strategy) return null;
 
-    const discountAmount = Money.fromCents(discountCents, itemPrice.currency);
-    const finalPrice = Money.fromCents(itemPrice.amountInCents - discountCents, itemPrice.currency);
+    const { discountAmount, finalPrice } = strategy(promo, itemPrice);
 
     return {
       promotionId: promo.id,
@@ -106,11 +127,7 @@ export class PromotionEngine {
 
   /**
    * Anti-abuse stacking (V1.4): evaluates a combination of promotions against
-   * one price. A non-stackable promotion applies ONLY alone — combined with
-   * any other promotion the whole stack is refused (null, fail-closed), so a
-   * coupon bound to it cannot be cumulated abusively. Stackable promotions
-   * apply sequentially on the remaining price. Unknown/inactive promotions or
-   * unmet windows/minimums refuse the stack as well.
+   * one price.
    */
   evaluateStack(
     promoIds: string[],

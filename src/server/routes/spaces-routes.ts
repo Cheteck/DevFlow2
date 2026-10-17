@@ -12,12 +12,35 @@
 
 import type * as http from "node:http";
 import type { URL } from "node:url";
-import type { ProposalService } from "../../../apps/portfolio/src/domain/proposal-service.js";
+
+export interface ProposalDraftResult {
+  id: string;
+  spaceId: string;
+  status: string;
+}
+
+export interface ProposalDraftService {
+  createDraft(
+    spaceId: string,
+    proposerUserId: string,
+    input: {
+      suggestedReference: string;
+      type: "Product" | "Service" | "DigitalProduct" | "Experience";
+      content?: Record<string, unknown>;
+      classification?: Record<string, unknown>;
+      characteristics?: Record<string, unknown>;
+      features?: Record<string, unknown>;
+      variants?: Record<string, unknown>;
+      media?: Record<string, unknown>;
+      translations?: Record<string, unknown>;
+    },
+  ): Promise<ProposalDraftResult>;
+}
 
 export interface SpacesProposalRouteDeps {
   /** Authenticated shell user id (`guest`/empty → 401). */
   currentUserId?: string;
-  proposalService?: Pick<ProposalService, "createDraft">;
+  proposalService?: ProposalDraftService;
 }
 
 const PATH_RE = /^\/api\/spaces\/([^/]+)\/proposals$/;

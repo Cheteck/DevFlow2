@@ -33,7 +33,7 @@ export type BacAccessDecision =
   | { kind: "login" }
   | { kind: "forbidden" };
 
-interface BacAccessRule {
+export interface BacAccessRule {
   /** Clean BAC id, without `@apps/` prefix. */
   bacId: string;
   /** Views open to anonymous visitors. `""` = default view (no `?view=`). */
@@ -55,7 +55,7 @@ interface BacAccessRule {
   adminOnly?: boolean;
 }
 
-const BAC_ACCESS_POLICY: readonly BacAccessRule[] = [
+const DEFAULT_BAC_ACCESS_RULES: readonly BacAccessRule[] = [
   // Public marketplace vitrine (read-only listing). Cart, orders and any
   // other or unknown view require a session.
   { bacId: "commerce", anonymousViews: ["", "offers"], defaultView: "offers", strictViews: ["", "offers", "cart", "orders"] },
@@ -77,6 +77,14 @@ const BAC_ACCESS_POLICY: readonly BacAccessRule[] = [
   // Platform governance: authenticated admins only (cf. VIEW-IMPERIA 403).
   { bacId: "imperia", anonymousViews: [], adminOnly: true },
 ];
+
+const bacAccessRegistry = new Map<string, BacAccessRule>(
+  DEFAULT_BAC_ACCESS_RULES.map((rule) => [rule.bacId, rule]),
+);
+
+export function registerBacAccessRule(rule: BacAccessRule): void {
+  bacAccessRegistry.set(rule.bacId.toLowerCase(), rule);
+}
 
 /** `identity` is an alias of the citadelle BAC route. */
 export function normalizeBacId(bacId: string): string {
@@ -110,7 +118,7 @@ export function resolveBacAccess(
   view?: string | null,
 ): BacAccessDecision {
   const clean = normalizeBacId(bacId);
-  const rule = BAC_ACCESS_POLICY.find((r) => r.bacId === clean);
+  const rule = bacAccessRegistry.get(clean);
   // A missing `?view=` means the BAC's own default view — resolved here so
   // guard and renderer share one interpretation (see `defaultView`).
   const rawKey = (view ?? "").toLowerCase();

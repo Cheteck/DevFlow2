@@ -29,6 +29,17 @@ export interface PublicSpace {
   followersCount: number;
 }
 
+export type SpacesSubViewRenderer = (
+  context: BacExecutionContext,
+  deps: { spaceService: SpaceService; isGuest: boolean; spaceParam?: string },
+) => Promise<string | BacRenderResult> | string | BacRenderResult;
+
+const spacesSubViewRegistry = new Map<string, SpacesSubViewRenderer>();
+
+export function registerSpacesSubView(viewKey: string, renderer: SpacesSubViewRenderer): void {
+  spacesSubViewRegistry.set(viewKey, renderer);
+}
+
 export function toPublicSpace(space: Space): PublicSpace {
   return {
     id: space.id,
@@ -64,6 +75,19 @@ export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDesc
       // `src/start.ts`). Creation is session-only; the SSR guard redirects
       // guests to login and this is the second lock.
       const isGuest = (context.user.roles?.length ?? 0) === 0;
+
+      // Check registered custom subview handlers (OCP extension)
+      const customRenderer = spacesSubViewRegistry.get(view);
+      if (customRenderer) {
+        const customRes = await customRenderer(context, { spaceService, isGuest, spaceParam });
+        if (typeof customRes === "object" && customRes !== null && "contentHtml" in customRes) {
+          return customRes;
+        }
+        return {
+          contentHtml: String(customRes),
+          pageTitle: `Spaces — ${view}`,
+        };
+      }
 
       let subViewHtml: string;
       if (view === "sell") {

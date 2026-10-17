@@ -21,7 +21,7 @@ import { handleUserAndSpaceRoutes } from "./routes/user-routes.js";
 import { handleFeatureFlagRoutes } from "./routes/feature-flag-routes.js";
 import { handleCompositionRoutes } from "./routes/composition-routes.js";
 import { handleAuthRoutes } from "./routes/auth-routes.js";
-import { handleSpacesProposalRoutes } from "./routes/spaces-routes.js";
+import { handleSpacesProposalRoutes, type ProposalDraftService } from "./routes/spaces-routes.js";
 import { handleMcpRoutes } from "./routes/mcp-routes.js";
 import { handleFeedRoutes } from "./routes/feed-routes.js";
 import { handleComplianceAndSystemRoutes } from "./routes/compliance-routes.js";
@@ -34,7 +34,7 @@ import { handleMetricsRoute } from "./routes/metrics-route.js";
 
 export interface ProposalServices {
   portfolioService: unknown;
-  proposalService: unknown;
+  proposalService: ProposalDraftService;
 }
 
 export interface ApiDispatcherContext {
@@ -150,7 +150,7 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) => {
   const { proposalService } = ctx.buildProposalServices(ctx.db);
   return handleSpacesProposalRoutes(req, res, parsedUrl, {
     currentUserId: ctx.currentUser.id,
-    proposalService: proposalService as any,
+    proposalService,
   });
 });
 
