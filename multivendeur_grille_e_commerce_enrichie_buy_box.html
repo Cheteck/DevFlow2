@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Boutique en ligne - Commerce &amp; Orders</title>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            obsidian: {
+              950: '#060a13',
+              900: '#0b1326',
+              850: '#0f172a',
+              800: '#131b2e',
+              750: '#18223a',
+              700: '#1e293b',
+              600: '#334155',
+            },
+            brand: {
+              purple: '#8b5cf6',
+              primary: '#6366f1',
+              accent: '#a855f7',
+              hover: '#7c3aed'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<!-- Inter Font -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Custom Styles -->
+<style data-purpose="custom-scrollbars">
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b1326;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+  </style>
+<style data-purpose="glow-effects">
+    .glow-purple {
+      box-shadow: 0 0 20px -3px rgba(139, 92, 246, 0.25);
+    }
+    .badge-shimmer {
+      background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.03) 100%);
+      background-size: 200% 100%;
+      animation: shimmer 3s infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+  </style>
+</head>
+<body class="bg-[#0b1326] text-slate-200 font-sans antialiased h-screen overflow-hidden flex select-none">
+<!-- BEGIN: FarLeftSlimSidebar -->
+<!-- Primary ultra-compact icon dock on far left -->
+<aside class="w-16 bg-[#070d1a] border-r border-slate-800/60 flex flex-col items-center justify-between py-3 flex-shrink-0 z-40" data-purpose="primary-dock">
+<!-- Top Icons -->
+<div class="flex flex-col items-center gap-4 w-full">
+<!-- Top Brand Sparkle Logo -->
+<a class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-500 to-pink-500 p-[1px] flex items-center justify-center glow-purple group" href="#">
+<div class="w-full h-full bg-[#0d1324] rounded-[11px] flex items-center justify-center group-hover:bg-opacity-80 transition-all">
+<svg class="w-5 h-5 text-purple-300" fill="currentColor" viewbox="0 0 24 24">
+<path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"></path>
+</svg>
+</div>
+</a>
+<div class="w-8 h-[1px] bg-slate-800/80 my-1"></div>
+<!-- Quick Nav Buttons -->
+<button class="w-10 h-10 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 flex items-center justify-center transition-colors" title="Recherche globale">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<button class="w-10 h-10 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 flex items-center justify-center transition-colors" title="Accueil">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- Active Store Module Icon -->
+<div class="relative group">
+<div class="absolute -left-3 top-2 bottom-2 w-1 bg-purple-500 rounded-r-md"></div>
+<button class="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-300 flex items-center justify-center shadow-inner" title="Boutique &amp; Marketplace">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.614A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.015a2.993 2.993 0 0 0 2.25 1.015c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 0 0 3.75.614M3.75 9.349V4.5A2.25 2.25 0 0 1 6 2.25h12a2.25 2.25 0 0 1 2.25 2.25v4.849" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+<button class="w-10 h-10 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 flex items-center justify-center transition-colors" title="Écosystème / Univers">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-.778.099-1.533.284-2.253" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+<!-- Bottom User Section -->
+<div class="flex flex-col items-center gap-3">
+<div class="relative cursor-pointer">
+<div class="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-semibold text-xs shadow">
+<span>JD</span>
+</div>
+<span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#070d1a] rounded-full"></span>
+</div>
+</div>
+</aside>
+<!-- END: FarLeftSlimSidebar -->
+<!-- BEGIN: SecondarySidebar -->
+<!-- Contextual module navigation sidebar -->
+<aside class="w-64 bg-[#0a1020] border-r border-slate-800/60 flex flex-col justify-between py-3 px-3 flex-shrink-0 select-none" data-purpose="secondary-module-sidebar">
+<div class="flex flex-col">
+<!-- Module Header Card -->
+<div class="flex items-center justify-between p-2 rounded-xl bg-slate-800/40 border border-slate-700/50 mb-3">
+<div class="flex items-center gap-2.5 truncate">
+<div class="w-8 h-8 rounded-lg bg-indigo-950/80 border border-indigo-500/30 flex items-center justify-center text-base shadow-sm">
+            🏪
+          </div>
+<div class="truncate">
+<div class="flex items-center gap-1.5">
+<span class="text-xs font-semibold text-slate-100 truncate">Boutique en li...</span>
+<span class="text-[9px] font-medium px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">● Actif</span>
+</div>
+<p class="text-[10px] text-slate-400 truncate">Catalogue &amp; Commandes</p>
+</div>
+</div>
+<button class="text-slate-400 hover:text-slate-200 p-1">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="m15.75 19.5-7.5-7.5 7.5-7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+<!-- Quick Sub-search input -->
+<div class="relative mb-4">
+<svg class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<input class="w-full text-xs pl-8 pr-3 py-1.5 bg-slate-900/70 border border-slate-800/80 rounded-lg text-slate-300 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Rechercher une option..." type="text"/>
+</div>
+<!-- Section Title & Counter -->
+<div class="flex items-center justify-between px-1 mb-2">
+<span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Navigation &amp; Outils</span>
+<span class="text-[10px] font-mono bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">0</span>
+</div>
+<!-- Notice empty states or navigation lists -->
+<div class="px-2 py-4 rounded-lg bg-slate-900/30 border border-slate-800/40 text-center">
+<p class="text-[11px] text-slate-400 italic leading-relaxed">
+          Aucune action restreinte pour votre niveau d'accès.
+        </p>
+</div>
+<!-- Quick filters menu in sidebar for rich navigation -->
+<div class="mt-4 space-y-1">
+<a class="flex items-center justify-between px-2.5 py-2 text-xs rounded-lg bg-purple-500/10 text-purple-300 font-medium border border-purple-500/20" href="#">
+<span class="flex items-center gap-2">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.614A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.015a2.993 2.993 0 0 0 2.25 1.015c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 0 0 3.75.614M3.75 9.349V4.5A2.25 2.25 0 0 1 6 2.25h12a2.25 2.25 0 0 1 2.25 2.25v4.849" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            Explorer le Marché
+          </span>
+<span class="text-[10px] bg-purple-900/60 px-1.5 py-0.5 rounded text-purple-200">1.4k</span>
+</a>
+<a class="flex items-center justify-between px-2.5 py-2 text-xs rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 transition-colors" href="#">
+<span class="flex items-center gap-2">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            Commandes Groupées
+          </span>
+</a>
+<a class="flex items-center justify-between px-2.5 py-2 text-xs rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 transition-colors" href="#">
+<span class="flex items-center gap-2">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            Vendeurs Certifiés B2B
+          </span>
+<span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded">84</span>
+</a>
+</div>
+</div>
+<!-- Sidebar Bottom Connect Button & Network Status -->
+<div class="pt-3 border-t border-slate-800/80 space-y-2">
+<button class="w-full py-2 px-3 bg-[#c4b5fd] hover:bg-[#d8b4fe] text-indigo-950 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 transition-all shadow-sm">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+        Se connecter
+      </button>
+<div class="flex items-center justify-between px-1 text-[11px]">
+<span class="flex items-center gap-1.5 text-slate-400">
+<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+          Réseau Principal
+        </span>
+<span class="text-emerald-400 font-medium">Connecté</span>
+</div>
+</div>
+</aside>
+<!-- END: SecondarySidebar -->
+<!-- BEGIN: MainLayoutWrapper -->
+<!-- Header + Scrollable Main Content -->
+<div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-[#0b1326]">
+<!-- BEGIN: TopHeader -->
+<!-- Top breadcrumb and omnibar system bar -->
+<header class="h-14 bg-[#090f1d] border-b border-slate-800/70 px-5 flex items-center justify-between flex-shrink-0 z-30" data-purpose="top-navigation-bar">
+<!-- Left: Breadcrumb Navigation -->
+<div class="flex items-center gap-2 text-xs">
+<button class="text-slate-400 hover:text-white p-1">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<div class="flex items-center gap-1.5 text-slate-400">
+<span class="flex items-center gap-1 hover:text-slate-200 cursor-pointer">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            Accueil
+          </span>
+<span class="text-slate-600">/</span>
+<span class="hover:text-slate-200 cursor-pointer">Modules</span>
+<span class="text-slate-600">/</span>
+<span class="font-semibold text-slate-100">Commerce &amp; Orders</span>
+</div>
+</div>
+<!-- Center: Global Quick Command Search -->
+<div class="w-96 max-w-md hidden md:block">
+<div class="relative flex items-center">
+<svg class="w-3.5 h-3.5 absolute left-3 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<input class="w-full text-xs pl-8 pr-12 py-1.5 bg-slate-900/90 border border-slate-700/60 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Rechercher une application, un document..." type="text"/>
+<kbd class="absolute right-2.5 top-2 text-[10px] font-mono text-slate-400 bg-slate-800 border border-slate-700 px-1.5 py-0.2 rounded">⌘K</kbd>
+</div>
+</div>
+<!-- Right: Lang, Theme & Auth Actions -->
+<div class="flex items-center gap-3">
+<!-- Language Switcher Pill -->
+<div class="bg-slate-900 border border-slate-700/60 p-0.5 rounded-lg flex items-center text-[11px] font-medium text-slate-400">
+<button class="px-2 py-0.5 hover:text-white transition-colors">FR</button>
+<button class="px-2 py-0.5 rounded-md bg-purple-600/80 text-white font-semibold shadow-sm">EN</button>
+<button class="px-2 py-0.5 hover:text-white transition-colors">AR</button>
+</div>
+<!-- Theme Mode Switcher -->
+<div class="bg-slate-900 border border-slate-700/60 p-0.5 rounded-lg flex items-center text-[11px] font-medium text-slate-400">
+<button class="px-2 py-0.5 hover:text-white transition-colors">Light</button>
+<button class="px-2 py-0.5 rounded-md bg-purple-900/40 text-purple-300 font-semibold border border-purple-500/20">Dark</button>
+<button class="px-2 py-0.5 hover:text-white transition-colors">Contrast</button>
+</div>
+<div class="h-4 w-[1px] bg-slate-800"></div>
+<button class="text-xs font-medium text-slate-300 hover:text-white transition-colors px-1">
+          Se connecter
+        </button>
+<button class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-500 text-white hover:brightness-110 shadow-sm transition-all glow-purple">
+          Créer un compte
+        </button>
+</div>
+</header>
+<!-- END: TopHeader -->
+<!-- BEGIN: MainContentScrollArea -->
+<!-- Scrollable container for the marketplace propositions -->
+<main class="flex-1 overflow-y-auto p-5 md:p-7 space-y-6" data-purpose="marketplace-body">
+<!-- Tab Header Container ("Boutique") -->
+<div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+<div class="flex items-center gap-8">
+<button class="relative pb-3 text-sm font-semibold text-white">
+            Boutique
+            <span class="absolute bottom-[-13px] left-0 right-0 h-0.5 bg-purple-500 shadow-sm rounded-full"></span>
+</button>
+<button class="pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors">
+            Mes Commandes B2B
+          </button>
+<button class="pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors">
+            Appels d'offres / RFQ
+          </button>
+<button class="pb-3 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors">
+            Fournisseurs certifiés
+          </button>
+</div>
+<!-- Metric counter in header -->
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            Flux direct synchronisé
+          </span>
+</div>
+</div>
+<!-- BEGIN: StickyFilterAndToolbar -->
+<!-- Search inside boutique + Multi-Vendor Filter Chips -->
+<section class="bg-[#101728]/95 backdrop-blur-md rounded-2xl border border-slate-800 p-4 shadow-xl space-y-3.5" data-purpose="marketplace-toolbar">
+<!-- Top Toolbar Row -->
+<div class="flex flex-col md:flex-row items-center justify-between gap-3">
+<!-- Live in-catalog search -->
+<div class="relative w-full md:w-3/5">
+<svg class="w-4 h-4 absolute left-3.5 top-3 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<input class="w-full text-xs pl-10 pr-4 py-2.5 bg-[#090f1d] border border-slate-700/70 rounded-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 shadow-inner" placeholder="Rechercher parmi les 1 482 offres en stock, références SKU, marques ou marchands certifiés..." type="text"/>
+</div>
+<!-- Counter & Sorting options -->
+<div class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
+<div class="text-xs text-slate-300 font-medium">
+<span class="text-purple-400 font-bold">1 482</span> offres disponibles <span class="text-slate-500">(84 vendeurs)</span>
+</div>
+<div class="relative inline-block text-left">
+<select class="text-xs bg-[#090f1d] border border-slate-700/70 text-slate-200 py-2 pl-3 pr-8 rounded-xl focus:outline-none focus:border-purple-500">
+<option selected="">Plus récentes</option>
+<option>Prix : Ordre croissant</option>
+<option>Prix : Ordre décroissant</option>
+<option>Meilleures notes vendeurs</option>
+<option>Disponibilité immédiate (Prime)</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Filter Chips Row -->
+<div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+<span class="text-slate-400 text-[11px] font-semibold uppercase tracking-wider pr-1">Filtres :</span>
+<button class="px-3 py-1.5 rounded-lg bg-purple-600 text-white font-medium flex items-center gap-1.5 shadow-sm">
+            Toutes catégories
+            <span class="text-[10px] bg-purple-800 px-1.5 rounded">1 482</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 font-medium flex items-center gap-1.5 transition-colors">
+<span>💻 Électronique &amp; Serveurs</span>
+<span class="text-[10px] bg-slate-900 text-slate-400 px-1.5 rounded">612</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 font-medium flex items-center gap-1.5 transition-colors">
+<span>👕 Mode &amp; Équipements Pro</span>
+<span class="text-[10px] bg-slate-900 text-slate-400 px-1.5 rounded">340</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900/60 text-indigo-300 border border-indigo-500/30 font-medium flex items-center gap-1.5 transition-colors">
+<svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            Fournisseurs certifiés uniquement
+          </button>
+<button class="px-3 py-1.5 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/40 text-emerald-300 border border-emerald-500/30 font-medium flex items-center gap-1.5 transition-colors">
+<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            Livraison Express 24h
+          </button>
+<button class="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 font-medium flex items-center gap-1 transition-colors">
+<span>Prix : 50 € - 2 500 €</span>
+<svg class="w-3 h-3 text-slate-400 ml-1" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="m19.5 8.25-7.5 7.5-7.5-7.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+</div>
+</section>
+<!-- END: StickyFilterAndToolbar -->
+<!-- BEGIN: MultiVendorMarketplaceGrid -->
+<!-- 4 Columns Grid displaying dynamic powerhouse cards -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5" data-purpose="product-catalog-grid">
+<!-- PRODUCT CARD 1 -->
+<article class="bg-[#12192c] hover:bg-[#141d33] border border-slate-800/80 hover:border-purple-500/40 rounded-2xl overflow-hidden transition-all duration-200 flex flex-col justify-between group shadow-lg">
+<div>
+<!-- Thumbnail & Badges -->
+<div class="relative bg-gradient-to-b from-slate-900 to-[#12192c] p-4 flex items-center justify-center h-48 border-b border-slate-800/60 overflow-hidden">
+<span class="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                ⚡ Expédié sous 24h
+              </span>
+<button class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-slate-900/80 border border-slate-700 text-slate-400 hover:text-pink-400 hover:border-pink-500 flex items-center justify-center transition-colors">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+<!-- Product Image -->
+<img alt="Station de Travail Dell XPS Enterprise" class="max-h-36 object-contain group-hover:scale-105 transition-transform duration-300" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8QQYxgJbJfRu_EuWjnUyEDr9O0XynV3vCOjGv3iaPQ1ejF2w7JabIYcul5mULwX9VdvluIdKmmWhl2qQcA27yrJ0gJIUuXMo8_aEUCCzdNIi9IV5E_epojWmJTsi9b9471AzQvMwxlYqk-1saYGXFT1LSv1Y2KlakQUaziJhLnwi771A7Nqochk0cqA9dR2pe3CT2mL3UMr_Vr0xx3cCK5MLO3D36EC55oWZGEAVZ3HVvZoQPr53y"/>
+</div>
+<!-- Content Details -->
+<div class="p-4 space-y-3">
+<!-- Vendor Pill -->
+<div class="flex items-center justify-between text-[11px]">
+<div class="flex items-center gap-1.5 truncate">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+<span class="font-medium text-slate-300 truncate">TechStore Pro</span>
+<span class="text-amber-400 font-bold flex items-center">★ 4.9</span>
+<span class="text-slate-500">(1.2k)</span>
+</div>
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-500/30 font-semibold uppercase">Certifié</span>
+</div>
+<!-- Product Title -->
+<div>
+<span class="text-[10px] uppercase font-bold tracking-wider text-purple-400">Informatique Pro</span>
+<h3 class="text-sm font-semibold text-white leading-snug line-clamp-2 mt-0.5 group-hover:text-purple-300 transition-colors">
+                  Station Dell XPS 15 B2B — i9 64GB 2TB SSD RTX
+                </h3>
+</div>
+<!-- Multi-Vendor Price Comparison Box (Mirakl Style) -->
+<div class="bg-[#0b1120] border border-slate-800 rounded-xl p-2.5 space-y-1.5">
+<div class="flex items-baseline justify-between">
+<div>
+<span class="text-[10px] text-slate-400">À partir de</span>
+<div class="text-lg font-bold text-white tracking-tight">1 849,00 € <span class="text-xs font-normal text-slate-400">HT</span></div>
+</div>
+<span class="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">
+                    Meilleure offre
+                  </span>
+</div>
+<p class="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80">
+<span>Chez <strong class="text-slate-200">5 vendeurs</strong> certifiés</span>
+<a class="text-purple-400 hover:text-purple-300 font-medium underline underline-offset-2" href="#">Comparer (5)</a>
+</p>
+</div>
+<!-- Micro Stock Urgency -->
+<div class="flex items-center gap-1.5 text-[11px] text-amber-400/90 font-medium">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                Plus que 3 unités disponibles
+              </div>
+</div>
+</div>
+<!-- Bottom Actions -->
+<div class="p-4 pt-0 space-y-2">
+<div class="grid grid-cols-2 gap-2">
+<button class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700/80 transition-colors flex items-center justify-center gap-1">
+                Achat rapide
+              </button>
+<button class="py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 text-white text-xs font-semibold transition-all flex items-center justify-center gap-1 shadow-md">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                Ajouter
+              </button>
+</div>
+<div class="flex items-center justify-center gap-2 text-[10px] text-slate-500">
+<span>🛡️ Garantie Marketplace 30j</span>
+<span>•</span>
+<span>Paiement sécurisé</span>
+</div>
+</div>
+</article>
+<!-- PRODUCT CARD 2 -->
+<article class="bg-[#12192c] hover:bg-[#141d33] border border-slate-800/80 hover:border-purple-500/40 rounded-2xl overflow-hidden transition-all duration-200 flex flex-col justify-between group shadow-lg">
+<div>
+<!-- Thumbnail & Badges -->
+<div class="relative bg-gradient-to-b from-slate-900 to-[#12192c] p-4 flex items-center justify-center h-48 border-b border-slate-800/60 overflow-hidden">
+<span class="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                ⭐ Recommandé
+              </span>
+<button class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-slate-900/80 border border-slate-700 text-slate-400 hover:text-pink-400 hover:border-pink-500 flex items-center justify-center transition-colors">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+<!-- Product Image -->
+<img alt="Moniteur Ultra-Large OLED 49" class="max-h-36 object-contain group-hover:scale-105 transition-transform duration-300" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCCTB6ooZ4hG2UW72A8MChl00MFjhJJ0FQ6rmCmymCrM_7h1BDLvtFRmEp7AtYdueHJnlvIFx0jPK0s7fyyWigRG7X5xcgJ0esFIKC0D2fwZg-ZMl80HlA9JkrMubIz18bGl323PMlGM6M_bC3f0YyRGj1zxZu3oAqwMXlNzNjPpXEvvqWH78LAU1r1bvG0a3bPe6vr0p-g_sY0DfULs_rZbKsCOVM1tP0IF9lMuQuGzEauogcEE-0H"/>
+</div>
+<!-- Content Details -->
+<div class="p-4 space-y-3">
+<!-- Vendor Pill -->
+<div class="flex items-center justify-between text-[11px]">
+<div class="flex items-center gap-1.5 truncate">
+<span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+<span class="font-medium text-slate-300 truncate">Alpha Screen Direct</span>
+<span class="text-amber-400 font-bold flex items-center">★ 4.8</span>
+<span class="text-slate-500">(840)</span>
+</div>
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/30 font-semibold uppercase">Prime B2B</span>
+</div>
+<!-- Product Title -->
+<div>
+<span class="text-[10px] uppercase font-bold tracking-wider text-purple-400">Écrans &amp; Affichage</span>
+<h3 class="text-sm font-semibold text-white leading-snug line-clamp-2 mt-0.5 group-hover:text-purple-300 transition-colors">
+                  Moniteur Professionnel UltraWide 49" OLED 240Hz Hub KVM
+                </h3>
+</div>
+<!-- Multi-Vendor Price Comparison Box -->
+<div class="bg-[#0b1120] border border-slate-800 rounded-xl p-2.5 space-y-1.5">
+<div class="flex items-baseline justify-between">
+<div>
+<span class="text-[10px] text-slate-400">À partir de</span>
+<div class="text-lg font-bold text-white tracking-tight">1 049,00 € <span class="text-xs font-normal text-slate-400">HT</span></div>
+</div>
+<span class="text-[10px] text-indigo-400 bg-indigo-950/60 border border-indigo-500/20 px-2 py-0.5 rounded-full font-medium">
+                    Port offert
+                  </span>
+</div>
+<p class="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80">
+<span>Chez <strong class="text-slate-200">7 vendeurs</strong></span>
+<a class="text-purple-400 hover:text-purple-300 font-medium underline underline-offset-2" href="#">Comparer les 7 offres</a>
+</p>
+</div>
+<!-- Stock Indicator -->
+<div class="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                En stock permanent (Hub France)
+              </div>
+</div>
+</div>
+<!-- Bottom Actions -->
+<div class="p-4 pt-0 space-y-2">
+<div class="grid grid-cols-2 gap-2">
+<button class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700/80 transition-colors">
+                Devis rapide
+              </button>
+<button class="py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 text-white text-xs font-semibold transition-all flex items-center justify-center gap-1 shadow-md">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                Ajouter
+              </button>
+</div>
+<div class="flex items-center justify-center gap-2 text-[10px] text-slate-500">
+<span>🛡️ Garantie Constructeur 3 Ans</span>
+</div>
+</div>
+</article>
+<!-- PRODUCT CARD 3 -->
+<article class="bg-[#12192c] hover:bg-[#141d33] border border-slate-800/80 hover:border-purple-500/40 rounded-2xl overflow-hidden transition-all duration-200 flex flex-col justify-between group shadow-lg">
+<div>
+<!-- Thumbnail & Badges -->
+<div class="relative bg-gradient-to-b from-slate-900 to-[#12192c] p-4 flex items-center justify-center h-48 border-b border-slate-800/60 overflow-hidden">
+<span class="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                📦 Lot Promo Volume
+              </span>
+<button class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-slate-900/80 border border-slate-700 text-slate-400 hover:text-pink-400 hover:border-pink-500 flex items-center justify-center transition-colors">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+<!-- Product Image -->
+<img alt="Commutateur Réseau Cisco Switch" class="max-h-36 object-contain group-hover:scale-105 transition-transform duration-300" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYwcIab9-Oh_X62TBWKoSvpPRAnguzVr3VFLXfZJ6ZfEM_tLqug9iVoaiE3NucIK5Nd-ow-X8IKnhR5P2HzI-K4dzaf0AYNKZbkRf0gQoGZpZRZcdlEyovnUpkoIy5aCjg6RuE33ubwzGBoGgOFFDSV9_8GqCY_T4QI_ZZNWc3uJUHenXnq_2I-vXfWjHIQ9d2EmF7zl78WTTshQOdLCCGtWP2SJt7GzZ9XoRFBuly_EyXsZwsMRf0"/>
+</div>
+<!-- Content Details -->
+<div class="p-4 space-y-3">
+<!-- Vendor Pill -->
+<div class="flex items-center justify-between text-[11px]">
+<div class="flex items-center gap-1.5 truncate">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+<span class="font-medium text-slate-300 truncate">NetNetwork Europe</span>
+<span class="text-amber-400 font-bold flex items-center">★ 5.0</span>
+<span class="text-slate-500">(310)</span>
+</div>
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-500/30 font-semibold uppercase">Grossiste</span>
+</div>
+<!-- Product Title -->
+<div>
+<span class="text-[10px] uppercase font-bold tracking-wider text-purple-400">Réseau &amp; Télécoms</span>
+<h3 class="text-sm font-semibold text-white leading-snug line-clamp-2 mt-0.5 group-hover:text-purple-300 transition-colors">
+                  Switch Cisco Catalyst 48 Ports PoE+ 10GbE Uplink Layer-3
+                </h3>
+</div>
+<!-- Multi-Vendor Price Comparison Box -->
+<div class="bg-[#0b1120] border border-slate-800 rounded-xl p-2.5 space-y-1.5">
+<div class="flex items-baseline justify-between">
+<div>
+<span class="text-[10px] text-slate-400">À partir de</span>
+<div class="text-lg font-bold text-white tracking-tight">890,00 € <span class="text-xs font-normal text-slate-400">HT</span></div>
+</div>
+<span class="text-[10px] text-purple-400 bg-purple-950/60 border border-purple-500/20 px-2 py-0.5 rounded-full font-medium">
+                    Remise -12%
+                  </span>
+</div>
+<p class="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80">
+<span>Chez <strong class="text-slate-200">3 distributeurs</strong></span>
+<a class="text-purple-400 hover:text-purple-300 font-medium underline underline-offset-2" href="#">Voir les 3 tarifs</a>
+</p>
+</div>
+<!-- Stock Indicator -->
+<div class="flex items-center gap-1.5 text-[11px] text-slate-300">
+<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="m4.5 12.75 6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                12 unités prêtes pour expédition
+              </div>
+</div>
+</div>
+<!-- Bottom Actions -->
+<div class="p-4 pt-0 space-y-2">
+<div class="grid grid-cols-2 gap-2">
+<button class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700/80 transition-colors">
+                Fiche RNF
+              </button>
+<button class="py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 text-white text-xs font-semibold transition-all flex items-center justify-center gap-1 shadow-md">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                Ajouter
+              </button>
+</div>
+<div class="flex items-center justify-center gap-2 text-[10px] text-slate-500">
+<span>Licence d'origine garantie</span>
+</div>
+</div>
+</article>
+<!-- PRODUCT CARD 4 -->
+<article class="bg-[#12192c] hover:bg-[#141d33] border border-slate-800/80 hover:border-purple-500/40 rounded-2xl overflow-hidden transition-all duration-200 flex flex-col justify-between group shadow-lg">
+<div>
+<!-- Thumbnail & Badges -->
+<div class="relative bg-gradient-to-b from-slate-900 to-[#12192c] p-4 flex items-center justify-center h-48 border-b border-slate-800/60 overflow-hidden">
+<span class="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                🌱 Éco-responsable
+              </span>
+<button class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-slate-900/80 border border-slate-700 text-slate-400 hover:text-pink-400 hover:border-pink-500 flex items-center justify-center transition-colors">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+<!-- Product Image -->
+<img alt="Fauteuil de Bureau Ergonomique" class="max-h-36 object-contain group-hover:scale-105 transition-transform duration-300" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCXgEz3PSkUUC_jnuc0_lCGPSG8vu7nevUzoT_c3R9Wnnh38HCnopazWbpMucgNXRWHdcp-jMPWU3jUr92gHacbxQZp0oS2pFmb4NEF0QKtHUzgmNCL4Ns4zi2uf5BE3wGtTDgSjqHJowoWCbvbfSMwt5me-Fexjv3PTyuv0Bi7sIkWpKvvu-V1tTt5xvmKBiiC0cHSv-H9RhTKsUbUKu0pc1un79D-Drv0f1rA2Rwjz3x3DdUqTkzy"/>
+</div>
+<!-- Content Details -->
+<div class="p-4 space-y-3">
+<!-- Vendor Pill -->
+<div class="flex items-center justify-between text-[11px]">
+<div class="flex items-center gap-1.5 truncate">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+<span class="font-medium text-slate-300 truncate">Mobilier Pro Paris</span>
+<span class="text-amber-400 font-bold flex items-center">★ 4.9</span>
+<span class="text-slate-500">(520)</span>
+</div>
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-500/30 font-semibold uppercase">Officiel</span>
+</div>
+<!-- Product Title -->
+<div>
+<span class="text-[10px] uppercase font-bold tracking-wider text-purple-400">Mobilier &amp; Bureau</span>
+<h3 class="text-sm font-semibold text-white leading-snug line-clamp-2 mt-0.5 group-hover:text-purple-300 transition-colors">
+                  Siège Ergonomique Posture Pro — Maille respirante &amp; Réglages 4D
+                </h3>
+</div>
+<!-- Multi-Vendor Price Comparison Box -->
+<div class="bg-[#0b1120] border border-slate-800 rounded-xl p-2.5 space-y-1.5">
+<div class="flex items-baseline justify-between">
+<div>
+<span class="text-[10px] text-slate-400">À partir de</span>
+<div class="text-lg font-bold text-white tracking-tight">429,00 € <span class="text-xs font-normal text-slate-400">HT</span></div>
+</div>
+<span class="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">
+                    Stock garanti
+                  </span>
+</div>
+<p class="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80">
+<span>Chez <strong class="text-slate-200">4 vendeurs</strong></span>
+<a class="text-purple-400 hover:text-purple-300 font-medium underline underline-offset-2" href="#">Comparer les 4 offres</a>
+</p>
+</div>
+<!-- Micro urgency -->
+<div class="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="m4.5 12.75 6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                Livré assemblé sous 48h
+              </div>
+</div>
+</div>
+<!-- Bottom Actions -->
+<div class="p-4 pt-0 space-y-2">
+<div class="grid grid-cols-2 gap-2">
+<button class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700/80 transition-colors">
+                Échantillon
+              </button>
+<button class="py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 text-white text-xs font-semibold transition-all flex items-center justify-center gap-1 shadow-md">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                Ajouter
+              </button>
+</div>
+<div class="flex items-center justify-center gap-2 text-[10px] text-slate-500">
+<span>Garantie 10 Ans Châssis</span>
+</div>
+</div>
+</article>
+</section>
+<!-- END: MultiVendorMarketplaceGrid -->
+<!-- BEGIN: BottomPaginationSection -->
+<!-- Interactive bottom bar with pagination, count and live load bar -->
+<footer class="mt-8 border-t border-slate-800/80 pt-5 pb-6 flex flex-col md:flex-row items-center justify-between gap-4" data-purpose="marketplace-footer-pagination">
+<div class="flex items-center gap-3">
+<span class="text-xs text-slate-400">Affichage de <strong class="text-white">1 - 4</strong> sur <strong class="text-white">1 482</strong> offres</span>
+<div class="w-32 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+<div class="bg-gradient-to-r from-purple-500 to-indigo-500 h-full w-1/12 rounded-full"></div>
+</div>
+</div>
+<!-- Pagination Pager -->
+<div class="flex items-center gap-1.5 text-xs">
+<button class="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition-colors disabled:opacity-50" disabled="">
+            Précédent
+          </button>
+<button class="w-8 h-8 rounded-lg bg-purple-600 text-white font-semibold flex items-center justify-center shadow-sm">
+            1
+          </button>
+<button class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:bg-slate-800 flex items-center justify-center transition-colors">
+            2
+          </button>
+<button class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:bg-slate-800 flex items-center justify-center transition-colors">
+            3
+          </button>
+<span class="px-1 text-slate-500">...</span>
+<button class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:bg-slate-800 flex items-center justify-center transition-colors">
+            62
+          </button>
+<button class="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition-colors">
+            Suivant
+          </button>
+</div>
+<!-- Quick Items Per Page Selector -->
+<div class="flex items-center gap-2 text-xs text-slate-400">
+<span>Afficher :</span>
+<select class="bg-slate-900 border border-slate-800 text-slate-200 rounded-lg px-2 py-1 focus:outline-none">
+<option>24 par page</option>
+<option>48 par page</option>
+<option>96 par page</option>
+</select>
+</div>
+</footer>
+<!-- END: BottomPaginationSection -->
+</main>
+<!-- END: MainContentScrollArea -->
+</div>
+<!-- END: MainLayoutWrapper -->
+</body></html>
