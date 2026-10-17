@@ -217,71 +217,77 @@ function isRouteActive(actionRoute: string, currentUrl: string): boolean {
   return false;
 }
 
-function getCtaConfig(bacId: string, customLabel?: string) {
-  switch (bacId) {
-    case "shell_home":
-      return {
-        label: customLabel || "Nouveau Pulse",
-        icon: "edit_square",
-        action:
-          "const c = document.getElementById('composer-text'); if(c){ c.focus(); window.scrollTo({top: 0, behavior: 'smooth'}); }",
-      };
-    case "imperia":
-      return {
-        label: customLabel || "Créer Proposition",
-        icon: "how_to_vote",
-        action: "window.location.href='/imperia?action=new';",
-      };
-    case "commerce":
-      return {
-        label: customLabel || "Voir Panier",
-        icon: "shopping_cart",
-        action: "window.location.href='/commerce?view=cart';",
-      };
-    case "spaces":
-      return {
-        label: customLabel || "Nouveau Space",
-        icon: "create_new_folder",
-        action: "window.location.href='/spaces?action=create';",
-      };
-    case "solidarity":
-      return {
-        label: customLabel || "Participer à l'Aide",
-        icon: "handshake",
-        action: "window.location.href='/solidarity?view=help';",
-      };
-    case "beam":
-      return {
-        label: customLabel || "Nouveau Salon",
-        icon: "add_comment",
-        action: "window.location.href='/beam?view=channels';",
-      };
-    case "portfolio":
-      return {
-        label: customLabel || "Publier Œuvre",
-        icon: "upload_file",
-        action: "window.location.href='/portfolio?admin=new';",
-      };
-    case "booking":
-      return {
-        label: customLabel || "Prendre RDV",
-        icon: "calendar_month",
-        action: "window.location.href='/booking';",
-      };
-    case "identity":
-      return {
-        label: customLabel || "Gérer Profil SSO",
-        icon: "manage_accounts",
-        action: "window.location.href='/identity';",
-      };
-    default:
-      return {
-        label: customLabel || "Action Rapide",
-        icon: "bolt",
-        action:
-          "const c = document.getElementById('composer-text'); if(c){ c.focus(); }",
-      };
-  }
+export interface CtaConfig {
+  label: string;
+  icon: string;
+  action: string;
+}
+
+export type CtaConfigFactory = (customLabel?: string) => CtaConfig;
+
+// Registre typé : extension = nouvelle entrée, aucune modification de getCtaConfig.
+const ctaConfigFactories: Record<string, CtaConfigFactory> = {
+  shell_home: (customLabel) => ({
+    label: customLabel || "Nouveau Pulse",
+    icon: "edit_square",
+    action:
+      "const c = document.getElementById('composer-text'); if(c){ c.focus(); window.scrollTo({top: 0, behavior: 'smooth'}); }",
+  }),
+  imperia: (customLabel) => ({
+    label: customLabel || "Créer Proposition",
+    icon: "how_to_vote",
+    action: "window.location.href='/imperia?action=new';",
+  }),
+  commerce: (customLabel) => ({
+    label: customLabel || "Voir Panier",
+    icon: "shopping_cart",
+    action: "window.location.href='/commerce?view=cart';",
+  }),
+  spaces: (customLabel) => ({
+    label: customLabel || "Nouveau Space",
+    icon: "create_new_folder",
+    action: "window.location.href='/spaces?action=create';",
+  }),
+  solidarity: (customLabel) => ({
+    label: customLabel || "Participer à l'Aide",
+    icon: "handshake",
+    action: "window.location.href='/solidarity?view=help';",
+  }),
+  beam: (customLabel) => ({
+    label: customLabel || "Nouveau Salon",
+    icon: "add_comment",
+    action: "window.location.href='/beam?view=channels';",
+  }),
+  portfolio: (customLabel) => ({
+    label: customLabel || "Publier Œuvre",
+    icon: "upload_file",
+    action: "window.location.href='/portfolio?admin=new';",
+  }),
+  booking: (customLabel) => ({
+    label: customLabel || "Prendre RDV",
+    icon: "calendar_month",
+    action: "window.location.href='/booking';",
+  }),
+  identity: (customLabel) => ({
+    label: customLabel || "Gérer Profil SSO",
+    icon: "manage_accounts",
+    action: "window.location.href='/identity';",
+  }),
+};
+
+export function registerCtaConfig(bacId: string, factory: CtaConfigFactory): void {
+  ctaConfigFactories[bacId] = factory;
+}
+
+export function getCtaConfig(bacId: string, customLabel?: string): CtaConfig {
+  const factory = ctaConfigFactories[bacId];
+  if (factory) return factory(customLabel);
+  return {
+    label: customLabel || "Action Rapide",
+    icon: "bolt",
+    action:
+      "const c = document.getElementById('composer-text'); if(c){ c.focus(); }",
+  };
 }
 
 // -----------------------------------------------------------------------------
