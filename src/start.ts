@@ -52,6 +52,10 @@ import { getPlatformFeatureFlags } from "./shell/feature-flags.js";
 // Server decoupling modules
 import { handleMaintenanceGate } from "./server/middleware/maintenance-gate.js";
 import { dispatchApiRequest } from "./server/api-dispatcher.js";
+import { PortfolioService } from "../apps/portfolio/src/domain/portfolio-service.js";
+import { ProposalService } from "../apps/portfolio/src/domain/proposal-service.js";
+import { PostgresProposalRepository } from "../apps/portfolio/src/infrastructure/postgres-proposal-repository.js";
+import { PostgresVendableRepository } from "../apps/portfolio/src/infrastructure/postgres-vendable-repository.js";
 import { wireBacDescriptors } from "./server/bac-wiring.js";
 import { renderBacPage } from "./shell/pages/bac-page.js";
 import { renderHomePage } from "./shell/pages/home-page.js";
@@ -238,6 +242,11 @@ const server = http.createServer(async (req, res) => {
       eventBackplane: distributedEventBackplane,
       anonymizationOrchestrator: getAnonymizationOrchestrator(app.dbAdapter),
       db: app.dbAdapter,
+      buildProposalServices: (db) => {
+        const portfolioService = new PortfolioService(new PostgresVendableRepository(db));
+        const proposalService = new ProposalService(new PostgresProposalRepository(db), portfolioService);
+        return { portfolioService, proposalService };
+      },
     });
     if (isApiHandled) {
       return;

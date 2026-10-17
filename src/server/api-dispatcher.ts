@@ -22,10 +22,6 @@ import { handleFeatureFlagRoutes } from "./routes/feature-flag-routes.js";
 import { handleCompositionRoutes } from "./routes/composition-routes.js";
 import { handleAuthRoutes } from "./routes/auth-routes.js";
 import { handleSpacesProposalRoutes } from "./routes/spaces-routes.js";
-import { ProposalService } from "../../apps/portfolio/src/domain/proposal-service.js";
-import { PortfolioService } from "../../apps/portfolio/src/domain/portfolio-service.js";
-import { PostgresProposalRepository } from "../../apps/portfolio/src/infrastructure/postgres-proposal-repository.js";
-import { PostgresVendableRepository } from "../../apps/portfolio/src/infrastructure/postgres-vendable-repository.js";
 import { handleMcpRoutes } from "./routes/mcp-routes.js";
 import { handleFeedRoutes } from "./routes/feed-routes.js";
 import { handleComplianceAndSystemRoutes } from "./routes/compliance-routes.js";
@@ -35,6 +31,11 @@ import { handleMetricsRoute } from "./routes/metrics-route.js";
 /* AUDIT-RESET a055b8e (2026-10-13) — PERTE CONFIRMÉE PUIS RESTAURÉE (V1.3, voir git log).
  * Le wiring SELL-FLOW-02 manquait (spaces-routes.ts + test inexistants) ; route recréée,
  * enregistrée ci-dessus (6b) et couverte par tests/spaces-proposals-route.test.ts. */
+
+export interface ProposalServices {
+  portfolioService: unknown;
+  proposalService: unknown;
+}
 
 export interface ApiDispatcherContext {
   // Per-request theme resolved from the mosaix_theme_mode cookie.
@@ -46,6 +47,8 @@ export interface ApiDispatcherContext {
   eventBackplane: DistributedEventBackplane;
   anonymizationOrchestrator: AnonymizationOrchestrator;
   db: DatabasePort;
+  // Injected factory (OCP): avoids concrete imports in the dispatcher.
+  buildProposalServices?: (db: DatabasePort) => ProposalServices;
 }
 
 export type ApiRouteHandler = (
@@ -141,11 +144,13 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) => {
   if (!/^\/api\/spaces\/[^/]+\/proposals$/.test(parsedUrl.pathname)) {
     return false;
   }
-  const portfolioService = new PortfolioService(new PostgresVendableRepository(ctx.db));
-  const proposalService = new ProposalService(new PostgresProposalRepository(ctx.db), portfolioService);
+  if (!ctx.buildProposalServices) {
+    return false;
+  }
+  const { proposalService } = ctx.buildProposalServices(ctx.db);
   return handleSpacesProposalRoutes(req, res, parsedUrl, {
     currentUserId: ctx.currentUser.id,
-    proposalService,
+    proposalService: proposalService as any,
   });
 });
 
