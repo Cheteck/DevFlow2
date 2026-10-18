@@ -5,6 +5,7 @@ export interface TypedRegistryOptions {
 
 export interface TypedRegistry<K extends string | number | symbol, V> {
   register(key: K, value: V, allowOverwrite?: boolean): void;
+  override(key: K, value: V): void;
   get(key: K): V | undefined;
   has(key: K): boolean;
   clear(): void;
@@ -26,9 +27,13 @@ export function createTypedRegistry<K extends string | number | symbol, V>(
     register(key: K, value: V, allowOverwrite = defaultAllowOverwrite): void {
       if (map.has(key) && !allowOverwrite) {
         throw new Error(
-          `[${registryName}] Cannot register key "${String(key)}": key is already registered. Use allowOverwrite=true to explicitly override.`,
+          `[${registryName}] Cannot register key "${String(key)}": key is already registered. Use override() to explicitly replace an existing entry.`,
         );
       }
+      map.set(key, value);
+    },
+
+    override(key: K, value: V): void {
       map.set(key, value);
     },
 

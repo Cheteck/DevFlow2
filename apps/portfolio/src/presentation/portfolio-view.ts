@@ -29,10 +29,14 @@ export type PortfolioSubViewRenderer = (
   deps: { portfolioService: PortfolioService; vendables: Vendable[] },
 ) => Promise<string | BacRenderResult> | string | BacRenderResult;
 
-const portfolioSubViewRegistry = createTypedRegistry<string, PortfolioSubViewRenderer>([], { name: "PortfolioSubViewRegistry", allowOverwrite: true });
+const portfolioSubViewRegistry = createTypedRegistry<string, PortfolioSubViewRenderer>([], { name: "PortfolioSubViewRegistry" });
 
 export function registerPortfolioSubView(viewKey: string, renderer: PortfolioSubViewRenderer): void {
-  portfolioSubViewRegistry.register(viewKey, renderer, true);
+  portfolioSubViewRegistry.register(viewKey, renderer);
+}
+
+export function overridePortfolioSubView(viewKey: string, renderer: PortfolioSubViewRenderer): void {
+  portfolioSubViewRegistry.override(viewKey, renderer);
 }
 
 export function createPortfolioView(service?: PortfolioService) {

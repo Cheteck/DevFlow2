@@ -14,17 +14,17 @@ describe("createTypedRegistry", () => {
     expect(registry.size()).toBe(2);
   });
 
-  it("prevents accidental silent overwrites by default", () => {
+  it("prevents accidental silent overwrites by default and requires override() for explicit replacements", () => {
     const registry = createTypedRegistry<string, string>([["key1", "val1"]], {
       name: "TestRegistry",
     });
 
     expect(() => registry.register("key1", "new_val")).toThrow(
-      '[TestRegistry] Cannot register key "key1": key is already registered',
+      '[TestRegistry] Cannot register key "key1": key is already registered. Use override() to explicitly replace an existing entry.',
     );
 
-    // Explicit overwrite allowed when specified
-    registry.register("key1", "new_val", true);
+    // Explicit replacement via override()
+    registry.override("key1", "new_val");
     expect(registry.get("key1")).toBe("new_val");
   });
 

@@ -457,13 +457,20 @@ export type FeedSortStrategy = (
   context: { referenceDate: Date },
 ) => number;
 
-const feedSortStrategyRegistry = createTypedRegistry<string, FeedSortStrategy>([], { name: "FeedSortStrategyRegistry", allowOverwrite: true });
+const feedSortStrategyRegistry = createTypedRegistry<string, FeedSortStrategy>([], { name: "FeedSortStrategyRegistry" });
 
 export function registerFeedSortStrategy(
   name: string,
   strategy: FeedSortStrategy,
 ): void {
-  feedSortStrategyRegistry.register(name, strategy, true);
+  feedSortStrategyRegistry.register(name, strategy);
+}
+
+export function overrideFeedSortStrategy(
+  name: string,
+  strategy: FeedSortStrategy,
+): void {
+  feedSortStrategyRegistry.override(name, strategy);
 }
 
 registerFeedSortStrategy("chronological", (a, b) => a.createdAt.getTime() - b.createdAt.getTime());
@@ -490,13 +497,20 @@ export type FeedTargetFilter = (
   },
 ) => boolean;
 
-const feedTargetFilterRegistry = createTypedRegistry<string, FeedTargetFilter>([], { name: "FeedTargetFilterRegistry", allowOverwrite: true });
+const feedTargetFilterRegistry = createTypedRegistry<string, FeedTargetFilter>([], { name: "FeedTargetFilterRegistry" });
 
 export function registerFeedTargetFilter(
   targetType: string,
   filter: FeedTargetFilter,
 ): void {
-  feedTargetFilterRegistry.register(targetType, filter, true);
+  feedTargetFilterRegistry.register(targetType, filter);
+}
+
+export function overrideFeedTargetFilter(
+  targetType: string,
+  filter: FeedTargetFilter,
+): void {
+  feedTargetFilterRegistry.override(targetType, filter);
 }
 
 registerFeedTargetFilter("feed", () => true);

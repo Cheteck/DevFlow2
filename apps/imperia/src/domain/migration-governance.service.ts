@@ -30,13 +30,20 @@ const migrationSqlPreviewRegistry = createTypedRegistry<string, MigrationSqlPrev
     "app.imperia.v1.001_audit_logs",
     () => `CREATE TABLE IF NOT EXISTS imperia_audit_logs (\n  id VARCHAR(36) PRIMARY KEY,\n  actor_id VARCHAR(64) NOT NULL,\n  action VARCHAR(64) NOT NULL,\n  resource VARCHAR(128) NOT NULL,\n  status VARCHAR(16) NOT NULL,\n  metadata JSON,\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);`,
   ],
-], { name: "MigrationSqlPreviewRegistry", allowOverwrite: true });
+], { name: "MigrationSqlPreviewRegistry" });
 
 export function registerMigrationSqlPreview(
   id: string,
   generator: MigrationSqlPreviewGenerator,
 ): void {
-  migrationSqlPreviewRegistry.register(id, generator, true);
+  migrationSqlPreviewRegistry.register(id, generator);
+}
+
+export function overrideMigrationSqlPreview(
+  id: string,
+  generator: MigrationSqlPreviewGenerator,
+): void {
+  migrationSqlPreviewRegistry.override(id, generator);
 }
 
 export class MigrationGovernanceService {

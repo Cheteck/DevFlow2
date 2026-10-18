@@ -48,10 +48,14 @@ export type JsonRpcMethodHandler = (
   context?: { principal?: MCPPrincipal; authHeader?: string; [key: string]: unknown },
 ) => Promise<JSONRPCResponse | null> | JSONRPCResponse | null;
 
-const jsonRpcMethodRegistry = createTypedRegistry<string, JsonRpcMethodHandler>([], { name: "JsonRpcMethodRegistry", allowOverwrite: true });
+const jsonRpcMethodRegistry = createTypedRegistry<string, JsonRpcMethodHandler>([], { name: "JsonRpcMethodRegistry" });
 
 export function registerJsonRpcMethodHandler(method: string, handler: JsonRpcMethodHandler): void {
-  jsonRpcMethodRegistry.register(method, handler, true);
+  jsonRpcMethodRegistry.register(method, handler);
+}
+
+export function overrideJsonRpcMethodHandler(method: string, handler: JsonRpcMethodHandler): void {
+  jsonRpcMethodRegistry.override(method, handler);
 }
 
 // Built-in JSON-RPC handlers

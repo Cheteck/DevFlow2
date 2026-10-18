@@ -30,10 +30,14 @@ export type PluginActionHandler = (
   values?: Record<string, unknown>,
 ) => ImperiaPluginModule;
 
-const pluginActionRegistry = createTypedRegistry<string, PluginActionHandler>([], { name: "PluginActionRegistry", allowOverwrite: true });
+const pluginActionRegistry = createTypedRegistry<string, PluginActionHandler>([], { name: "PluginActionRegistry" });
 
 export function registerPluginAction(action: string, handler: PluginActionHandler): void {
-  pluginActionRegistry.register(action.toLowerCase(), handler, true);
+  pluginActionRegistry.register(action.toLowerCase(), handler);
+}
+
+export function overridePluginAction(action: string, handler: PluginActionHandler): void {
+  pluginActionRegistry.override(action.toLowerCase(), handler);
 }
 
 export function getPluginActionHandler(action: string): PluginActionHandler | undefined {

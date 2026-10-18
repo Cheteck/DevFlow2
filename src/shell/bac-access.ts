@@ -81,11 +81,15 @@ const DEFAULT_BAC_ACCESS_RULES: readonly BacAccessRule[] = [
 
 const bacAccessRegistry = createTypedRegistry<string, BacAccessRule>(
   DEFAULT_BAC_ACCESS_RULES.map((rule) => [rule.bacId, rule]),
-  { name: "BacAccessRegistry", allowOverwrite: true },
+  { name: "BacAccessRegistry" },
 );
 
-export function registerBacAccessRule(rule: BacAccessRule, allowOverwrite = true): void {
-  bacAccessRegistry.register(rule.bacId.toLowerCase(), rule, allowOverwrite);
+export function registerBacAccessRule(rule: BacAccessRule): void {
+  bacAccessRegistry.register(rule.bacId.toLowerCase(), rule);
+}
+
+export function overrideBacAccessRule(rule: BacAccessRule): void {
+  bacAccessRegistry.override(rule.bacId.toLowerCase(), rule);
 }
 
 export function resetBacAccessRegistry(): void {

@@ -44,10 +44,14 @@ export type PromotionStrategy = (
   itemPrice: Money,
 ) => { discountAmount: Money; finalPrice: Money };
 
-const promotionStrategyRegistry = createTypedRegistry<string, PromotionStrategy>([], { name: "PromotionStrategyRegistry", allowOverwrite: true });
+const promotionStrategyRegistry = createTypedRegistry<string, PromotionStrategy>([], { name: "PromotionStrategyRegistry" });
 
 export function registerPromotionStrategy(type: string, strategy: PromotionStrategy): void {
-  promotionStrategyRegistry.register(type, strategy, true);
+  promotionStrategyRegistry.register(type, strategy);
+}
+
+export function overridePromotionStrategy(type: string, strategy: PromotionStrategy): void {
+  promotionStrategyRegistry.override(type, strategy);
 }
 
 // Built-in strategies

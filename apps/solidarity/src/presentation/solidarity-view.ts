@@ -27,10 +27,14 @@ export type SolidaritySubViewRenderer = (
   deps: { solidarityService?: SolidarityOpsSource; needs: OpsNeed[]; isAdmin: boolean },
 ) => Promise<string | BacRenderResult> | string | BacRenderResult;
 
-const solidaritySubViewRegistry = createTypedRegistry<string, SolidaritySubViewRenderer>([], { name: "SolidaritySubViewRegistry", allowOverwrite: true });
+const solidaritySubViewRegistry = createTypedRegistry<string, SolidaritySubViewRenderer>([], { name: "SolidaritySubViewRegistry" });
 
 export function registerSolidaritySubView(viewKey: string, renderer: SolidaritySubViewRenderer): void {
-  solidaritySubViewRegistry.register(viewKey, renderer, true);
+  solidaritySubViewRegistry.register(viewKey, renderer);
+}
+
+export function overrideSolidaritySubView(viewKey: string, renderer: SolidaritySubViewRenderer): void {
+  solidaritySubViewRegistry.override(viewKey, renderer);
 }
 
 function calculateCoveragePercent(requested: number, distributed: number): number {

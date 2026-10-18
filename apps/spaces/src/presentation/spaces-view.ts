@@ -35,10 +35,14 @@ export type SpacesSubViewRenderer = (
   deps: { spaceService: SpaceService; isGuest: boolean; spaceParam?: string },
 ) => Promise<string | BacRenderResult> | string | BacRenderResult;
 
-const spacesSubViewRegistry = createTypedRegistry<string, SpacesSubViewRenderer>([], { name: "SpacesSubViewRegistry", allowOverwrite: true });
+const spacesSubViewRegistry = createTypedRegistry<string, SpacesSubViewRenderer>([], { name: "SpacesSubViewRegistry" });
 
 export function registerSpacesSubView(viewKey: string, renderer: SpacesSubViewRenderer): void {
-  spacesSubViewRegistry.register(viewKey, renderer, true);
+  spacesSubViewRegistry.register(viewKey, renderer);
+}
+
+export function overrideSpacesSubView(viewKey: string, renderer: SpacesSubViewRenderer): void {
+  spacesSubViewRegistry.override(viewKey, renderer);
 }
 
 export function toPublicSpace(space: Space): PublicSpace {
