@@ -25,6 +25,7 @@
  * `strictViews` BAC by BAC — never loosen silently).
  */
 
+import { createTypedRegistry } from "@mosaix/support";
 import type { SsrAuthContext } from "./ssr-auth-context.js";
 import type { UserProfile } from "./profiles.js";
 
@@ -78,12 +79,17 @@ const DEFAULT_BAC_ACCESS_RULES: readonly BacAccessRule[] = [
   { bacId: "imperia", anonymousViews: [], adminOnly: true },
 ];
 
-const bacAccessRegistry = new Map<string, BacAccessRule>(
+const bacAccessRegistry = createTypedRegistry<string, BacAccessRule>(
   DEFAULT_BAC_ACCESS_RULES.map((rule) => [rule.bacId, rule]),
+  { name: "BacAccessRegistry", allowOverwrite: true },
 );
 
-export function registerBacAccessRule(rule: BacAccessRule): void {
-  bacAccessRegistry.set(rule.bacId.toLowerCase(), rule);
+export function registerBacAccessRule(rule: BacAccessRule, allowOverwrite = true): void {
+  bacAccessRegistry.register(rule.bacId.toLowerCase(), rule, allowOverwrite);
+}
+
+export function resetBacAccessRegistry(): void {
+  bacAccessRegistry.resetToDefaults();
 }
 
 /** `identity` is an alias of the citadelle BAC route. */

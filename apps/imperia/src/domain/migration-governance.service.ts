@@ -1,3 +1,4 @@
+import { createTypedRegistry } from "@mosaix/support";
 import { compareMigrationIds } from "@mosaix/migrations";
 
 export interface DatabaseMigrationStatus {
@@ -12,30 +13,30 @@ export interface DatabaseMigrationStatus {
 
 export type MigrationSqlPreviewGenerator = (id: string) => string;
 
-const migrationSqlPreviewRegistry = new Map<string, MigrationSqlPreviewGenerator>([
+const migrationSqlPreviewRegistry = createTypedRegistry<string, MigrationSqlPreviewGenerator>([
   [
-    'framework.core.v1.001_bootstrap',
+    "framework.core.v1.001_bootstrap",
     () => `CREATE TABLE IF NOT EXISTS mosaix_system_bootstrap (\n  id VARCHAR(36) PRIMARY KEY,\n  installed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);`,
   ],
   [
-    'app.identity.v1.001_users',
+    "app.identity.v1.001_users",
     () => `CREATE TABLE IF NOT EXISTS identity_users (\n  id VARCHAR(36) PRIMARY KEY,\n  email VARCHAR(255) UNIQUE NOT NULL,\n  password_hash VARCHAR(255) NOT NULL\n);`,
   ],
   [
-    'app.portfolio.v1.001_vendables',
+    "app.portfolio.v1.001_vendables",
     () => `CREATE TABLE IF NOT EXISTS portfolio_vendables (\n  id VARCHAR(36) PRIMARY KEY,\n  reference VARCHAR(64) UNIQUE NOT NULL,\n  type VARCHAR(32) NOT NULL\n);`,
   ],
   [
-    'app.imperia.v1.001_audit_logs',
+    "app.imperia.v1.001_audit_logs",
     () => `CREATE TABLE IF NOT EXISTS imperia_audit_logs (\n  id VARCHAR(36) PRIMARY KEY,\n  actor_id VARCHAR(64) NOT NULL,\n  action VARCHAR(64) NOT NULL,\n  resource VARCHAR(128) NOT NULL,\n  status VARCHAR(16) NOT NULL,\n  metadata JSON,\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);`,
   ],
-]);
+], { name: "MigrationSqlPreviewRegistry", allowOverwrite: true });
 
 export function registerMigrationSqlPreview(
   id: string,
   generator: MigrationSqlPreviewGenerator,
 ): void {
-  migrationSqlPreviewRegistry.set(id, generator);
+  migrationSqlPreviewRegistry.register(id, generator, true);
 }
 
 export class MigrationGovernanceService {

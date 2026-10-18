@@ -1,3 +1,4 @@
+import { createTypedRegistry } from "@mosaix/support";
 import { getGlobalPluginEngine } from "../../../../src/shell/plugin-engine-bootstrap.js";
 
 export type PrestaPluginCategory =
@@ -29,10 +30,10 @@ export type PluginActionHandler = (
   values?: Record<string, unknown>,
 ) => ImperiaPluginModule;
 
-const pluginActionRegistry = new Map<string, PluginActionHandler>();
+const pluginActionRegistry = createTypedRegistry<string, PluginActionHandler>([], { name: "PluginActionRegistry", allowOverwrite: true });
 
 export function registerPluginAction(action: string, handler: PluginActionHandler): void {
-  pluginActionRegistry.set(action.toLowerCase(), handler);
+  pluginActionRegistry.register(action.toLowerCase(), handler, true);
 }
 
 export function getPluginActionHandler(action: string): PluginActionHandler | undefined {

@@ -1,3 +1,4 @@
+import { createTypedRegistry } from "@mosaix/support";
 /**
  * @apps/commerce/domain — Promotion Engine (PROMO-01)
  * Supporting percentage or fixed discounts, time windows, caps, stackability, and seller guardrails.
@@ -43,10 +44,10 @@ export type PromotionStrategy = (
   itemPrice: Money,
 ) => { discountAmount: Money; finalPrice: Money };
 
-const promotionStrategyRegistry = new Map<string, PromotionStrategy>();
+const promotionStrategyRegistry = createTypedRegistry<string, PromotionStrategy>([], { name: "PromotionStrategyRegistry", allowOverwrite: true });
 
 export function registerPromotionStrategy(type: string, strategy: PromotionStrategy): void {
-  promotionStrategyRegistry.set(type, strategy);
+  promotionStrategyRegistry.register(type, strategy, true);
 }
 
 // Built-in strategies

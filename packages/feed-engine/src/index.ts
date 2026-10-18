@@ -1,3 +1,4 @@
+import { createTypedRegistry } from "@mosaix/support";
 /**
  * @mosaix/feed-engine ÔÇö Shared Extensible Feed & Publication Pipeline
  * Decoupled from any specific BAC, provides ActivityStreams-like structures,
@@ -456,13 +457,13 @@ export type FeedSortStrategy = (
   context: { referenceDate: Date },
 ) => number;
 
-const feedSortStrategyRegistry = new Map<string, FeedSortStrategy>();
+const feedSortStrategyRegistry = createTypedRegistry<string, FeedSortStrategy>([], { name: "FeedSortStrategyRegistry", allowOverwrite: true });
 
 export function registerFeedSortStrategy(
   name: string,
   strategy: FeedSortStrategy,
 ): void {
-  feedSortStrategyRegistry.set(name, strategy);
+  feedSortStrategyRegistry.register(name, strategy, true);
 }
 
 registerFeedSortStrategy("chronological", (a, b) => a.createdAt.getTime() - b.createdAt.getTime());
@@ -489,13 +490,13 @@ export type FeedTargetFilter = (
   },
 ) => boolean;
 
-const feedTargetFilterRegistry = new Map<string, FeedTargetFilter>();
+const feedTargetFilterRegistry = createTypedRegistry<string, FeedTargetFilter>([], { name: "FeedTargetFilterRegistry", allowOverwrite: true });
 
 export function registerFeedTargetFilter(
   targetType: string,
   filter: FeedTargetFilter,
 ): void {
-  feedTargetFilterRegistry.set(targetType, filter);
+  feedTargetFilterRegistry.register(targetType, filter, true);
 }
 
 registerFeedTargetFilter("feed", () => true);

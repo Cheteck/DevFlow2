@@ -1,3 +1,4 @@
+import { createTypedRegistry } from "@mosaix/support";
 import type {
   BacDescriptor,
   BacExecutionContext,
@@ -28,10 +29,10 @@ export type PortfolioSubViewRenderer = (
   deps: { portfolioService: PortfolioService; vendables: Vendable[] },
 ) => Promise<string | BacRenderResult> | string | BacRenderResult;
 
-const portfolioSubViewRegistry = new Map<string, PortfolioSubViewRenderer>();
+const portfolioSubViewRegistry = createTypedRegistry<string, PortfolioSubViewRenderer>([], { name: "PortfolioSubViewRegistry", allowOverwrite: true });
 
 export function registerPortfolioSubView(viewKey: string, renderer: PortfolioSubViewRenderer): void {
-  portfolioSubViewRegistry.set(viewKey, renderer);
+  portfolioSubViewRegistry.register(viewKey, renderer, true);
 }
 
 export function createPortfolioView(service?: PortfolioService) {

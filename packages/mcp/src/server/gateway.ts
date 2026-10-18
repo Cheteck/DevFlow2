@@ -1,3 +1,4 @@
+import { createTypedRegistry } from "@mosaix/support";
 /**
  * @mosaix/mcp — MCP Gateway
  * Implements JSON-RPC 2.0 handler over STDIO and Streamable HTTP with Server-Sent Events (SSE) and Feature Flag guard.
@@ -30,16 +31,27 @@ export interface JSONRPCResponse {
 /** MCP protocol versions this gateway negotiates (newest first). */
 const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
+export interface MCPGatewayContext {
+  getToolRegistry(): MCPToolRegistry;
+  getResourceRegistry(): MCPResourceRegistry;
+  getPromptRegistry(): MCPPromptRegistry;
+  resolvePrincipal(context?: {
+    principal?: MCPPrincipal;
+    authHeader?: string;
+    [key: string]: unknown;
+  }): MCPPrincipal;
+}
+
 export type JsonRpcMethodHandler = (
   request: JSONRPCRequest,
-  gateway: MCPGateway,
+  gateway: MCPGatewayContext,
   context?: { principal?: MCPPrincipal; authHeader?: string; [key: string]: unknown },
 ) => Promise<JSONRPCResponse | null> | JSONRPCResponse | null;
 
-const jsonRpcMethodRegistry = new Map<string, JsonRpcMethodHandler>();
+const jsonRpcMethodRegistry = createTypedRegistry<string, JsonRpcMethodHandler>([], { name: "JsonRpcMethodRegistry", allowOverwrite: true });
 
 export function registerJsonRpcMethodHandler(method: string, handler: JsonRpcMethodHandler): void {
-  jsonRpcMethodRegistry.set(method, handler);
+  jsonRpcMethodRegistry.register(method, handler, true);
 }
 
 // Built-in JSON-RPC handlers

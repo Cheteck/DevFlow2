@@ -1,3 +1,4 @@
+import { createTypedRegistry } from "@mosaix/support";
 /**
  * @apps/spaces — Autonomous BAC View & Descriptor
  * Self-contained SSR presentation layer for MosaiX Spaces & Multi-tenancy.
@@ -34,10 +35,10 @@ export type SpacesSubViewRenderer = (
   deps: { spaceService: SpaceService; isGuest: boolean; spaceParam?: string },
 ) => Promise<string | BacRenderResult> | string | BacRenderResult;
 
-const spacesSubViewRegistry = new Map<string, SpacesSubViewRenderer>();
+const spacesSubViewRegistry = createTypedRegistry<string, SpacesSubViewRenderer>([], { name: "SpacesSubViewRegistry", allowOverwrite: true });
 
 export function registerSpacesSubView(viewKey: string, renderer: SpacesSubViewRenderer): void {
-  spacesSubViewRegistry.set(viewKey, renderer);
+  spacesSubViewRegistry.register(viewKey, renderer, true);
 }
 
 export function toPublicSpace(space: Space): PublicSpace {

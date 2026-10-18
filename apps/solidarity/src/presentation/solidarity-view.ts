@@ -1,3 +1,4 @@
+import { createTypedRegistry } from "@mosaix/support";
 /**
  * @apps/solidarity — Presentation View & Descriptor
  * Self-contained SSR view for Solidarity Hub (needs, ops, volunteers, OCHA reports).
@@ -26,10 +27,10 @@ export type SolidaritySubViewRenderer = (
   deps: { solidarityService?: SolidarityOpsSource; needs: OpsNeed[]; isAdmin: boolean },
 ) => Promise<string | BacRenderResult> | string | BacRenderResult;
 
-const solidaritySubViewRegistry = new Map<string, SolidaritySubViewRenderer>();
+const solidaritySubViewRegistry = createTypedRegistry<string, SolidaritySubViewRenderer>([], { name: "SolidaritySubViewRegistry", allowOverwrite: true });
 
 export function registerSolidaritySubView(viewKey: string, renderer: SolidaritySubViewRenderer): void {
-  solidaritySubViewRegistry.set(viewKey, renderer);
+  solidaritySubViewRegistry.register(viewKey, renderer, true);
 }
 
 function calculateCoveragePercent(requested: number, distributed: number): number {
