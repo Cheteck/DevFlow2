@@ -31,21 +31,24 @@ export interface JSONRPCResponse {
 /** MCP protocol versions this gateway negotiates (newest first). */
 const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
+/** Call context passed to JSON-RPC dispatch: pre-resolved principal and/or raw auth header. */
+export interface McpGatewayCallContext {
+  principal?: MCPPrincipal;
+  authHeader?: string;
+  [key: string]: unknown;
+}
+
 export interface MCPGatewayContext {
   getToolRegistry(): MCPToolRegistry;
   getResourceRegistry(): MCPResourceRegistry;
   getPromptRegistry(): MCPPromptRegistry;
-  resolvePrincipal(context?: {
-    principal?: MCPPrincipal;
-    authHeader?: string;
-    [key: string]: unknown;
-  }): MCPPrincipal;
+  resolvePrincipal(context?: McpGatewayCallContext): MCPPrincipal;
 }
 
 export type JsonRpcMethodHandler = (
   request: JSONRPCRequest,
   gateway: MCPGatewayContext,
-  context?: { principal?: MCPPrincipal; authHeader?: string; [key: string]: unknown },
+  context?: McpGatewayCallContext,
 ) => Promise<JSONRPCResponse | null> | JSONRPCResponse | null;
 
 const jsonRpcMethodRegistry = createTypedRegistry<string, JsonRpcMethodHandler>([], { name: "JsonRpcMethodRegistry" });
@@ -270,11 +273,7 @@ export class MCPGateway {
     return MCPPrincipalResolver.resolveFromHeader(undefined);
   }
 
-  public resolvePrincipal(context?: {
-    principal?: MCPPrincipal;
-    authHeader?: string;
-    [key: string]: unknown;
-  }): MCPPrincipal {
+  public resolvePrincipal(context?: McpGatewayCallContext): MCPPrincipal {
     if (context?.principal) return context.principal;
     if (typeof context?.authHeader === "string") {
       return MCPPrincipalResolver.resolveFromHeader(context.authHeader);
@@ -284,7 +283,7 @@ export class MCPGateway {
 
   async handleRequest(
     request: JSONRPCRequest,
-    context?: { principal?: MCPPrincipal; authHeader?: string; [key: string]: unknown },
+    context?: McpGatewayCallContext,
   ): Promise<JSONRPCResponse | null> {
     const { id: rawId, method } = request;
     const id = rawId ?? null;

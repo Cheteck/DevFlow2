@@ -1,14 +1,12 @@
 export interface TypedRegistryOptions {
   name?: string;
-  allowOverwrite?: boolean;
 }
 
 export interface TypedRegistry<K extends string | number | symbol, V> {
-  register(key: K, value: V, allowOverwrite?: boolean): void;
+  register(key: K, value: V): void;
   override(key: K, value: V): void;
   get(key: K): V | undefined;
   has(key: K): boolean;
-  clear(): void;
   resetToDefaults(): void;
   size(): number;
   keys(): K[];
@@ -21,11 +19,10 @@ export function createTypedRegistry<K extends string | number | symbol, V>(
   const map = new Map<K, V>(defaults);
   const defaultEntries: Array<[K, V]> = [...defaults];
   const registryName = options.name ?? "TypedRegistry";
-  const defaultAllowOverwrite = options.allowOverwrite ?? false;
 
   return {
-    register(key: K, value: V, allowOverwrite = defaultAllowOverwrite): void {
-      if (map.has(key) && !allowOverwrite) {
+    register(key: K, value: V): void {
+      if (map.has(key)) {
         throw new Error(
           `[${registryName}] Cannot register key "${String(key)}": key is already registered. Use override() to explicitly replace an existing entry.`,
         );
@@ -43,10 +40,6 @@ export function createTypedRegistry<K extends string | number | symbol, V>(
 
     has(key: K): boolean {
       return map.has(key);
-    },
-
-    clear(): void {
-      map.clear();
     },
 
     resetToDefaults(): void {
