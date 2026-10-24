@@ -78,7 +78,7 @@ describe("createSpacesDescriptor", () => {
   it("renders an honest empty state without a service", async () => {
     const descriptor = createSpacesDescriptor();
     const result = await descriptor.render!(ctx({}));
-    expect(result.contentHtml).toContain("Aucun espace pour le moment");
+    expect(result.contentHtml).toContain("Aucun résultat trouvé");
   });
 
   it("hides the member directory and management from guests", async () => {

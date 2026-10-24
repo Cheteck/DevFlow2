@@ -55,6 +55,36 @@ export function toPublicSpace(space: Space): PublicSpace {
   };
 }
 
+/** Accent color per space template — presentation only, real data. */
+const SPACE_TEMPLATE_ACCENTS: Record<string, string> = {
+  business: "#8b5cf6",
+  store: "#f59e0b",
+  creator: "#ec4899",
+  education: "#3b82f6",
+  organization: "#10b981",
+  project: "#06b6d4",
+  community: "#f43f5e",
+  custom: "#64748b",
+};
+
+function spaceAccent(template: string): string {
+  return SPACE_TEMPLATE_ACCENTS[template] ?? "#64748b";
+}
+
+function spaceTemplateLabel(template: string): string {
+  const labels: Record<string, string> = {
+    business: "Business",
+    store: "Boutique",
+    creator: "Créateur",
+    education: "Éducation",
+    organization: "Organisation",
+    project: "Projet",
+    community: "Communauté",
+    custom: "Sur mesure",
+  };
+  return labels[template] ?? "Espace";
+}
+
 export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDescriptor {
   const spaceService = deps.spaceService ?? new SpaceService();
 
@@ -215,51 +245,174 @@ export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDesc
       } else {
         // Standard view: public space directory (presentation fields only).
         const spaces = await spaceService.listSpacesAsync();
-        subViewHtml = spaces.length === 0 ? `
+        const now = Date.now();
+        const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
+        
+        // Filter/search state from query params
+        const rawQ = context.request.query.q;
+        const rawCategory = context.request.query.category;
+        const rawSort = context.request.query.sort;
+        const searchQuery = typeof rawQ === "string" ? rawQ.toLowerCase().trim() : "";
+        const categoryFilter = typeof rawCategory === "string" ? rawCategory : "all";
+        const sortMode = typeof rawSort === "string" ? rawSort : "recent";
+        
+        // Compute filtered list
+        let filtered = spaces;
+        if (searchQuery) {
+          filtered = filtered.filter((s) => 
+            s.name.toLowerCase().includes(searchQuery) || 
+            s.slug.toLowerCase().includes(searchQuery)
+          );
+        }
+        if (categoryFilter !== "all") {
+          filtered = filtered.filter((s) => s.category === categoryFilter);
+        }
+        
+        // Sort
+        if (sortMode === "recent") {
+          filtered = [...filtered].sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
+        } else if (sortMode === "alpha") {
+          filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+        } else if (sortMode === "popular") {
+          filtered = [...filtered].sort((a, b) => (b.followersCount ?? 0) - (a.followersCount ?? 0));
+        }
+        
+        const categories = Array.from(new Set(spaces.map((s) => s.category)));
+        
+        subViewHtml = filtered.length === 0 ? `
           <div class="space-y-6">
-            <h2 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Espaces de Travail</h2>
-            <div class="glass-card rounded-2xl p-8 text-center space-y-4">
-              <div class="text-3xl">📁</div>
-              <h3 class="text-sm font-bold text-on-surface">Aucun espace pour le moment</h3>
-              <p class="text-xs text-on-surface-variant">Les espaces créés par la communauté apparaîtront ici.</p>
+            <!-- Hero Editorial -->
+            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-surface-container-low to-transparent border border-outline-variant/10 p-8 mb-8">
+              <div class="relative z-10">
+                <div class="flex items-center gap-3 mb-4">
+                  <div class="w-14 h-14 rounded-2xl bg-primary/20 text-primary flex items-center justify-center text-3xl shadow-lg">📁</div>
+                  <div>
+                    <h1 class="text-2xl font-bold text-on-surface">Spaces Hub</h1>
+                    <p class="text-sm text-on-surface-variant mt-1">Découvrez les espaces, organisations et communautés</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-6 text-sm">
+                  <span class="flex items-center gap-2 text-on-surface-variant">
+                    <strong class="text-on-surface font-bold text-base">${spaces.length}</strong> espace${spaces.length > 1 ? 's' : ''} au total
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Empty State -->
+            <div class="glass-card p-12 rounded-2xl border border-outline-variant/15 text-center space-y-4">
+              <div class="w-20 h-20 mx-auto rounded-full bg-surface-container-high border border-outline-variant/20 flex items-center justify-center text-4xl">🔍</div>
+              <div>
+                <h2 class="text-lg font-bold text-on-surface mb-2">Aucun résultat trouvé</h2>
+                <p class="text-sm text-on-surface-variant max-w-md mx-auto">
+                  ${searchQuery ? `Aucun espace ne correspond à "<strong>${escapeHtml(searchQuery)}</strong>".` : "Aucun espace ne correspond à vos filtres."}
+                </p>
+              </div>
+              ${(searchQuery || categoryFilter !== 'all') ? `
+                <a href="/spaces?view=list" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary text-sm font-bold hover:opacity-95 transition">
+                  <span>🔄</span>
+                  <span>Réinitialiser les filtres</span>
+                </a>
+              ` : ''}
             </div>
           </div>` : `
           <div class="space-y-6">
-            <div class="flex justify-between items-center flex-wrap gap-2">
-              <h2 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Espaces de Travail</h2>
-              ${isGuest ? "" : `
-              <div class="flex items-center gap-2">
-                <a href="/spaces?view=sell" class="px-3.5 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-on-surface font-bold text-xs flex items-center gap-1 cursor-pointer">
-                  <span class="material-symbols-outlined text-sm">storefront</span>
-                  <span>Mettre en vente</span>
-                </a>
-                <a href="/spaces?view=new" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center gap-1 cursor-pointer">
-                  <span class="material-symbols-outlined text-sm">add_box</span>
-                  <span>Nouvel Espace</span>
-                </a>
-              </div>`}
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              ${spaces.map((s) => {
-                const pub = toPublicSpace(s);
-                return `
-              <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 flex flex-col justify-between hover:border-primary/40 transition duration-200">
-                <div class="space-y-3">
+            <!-- Hero Editorial -->
+            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-surface-container-low to-transparent border border-outline-variant/10 p-8 mb-8">
+              <div class="relative z-10">
+                <div class="flex items-center gap-3 mb-4">
+                  <div class="w-14 h-14 rounded-2xl bg-primary/20 text-primary flex items-center justify-center text-3xl shadow-lg">📁</div>
                   <div>
-                    <h3 class="text-xs font-bold text-on-surface mt-1">${escapeHtml(pub.name)}</h3>
-                    <p class="text-[10px] text-on-surface-variant mt-0.5 font-mono">@${escapeHtml(pub.slug)}</p>
-                    <span class="text-[11px] text-on-surface-variant mt-2 block font-mono tabular-nums"><strong class="text-on-surface font-bold font-sans">${pub.followersCount}</strong> suiveurs</span>
+                    <h1 class="text-2xl font-bold text-on-surface">Spaces Hub</h1>
+                    <p class="text-sm text-on-surface-variant mt-1">Découvrez les espaces, organisations et communautés</p>
                   </div>
                 </div>
-                <div class="pt-4 mt-4 border-t border-outline-variant/10 flex items-center justify-between gap-2">
-                  <a href="/spaces?view=profile&amp;space=${encodeURIComponent(pub.slug)}" class="block text-center flex-1 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-[10px] font-bold transition cursor-pointer">
-                    Profil
+                <div class="flex items-center gap-6 text-sm flex-wrap">
+                  <span class="flex items-center gap-2 text-on-surface-variant">
+                    <strong class="text-on-surface font-bold text-base">${filtered.length}</strong> espace${filtered.length > 1 ? 's' : ''} affiché${filtered.length > 1 ? 's' : ''}
+                  </span>
+                  ${searchQuery || categoryFilter !== 'all' ? `
+                    <a href="/spaces?view=list" class="text-primary hover:underline font-medium">🔄 Réinitialiser</a>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+
+            <!-- Discovery Bar -->
+            <div class="glass-card p-4 rounded-2xl border border-outline-variant/15 space-y-4">
+              <div class="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+                <!-- Search -->
+                <div class="relative flex-1">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60">🔎</span>
+                  <input
+                    type="text"
+                    value="${searchQuery}"
+                    placeholder="Rechercher par nom, slug..."
+                    class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/20 text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition"
+                    onchange="window.location.href=\`/spaces?view=list\${this.value ? \`&q=\${encodeURIComponent(this.value)}\` : ''}\${categoryFilter !== 'all' ? \`&category=\${encodeURIComponent(categoryFilter)}\` : ''}\${sortMode !== 'recent' ? \`&sort=\${sortMode}\` : ''}\`"
+                  />
+                </div>
+                
+                <!-- Filters -->
+                <div class="flex gap-2 flex-wrap items-center">
+                  <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant/70 mr-1 hidden lg:inline">Filtres:</span>
+                  <select
+                    class="px-3 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/20 text-sm font-medium text-on-surface focus:outline-none focus:border-primary/50 cursor-pointer hover:border-primary/30 transition"
+                    onchange="window.location.href=\`/spaces?view=list\${searchQuery ? \`&q=\${encodeURIComponent(searchQuery)}\` : ''}\${this.value !== 'all' ? \`&category=\${encodeURIComponent(this.value)}\` : ''}\${sortMode !== 'recent' ? \`&sort=\${sortMode}\` : ''}\`"
+                  >
+                    <option value="all"\${categoryFilter === 'all' ? ' selected' : ''}>Toutes catégories</option>
+                    ${categories.map((c) => `<option value="${escapeHtml(c)}"\${categoryFilter === '${escapeHtml(c)}' ? ' selected' : ''}>${c.charAt(0).toUpperCase() + c.slice(1)}</option>`).join("")}
+                  </select>
+                  <select
+                    class="px-3 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/20 text-sm font-medium text-on-surface focus:outline-none focus:border-primary/50 cursor-pointer hover:border-primary/30 transition"
+                    onchange="window.location.href=\`/spaces?view=list\${searchQuery ? \`&q=\${encodeURIComponent(searchQuery)}\` : ''}\${categoryFilter !== 'all' ? \`&category=\${encodeURIComponent(categoryFilter)}\` : ''}\${this.value !== 'recent' ? \`&sort=\${encodeURIComponent(this.value)}\` : ''}\`"
+                  >
+                    <option value="recent"\${sortMode === 'recent' ? ' selected' : ''}>📅 Récents</option>
+                    <option value="alpha"\${sortMode === 'alpha' ? ' selected' : ''}>🔤 A-Z</option>
+                    <option value="popular"\${sortMode === 'popular' ? ' selected' : ''}>⭐ Popularité</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Spaces Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              ${filtered.map((s) => {
+                const pub = toPublicSpace(s);
+                const isNew = (s.createdAt?.getTime() ?? 0) > oneWeekAgo;
+                const accent = spaceAccent(s.template);
+                return `
+              <article class="group relative flex flex-col overflow-hidden rounded-2xl bg-surface-container-low border border-outline-variant/15 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 transition-all duration-300" style="border-top: 3px solid ${accent}">
+                ${isNew ? '<span class="absolute top-3 right-3 px-2 py-1 rounded-lg bg-primary/20 border border-primary/30 text-[10px] font-bold text-primary uppercase tracking-wider">Nouveau</span>' : ""}
+                <div class="p-5 flex flex-col flex-1">
+                  <div class="flex items-center gap-3 mb-4">
+                    <div class="w-12 h-12 rounded-xl border border-outline-variant/20 flex items-center justify-center text-xl font-bold shadow-inner shrink-0 group-hover:scale-105 transition-transform duration-300" style="background: ${accent}1a; color: ${accent}">
+                      ${escapeHtml(pub.name.substring(0, 1).toUpperCase())}
+                    </div>
+                    <div class="min-w-0">
+                      <h3 class="text-sm font-bold text-on-surface truncate">${escapeHtml(pub.name)}</h3>
+                      <p class="text-[11px] text-on-surface-variant/80 font-mono truncate">@${escapeHtml(pub.slug)}</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 mb-3 flex-wrap">
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border" style="background: ${accent}1a; color: ${accent}; border-color: ${accent}40">${escapeHtml(spaceTemplateLabel(s.template))}</span>
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-surface-container-high border border-outline-variant/20 text-on-surface-variant">${escapeHtml(pub.category)}</span>
+                  </div>
+                  <p class="text-[11px] text-on-surface-variant leading-relaxed mb-4 line-clamp-2">Espace ${escapeHtml(pub.category)} — explorez ses activités publiques et ses offres.</p>
+                  <div class="mt-auto flex items-center gap-4 text-[11px] text-on-surface-variant/80 font-medium pt-3 border-t border-outline-variant/10">
+                    <span class="flex items-center gap-1.5" title="Abonnés"><strong class="text-on-surface font-bold tabular-nums">${pub.followersCount}</strong> abonnés</span>
+                    <span class="flex items-center gap-1.5" title="Capacités actives"><strong class="text-on-surface font-bold tabular-nums">${s.enabledCapabilities.length}</strong> modules</span>
+                  </div>
+                </div>
+                <div class="px-5 pb-5 grid grid-cols-2 gap-2">
+                  <a href="/spaces?view=profile&amp;space=${encodeURIComponent(pub.slug)}" class="text-center py-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-[11px] font-bold transition">
+                    Voir
                   </a>
-                  <a href="/spaces?view=sell&amp;space=${encodeURIComponent(pub.slug)}" class="block text-center flex-1 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-[10px] font-bold transition cursor-pointer">
-                    Vendre
+                  <a href="/spaces?view=sell&amp;space=${encodeURIComponent(pub.slug)}" class="text-center py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-[11px] font-bold transition">
+                    Visiter
                   </a>
                 </div>
-              </div>`;
+              </article>`;
               }).join("")}
             </div>
           </div>
