@@ -4,7 +4,7 @@ import type {
   SlotContract,
   ContributionContract,
   CompositionContext,
-} from "./index";
+} from "./index.js";
 
 describe("Experience Contracts Schema & Compliance Suite (Phase P6)", () => {
   it("validates SurfaceContract structural and contextual regions", () => {

@@ -3,7 +3,7 @@
  * Pure declarative contract describing a composition region and its slots.
  */
 
-import type { SlotContract } from "./slot-contract";
+import type { SlotContract } from "./slot-contract.js";
 
 export interface SurfaceContract {
   id: string;

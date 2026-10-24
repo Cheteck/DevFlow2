@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { CONTRACT_VERSION } from "./index";
+import { CONTRACT_VERSION } from "./index.js";
 
 describe("contract versioning", () => {
   it("declares a canonical contract version", () => {

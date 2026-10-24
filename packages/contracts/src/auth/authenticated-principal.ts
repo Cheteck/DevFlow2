@@ -1,4 +1,4 @@
-import type { AuthenticationContext } from "./authentication-context";
+import type { AuthenticationContext } from "./authentication-context.js";
 
 export interface AuthenticatedPrincipal {
   subject: string;

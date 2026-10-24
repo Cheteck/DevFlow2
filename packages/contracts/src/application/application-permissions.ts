@@ -8,7 +8,7 @@
  * `provides` with a granted permission; the Runtime enforces every call.
  */
 
-import type { PermissionContract } from "../security/permission-contract";
+import type { PermissionContract } from "../security/permission-contract.js";
 
 export interface ApplicationPermissions {
   provides: PermissionContract[];

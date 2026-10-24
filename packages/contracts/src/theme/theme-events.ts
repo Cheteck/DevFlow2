@@ -16,8 +16,8 @@
  * Consumers: `themeEventPayloadSchemas` in @mosaix/schemas, Phase 3 resolver.
  */
 
-import type { ThemeAssignment } from "./theme-assignment";
-import type { ThemeTarget } from "./theme-target";
+import type { ThemeAssignment } from "./theme-assignment.js";
+import type { ThemeTarget } from "./theme-target.js";
 
 export const themeAssignmentChangedEvent = "theme.assignment.changed" as const;
 export const themeChangedEvent = "theme.changed" as const;

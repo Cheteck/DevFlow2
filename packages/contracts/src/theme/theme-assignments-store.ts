@@ -18,8 +18,8 @@
  * Consumers: @mosaix/core store adapters, ThemeResolver (02-04).
  */
 
-import type { ThemeAssignment } from "./theme-assignment";
-import type { ThemeTarget } from "./theme-target";
+import type { ThemeAssignment } from "./theme-assignment.js";
+import type { ThemeTarget } from "./theme-target.js";
 
 export interface ThemeAssignmentsStore {
   /** Persists an assignment (create or replace by target key). */

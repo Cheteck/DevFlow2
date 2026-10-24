@@ -20,7 +20,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import type {
   ExperienceThemePreference,
   ThemePreference as LegacyThemePreference,
-} from "../experience/theme-contract";
+} from "../experience/theme-contract.js";
 import type {
   AssignmentSource,
   CompiledTheme,
@@ -33,7 +33,7 @@ import type {
   ThemeResolutionContext,
   ThemeResolutionSource,
   ThemeTarget,
-} from "../index";
+} from "../index.js";
 
 describe("ThemeMode (D-09, drift prevention)", () => {
   it("is exactly light | dark | system", () => {

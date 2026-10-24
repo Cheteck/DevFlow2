@@ -2,10 +2,10 @@
  * Application experience contract — the UI surface an application exposes.
  */
 
-import type { NavigationContract } from "../experience/navigation-contract";
-import type { LayoutContract } from "../experience/layout-contract";
-import type { ThemePreference } from "../experience/theme-contract";
-import type { WidgetContract } from "../experience/widget-contract";
+import type { NavigationContract } from "../experience/navigation-contract.js";
+import type { LayoutContract } from "../experience/layout-contract.js";
+import type { ThemePreference } from "../experience/theme-contract.js";
+import type { WidgetContract } from "../experience/widget-contract.js";
 
 export interface ApplicationExperienceContract {
   navigation?: NavigationContract[];

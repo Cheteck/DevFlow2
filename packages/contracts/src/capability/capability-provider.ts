@@ -2,7 +2,7 @@
  * Capability provider — the runtime surface an owner application exposes.
  */
 
-import type { CapabilityContract } from "./capability-contract";
+import type { CapabilityContract } from "./capability-contract.js";
 
 export interface CapabilityProvider {
   /** Id of the owning application. */

@@ -1,4 +1,4 @@
-import type { AuthenticationMethod } from "./authentication-method";
+import type { AuthenticationMethod } from "./authentication-method.js";
 
 export interface AuthenticationFactor {
   type: "password" | "otp" | "webauthn" | "sms" | "email" | "custom";

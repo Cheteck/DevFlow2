@@ -10,7 +10,7 @@
  * Consumers: ThemeResolutionContext, ThemePreferenceSchema.
  */
 
-import type { ThemeMode } from "./theme-mode";
+import type { ThemeMode } from "./theme-mode.js";
 
 export interface ThemePreference {
   readonly inherit: boolean;

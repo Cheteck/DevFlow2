@@ -2,10 +2,10 @@
  * Theme manifest — a theme is itself a Mosaix artifact.
  */
 
-import type { MosaixArtifactManifest } from "../mosaix-artifact";
-import type { DesignTokens } from "./design-tokens";
-import type { AccessibilityProfile } from "./accessibility";
-import type { ThemeAssets } from "./branding";
+import type { MosaixArtifactManifest } from "../mosaix-artifact.js";
+import type { DesignTokens } from "./design-tokens.js";
+import type { AccessibilityProfile } from "./accessibility.js";
+import type { ThemeAssets } from "./branding.js";
 
 export interface ThemeManifest extends MosaixArtifactManifest {
   type: "theme";

@@ -5,8 +5,8 @@
  * standalone, and always attaches to an existing extension point of a target.
  */
 
-import type { MosaixArtifactManifest } from "../mosaix-artifact";
-import type { PluginExtensionContract } from "./plugin-extension";
+import type { MosaixArtifactManifest } from "../mosaix-artifact.js";
+import type { PluginExtensionContract } from "./plugin-extension.js";
 
 export interface SlotContribution {
   slot: string;
