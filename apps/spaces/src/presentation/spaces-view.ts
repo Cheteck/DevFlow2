@@ -287,11 +287,14 @@ export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDesc
                 <div class="flex items-center gap-3 mb-4">
                   <div class="w-14 h-14 rounded-2xl bg-primary/20 text-primary flex items-center justify-center text-3xl shadow-lg">📁</div>
                   <div>
-                    <h1 class="text-2xl font-bold text-on-surface">Spaces Hub</h1>
+                    <div class="flex items-center gap-2.5 flex-wrap">
+                      <h1 class="text-2xl font-bold text-on-surface">Spaces Hub</h1>
+                      <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/20 text-primary border border-primary/30">${spaces.length} espace${spaces.length > 1 ? 's' : ''} actif${spaces.length > 1 ? 's' : ''}</span>
+                    </div>
                     <p class="text-sm text-on-surface-variant mt-1">Découvrez les espaces, organisations et communautés</p>
                   </div>
                 </div>
-                <div class="flex items-center gap-6 text-sm">
+                <div class="flex items-center gap-6 text-sm flex-wrap">
                   <span class="flex items-center gap-2 text-on-surface-variant">
                     <strong class="text-on-surface font-bold text-base">${spaces.length}</strong> espace${spaces.length > 1 ? 's' : ''} au total
                   </span>
@@ -331,8 +334,16 @@ export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDesc
                   <span class="flex items-center gap-2 text-on-surface-variant">
                     <strong class="text-on-surface font-bold text-base">${filtered.length}</strong> espace${filtered.length > 1 ? 's' : ''} affiché${filtered.length > 1 ? 's' : ''}
                   </span>
+                  <span class="text-on-surface-variant/40">•</span>
+                  <span class="flex items-center gap-1.5 text-xs text-on-surface-variant">
+                    <span class="text-emerald-400">🛡️</span> 100% Espaces modérés
+                  </span>
+                  <span class="text-on-surface-variant/40">•</span>
+                  <span class="flex items-center gap-1.5 text-xs text-on-surface-variant">
+                    <span class="text-amber-400">⚡</span> Données temps réel
+                  </span>
                   ${searchQuery || categoryFilter !== 'all' ? `
-                    <a href="/spaces?view=list" class="text-primary hover:underline font-medium">🔄 Réinitialiser</a>
+                    <a href="/spaces?view=list" class="text-primary hover:underline font-medium text-xs ml-auto">🔄 Réinitialiser</a>
                   ` : ''}
                 </div>
               </div>
@@ -373,6 +384,30 @@ export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDesc
                   </select>
                 </div>
               </div>
+
+              <!-- Category Pills Row with Counts -->
+              <div class="flex items-center gap-2 overflow-x-auto pb-1 pt-1 border-t border-outline-variant/10 text-xs">
+                <a
+                  href="/spaces?view=list${searchQuery ? `&amp;q=${encodeURIComponent(searchQuery)}` : ''}${sortMode !== 'recent' ? `&amp;sort=${sortMode}` : ''}"
+                  class="px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition flex items-center gap-1.5 ${categoryFilter === 'all' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant'}"
+                >
+                  <span>Tous</span>
+                  <span class="text-[10px] px-1.5 py-0.2 rounded-full ${categoryFilter === 'all' ? 'bg-white/20' : 'bg-surface-container-high'}">${spaces.length}</span>
+                </a>
+                ${categories.map((c) => {
+                  const count = spaces.filter((s) => s.category === c).length;
+                  const isActive = categoryFilter === c;
+                  return `
+                    <a
+                      href="/spaces?view=list&amp;category=${encodeURIComponent(c)}${searchQuery ? `&amp;q=${encodeURIComponent(searchQuery)}` : ''}${sortMode !== 'recent' ? `&amp;sort=${sortMode}` : ''}"
+                      class="px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition flex items-center gap-1.5 ${isActive ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant'}"
+                    >
+                      <span>${escapeHtml(c.charAt(0).toUpperCase() + c.slice(1))}</span>
+                      <span class="text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-white/20' : 'bg-surface-container-high'}">${count}</span>
+                    </a>
+                  `;
+                }).join("")}
+              </div>
             </div>
 
             <!-- Spaces Grid -->
@@ -381,34 +416,44 @@ export function createSpacesDescriptor(deps: SpacesDescriptorDeps = {}): BacDesc
                 const pub = toPublicSpace(s);
                 const isNew = (s.createdAt?.getTime() ?? 0) > oneWeekAgo;
                 const accent = spaceAccent(s.template);
+                const initials = pub.name.split(/\s+/).map((w) => w.charAt(0)).slice(0, 2).join("").toUpperCase();
+                const capabilities = s.enabledCapabilities.slice(0, 3);
                 return `
-              <article class="group relative flex flex-col overflow-hidden rounded-2xl bg-surface-container-low border border-outline-variant/15 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 transition-all duration-300" style="border-top: 3px solid ${accent}">
-                ${isNew ? '<span class="absolute top-3 right-3 px-2 py-1 rounded-lg bg-primary/20 border border-primary/30 text-[10px] font-bold text-primary uppercase tracking-wider">Nouveau</span>' : ""}
-                <div class="p-5 flex flex-col flex-1">
-                  <div class="flex items-center gap-3 mb-4">
-                    <div class="w-12 h-12 rounded-xl border border-outline-variant/20 flex items-center justify-center text-xl font-bold shadow-inner shrink-0 group-hover:scale-105 transition-transform duration-300" style="background: ${accent}1a; color: ${accent}">
-                      ${escapeHtml(pub.name.substring(0, 1).toUpperCase())}
+              <article class="group relative flex flex-col overflow-hidden rounded-2xl bg-surface-container-low border border-outline-variant/15 hover:-translate-y-0.5 transition-all duration-300" style="border-top: 3px solid ${accent}; box-shadow: 0 0 0 0 transparent">
+                <!-- Header band -->
+                <div class="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-outline-variant/10" style="background: linear-gradient(90deg, ${accent}1f, transparent)">
+                  <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border" style="background: ${accent}1a; color: ${accent}; border-color: ${accent}40">${escapeHtml(spaceTemplateLabel(s.template))}</span>
+                  <div class="flex items-center gap-2">
+                    ${isNew ? `<span class="px-2 py-0.5 rounded-md bg-primary/20 border border-primary/30 text-[10px] font-bold text-primary">Nouveau</span>` : ""}
+                    <span class="flex items-center gap-1.5 text-[10px] font-medium text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Actif</span>
+                  </div>
+                </div>
+                <!-- Body -->
+                <div class="p-4 flex-1 flex flex-col">
+                  <div class="flex items-start gap-3 mb-3">
+                    <div class="w-11 h-11 rounded-xl border-2 flex items-center justify-center text-sm font-black shadow-md group-hover:scale-105 transition-transform duration-300 shrink-0" style="background: ${accent}1a; color: ${accent}; border-color: ${accent}50">
+                      ${escapeHtml(initials)}
                     </div>
-                    <div class="min-w-0">
-                      <h3 class="text-sm font-bold text-on-surface truncate">${escapeHtml(pub.name)}</h3>
+                    <div class="min-w-0 flex-1">
+                      <h3 class="text-sm font-bold text-on-surface truncate group-hover:text-primary transition-colors">${escapeHtml(pub.name)}</h3>
                       <p class="text-[11px] text-on-surface-variant/80 font-mono truncate">@${escapeHtml(pub.slug)}</p>
                     </div>
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface-container-high border border-outline-variant/20 text-on-surface-variant uppercase tracking-wider whitespace-nowrap">${escapeHtml(pub.category)}</span>
                   </div>
-                  <div class="flex items-center gap-2 mb-3 flex-wrap">
-                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border" style="background: ${accent}1a; color: ${accent}; border-color: ${accent}40">${escapeHtml(spaceTemplateLabel(s.template))}</span>
-                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-surface-container-high border border-outline-variant/20 text-on-surface-variant">${escapeHtml(pub.category)}</span>
-                  </div>
-                  <p class="text-[11px] text-on-surface-variant leading-relaxed mb-4 line-clamp-2">Espace ${escapeHtml(pub.category)} — explorez ses activités publiques et ses offres.</p>
+                  <p class="text-[11px] text-on-surface-variant leading-relaxed mb-3 line-clamp-2">Espace ${escapeHtml(pub.category)} — explorez ses activités publiques et ses offres.</p>
+                  <!-- Capability chips -->
+                  ${capabilities.length > 0 ? `<div class="flex flex-wrap gap-1.5 mb-3">${capabilities.map((cap) => `<span class="px-2 py-0.5 rounded bg-white/5 text-[10px] text-on-surface-variant border border-outline-variant/10 truncate max-w-full">${escapeHtml(cap.split(".").pop() ?? cap)}</span>`).join("")}</div>` : ""}
                   <div class="mt-auto flex items-center gap-4 text-[11px] text-on-surface-variant/80 font-medium pt-3 border-t border-outline-variant/10">
                     <span class="flex items-center gap-1.5" title="Abonnés"><strong class="text-on-surface font-bold tabular-nums">${pub.followersCount}</strong> abonnés</span>
                     <span class="flex items-center gap-1.5" title="Capacités actives"><strong class="text-on-surface font-bold tabular-nums">${s.enabledCapabilities.length}</strong> modules</span>
                   </div>
                 </div>
-                <div class="px-5 pb-5 grid grid-cols-2 gap-2">
+                <!-- Footer actions -->
+                <div class="px-4 pb-4 grid grid-cols-2 gap-2">
                   <a href="/spaces?view=profile&amp;space=${encodeURIComponent(pub.slug)}" class="text-center py-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-[11px] font-bold transition">
                     Voir
                   </a>
-                  <a href="/spaces?view=sell&amp;space=${encodeURIComponent(pub.slug)}" class="text-center py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-[11px] font-bold transition">
+                  <a href="/spaces?view=sell&amp;space=${encodeURIComponent(pub.slug)}" class="text-center py-2 rounded-xl text-[11px] font-bold border transition" style="background: ${accent}1a; color: ${accent}; border-color: ${accent}40">
                     Visiter
                   </a>
                 </div>
