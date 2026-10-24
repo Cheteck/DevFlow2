@@ -56,7 +56,7 @@ export interface PluginPublisher {
   publicKey?: string;
 }
 
-export interface PluginManifest extends MosaixArtifactManifest {
+export interface PluginManifest extends Omit<MosaixArtifactManifest, "type" | "permissions" | "metadata" | "signature"> {
   type?: "plugin";
   /** Target application ID being extended (alias for extension.target). */
   targetAppId?: string;
@@ -71,6 +71,7 @@ export interface PluginManifest extends MosaixArtifactManifest {
   signature?: string; // Cryptographic publisher signature
   publisher?: PluginPublisher;
   metadata?: {
+    name: string;
     description?: string;
     author?: string;
     icon?: string;
