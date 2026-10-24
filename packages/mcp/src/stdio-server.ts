@@ -192,7 +192,10 @@ async function main() {
 
       try {
         const request = JSON.parse(line);
-        const response = await gateway.handleRequest(request);
+        const authHeader = process.env.MCP_AUTH_TOKEN
+          ? (process.env.MCP_AUTH_TOKEN.startsWith("Bearer ") ? process.env.MCP_AUTH_TOKEN : `Bearer ${process.env.MCP_AUTH_TOKEN}`)
+          : undefined;
+        const response = await gateway.handleRequest(request, authHeader ? { authHeader } : undefined);
         // JSON-RPC notifications (no id) expect no response on stdio.
         if (response) {
           process.stdout.write(JSON.stringify(response) + "\n");
