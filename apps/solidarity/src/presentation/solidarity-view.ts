@@ -4,7 +4,11 @@ import { createTypedRegistry } from "@mosaix/support";
  * Self-contained SSR view for Solidarity Hub (needs, ops, volunteers, OCHA reports).
  */
 
-import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
+import type {
+  BacDescriptor,
+  BacExecutionContext,
+  BacRenderResult,
+} from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
 
 export interface OpsNeed {
@@ -24,20 +28,36 @@ export interface SolidarityOpsSource {
 
 export type SolidaritySubViewRenderer = (
   context: BacExecutionContext,
-  deps: { solidarityService?: SolidarityOpsSource; needs: OpsNeed[]; isAdmin: boolean },
+  deps: {
+    solidarityService?: SolidarityOpsSource;
+    needs: OpsNeed[];
+    isAdmin: boolean;
+  },
 ) => Promise<string | BacRenderResult> | string | BacRenderResult;
 
-const solidaritySubViewRegistry = createTypedRegistry<string, SolidaritySubViewRenderer>([], { name: "SolidaritySubViewRegistry" });
+const solidaritySubViewRegistry = createTypedRegistry<
+  string,
+  SolidaritySubViewRenderer
+>([], { name: "SolidaritySubViewRegistry" });
 
-export function registerSolidaritySubView(viewKey: string, renderer: SolidaritySubViewRenderer): void {
+export function registerSolidaritySubView(
+  viewKey: string,
+  renderer: SolidaritySubViewRenderer,
+): void {
   solidaritySubViewRegistry.register(viewKey, renderer);
 }
 
-export function overrideSolidaritySubView(viewKey: string, renderer: SolidaritySubViewRenderer): void {
+export function overrideSolidaritySubView(
+  viewKey: string,
+  renderer: SolidaritySubViewRenderer,
+): void {
   solidaritySubViewRegistry.override(viewKey, renderer);
 }
 
-function calculateCoveragePercent(requested: number, distributed: number): number {
+function calculateCoveragePercent(
+  requested: number,
+  distributed: number,
+): number {
   if (requested <= 0) return 0;
   return Math.min(100, Math.round((distributed / requested) * 100));
 }
@@ -50,7 +70,10 @@ export function toOpsNeeds(service?: SolidarityOpsSource): OpsNeed[] {
     if (typeof service.getNeeds === "function") {
       const raw = service.getNeeds() || [];
       return raw.map((item) => {
-        const n = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+        const n = (item && typeof item === "object" ? item : {}) as Record<
+          string,
+          unknown
+        >;
         return {
           id: String(n.id ?? ""),
           title: String(n.type ?? n.title ?? "Besoin"),
@@ -104,7 +127,9 @@ function emptyState(title: string, message: string): string {
           </div>`;
 }
 
-export function createSolidarityDescriptor(deps: { solidarityService?: SolidarityOpsSource } = {}): BacDescriptor {
+export function createSolidarityDescriptor(
+  deps: { solidarityService?: SolidarityOpsSource } = {},
+): BacDescriptor {
   return {
     id: "@apps/solidarity",
     name: "Solidarity",
@@ -127,8 +152,16 @@ export function createSolidarityDescriptor(deps: { solidarityService?: Solidarit
       // Check registered custom subview handlers (OCP extension)
       const customRenderer = solidaritySubViewRegistry.get(view);
       if (customRenderer) {
-        const customRes = await customRenderer(context, { solidarityService: deps.solidarityService, needs, isAdmin });
-        if (typeof customRes === "object" && customRes !== null && "contentHtml" in customRes) {
+        const customRes = await customRenderer(context, {
+          solidarityService: deps.solidarityService,
+          needs,
+          isAdmin,
+        });
+        if (
+          typeof customRes === "object" &&
+          customRes !== null &&
+          "contentHtml" in customRes
+        ) {
           return customRes;
         }
         return {
@@ -143,12 +176,16 @@ export function createSolidarityDescriptor(deps: { solidarityService?: Solidarit
           <div class="space-y-6">
             <div class="flex justify-between items-center flex-wrap gap-2">
               <h2 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Registre des besoins — compteurs stricts</h2>
-              ${isAdmin ? `
+              ${
+                isAdmin
+                  ? `
                 <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Signalement enregistre pour qualification'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center gap-1 cursor-pointer">
                   <span class="material-symbols-outlined text-sm">add_circle</span>
                   <span>Signaler un besoin</span>
                 </button>
-              ` : ""}
+              `
+                  : ""
+              }
             </div>
             ${
               needs.length === 0
@@ -226,7 +263,7 @@ export function createSolidarityDescriptor(deps: { solidarityService?: Solidarit
 
       const contentHtml = `
         <div class="space-y-6">
-          <div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
+          <!-- <div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center text-2xl">🤝</div>
               <div>
@@ -248,7 +285,7 @@ export function createSolidarityDescriptor(deps: { solidarityService?: Solidarit
                 Rapports OCHA / HXL
               </a>
             </div>
-          </div>
+          </div>-->
           ${innerViewHtml}
         </div>
       `;
