@@ -1,13 +1,13 @@
 import { Controller, type HttpRequest, type HttpResponse, getFeatureFlagsProvider } from "@mosaix/sdk";
 import type { FeatureFlagsPort } from "@mosaix/ports-feature-flags";
-import { GovernancePolicyRegistry, type GovernancePolicy } from "../domain/governance-policy";
-import { PlatformTopologyService } from "../domain/platform-topology.service";
-import { PlatformSettingsService } from "../domain/platform-settings.service";
-import { GovernanceSlotResolver } from "../domain/governance-slot-resolver";
-import { AuditLogModel } from "../domain/audit-log.model";
-import { ImperiaPluginManagerService, type PrestaPluginCategory, getPluginActionHandler } from "../domain/plugin-manager.service";
-import { ControlPlaneSupervisorService } from "../domain/control-plane-supervisor.service";
-import { MigrationGovernanceService } from "../domain/migration-governance.service";
+import { GovernancePolicyRegistry, type GovernancePolicy } from "../domain/governance-policy.js";
+import { PlatformTopologyService } from "../domain/platform-topology.service.js";
+import { PlatformSettingsService } from "../domain/platform-settings.service.js";
+import { GovernanceSlotResolver } from "../domain/governance-slot-resolver.js";
+import { AuditLogModel } from "../domain/audit-log.model.js";
+import { ImperiaPluginManagerService, type PrestaPluginCategory, getPluginActionHandler } from "../domain/plugin-manager.service.js";
+import { ControlPlaneSupervisorService } from "../domain/control-plane-supervisor.service.js";
+import { MigrationGovernanceService } from "../domain/migration-governance.service.js";
 import type { PostgresImperiaRepository } from "./postgres-imperia-repository.js";
 
 export class ImperiaGovernanceController extends Controller {

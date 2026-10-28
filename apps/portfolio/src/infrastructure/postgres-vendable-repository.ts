@@ -33,7 +33,7 @@ import type {
   VendableType,
   VendableVariants,
   WorkflowStatus,
-} from "../domain/vendable";
+} from "../domain/vendable.js";
 
 const VENDABLES_TABLE = `"portfolio"."vendables"`;
 

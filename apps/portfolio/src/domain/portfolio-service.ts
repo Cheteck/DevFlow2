@@ -3,8 +3,8 @@ import type {
   InformationQuality,
   WorkflowStatus,
   VendableType,
-} from "./vendable";
-import type { VendableRepository } from "./vendable-repository";
+} from "./vendable.js";
+import type { VendableRepository } from "./vendable-repository.js";
 import {
   VendableNotFoundError,
   DuplicateVendableReferenceError,
@@ -12,13 +12,13 @@ import {
   SelfRelationError,
   DuplicateVariantReferenceError,
   OperationalKeyForbiddenError,
-} from "./portfolio-errors";
+} from "./portfolio-errors.js";
 import {
   normalizeProductOptions,
   validateProductOptions,
   groupsToOptionsBlock,
   type ProductOptionGroupInput,
-} from "./product-options";
+} from "./product-options.js";
 
 export interface SearchCriteria {
   id?: string | undefined;

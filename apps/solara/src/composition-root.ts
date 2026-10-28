@@ -1,7 +1,7 @@
 import { Container, Router } from "@mosaix/sdk";
-import { SolaraAppServiceProvider } from "./infrastructure/solara-service-provider";
-import { SolaraSocialService } from "./domain/social.model";
-import { SolaraController } from "./infrastructure/solara-controller";
+import { SolaraAppServiceProvider } from "./infrastructure/solara-service-provider.js";
+import { SolaraSocialService } from "./domain/social.model.js";
+import { SolaraController } from "./infrastructure/solara-controller.js";
 import type { DatabasePort } from "@mosaix/ports-database";
 
 export interface SolaraAppComposition {

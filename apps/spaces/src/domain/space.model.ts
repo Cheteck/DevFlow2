@@ -1,6 +1,6 @@
 import * as crypto from "node:crypto";
 import { Model } from "@mosaix/sdk";
-import { SpaceTemplateRegistry, type SpaceTemplateType } from "./space-template";
+import { SpaceTemplateRegistry, type SpaceTemplateType } from "./space-template.js";
 
 export class SpaceModel extends Model {
   static override tableName = "spaces_spaces";

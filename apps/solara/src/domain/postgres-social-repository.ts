@@ -4,7 +4,7 @@
  */
 
 import type { DatabasePort } from "@mosaix/ports-database";
-import type { Post, Comment, FollowerRelation, SocialReaction } from "../domain/social.model";
+import type { Post, Comment, FollowerRelation, SocialReaction } from "../domain/social.model.js";
 
 function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { createSolidarityDescriptor, toOpsNeeds } from "./solidarity-view";
+import { createSolidarityDescriptor, toOpsNeeds } from "./solidarity-view.js";
 import { createSolidarityComposition } from "../composition-root.js";
 
 function ctx(query: Record<string, string>) {

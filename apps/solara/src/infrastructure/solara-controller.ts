@@ -1,6 +1,6 @@
 import { Controller, type HttpRequest, type HttpResponse } from "@mosaix/sdk";
 import { Guard, type UserContext } from "@mosaix/security";
-import { SolaraSocialService, type SocialActorType, type DefaultPublicationType } from "../domain/social.model";
+import { SolaraSocialService, type SocialActorType, type DefaultPublicationType } from "../domain/social.model.js";
 import {
   FeedRanker,
   SponsoredPostInjector,

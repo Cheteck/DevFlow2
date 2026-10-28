@@ -4,7 +4,7 @@
  */
 
 import type { DatabasePort } from "@mosaix/ports-database";
-import type { Incident, Need, Donation, Resource, Hub, Mission, Distribution } from "../domain/models";
+import type { Incident, Need, Donation, Resource, Hub, Mission, Distribution } from "../domain/models.js";
 import type { NeedAllocation } from "../domain/solidarity-operational-rules.js";
 
 function asString(value: unknown, fallback = ""): string {

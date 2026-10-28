@@ -1,4 +1,4 @@
-import type { Vendable } from "./vendable";
+import type { Vendable } from "./vendable.js";
 
 export interface VendableRepository {
   save(vendable: Vendable): Promise<void> | void;

@@ -4,9 +4,9 @@
  */
 
 import type { DatabasePort } from "@mosaix/ports-database";
-import type { BookingSlot, Reservation } from "../domain/booking.model";
-import type { WaitlistEntry } from "../domain/booking-calendar-sync";
-import type { BookingReminder } from "../domain/booking-portal-resources";
+import type { BookingSlot, Reservation } from "../domain/booking.model.js";
+import type { WaitlistEntry } from "../domain/booking-calendar-sync.js";
+import type { BookingReminder } from "../domain/booking-portal-resources.js";
 
 /**
  * Input de persistance d'un reminder.

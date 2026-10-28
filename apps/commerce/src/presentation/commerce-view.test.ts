@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { createCommerceDescriptor, resolveView, formatMoneyStrict } from "./commerce-view";
+import { createCommerceDescriptor, resolveView, formatMoneyStrict } from "./commerce-view.js";
 import { CommerceOfferService } from "../domain/commerce-offer.model.js";
 import { OrderService } from "../domain/order.service.js";
 import { DemoPaymentPort, DemoInventoryPort } from "../workflows/checkout-order.workflow.js";

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { createSpacesDescriptor, toPublicSpace } from "./spaces-view";
+import { createSpacesDescriptor, toPublicSpace } from "./spaces-view.js";
 import { SpaceService } from "../domain/space.model.js";
 
 function ctx(query: Record<string, string | string[]>, roles: string[] = ["member"]) {

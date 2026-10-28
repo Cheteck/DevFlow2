@@ -1,5 +1,5 @@
-import type { Vendable } from "../domain/vendable";
-import type { VendableRepository } from "../domain/vendable-repository";
+import type { Vendable } from "../domain/vendable.js";
+import type { VendableRepository } from "../domain/vendable-repository.js";
 
 export class InMemoryVendableRepository implements VendableRepository {
   private vendables = new Map<string, Vendable>();

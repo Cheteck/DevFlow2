@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   PostgresCommerceOfferRepository,
   InMemoryCommerceOfferRepository,
-} from "./postgres-offer-repository";
+} from "./postgres-offer-repository.js";
 
 function makeDb(rows: Record<string, unknown>[]) {
   return {

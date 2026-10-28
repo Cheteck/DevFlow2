@@ -4,7 +4,7 @@
  */
 
 import type { DatabasePort } from "@mosaix/ports-database";
-import type { ConversationModel, MessageAttachment, MessageModel } from "../domain/messaging.model";
+import type { ConversationModel, MessageAttachment, MessageModel } from "../domain/messaging.model.js";
 import type { EncryptedMessagePayload } from "../domain/beam-e2e-crypto.js";
 
 /** Les 12 colonnes canoniques de `"beam"."messages"` (migration `beam.messaging.v1.001`). */

@@ -9,6 +9,8 @@ import type { ApplicationManifest } from "@mosaix/contracts";
 import { AuthManager } from "@mosaix/auth";
 import { LocalPasswordProvider } from "@mosaix/adapter-auth-local";
 import { UuidGeneratorAdapter } from "@mosaix/adapter-id-uuid";
+import type { SecretsPort } from "@mosaix/ports-secrets";
+import { InMemoryGuard } from "@mosaix/support";
 
 import { IdentityController } from "./infrastructure/identity-controller.js";
 import { UserService } from "./domain/user-service.js";
@@ -85,6 +87,8 @@ export type CitadelleAdapters = Partial<typeof defaultAdapters> & {
   socialAccountRepository?: SocialAccountRepository;
   /** Override registration wizard (defaults to a fresh in-memory instance — wizard persistant = backlog). */
   registrationWizard?: RegistrationWizardService;
+  /** Override secrets adapter (defaults to in-memory with fallback guard). */
+  secretsAdapter?: SecretsPort;
 };
 
 export class CitadelleServiceProvider {
@@ -154,7 +158,12 @@ export class CitadelleServiceProvider {
 
     const idGenerator = new UuidGeneratorAdapter();
     // eslint-disable-next-line no-restricted-syntax -- couche 2 : EnvSecretsAdapter existe mais exige un cablage env ; en attendant, secrets en memoire explicites (jamais en prod via InMemoryGuard des chemins critiques).
-    const secretsAdapter = new InMemorySecretsAdapter();
+    const secretsAdapter =
+      this.adapters.secretsAdapter ??
+      (() => {
+        InMemoryGuard.reportFallback("InMemorySecretsAdapter", "no secretsAdapter option provided");
+        return new InMemorySecretsAdapter();
+      })();
 
     const authManager = new AuthManager(
       new Map(),

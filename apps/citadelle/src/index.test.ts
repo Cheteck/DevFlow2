@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { RuntimeKernel } from "@mosaix/sdk";
-import { createCitadelleApp, MANIFEST } from "./index";
-import { IdentityController } from "./infrastructure/identity-controller";
-import { InMemoryIdentityStore } from "./infrastructure/in-memory-identity-store";
-import { InMemorySessionStore } from "./infrastructure/in-memory-session-store";
-import { InMemoryTokenStore } from "./infrastructure/in-memory-token-store";
-import { InMemoryCredentialStore } from "./infrastructure/in-memory-credential-store";
+import { createCitadelleApp, MANIFEST } from "./index.js";
+import { IdentityController } from "./infrastructure/identity-controller.js";
+import { InMemoryIdentityStore } from "./infrastructure/in-memory-identity-store.js";
+import { InMemorySessionStore } from "./infrastructure/in-memory-session-store.js";
+import { InMemoryTokenStore } from "./infrastructure/in-memory-token-store.js";
+import { InMemoryCredentialStore } from "./infrastructure/in-memory-credential-store.js";
 
 // Tests uniquement : stores en memoire explicites (fail-fast hors tests).
 const testAdapters = () => ({

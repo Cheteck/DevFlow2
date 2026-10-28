@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createSolaraComposition } from "./composition-root";
+import { createSolaraComposition } from "./composition-root.js";
 import { SolaraContentModeratorPlugin } from "@mosaix-plugin/solara-content-moderator";
 
 function registerSolaraAdminPages() {
