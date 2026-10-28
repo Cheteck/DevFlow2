@@ -1,12 +1,20 @@
 import { describe, it, expect, vi } from "vitest";
-import { dispatchPspEvent, registerPspEventHandler } from "./psp-webhook-handler.js";
+import {
+  dispatchPspEvent,
+  registerPspEventHandler,
+} from "./psp-webhook-handler.js";
 
 describe("dispatchPspEvent (OCP registry)", () => {
   it("publishes commerce.order.paid on payment_intent.succeeded", () => {
     const publish = vi.fn();
     const backplane = { publish };
     dispatchPspEvent(
-      { id: "1", type: "payment_intent.succeeded", data: { orderId: "o1", amountInCents: 100, currency: "EUR" }, created: 123 },
+      {
+        id: "1",
+        type: "payment_intent.succeeded",
+        data: { orderId: "o1", amountInCents: 100, currency: "EUR" },
+        created: 123,
+      },
       backplane,
     );
     expect(publish).toHaveBeenCalledWith("commerce.order.paid", {
@@ -21,7 +29,12 @@ describe("dispatchPspEvent (OCP registry)", () => {
     const publish = vi.fn();
     const backplane = { publish };
     dispatchPspEvent(
-      { id: "2", type: "invoice.paid", data: { userId: "u1", planId: "p1" }, created: 456 },
+      {
+        id: "2",
+        type: "invoice.paid",
+        data: { userId: "u1", planId: "p1" },
+        created: 456,
+      },
       backplane,
     );
     expect(publish).toHaveBeenCalledWith("subscription.user.updated", {
@@ -36,7 +49,12 @@ describe("dispatchPspEvent (OCP registry)", () => {
     const publish = vi.fn();
     const backplane = { publish };
     dispatchPspEvent(
-      { id: "3", type: "customer.subscription.deleted", data: { userId: "u2", planId: "p2" }, created: 789 },
+      {
+        id: "3",
+        type: "customer.subscription.deleted",
+        data: { userId: "u2", planId: "p2" },
+        created: 789,
+      },
       backplane,
     );
     expect(publish).toHaveBeenCalledWith("subscription.user.cancelled", {
@@ -54,9 +72,16 @@ describe("dispatchPspEvent (OCP registry)", () => {
     });
     const backplane = { publish };
     dispatchPspEvent(
-      { id: "4", type: "charge.refunded" as any, data: { orderId: "o9" }, created: 1 },
+      {
+        id: "4",
+        type: "charge.refunded" as unknown as "payment_intent.succeeded",
+        data: { orderId: "o9" },
+        created: 1,
+      },
       backplane,
     );
-    expect(publish).toHaveBeenCalledWith("commerce.order.refunded", { orderId: "o9" });
+    expect(publish).toHaveBeenCalledWith("commerce.order.refunded", {
+      orderId: "o9",
+    });
   });
 });

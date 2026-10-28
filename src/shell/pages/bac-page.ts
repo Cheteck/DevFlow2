@@ -87,6 +87,27 @@ export function renderBacPage(opts: BacPageOptions): string {
   ${themeStyle}
 
   ${getShellClientScripts()}
+  <script>
+    (function() {
+      try {
+        const savedTheme = localStorage.getItem('mosaix_theme_mode');
+        if (savedTheme) {
+          document.documentElement.setAttribute('data-theme-mode', savedTheme);
+          if (savedTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else if (savedTheme === 'high-contrast') {
+            document.documentElement.classList.add('high-contrast');
+          } else {
+            document.documentElement.classList.remove('dark', 'high-contrast');
+          }
+        }
+        const sidebarCollapsed = localStorage.getItem('mosaix_secondary_sidebar_collapsed') === 'true';
+        if (sidebarCollapsed) {
+          document.documentElement.classList.add('sidebar-collapsed');
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body class="bg-background text-on-surface min-h-screen font-sans antialiased">
   
@@ -157,7 +178,7 @@ export function renderBacPage(opts: BacPageOptions): string {
       </header>
 
       <!-- CONTENT AREA -->
-      <main class="p-6 max-w-7xl w-full mx-auto space-y-6">
+      <main class="p-6 w-full mx-auto space-y-6">
         <div class="glass-card rounded-2xl p-6 space-y-6">
           <div class="bac-content-section">
             ${renderedContent}
@@ -174,11 +195,16 @@ export function renderBacPage(opts: BacPageOptions): string {
 
   <script>
     async function setTheme(mode) {
-      document.documentElement.setAttribute('data-theme-mode', mode);
+      if (!['light', 'dark', 'high-contrast'].includes(mode)) return;
+      const html = document.documentElement;
+      html.setAttribute('data-theme-mode', mode);
+      html.classList.remove('dark', 'high-contrast');
+      if (mode === 'dark') html.classList.add('dark');
+      if (mode === 'high-contrast') html.classList.add('high-contrast');
+      localStorage.setItem('mosaix_theme_mode', mode);
       try {
         await fetch('/api/theme?mode=' + mode, { method: 'POST' });
       } catch (e) {}
-      window.location.reload();
     }
 
     function toggleSecondarySidebar() {

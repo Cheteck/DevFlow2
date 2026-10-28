@@ -61,6 +61,22 @@ export function renderHomePage(opts: HomePageOptions): string {
 <!-- Fragments de confiance internes : style compilé themes/*.json + CSS partagé renderer (jamais de données utilisateur brutes). -->
 ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode), sharedStyles)}
   ${getShellClientScripts()}
+  <script>
+    (function() {
+      try {
+        const savedTheme = localStorage.getItem('mosaix_theme_mode');
+        if (savedTheme) {
+          document.documentElement.setAttribute('data-theme-mode', savedTheme);
+          document.documentElement.classList.remove('dark', 'high-contrast');
+          if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+          if (savedTheme === 'high-contrast') document.documentElement.classList.add('high-contrast');
+        }
+        if (localStorage.getItem('mosaix_secondary_sidebar_collapsed') === 'true') {
+          document.documentElement.classList.add('sidebar-collapsed');
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body class="bg-background text-on-surface min-h-screen font-sans antialiased selection:bg-primary/30 selection:text-primary">
 
@@ -137,7 +153,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
       </header>
 
       <!-- MAIN SCROLLABLE DASHBOARD -->
-      <main class="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <main class="flex-1 p-4 sm:p-6 lg:p-8 w-full mx-auto grid grid-cols-1 xl:grid-cols-3 gap-6">
 
         <!-- LEFT & CENTER FEED COLUMNS (SPAN 2) -->
         <div class="xl:col-span-2 space-y-6">
@@ -414,11 +430,16 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
 
   <script>
     async function setTheme(mode) {
-      document.documentElement.setAttribute('data-theme-mode', mode);
+      if (!['light', 'dark', 'high-contrast'].includes(mode)) return;
+      const html = document.documentElement;
+      html.setAttribute('data-theme-mode', mode);
+      html.classList.remove('dark', 'high-contrast');
+      if (mode === 'dark') html.classList.add('dark');
+      if (mode === 'high-contrast') html.classList.add('high-contrast');
+      localStorage.setItem('mosaix_theme_mode', mode);
       try {
         await fetch('/api/theme?mode=' + mode, { method: 'POST' });
       } catch (e) {}
-      window.location.reload();
     }
 
     function toggleSecondarySidebar() {
