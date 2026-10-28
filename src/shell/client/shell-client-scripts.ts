@@ -173,6 +173,10 @@ export function getShellClientScripts(): string {
         };
 
         // Presence Status Management
+        // The presence selector (and its toast) only exists on authenticated
+        // pages where renderUserSwitcherWidget() rendered the user menu.
+        // On anonymous pages (login, register, public BAC) the element is
+        // absent - never fire a presence toast for unauthenticated visitors.
         window.updatePresenceStatus = function(status) {
           localStorage.setItem('mosaix_presence_status', status);
           const dots = document.querySelectorAll('.user-presence-dot');
@@ -188,7 +192,11 @@ export function getShellClientScripts(): string {
           });
           const textEl = document.getElementById('usermenu-presence-text');
           if (textEl) textEl.textContent = current.text;
-          window.showToast('Statut de présence : ' + current.text, 'info', 2000);
+          // Only announce presence changes when the authenticated user menu
+          // is actually rendered. Anonymous visitors have no presence UI.
+          if (textEl) {
+            window.showToast('Statut de présence : ' + current.text, 'info', 2000);
+          }
         };
 
         // Tenant Context Switcher

@@ -12,11 +12,11 @@ import {
   renderPrimarySidebar,
   renderSecondarySidebar,
   PRIMARY_RAIL_SHARED_CSS,
-} from "./renderer";
-import { getShellClientScripts } from "./client/shell-client-scripts";
-import { ANONYMOUS_NAV_PROFILE } from "./bac-access";
-import { buildNavProfile } from "./bac-access";
-import { USER_PROFILES } from "./profiles";
+} from "./renderer.js";
+import { getShellClientScripts } from "./client/shell-client-scripts.js";
+import { ANONYMOUS_NAV_PROFILE } from "./bac-access.js";
+import { buildNavProfile } from "./bac-access.js";
+import { USER_PROFILES } from "./profiles.js";
 
 const GUEST = ANONYMOUS_NAV_PROFILE;
 const MEMBER = USER_PROFILES.member;

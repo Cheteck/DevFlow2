@@ -64,7 +64,7 @@ describe("HTTP Auth Bridge Routes Integration & Security Gate Suite (AUTH-08 & A
       process.env.NODE_ENV = "production";
       process.env.MOSAIX_DEMO_USERS = "false";
 
-      expect(() => new InMemorySecretsAdapter()).toThrow("[Security] InMemorySecretsAdapter is forbidden in production");
+      expect(() => new InMemorySecretsAdapter()).toThrow("[ProductionInvariantViolation]");
     } finally {
       process.env.NODE_ENV = origNodeEnv;
       process.env.MOSAIX_DEMO_USERS = origDemoMode;

@@ -12,8 +12,8 @@ import { URL } from "node:url";
 import {
   buildSsrAuthContext,
   readOpaqueSessionId,
-} from "./ssr-auth-context";
-import { renderAuthButtons } from "./renderer";
+} from "./ssr-auth-context.js";
+import { renderAuthButtons } from "./renderer.js";
 
 function reqWithCookie(cookie: string): http.IncomingMessage {
   return { headers: { cookie } } as http.IncomingMessage;

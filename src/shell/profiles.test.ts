@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type * as http from "node:http";
 import { URL } from "node:url";
-import { isDemoMode, getActiveUserProfile, USER_PROFILES, LOCAL_USER_PROFILE } from "./profiles";
+import { isDemoMode, getActiveUserProfile, USER_PROFILES, LOCAL_USER_PROFILE } from "./profiles.js";
 
 describe("demo mode", () => {
   const originalEnv = process.env;

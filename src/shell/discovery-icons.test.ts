@@ -16,7 +16,7 @@ import {
   renderBacIcon,
   FALLBACK_BAC_ICON,
   discoverApps,
-} from "./discovery";
+} from "./discovery.js";
 
 describe("resolveManifestIcon", () => {
   it("returns the manifest icon when valid", () => {

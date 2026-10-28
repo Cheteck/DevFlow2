@@ -15,9 +15,9 @@ import {
   buildNavProfile,
   resolveSafeNext,
   ANONYMOUS_NAV_PROFILE,
-} from "./bac-access";
-import type { SsrAuthContext } from "./ssr-auth-context";
-import type { UserProfile } from "./profiles";
+} from "./bac-access.js";
+import type { SsrAuthContext } from "./ssr-auth-context.js";
+import type { UserProfile } from "./profiles.js";
 
 const ANON: SsrAuthContext = { kind: "anonymous" };
 const MEMBER: SsrAuthContext = {
