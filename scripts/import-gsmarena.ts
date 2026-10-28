@@ -21,7 +21,16 @@
 import * as fs from "node:fs";
 import type { MCPToolRegistry } from "@mosaix/mcp";
 import type { PortfolioBACClient } from "@mosaix/mcp";
-import type { VendableRepository } from "@apps/portfolio";
+// VendableRepository is loaded dynamically at runtime via workspace loader;
+// the @apps/portfolio path alias is not configured in tsconfig.
+// Structural interface mirroring VendableRepository (domain port).
+type VendableRepository = {
+  save(v: unknown): Promise<void> | void;
+  findById(id: string): Promise<unknown> | unknown;
+  findByReference(ref: string): Promise<unknown> | unknown;
+  findAll(): Promise<unknown[]> | unknown[];
+  delete(id: string): Promise<void> | void;
+};
 import type { DatabasePort } from "@mosaix/ports-database";
 
 /**

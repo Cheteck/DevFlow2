@@ -137,11 +137,11 @@ async function main(): Promise<void> {
   const tools = new MCPToolRegistry();
   const resources = new MCPResourceRegistry();
   const prompts = new MCPPromptRegistry();
-  registerSpacesTools(tools, createSpacesBACClient(new SpaceService(new PostgresSpaceRepository(db))));
+  registerSpacesTools(tools, createSpacesBACClient(new SpaceService(new PostgresSpaceRepository(db)) as never));
   registerPortfolioTools(tools, createPortfolioBACClient(new PortfolioService(new PostgresVendableRepository(db)) as never));
   registerCommerceTools(
     tools,
-    createCommerceBACClient(new CommerceOfferService(new PostgresCommerceOfferRepository(db))),
+    createCommerceBACClient(new CommerceOfferService(new PostgresCommerceOfferRepository(db)) as never),
   );
   void resources;
   void prompts;

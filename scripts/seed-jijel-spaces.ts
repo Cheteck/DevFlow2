@@ -159,7 +159,7 @@ async function main(): Promise<void> {
     const tools = new MCPToolRegistry();
     const resources = new MCPResourceRegistry();
     const prompts = new MCPPromptRegistry();
-    const client = createSpacesBACClient(service);
+    const client = createSpacesBACClient(service as never);
     registerSpacesTools(tools, client);
     const gateway = new MCPGateway(tools, resources, prompts);
 
