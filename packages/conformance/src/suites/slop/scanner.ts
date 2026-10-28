@@ -6,9 +6,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
 import { SlopRule } from "./rules.js";
-import { loadSlopConfig, SlopAllowEntry } from "./config.ts";
+import { loadSlopConfig } from "./config.ts";
 import { resolveScopeFiles, SlopScopeName } from "./scope.ts";
-import { globMatch, isAllowed, toPosix } from "../integrity/allowlist.js";
+import { globMatch, isAllowed } from "../integrity/allowlist.js";
 
 export interface SlopFinding {
   ruleId: string;
@@ -58,13 +58,13 @@ export function scanSlop(options: SlopScanOptions = {}): SlopReportJson {
   const findings: SlopFinding[] = [];
 
   const globalAllowPatterns = [
-    ...(config.globalAllow.map((a) => a.path)),
+    ...config.globalAllow.map((a) => a.path),
     ...(options.allow ?? []),
   ];
 
   for (const fileRel of targetFiles) {
     const fullPath = path.join(rootDir, fileRel);
-    let content = "";
+    let content: string;
     try {
       content = fs.readFileSync(fullPath, "utf-8");
     } catch {
@@ -79,7 +79,7 @@ export function scanSlop(options: SlopScanOptions = {}): SlopReportJson {
 
       // Check specific SlopAllowEntry with ruleId match
       const isExplicitlyAllowed = config.globalAllow.some(
-        (entry) => entry.ruleId === rule.id && globMatch(entry.path, fileRel)
+        (entry) => entry.ruleId === rule.id && globMatch(entry.path, fileRel),
       );
       if (isExplicitlyAllowed) continue;
 
@@ -92,7 +92,11 @@ export function scanSlop(options: SlopScanOptions = {}): SlopReportJson {
         const lineNum = idx + 1;
         const colNum = match.index + 1;
         const fingerprintSrc = `${rule.id}:${fileRel}:${lineNum}:${colNum}`;
-        const fingerprint = crypto.createHash("sha256").update(fingerprintSrc).digest("hex").slice(0, 16);
+        const fingerprint = crypto
+          .createHash("sha256")
+          .update(fingerprintSrc)
+          .digest("hex")
+          .slice(0, 16);
 
         findings.push({
           ruleId: rule.id,
@@ -115,13 +119,15 @@ export function scanSlop(options: SlopScanOptions = {}): SlopReportJson {
     (a, b) =>
       a.path.localeCompare(b.path) ||
       a.line - b.line ||
-      a.ruleId.localeCompare(b.ruleId)
+      a.ruleId.localeCompare(b.ruleId),
   );
 
   const errorCount = findings.filter((f) => f.severity === "error").length;
   const warnCount = findings.filter((f) => f.severity === "warn").length;
 
-  const pass = isStrict ? errorCount === 0 && warnCount === 0 : errorCount === 0;
+  const pass = isStrict
+    ? errorCount === 0 && warnCount === 0
+    : errorCount === 0;
 
   return {
     version: 1,

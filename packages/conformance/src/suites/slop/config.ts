@@ -4,7 +4,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { SlopRule, SLOP_RULES, SlopSeverity } from "./rules.js";
+import { SlopRule, SLOP_RULES } from "./rules.js";
 import { SlopExecutionError, SlopScopeName } from "./scope.js";
 
 export interface SlopAllowEntry {
@@ -31,7 +31,9 @@ export interface ResolvedSlopConfig {
   globalAllow: SlopAllowEntry[];
 }
 
-export function loadSlopConfig(rootDir: string = process.cwd()): ResolvedSlopConfig {
+export function loadSlopConfig(
+  rootDir: string = process.cwd(),
+): ResolvedSlopConfig {
   const configPath = path.join(rootDir, ".slop.json");
 
   let rawConfig: SlopConfigFile = {};
@@ -41,7 +43,7 @@ export function loadSlopConfig(rootDir: string = process.cwd()): ResolvedSlopCon
       rawConfig = JSON.parse(content) as SlopConfigFile;
     } catch (err) {
       throw new SlopExecutionError(
-        `Invalid .slop.json configuration at '${configPath}': ${err instanceof Error ? err.message : String(err)}`
+        `Invalid .slop.json configuration at '${configPath}': ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }
@@ -53,7 +55,7 @@ export function loadSlopConfig(rootDir: string = process.cwd()): ResolvedSlopCon
     for (const ruleId of Object.keys(rawConfig.rules)) {
       if (!validRuleIds.has(ruleId)) {
         throw new SlopExecutionError(
-          `Invalid .slop.json configuration: unknown rule ID '${ruleId}'.`
+          `Invalid .slop.json configuration: unknown rule ID '${ruleId}'.`,
         );
       }
     }

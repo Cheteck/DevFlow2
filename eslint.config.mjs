@@ -70,6 +70,7 @@ const ignores = [
   "**/*.cjs",
   "**/*.mjs",
   "**/*.d.ts",
+  "remotion/.agents/**",
 ];
 
 export default [
@@ -107,24 +108,116 @@ export default [
           default: "disallow",
           rules: [
             { from: "framework-foundation", allow: ["framework-foundation"] },
-            { from: "framework-port", allow: ["framework-port", "framework-foundation"] },
-            { from: "framework-adapter", allow: ["framework-adapter", "framework-port", "framework-foundation"] },
-            { from: "framework-primitive", allow: ["framework-primitive", "framework-port", "framework-foundation"] },
-            { from: "runtime-entry", allow: ["runtime-entry", "framework-primitive", "framework-port", "framework-foundation"] },
-            { from: "sdk", allow: ["sdk", "framework-primitive", "framework-port", "framework-foundation"] },
-            { from: "dev-tooling", allow: ["dev-tooling", "sdk", "framework-primitive", "framework-port", "framework-foundation"] },
+            {
+              from: "framework-port",
+              allow: ["framework-port", "framework-foundation"],
+            },
+            {
+              from: "framework-adapter",
+              allow: [
+                "framework-adapter",
+                "framework-port",
+                "framework-foundation",
+              ],
+            },
+            {
+              from: "framework-primitive",
+              allow: [
+                "framework-primitive",
+                "framework-port",
+                "framework-foundation",
+              ],
+            },
+            {
+              from: "runtime-entry",
+              allow: [
+                "runtime-entry",
+                "framework-primitive",
+                "framework-port",
+                "framework-foundation",
+              ],
+            },
+            {
+              from: "sdk",
+              allow: [
+                "sdk",
+                "framework-primitive",
+                "framework-port",
+                "framework-foundation",
+              ],
+            },
+            {
+              from: "dev-tooling",
+              allow: [
+                "dev-tooling",
+                "sdk",
+                "framework-primitive",
+                "framework-port",
+                "framework-foundation",
+              ],
+            },
             { from: "app-domain", allow: ["framework-foundation", "sdk"] },
-            { from: "app-application", allow: ["app-domain", "framework-foundation", "sdk"] },
-            { from: "app-infrastructure", allow: ["app-infrastructure", "app-application", "app-domain", "framework-port", "framework-adapter", "framework-foundation", "sdk"] },
-            { from: "app-composition-root", allow: ["app-general", "app-domain", "app-application", "app-infrastructure", "sdk", "framework-primitive", "framework-port", "framework-adapter", "framework-foundation"] },
-            { from: "app-general", allow: ["app-general", "sdk", "framework-primitive", "framework-port", "framework-foundation"] },
-            { from: "plugin", allow: ["plugin", "sdk", "framework-foundation"] },
+            {
+              from: "app-application",
+              allow: ["app-domain", "framework-foundation", "sdk"],
+            },
+            {
+              from: "app-infrastructure",
+              allow: [
+                "app-infrastructure",
+                "app-application",
+                "app-domain",
+                "framework-port",
+                "framework-adapter",
+                "framework-foundation",
+                "sdk",
+              ],
+            },
+            {
+              from: "app-composition-root",
+              allow: [
+                "app-general",
+                "app-domain",
+                "app-application",
+                "app-infrastructure",
+                "sdk",
+                "framework-primitive",
+                "framework-port",
+                "framework-adapter",
+                "framework-foundation",
+              ],
+            },
+            {
+              from: "app-general",
+              allow: [
+                "app-general",
+                "sdk",
+                "framework-primitive",
+                "framework-port",
+                "framework-foundation",
+              ],
+            },
+            {
+              from: "plugin",
+              allow: ["plugin", "sdk", "framework-foundation"],
+            },
             // Server orchestration: BAC internals forbidden — use
             // apps/<bac>/src/composition-root.ts (public contract).
             // NOTE: boundaries only sees *resolvable* specifiers; the repo's
             // ESM `.js` suffixes rarely resolve, so the real enforcement is
             // the `no-restricted-imports` block below (specifier strings).
-            { from: "server", allow: ["server", "app-composition-root", "sdk", "framework-primitive", "framework-port", "framework-foundation", "framework-adapter"] },
+            {
+              from: "server",
+              allow: [
+                "server",
+                "app-composition-root",
+                "sdk",
+                "framework-primitive",
+                "framework-port",
+                "framework-foundation",
+                "framework-adapter",
+              ],
+            },
           ],
         },
       ],
@@ -183,7 +276,8 @@ export default [
                 "../../../apps/*/src/application/**",
                 "../../../apps/*/src/commands/**",
               ],
-              message: "src/server must not import BAC internal layers — use the BAC public composition contract (apps/<bac>/src/composition-root.ts).",
+              message:
+                "src/server must not import BAC internal layers — use the BAC public composition contract (apps/<bac>/src/composition-root.ts).",
             },
           ],
         },
@@ -196,8 +290,10 @@ export default [
       "no-restricted-syntax": [
         "error",
         {
-          selector: "ImportExpression > Literal[value=/\\/apps\\/[^/]+\\/src\\/(domain|infrastructure|presentation|application|commands)\\//]",
-          message: "src/server must not dynamically import BAC internal layers — use the BAC public composition contract (apps/<bac>/src/composition-root.ts).",
+          selector:
+            "ImportExpression > Literal[value=/\\/apps\\/[^/]+\\/src\\/(domain|infrastructure|presentation|application|commands)\\//]",
+          message:
+            "src/server must not dynamically import BAC internal layers — use the BAC public composition contract (apps/<bac>/src/composition-root.ts).",
         },
         {
           selector:

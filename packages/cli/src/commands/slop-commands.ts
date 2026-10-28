@@ -3,7 +3,7 @@
  */
 
 import type { CliCommand, CommandContext, CLIResult } from "../command.js";
-import { scanSlop, SlopScopeName, SlopExecutionError } from "@mosaix/conformance";
+import { scanSlop, SlopScopeName } from "@mosaix/conformance";
 
 export const SLOP_EXIT_CODES = {
   SUCCESS: 0,
@@ -19,7 +19,7 @@ export class CheckSlopCommand implements CliCommand {
     let scopes: SlopScopeName[] = ["code"];
     let base = "origin/main";
     let isStrict = false;
-    let allowGlobs: string[] = [];
+    const allowGlobs: string[] = [];
 
     // Parse CLI arguments
     for (const arg of ctx.args) {
@@ -51,24 +51,32 @@ export class CheckSlopCommand implements CliCommand {
       if (ctx.isJson) {
         console.log(JSON.stringify(report, null, 2));
       } else {
-        console.log(`[mosaix slop] Analyzed ${report.summary.totalFilesAnalyzed} files.`);
+        console.log(
+          `[mosaix slop] Analyzed ${report.summary.totalFilesAnalyzed} files.`,
+        );
         if (report.findings.length === 0) {
           console.log("[mosaix slop] OK - No slop findings detected.");
         } else {
           for (const f of report.findings) {
             const prefix = f.severity === "error" ? "ERROR" : "WARN";
-            console.log(`  [${prefix}] ${f.path}:${f.line}:${f.column} — ${f.ruleId} (${f.alias}): ${f.message}`);
+            console.log(
+              `  [${prefix}] ${f.path}:${f.line}:${f.column} — ${f.ruleId} (${f.alias}): ${f.message}`,
+            );
             if (f.excerpt) {
               console.log(`          > ${f.excerpt}`);
             }
           }
-          console.log(`[mosaix slop] Summary: ${report.summary.errorCount} error(s), ${report.summary.warnCount} warning(s).`);
+          console.log(
+            `[mosaix slop] Summary: ${report.summary.errorCount} error(s), ${report.summary.warnCount} warning(s).`,
+          );
         }
       }
 
       return {
         exitCode,
-        message: report.summary.pass ? "Slop check passed." : "Slop check failed.",
+        message: report.summary.pass
+          ? "Slop check passed."
+          : "Slop check failed.",
         data: report,
       };
     } catch (err) {
@@ -83,11 +91,13 @@ export class CheckSlopCommand implements CliCommand {
               error: errorMsg,
             },
             null,
-            2
-          )
+            2,
+          ),
         );
       } else {
-        console.error(`[mosaix slop error] System execution failure: ${errorMsg}`);
+        console.error(
+          `[mosaix slop error] System execution failure: ${errorMsg}`,
+        );
       }
 
       return {

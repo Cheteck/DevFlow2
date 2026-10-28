@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SLOP_RULES } from "./rules.js";
 import { scanSlop } from "./scanner.js";
 import { loadSlopConfig } from "./config.js";
-import { resolveScopeFiles, SlopExecutionError } from "./scope.js";
+import { resolveScopeFiles } from "./scope.js";
 
 describe("Slop Checker Suite (PRD-0012)", () => {
   describe("Rule Catalogue & Pattern Matching", () => {
@@ -39,8 +39,12 @@ describe("Slop Checker Suite (PRD-0012)", () => {
 
     it("SLOP-P0-03 (no-unimplemented) detects 'not implemented' throw stubs", () => {
       const rule = SLOP_RULES.find((r) => r.id === "SLOP-P0-03")!;
-      expect(rule.pattern.test("throw new Error('Not implemented yet');")).toBe(true);
-      expect(rule.pattern.test("throw new Error('Invalid input payload');")).toBe(false);
+      expect(rule.pattern.test("throw new Error('Not implemented yet');")).toBe(
+        true,
+      );
+      expect(
+        rule.pattern.test("throw new Error('Invalid input payload');"),
+      ).toBe(false);
     });
 
     it("SLOP-P0-04 (no-console) detects console.log and ignores comments", () => {
@@ -65,7 +69,11 @@ describe("Slop Checker Suite (PRD-0012)", () => {
     it("SLOP-P0-06 (no-empty-catch) detects empty catch blocks", () => {
       const rule = SLOP_RULES.find((r) => r.id === "SLOP-P0-06")!;
       expect(rule.pattern.test("try { doWork(); } catch (err) {}")).toBe(true);
-      expect(rule.pattern.test("try { doWork(); } catch (err) { console.error(err); }")).toBe(false);
+      expect(
+        rule.pattern.test(
+          "try { doWork(); } catch (err) { console.error(err); }",
+        ),
+      ).toBe(false);
     });
 
     it("SLOP-P0-07 (no-ts-ignore) detects bare @ts-ignore without comment", () => {
@@ -85,7 +93,9 @@ describe("Slop Checker Suite (PRD-0012)", () => {
     it("resolves code scope files excluding tests and archive", () => {
       const files = resolveScopeFiles({ scopes: ["code"] });
       expect(files.length).toBeGreaterThan(0);
-      expect(files.every((f) => f.endsWith(".ts") || f.endsWith(".tsx"))).toBe(true);
+      expect(files.every((f) => f.endsWith(".ts") || f.endsWith(".tsx"))).toBe(
+        true,
+      );
       expect(files.some((f) => f.endsWith(".test.ts"))).toBe(false);
     });
 
