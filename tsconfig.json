@@ -10,5 +10,23 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true
-  }
+  },
+  "include": [
+    "src/**/*.ts",
+    "bootstrap/**/*.ts",
+    "packages/*/src/**/*.ts",
+    "packages/adapters/*/src/**/*.ts",
+    "packages/ports/*/src/**/*.ts",
+    "apps/*/src/**/*.ts",
+    "tests/**/*.ts",
+    "scripts/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".mosaix",
+    "apps/_template",
+    "remotion",
+    "**/*.test.ts"
+  ]
 }
