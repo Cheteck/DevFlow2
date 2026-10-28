@@ -312,14 +312,12 @@ export function getShellClientScripts(): string {
           const html = document.documentElement;
           const current = html.getAttribute('data-theme-mode') || 'dark';
           const nextMode = current === 'dark' ? 'light' : 'dark';
-          
+
           html.setAttribute('data-theme-mode', nextMode);
-          if (nextMode === 'dark') {
-            html.classList.add('dark');
-          } else {
-            html.classList.remove('dark');
-          }
-          
+          html.classList.remove('dark', 'high-contrast');
+          if (nextMode === 'dark') html.classList.add('dark');
+          if (nextMode === 'high-contrast') html.classList.add('high-contrast');
+
           localStorage.setItem('mosaix_theme_mode', nextMode);
           try {
             fetch('/api/theme?mode=' + nextMode, { method: 'POST' });
@@ -477,12 +475,13 @@ export function getShellClientScripts(): string {
           if (presenceSelect) presenceSelect.value = savedStatus;
           window.updatePresenceStatus(savedStatus);
 
-          const savedTheme = localStorage.getItem('mosaix_theme_mode') || 'dark';
-          document.documentElement.setAttribute('data-theme-mode', savedTheme);
-          if (savedTheme === 'dark') {
-            document.documentElement.classList.add('dark');
-          } else {
-            document.documentElement.classList.remove('dark');
+          const savedTheme = localStorage.getItem('mosaix_theme_mode');
+          if (savedTheme) {
+            const html = document.documentElement;
+            html.setAttribute('data-theme-mode', savedTheme);
+            html.classList.remove('dark', 'high-contrast');
+            if (savedTheme === 'dark') html.classList.add('dark');
+            if (savedTheme === 'high-contrast') html.classList.add('high-contrast');
           }
         }, 50);
       })();
