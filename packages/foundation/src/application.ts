@@ -1,5 +1,5 @@
 import { Container } from "@mosaix/container";
-import type { ServiceProvider } from "./service-provider";
+import type { ServiceProvider } from "./service-provider.js";
 
 export class Application extends Container {
   private providers: ServiceProvider[] = [];

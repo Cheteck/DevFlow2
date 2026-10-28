@@ -6,7 +6,7 @@
  * executes. The engine depends only on `@mosaix/ports-database`.
  */
 
-export { computeChecksum } from "./checksum";
+export { computeChecksum } from "./checksum.js";
 export {
   MigrationError,
   MigrationAlreadyAppliedError,
@@ -17,32 +17,32 @@ export {
   MigrationTransactionError,
   MigrationExecutionError,
   MigrationResourceConflictError,
-} from "./errors";
+} from "./errors.js";
 export type {
   Migration,
   MigrationIdParts,
   MigrationProvider,
-} from "./migration";
-export { compareMigrationIds, parseMigrationId } from "./migration";
+} from "./migration.js";
+export { compareMigrationIds, parseMigrationId } from "./migration.js";
 export type {
   MigrationPlan,
   PlannedMigration,
   RollbackTarget,
-} from "./planner";
-export { MigrationPlanner, computeSourceVersion } from "./planner";
-export { DependencyResolver } from "./dependency-resolver";
-export type { MigrationStore, ExecutedMigration } from "./store";
-export { InMemoryMigrationStore } from "./store";
-export { SqlMigrationStore } from "./sql-store";
-export type { RawMigration } from "./registry";
-export { MigrationRegistry, loadMigration } from "./registry";
-export { FileMigrationProvider } from "./file-provider";
-export { MigrationRunner, newBatchId } from "./runner";
-export type { RunResult } from "./runner";
+} from "./planner.js";
+export { MigrationPlanner, computeSourceVersion } from "./planner.js";
+export { DependencyResolver } from "./dependency-resolver.js";
+export type { MigrationStore, ExecutedMigration } from "./store.js";
+export { InMemoryMigrationStore } from "./store.js";
+export { SqlMigrationStore } from "./sql-store.js";
+export type { RawMigration } from "./registry.js";
+export { MigrationRegistry, loadMigration } from "./registry.js";
+export { FileMigrationProvider } from "./file-provider.js";
+export { MigrationRunner, newBatchId } from "./runner.js";
+export type { RunResult } from "./runner.js";
 
 // Re-export CLI command handlers (Phase 5)
-export type { MigrationStatus } from "./cli";
-export { MigrationCLI } from "./cli";
+export type { MigrationStatus } from "./cli.js";
+export { MigrationCLI } from "./cli.js";
 
 // Re-export SchemaBuilder and Grammars for Phase 2
 export type {
@@ -57,10 +57,10 @@ export type {
   RenameColumnBlueprint,
   RenameTableBlueprint,
   CreateIndexBlueprint,
-} from "./schema-builder";
-export { SchemaBuilder, TableBuilder, ColumnBuilder } from "./schema-builder";
-export type { SqlStatement, Grammar } from "./grammar";
-export { SQLiteGrammar, PostgresGrammar } from "./grammar";
+} from "./schema-builder.js";
+export { SchemaBuilder, TableBuilder, ColumnBuilder } from "./schema-builder.js";
+export type { SqlStatement, Grammar } from "./grammar.js";
+export { SQLiteGrammar, PostgresGrammar } from "./grammar.js";
 
 // Re-export the database port so consumers of the engine only depend on
 // @mosaix/migrations for both engine and storage contracts.

@@ -177,26 +177,3 @@ export class InMemoryTracer implements Trace {
     this.traces.length = 0;
   }
 }
-
-/**
- * Bucket of the three observability seams (T-EXT-02). The kernel builds it with
- * in-memory/console defaults, then exposes each seam as an extension service
- * (`logger` / `metrics` / `tracer`) on the context so a custom
- * `ObservabilityModule` can substitute any of them without touching the core.
- */
-export interface ObservabilitySet {
-  logger: Logger;
-  metrics: Metrics;
-  tracer: Trace;
-}
-
-/** Build the default in-memory/console observability set (T-EXT-02). */
-export function defaultObservability(logLevel: LogLevel): ObservabilitySet {
-  return {
-    logger: new ConsoleLogger(logLevel),
-    // eslint-disable-next-line no-restricted-syntax -- telemetrie volatile by-design : metriques/traces en memoire, jamais du stockage metier persistant.
-    metrics: new InMemoryMetrics(),
-    // eslint-disable-next-line no-restricted-syntax -- voir ci-dessus.
-    tracer: new InMemoryTracer(),
-  };
-}

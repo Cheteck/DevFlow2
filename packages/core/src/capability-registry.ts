@@ -7,8 +7,8 @@
  * optional structural input/output validation without external deps.
  */
 
-import type { PayloadValidator } from "./event-schema-registry";
-import { CapabilityError, RegistrationError } from "./kernel-errors";
+import type { PayloadValidator } from "./event-schema-registry.js";
+import { CapabilityError, RegistrationError } from "./kernel-errors.js";
 
 export type CapabilityAvailability = "available" | "deprecated" | "removed";
 

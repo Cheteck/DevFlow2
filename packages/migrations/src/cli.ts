@@ -1,7 +1,7 @@
-import type { MigrationRegistry } from "./registry";
-import { MigrationPlanner } from "./planner";
-import { MigrationRunner } from "./runner";
-import type { MigrationStore } from "./store";
+import type { MigrationRegistry } from "./registry.js";
+import { MigrationPlanner } from "./planner.js";
+import { MigrationRunner } from "./runner.js";
+import type { MigrationStore } from "./store.js";
 import type { DatabasePort } from "@mosaix/ports-database";
 
 export interface MigrationStatus {

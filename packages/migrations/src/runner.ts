@@ -12,10 +12,10 @@
  */
 
 import type { DatabasePort } from "@mosaix/ports-database";
-import { MigrationExecutionError, MigrationLockError } from "./errors";
-import type { MigrationPlan } from "./planner";
-import { parseMigrationId } from "./migration";
-import type { MigrationStore } from "./store";
+import { MigrationExecutionError, MigrationLockError } from "./errors.js";
+import type { MigrationPlan } from "./planner.js";
+import { parseMigrationId } from "./migration.js";
+import type { MigrationStore } from "./store.js";
 
 export interface RunResult {
   readonly applied: readonly string[];

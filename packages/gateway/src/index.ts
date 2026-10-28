@@ -1,7 +1,7 @@
-export * from "./gateway";
+export * from "./gateway.js";
 
-export * from "./rate-limiter";
+export * from "./rate-limiter.js";
 
-export * from "./auth-rate-limiter";
+export * from "./auth-rate-limiter.js";
 
-export * from "./oidc-middleware";
+export * from "./oidc-middleware.js";

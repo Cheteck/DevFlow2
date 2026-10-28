@@ -6,7 +6,7 @@
  */
 
 import type { HttpRequest, HttpResponse } from "@mosaix/http";
-import { RateLimiter, type RateLimiterOptions } from "./rate-limiter";
+import { RateLimiter, type RateLimiterOptions } from "./rate-limiter.js";
 
 export interface AuthRateLimiterOptions {
   /**

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MemoryFeatureFlagsAdapter } from "./index";
+import { MemoryFeatureFlagsAdapter } from "./index.js";
 
 describe("MemoryFeatureFlagsAdapter", () => {
   it("can set and evaluate feature flags", async () => {

@@ -51,7 +51,7 @@ export class PluginSandboxEnvironment {
 
     const context: SandboxedPluginContext<TSettings> = {
       pluginId: manifest.id,
-      targetAppId: manifest.targetAppId,
+      targetAppId: manifest.targetAppId ?? "unknown",
       version: manifest.version,
       capabilities: Object.freeze({ ...injectedCapabilities }),
       permissions: Object.freeze([...grantedPermissions]),

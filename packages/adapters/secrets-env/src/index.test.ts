@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EnvSecretsAdapter } from "./index";
+import { EnvSecretsAdapter } from "./index.js";
 
 describe("EnvSecretsAdapter", () => {
   it("resolves secret from custom source", async () => {

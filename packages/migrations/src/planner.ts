@@ -8,15 +8,15 @@
  * exact same plan (R14).
  */
 
-import { computeChecksum } from "./checksum";
+import { computeChecksum } from "./checksum.js";
 import {
   MigrationChecksumError,
   MigrationMissingError,
   MigrationResourceConflictError,
-} from "./errors";
-import type { Migration } from "./migration";
-import type { MigrationRegistry } from "./registry";
-import type { ExecutedMigration, MigrationStore } from "./store";
+} from "./errors.js";
+import type { Migration } from "./migration.js";
+import type { MigrationRegistry } from "./registry.js";
+import type { ExecutedMigration, MigrationStore } from "./store.js";
 
 /** One step of an immutable migration plan. */
 export interface PlannedMigration {

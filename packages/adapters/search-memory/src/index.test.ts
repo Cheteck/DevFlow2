@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MemorySearchAdapter } from "./index";
+import { MemorySearchAdapter } from "./index.js";
 
 describe("MemorySearchAdapter", () => {
   it("can index, search with filters and pagination, and delete", async () => {

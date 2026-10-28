@@ -9,8 +9,8 @@ import {
   InMemoryMigrationStore,
   MigrationPlanner,
   MigrationRunner,
-} from "./index";
-import type { Migration } from "./index";
+} from "./index.js";
+import type { Migration } from "./index.js";
 import type {
   DatabasePort,
   DatabaseCapabilities,

@@ -1,15 +1,15 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { MCPToolRegistry } from "./tool-registry";
-import { MCPResourceRegistry } from "./resource-registry";
-import { MCPPromptRegistry } from "./prompt-registry";
-import { MCPGateway } from "./server/gateway";
-import { MCPPermissionGate } from "./security/permission-gate";
-import { MCPAuditLogger } from "./security/audit-logger";
-import { MCPRateLimiter } from "./security/rate-limiter";
-import { PlatformToolProvider } from "./providers/platform";
-import { AppToolProvider } from "./providers/app";
-import { WorkflowToolProvider } from "./providers/workflows";
-import { MCPPrincipalResolver } from "./security/principal-resolver";
+import { MCPToolRegistry } from "./tool-registry.js";
+import { MCPResourceRegistry } from "./resource-registry.js";
+import { MCPPromptRegistry } from "./prompt-registry.js";
+import { MCPGateway } from "./server/gateway.js";
+import { MCPPermissionGate } from "./security/permission-gate.js";
+import { MCPAuditLogger } from "./security/audit-logger.js";
+import { MCPRateLimiter } from "./security/rate-limiter.js";
+import { PlatformToolProvider } from "./providers/platform.js";
+import { AppToolProvider } from "./providers/app.js";
+import { WorkflowToolProvider } from "./providers/workflows.js";
+import { MCPPrincipalResolver } from "./security/principal-resolver.js";
 import { JwtService } from "@mosaix/auth";
 
 describe("MosaiX MCP Server Agent Interoperability Layer", () => {

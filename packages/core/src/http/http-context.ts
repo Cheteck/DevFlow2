@@ -1,5 +1,5 @@
 import type { Container } from "@mosaix/container";
-import type { Logger } from "../observability";
+import type { Logger } from "../observability.js";
 
 /**
  * @mosaix/core — AdonisJS-inspired HTTP Context

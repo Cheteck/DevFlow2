@@ -6,13 +6,13 @@ import { createTypedRegistry } from "@mosaix/support";
 
 import { featureAsync } from "@mosaix/sdk";
 import { CapabilityRegistry } from "@mosaix/intelligence";
-import { MCPToolRegistry, mcpToolRegistry } from "../tool-registry";
-import { MCPResourceRegistry, mcpResourceRegistry } from "../resource-registry";
-import { MCPPromptRegistry, mcpPromptRegistry } from "../prompt-registry";
-import { mcpPermissionGate } from "../security/permission-gate";
-import { validateToolInput } from "../security/input-validator";
-import { mcpRateLimiter } from "../security/rate-limiter";
-import { MCPPrincipalResolver, type MCPPrincipal } from "../security/principal-resolver";
+import { MCPToolRegistry, mcpToolRegistry } from "../tool-registry.js";
+import { MCPResourceRegistry, mcpResourceRegistry } from "../resource-registry.js";
+import { MCPPromptRegistry, mcpPromptRegistry } from "../prompt-registry.js";
+import { mcpPermissionGate } from "../security/permission-gate.js";
+import { validateToolInput } from "../security/input-validator.js";
+import { mcpRateLimiter } from "../security/rate-limiter.js";
+import { MCPPrincipalResolver, type MCPPrincipal } from "../security/principal-resolver.js";
 
 export interface JSONRPCRequest {
   jsonrpc: "2.0";

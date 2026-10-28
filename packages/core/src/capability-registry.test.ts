@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { CapabilityRegistry } from "./capability-registry";
-import type { CapabilityEntry } from "./capability-registry";
+import { CapabilityRegistry } from "./capability-registry.js";
+import type { CapabilityEntry } from "./capability-registry.js";
 
 function entry(overrides: Partial<CapabilityEntry> = {}): CapabilityEntry {
   return {

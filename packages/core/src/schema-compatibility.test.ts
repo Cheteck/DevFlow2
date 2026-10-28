@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { EventSchemaCompatibility } from "./schema-compatibility";
+import { EventSchemaCompatibility } from "./schema-compatibility.js";
 
 describe("EventSchemaCompatibility (Phase 6)", () => {
   it("allows compatible minor and patch version increments", () => {

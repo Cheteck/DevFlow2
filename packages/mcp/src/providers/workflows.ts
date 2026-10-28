@@ -2,8 +2,8 @@
  * @mosaix/mcp — Multi-Step Agent Workflow Tool Provider (Option 3)
  */
 
-import { MCPToolRegistry } from "../tool-registry";
-import { MCPPromptRegistry } from "../prompt-registry";
+import { MCPToolRegistry } from "../tool-registry.js";
+import { MCPPromptRegistry } from "../prompt-registry.js";
 
 export class WorkflowToolProvider {
   static register(tools: MCPToolRegistry, prompts: MCPPromptRegistry): void {

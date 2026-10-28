@@ -11,7 +11,7 @@
  */
 
 import type { DatabasePort } from "@mosaix/ports-database";
-import type { ExecutedMigration, MigrationStore } from "./store";
+import type { ExecutedMigration, MigrationStore } from "./store.js";
 
 export class SqlMigrationStore implements MigrationStore {
   private ensured = false;

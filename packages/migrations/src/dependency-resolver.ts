@@ -10,8 +10,8 @@
  *    reste l'autorité sur la cohérence store/registry, R5).
  */
 
-import { compareMigrationIds } from "./migration";
-import type { Migration } from "./migration";
+import { compareMigrationIds } from "./migration.js";
+import type { Migration } from "./migration.js";
 
 function isFramework(id: string): boolean {
   return id === "framework" || id.startsWith("framework.");

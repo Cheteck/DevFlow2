@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { Application } from "./application";
-import { ServiceProvider } from "./service-provider";
+import { Application } from "./application.js";
+import { ServiceProvider } from "./service-provider.js";
 
 class TestServiceProvider extends ServiceProvider {
   register(): void {

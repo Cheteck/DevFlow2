@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { PermissionRegistry } from "./permission";
-import { PolicyEngine } from "./policy-engine";
+import { PermissionRegistry } from "./permission.js";
+import { PolicyEngine } from "./policy-engine.js";
 import type { TenantIdentity } from "@mosaix/types";
 
 const TENANT_A: TenantIdentity = { organizationId: "acme" };

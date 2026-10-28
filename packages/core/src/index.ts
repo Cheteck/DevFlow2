@@ -13,23 +13,23 @@ export {
   ValidationError,
   ServiceNotInstalledError,
   asKernelError,
-} from "./kernel-errors";
-export type { KernelErrorDetails } from "./kernel-errors";
+} from "./kernel-errors.js";
+export type { KernelErrorDetails } from "./kernel-errors.js";
 
 // Identity & traçabilité
-export { createExecutionContext, describeTenant } from "./identity";
+export { createExecutionContext, describeTenant } from "./identity.js";
 export type {
   ApplicationIdentity,
   CapabilityIdentity,
   ExecutionContext,
-} from "./identity";
+} from "./identity.js";
 
 // Observability
 export {
   ConsoleLogger,
   InMemoryMetrics,
   InMemoryTracer,
-} from "./observability";
+} from "./observability.js";
 export type {
   Logger,
   LogRecord,
@@ -39,7 +39,7 @@ export type {
   TraceSpan,
   TraceStatus,
   KernelTrace,
-} from "./observability";
+} from "./observability.js";
 
 // Kernel module system
 export type {
@@ -48,45 +48,45 @@ export type {
   KernelModule,
   KernelServices,
   KernelServiceName,
-} from "./kernel-module";
-export { KERNEL_SERVICE_NAMES } from "./kernel-module";
+} from "./kernel-module.js";
+export { KERNEL_SERVICE_NAMES } from "./kernel-module.js";
 
 // App registry
-export { AppRegistry, ApplicationRegistry } from "./app-registry";
+export { AppRegistry, ApplicationRegistry } from "./app-registry.js";
 
-export { AppLifecycle } from "./lifecycle";
+export { AppLifecycle } from "./lifecycle.js";
 export type {
   LifecycleCallbacks,
   LifecycleObserver,
   LifecycleEvent,
-} from "./lifecycle";
+} from "./lifecycle.js";
 
-export { CapabilityRegistry } from "./capability-registry";
-export { capabilityRegistry } from "./capability";
+export { CapabilityRegistry } from "./capability-registry.js";
+export { capabilityRegistry } from "./capability.js";
 export type {
   CapabilityEntry,
   CapabilityAvailability,
-} from "./capability-registry";
+} from "./capability-registry.js";
 
-export { EventSchemaRegistry } from "./event-schema-registry";
+export { EventSchemaRegistry } from "./event-schema-registry.js";
 export type {
   EventSchemaEntry,
   PayloadValidator,
-} from "./event-schema-registry";
+} from "./event-schema-registry.js";
 
-export { DomainEventBus, EventStore } from "./event-bus";
+export { DomainEventBus, EventStore } from "./event-bus.js";
 export type {
   EventHandler,
   EventStoreEntry,
   RetryPolicy,
   DeadLetterEntry,
-} from "./event-bus";
+} from "./event-bus.js";
 
-export { PermissionRegistry, AuthorizationEngine } from "./permission";
-export type { RegisteredPermissionDefinition } from "./permission";
+export { PermissionRegistry, AuthorizationEngine } from "./permission.js";
+export type { RegisteredPermissionDefinition } from "./permission.js";
 
-export { RuntimeKernel } from "./kernel";
-export type { KernelHooks, KernelOptions } from "./kernel";
+export { RuntimeKernel } from "./kernel.js";
+export type { KernelHooks, KernelOptions } from "./kernel.js";
 
 export {
   CapabilitiesModule,
@@ -97,72 +97,72 @@ export {
   InfrastructureModule,
   DatabaseModule,
   defaultModules,
-} from "./modules";
+} from "./modules/index.js";
 export type {
   ObservabilityModuleOptions,
   InfrastructureModuleOptions,
   DatabaseModuleOptions,
   DatabaseService,
-} from "./modules";
-export { PLUGIN_SERVICE } from "./modules";
+} from "./modules/index.js";
+export { PLUGIN_SERVICE } from "./modules/index.js";
 
 // ─── Plugin Registry (T-EXT-04) ───────────────────────────────
-export { PluginRegistry, extensionPointKey } from "./plugin/plugin-registry";
-export type { PluginEntry } from "./plugin/plugin-registry";
+export { PluginRegistry, extensionPointKey } from "./plugin/plugin-registry.js";
+export type { PluginEntry } from "./plugin/plugin-registry.js";
 export {
   PluginError,
   PluginRegistrationError,
   PluginLifecycleError,
-} from "./plugin/plugin-errors";
+} from "./plugin/plugin-errors.js";
 
 // ─── Dedicated Theme System (@mosaix/theme) ────────────────
 export * from "@mosaix/theme";
 
-export * from "./database-resolver";
+export * from "./database-resolver.js";
 
-export * from "./component-lifecycle";
+export * from "./component-lifecycle.js";
 
-export * from "./context-registry";
-export * from "./composition-resolver";
+export * from "./context-registry.js";
+export * from "./composition-resolver.js";
 export * from "./composition-override-manager.js";
 
-export * from "./application-runtime";
-export { ApplicationDiscovery } from "./app-discovery";
+export * from "./application-runtime.js";
+export { ApplicationDiscovery } from "./app-discovery.js";
 
 // Env module (AdonisJS-inspired)
-export { Env, EnvManager } from "./env/env";
+export { Env, EnvManager } from "./env/env.js";
 export {
   baseEnvSchema,
   validateEnv,
   resolvePort,
   loadEnvFile,
-} from "./env/env.schema";
-export type { BaseEnv, NormalizedEnv } from "./env/env.schema";
+} from "./env/env.schema.js";
+export type { BaseEnv, NormalizedEnv } from "./env/env.schema.js";
 
 // Service Providers (AdonisJS-inspired) & IoC Container
-export { BaseServiceProvider } from "./providers/base-service-provider";
+export { BaseServiceProvider } from "./providers/base-service-provider.js";
 export * from "@mosaix/container";
 
 // HTTP & Authorization (AdonisJS-inspired)
-export { HttpContext } from "./http/http-context";
-export { ExceptionHandler } from "./http/exception-handler";
-export type { HttpError } from "./http/exception-handler";
-export { MiddlewarePipeline } from "./http/middleware-pipeline";
-export type { HttpHandler, MiddlewareFn } from "./http/middleware-pipeline";
-export { BasePolicy } from "./auth/policy";
+export { HttpContext } from "./http/http-context.js";
+export { ExceptionHandler } from "./http/exception-handler.js";
+export type { HttpError } from "./http/exception-handler.js";
+export { MiddlewarePipeline } from "./http/middleware-pipeline.js";
+export type { HttpHandler, MiddlewareFn } from "./http/middleware-pipeline.js";
+export { BasePolicy } from "./auth/policy.js";
 
 // Shell Registry
-export { shellRegistry } from "./shell-registry";
+export { shellRegistry } from "./shell-registry.js";
 export type {
   ShellAction,
   AdminPage,
   ContextualActionsContext,
   ShellContextualContribution,
   NavigationItemContribution,
-} from "./shell-registry";
+} from "./shell-registry.js";
 
 // Built-in Kernel Modules & Services
-export * from "./modules/index";
+export * from "./modules/index.js";
 
 // Effective Permission Resolver & Value Objects
 export {
@@ -170,7 +170,7 @@ export {
   UserAuthorizationContext,
   effectivePermissionResolver,
   matchPermissionPattern,
-} from "./effective-permission-resolver";
+} from "./effective-permission-resolver.js";
 export type {
   PermissionEffect,
   PermissionSource,
@@ -178,9 +178,9 @@ export type {
   ResolverContext,
   RolePermissionRule,
   UserPermissionOverride,
-} from "./effective-permission-resolver";
+} from "./effective-permission-resolver.js";
 
-export { Money, Timestamp } from "./value-objects";
+export { Money, Timestamp } from "./value-objects.js";
 
 // Platform Settings & BAC Orchestration
 export * from "./platform-settings.js";

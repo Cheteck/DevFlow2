@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PinoLoggerAdapter } from "./index";
+import { PinoLoggerAdapter } from "./index.js";
 
 describe("PinoLoggerAdapter", () => {
   it("can log messages and metadata", () => {

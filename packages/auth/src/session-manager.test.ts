@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { SessionStore } from "@mosaix/contracts";
 import type { IdGeneratorPort } from "@mosaix/ports-id";
-import { SessionManager } from "./session-manager";
+import { SessionManager } from "./session-manager.js";
 
 function makeSessionStore(overrides: Partial<SessionStore> = {}): SessionStore {
   return {

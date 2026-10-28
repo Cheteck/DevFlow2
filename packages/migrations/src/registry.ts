@@ -5,11 +5,11 @@
  * Simplified Laravel-like Multi-App Migration Architecture.
  */
 
-export { computeChecksum } from "./checksum";
-import { computeChecksum } from "./checksum";
-import { MigrationConflictError } from "./errors";
-import type { Migration, MigrationProvider } from "./migration";
-import { compareMigrationIds } from "./migration";
+export { computeChecksum } from "./checksum.js";
+import { computeChecksum } from "./checksum.js";
+import { MigrationConflictError } from "./errors.js";
+import type { Migration, MigrationProvider } from "./migration.js";
+import { compareMigrationIds } from "./migration.js";
 
 export interface RawMigration {
   readonly id: string;

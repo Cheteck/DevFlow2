@@ -11,7 +11,7 @@ import type {
   PermissionString,
   TenantIdentity,
 } from "@mosaix/types";
-import { EventError } from "./kernel-errors";
+import { EventError } from "./kernel-errors.js";
 
 // ─── Event Store (tenant-scoped, in-memory) ────────────────────
 

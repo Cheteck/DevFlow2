@@ -2,7 +2,7 @@ import type {
   Blueprint,
   ColumnDefinition,
   CreateTableBlueprint,
-} from "./schema-builder";
+} from "./schema-builder.js";
 
 export interface SqlStatement {
   readonly sql: string;

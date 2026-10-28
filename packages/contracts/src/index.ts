@@ -38,7 +38,7 @@ export type { ApplicationPermissions } from "./application/application-permissio
 export type { ApplicationExperienceContract } from "./application/application-experience.js";
 
 // ─── Plugin ────────────────────────────────────────────────────
-export type { PluginManifest, SlotContribution, PluginPermission, PluginHookDeclaration, PluginSettingsSchema, PluginPublisher } from "./plugin/plugin-manifest.js";
+export type { PluginManifest, SlotContribution, PluginPermission, PluginHookDeclaration, PluginSettingsSchema, PluginPublisher, JSONSchemaType, JSONSchemaProperty } from "./plugin/plugin-manifest.js";
 export type { PluginLifecycleContract } from "./plugin/plugin-lifecycle.js";
 export type { PluginPermissions } from "./plugin/plugin-permissions.js";
 export { PLUGIN_EXTENSION_POINTS } from "./plugin/plugin-extension.js";

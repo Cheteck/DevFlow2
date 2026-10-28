@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { FetchHttpAdapter } from "./index";
+import { FetchHttpAdapter } from "./index.js";
 
 describe("FetchHttpAdapter", () => {
   afterEach(() => {

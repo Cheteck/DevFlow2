@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from "vitest";
 import { SESClient } from "@aws-sdk/client-ses";
-import { SesEmailAdapter } from "./index";
+import { SesEmailAdapter } from "./index.js";
 
 describe("SesEmailAdapter", () => {
   it("interacts with SESClient correctly", async () => {

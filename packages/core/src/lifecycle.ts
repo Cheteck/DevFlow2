@@ -19,7 +19,7 @@
 
 import type { AppStatus } from "@mosaix/types";
 
-import { LifecycleError } from "./kernel-errors";
+import { LifecycleError } from "./kernel-errors.js";
 
 export interface LifecycleCallbacks {
   onInitializing?: () => Promise<void> | void;

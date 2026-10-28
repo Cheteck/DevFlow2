@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from "vitest";
 import { S3Client } from "@aws-sdk/client-s3";
-import { S3StorageAdapter } from "./index";
+import { S3StorageAdapter } from "./index.js";
 
 interface MockS3Client {
   send(command: any): Promise<any>;

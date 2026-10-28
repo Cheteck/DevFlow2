@@ -2,7 +2,7 @@
  * @mosaix/mcp — BAC Application Tool Provider (Multi-BAC Integration Hub)
  */
 
-import { MCPToolRegistry } from "../tool-registry";
+import { MCPToolRegistry } from "../tool-registry.js";
 
 export class AppToolProvider {
   static register(tools: MCPToolRegistry): void {

@@ -3,7 +3,7 @@
  */
 
 import type { DatabasePort } from "@mosaix/ports-database";
-import { QueryBuilder, type SQLDialect } from "./query-builder";
+import { QueryBuilder, type SQLDialect } from "./query-builder.js";
 
 export abstract class Model {
   id!: string | number;

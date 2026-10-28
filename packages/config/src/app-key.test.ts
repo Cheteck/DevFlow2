@@ -11,7 +11,7 @@ import {
   MissingAppKeyError,
   InvalidAppKeyError,
   APP_KEY_PREFIX,
-} from "./app-key";
+} from "./app-key.js";
 
 describe("app-key (Laravel-style)", () => {
   it("generates base64: keys decoding to 32 bytes", () => {

@@ -1,4 +1,4 @@
-import type { FeedPost, FeedReaction, FeedComment, SocialActorType, FeedTargetType } from "./index";
+import type { FeedPost, FeedReaction, FeedComment, SocialActorType, FeedTargetType } from "./index.js";
 
 export interface Queryable {
   execute(sql: string, params?: readonly unknown[]): Promise<number>;

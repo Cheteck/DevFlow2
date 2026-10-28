@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AppDatabaseResolver } from "./database-resolver";
+import { AppDatabaseResolver } from "./database-resolver.js";
 
 describe("Framework Dogfooding & Wiring Verification", () => {
   it("resolves per-app database connections dynamically", () => {

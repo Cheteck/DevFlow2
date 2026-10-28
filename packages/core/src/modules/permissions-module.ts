@@ -4,8 +4,8 @@
  * Provides the permission registry and the authorization engine.
  */
 
-import { AuthorizationEngine, PermissionRegistry } from "../permission";
-import type { KernelContext, KernelModule } from "../kernel-module";
+import { AuthorizationEngine, PermissionRegistry } from "../permission.js";
+import type { KernelContext, KernelModule } from "../kernel-module.js";
 
 export class PermissionsModule implements KernelModule {
   readonly name = "permissions";

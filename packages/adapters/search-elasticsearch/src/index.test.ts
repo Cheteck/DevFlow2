@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from "vitest";
 import { Client } from "@elastic/elasticsearch";
-import { ElasticsearchSearchAdapter } from "./index";
+import { ElasticsearchSearchAdapter } from "./index.js";
 
 describe("ElasticsearchSearchAdapter", () => {
   it("interacts with Elasticsearch Client methods correctly", async () => {

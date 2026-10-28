@@ -8,8 +8,8 @@
  */
 
 import type { DatabasePort } from "@mosaix/ports-database";
-import type { KernelContext, KernelModule } from "../kernel-module";
-import { AppDatabaseResolver } from "../database-resolver";
+import type { KernelContext, KernelModule } from "../kernel-module.js";
+import { AppDatabaseResolver } from "../database-resolver.js";
 
 export interface DatabaseModuleOptions {
   /** Map of application ID to its corresponding database adapter instance */

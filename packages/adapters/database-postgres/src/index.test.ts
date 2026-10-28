@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { PostgresDatabaseAdapter, PostgresPoolManager } from "./index";
-import type { PgClient, PgQueryResult } from "./index";
+import { PostgresDatabaseAdapter, PostgresPoolManager } from "./index.js";
+import type { PgClient, PgQueryResult } from "./index.js";
 
 class MockPgClient implements PgClient {
   readonly queries: string[] = [];

@@ -1,4 +1,4 @@
-import { env } from "./env";
+import { env } from "./env.js";
 
 function deepFreeze<T>(obj: T): T {
   if (obj === null || typeof obj !== "object") {

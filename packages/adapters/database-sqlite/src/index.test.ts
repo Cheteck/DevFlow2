@@ -5,7 +5,7 @@ import {
   MigrationRunner,
   InMemoryMigrationStore,
 } from "@mosaix/migrations";
-import { SQLiteDatabaseAdapter } from "./index";
+import { SQLiteDatabaseAdapter } from "./index.js";
 
 function rawMigration(
   id: string,

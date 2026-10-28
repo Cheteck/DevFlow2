@@ -2,7 +2,7 @@
  * @mosaix/events — Outbox Background Polling Daemon with Messaging Adapter Routing
  */
 
-import type { OutboxWorker } from "./outbox-worker";
+import type { OutboxWorker } from "./outbox-worker.js";
 
 export interface MessagingPublisher {
   publish: (eventType: string, payload: unknown) => Promise<void>;

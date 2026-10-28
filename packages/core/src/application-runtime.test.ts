@@ -2,11 +2,11 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { Container } from "@mosaix/container";
 import type { ServiceProvider } from "@mosaix/container";
 import type { ApplicationDefinition, ContextManifest } from "@mosaix/contracts";
-import { ContextRegistry } from "./context-registry";
-import { ApplicationCompositionResolver } from "./composition-resolver";
-import { PlatformApplicationRuntime } from "./application-runtime";
-import { capabilityRegistry } from "./capability";
-import { runtimeLifecycleEngine } from "./component-lifecycle";
+import { ContextRegistry } from "./context-registry.js";
+import { ApplicationCompositionResolver } from "./composition-resolver.js";
+import { PlatformApplicationRuntime } from "./application-runtime.js";
+import { capabilityRegistry } from "./capability.js";
+import { runtimeLifecycleEngine } from "./component-lifecycle.js";
 
 describe("MosaiX Application Runtime v1.0", () => {
   let registry: ContextRegistry;

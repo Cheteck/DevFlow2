@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from "vitest";
 import LDClient from "launchdarkly-node-server-sdk";
-import { LaunchDarklyFeatureFlagsAdapter } from "./index";
+import { LaunchDarklyFeatureFlagsAdapter } from "./index.js";
 
 describe("LaunchDarklyFeatureFlagsAdapter", () => {
   it("interacts with LaunchDarkly Client variation correctly", async () => {

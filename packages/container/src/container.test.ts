@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Container } from "./container";
+import { Container } from "./container.js";
 
 describe("Container", () => {
   it("should bind and resolve a simple value", () => {

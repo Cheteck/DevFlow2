@@ -1,4 +1,4 @@
-import type { HttpContext } from "./http-context";
+import type { HttpContext } from "./http-context.js";
 
 export type HttpHandler<T = unknown> = (ctx: HttpContext) => Promise<T> | T;
 export type MiddlewareFn<T = unknown> = (ctx: HttpContext, next: () => Promise<T>) => Promise<T> | T;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PluginLifecycleManager } from "./plugin-lifecycle";
+import { PluginLifecycleManager } from "./plugin-lifecycle.js";
 
 describe("PluginLifecycleManager (Phase 10)", () => {
   it("transitions cleanly through lifecycle states", async () => {

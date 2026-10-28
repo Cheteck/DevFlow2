@@ -4,8 +4,8 @@
  * Provides the capability registry (versioning, availability, discovery).
  */
 
-import { CapabilityRegistry } from "../capability-registry";
-import type { KernelContext, KernelModule } from "../kernel-module";
+import { CapabilityRegistry } from "../capability-registry.js";
+import type { KernelContext, KernelModule } from "../kernel-module.js";
 
 export class CapabilitiesModule implements KernelModule {
   readonly name = "capabilities";

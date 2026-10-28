@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { TokenStore } from "@mosaix/contracts";
 import type { IdGeneratorPort } from "@mosaix/ports-id";
-import { TokenManager } from "./token-manager";
+import { TokenManager } from "./token-manager.js";
 
 function makeTokenStore(overrides: Partial<TokenStore> = {}): TokenStore {
   return {

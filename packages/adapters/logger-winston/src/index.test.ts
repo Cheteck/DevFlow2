@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import winston from "winston";
-import { WinstonLoggerAdapter } from "./index";
+import { WinstonLoggerAdapter } from "./index.js";
 
 class MemoryTransport extends winston.transports.Console {
   public logs: Record<string, unknown>[] = [];

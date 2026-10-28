@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { generateKeyPairSync } from "node:crypto";
-import { NodeCryptoAdapter } from "./index";
+import { NodeCryptoAdapter } from "./index.js";
 
 describe("NodeCryptoAdapter", () => {
   it("can hash, encrypt/decrypt with AES-GCM, and sign/verify", async () => {

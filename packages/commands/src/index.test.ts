@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CommandBus, type Command, type CommandHandler } from "./commands";
+import { CommandBus, type Command, type CommandHandler } from "./commands.js";
 
 describe("CommandBus", () => {
   interface CreateUserCommand extends Command<{ name: string }> {

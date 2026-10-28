@@ -3,7 +3,7 @@
  */
 
 import type { PermissionString, TenantIdentity } from "@mosaix/types";
-import type { PermissionRegistry } from "./permission";
+import type { PermissionRegistry } from "./permission.js";
 
 export interface Role {
   readonly name: string;

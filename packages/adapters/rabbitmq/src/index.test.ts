@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from "vitest";
 import amqp from "amqplib";
-import { RabbitMqPubSubAdapter } from "./index";
+import { RabbitMqPubSubAdapter } from "./index.js";
 
 describe("RabbitMqPubSubAdapter", () => {
   it("interacts with amqplib channel methods correctly", async () => {

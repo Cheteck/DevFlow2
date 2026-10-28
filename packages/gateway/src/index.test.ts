@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from "vitest";
 import * as crypto from "node:crypto";
 import { Router } from "@mosaix/http";
-import { Gateway, validateJwt, isPublicRoute } from "./gateway";
+import { Gateway, validateJwt, isPublicRoute } from "./gateway.js";
 
 function createMockJwt(secret: string): string {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");

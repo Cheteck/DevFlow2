@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from "vitest";
-import { SmtpEmailAdapter } from "./index";
+import { SmtpEmailAdapter } from "./index.js";
 
 describe("SmtpEmailAdapter", () => {
   it("sends mail using mock transporter", async () => {

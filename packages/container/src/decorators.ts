@@ -2,7 +2,7 @@
  * @mosaix/container — DI Decorators
  */
 
-import type { InjectionToken } from "./container";
+import type { InjectionToken } from "./container.js";
 
 export function Injectable() {
   return function (target: unknown) {

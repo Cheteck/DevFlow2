@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AppConformanceValidator } from "./index";
+import { AppConformanceValidator } from "./index.js";
 
 describe("MOSAIX-APP Conformance Validator Suite", () => {
   it("validates a single valid application manifest", () => {

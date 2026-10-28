@@ -12,8 +12,8 @@
  * kernel.
  */
 
-import type { KernelContext, KernelModule } from "../kernel-module";
-import { PluginRegistry } from "../plugin/plugin-registry";
+import type { KernelContext, KernelModule } from "../kernel-module.js";
+import { PluginRegistry } from "../plugin/plugin-registry.js";
 
 export const PLUGIN_SERVICE = "plugins" as const;
 

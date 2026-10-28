@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Controller, HttpRequest, Router } from "./http";
+import { Controller, HttpRequest, Router } from "./http.js";
 
 class UserController extends Controller {
   getUser(req: HttpRequest) {

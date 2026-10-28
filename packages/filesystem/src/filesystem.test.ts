@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Filesystem } from "./filesystem";
+import { Filesystem } from "./filesystem.js";
 import type { StoragePort } from "@mosaix/ports-storage";
 
 class FakeStorageStore implements StoragePort {

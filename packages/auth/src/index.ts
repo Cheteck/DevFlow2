@@ -14,38 +14,38 @@
  * It only knows MosaiX ports.
  */
 
-export { AuthManager } from "./auth-manager";
-export type { AuthManagerOptions, AuthenticationOutcome } from "./auth-manager";
+export { AuthManager } from "./auth-manager.js";
+export type { AuthManagerOptions, AuthenticationOutcome } from "./auth-manager.js";
 
-export { ProviderRegistry } from "./provider-registry";
-export type { ProviderRegistryOptions } from "./provider-registry";
+export { ProviderRegistry } from "./provider-registry.js";
+export type { ProviderRegistryOptions } from "./provider-registry.js";
 
-export { SessionManager } from "./session-manager";
-export type { SessionManagerOptions } from "./session-manager";
+export { SessionManager } from "./session-manager.js";
+export type { SessionManagerOptions } from "./session-manager.js";
 
-export { SessionResolver } from "./session-resolver";
-export type { PlatformSessionContext } from "./session-resolver";
+export { SessionResolver } from "./session-resolver.js";
+export type { PlatformSessionContext } from "./session-resolver.js";
 
-export { ChallengeManager } from "./challenge-manager";
-export type { ChallengeManagerOptions, Challenge } from "./challenge-manager";
+export { ChallengeManager } from "./challenge-manager.js";
+export type { ChallengeManagerOptions, Challenge } from "./challenge-manager.js";
 
-export { TokenManager } from "./token-manager";
-export type { TokenManagerOptions } from "./token-manager";
+export { TokenManager } from "./token-manager.js";
+export type { TokenManagerOptions } from "./token-manager.js";
 
 export {
   JwtService,
   resolveJwtSecret,
   resolveJwtPreviousSecrets,
   resolveJwtSecrets,
-} from "./jwt-service";
-export type { PlatformJwtPayload, JwtServiceOptions } from "./jwt-service";
+} from "./jwt-service.js";
+export type { PlatformJwtPayload, JwtServiceOptions } from "./jwt-service.js";
 
-export * from "./oidc-bridge";
-export * from "./oauth/oauth-types";
-export * from "./oauth/social-auth-provider";
-export * from "./oauth/social-auth-service";
-export * from "./oauth/providers/google-provider";
-export * from "./oauth/providers/apple-provider";
-export * from "./oauth/providers/microsoft-provider";
-export * from "./oauth/providers/github-provider";
-export * from "./oauth/providers/facebook-provider";
+export * from "./oidc-bridge.js";
+export * from "./oauth/oauth-types.js";
+export * from "./oauth/social-auth-provider.js";
+export * from "./oauth/social-auth-service.js";
+export * from "./oauth/providers/google-provider.js";
+export * from "./oauth/providers/apple-provider.js";
+export * from "./oauth/providers/microsoft-provider.js";
+export * from "./oauth/providers/github-provider.js";
+export * from "./oauth/providers/facebook-provider.js";

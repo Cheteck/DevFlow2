@@ -2,8 +2,8 @@
  * @mosaix/mcp — Platform & Kernel Tool/Resource Provider
  */
 
-import { MCPToolRegistry } from "../tool-registry";
-import { MCPResourceRegistry } from "../resource-registry";
+import { MCPToolRegistry } from "../tool-registry.js";
+import { MCPResourceRegistry } from "../resource-registry.js";
 import { capabilityRegistry, contextRegistry, runtimeLifecycleEngine } from "@mosaix/core";
 
 export class PlatformToolProvider {

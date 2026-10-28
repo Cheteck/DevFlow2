@@ -2,8 +2,7 @@
  * @mosaix/adapter-session-store-redis – Redis adapter for SessionStore port.
  */
 
-import Redis from "ioredis";
-import type { RedisOptions } from "ioredis";
+import { Redis, type Redis as RedisInstance, type RedisOptions } from "ioredis";
 import type { Session, SessionStore } from "@mosaix/ports-session-store";
 
 export interface RedisSessionStoreOptions {
@@ -46,16 +45,16 @@ class InMemoryRedisClient {
 }
 
 export class RedisSessionStoreAdapter implements SessionStore {
-  private readonly client: Redis | InMemoryRedisClient;
+  private readonly client: RedisInstance | InMemoryRedisClient;
   private readonly keyPrefix: string;
 
-  constructor(clientOrOptions?: Redis | string | RedisSessionStoreOptions) {
+  constructor(clientOrOptions?: RedisInstance | string | RedisSessionStoreOptions) {
     if (
       clientOrOptions &&
       typeof clientOrOptions === "object" &&
-      typeof (clientOrOptions as Redis).get === "function"
+      typeof (clientOrOptions as RedisInstance).get === "function"
     ) {
-      this.client = clientOrOptions as Redis;
+      this.client = clientOrOptions as RedisInstance;
       this.keyPrefix = (clientOrOptions as RedisSessionStoreOptions).keyPrefix ?? "session:";
       return;
     }

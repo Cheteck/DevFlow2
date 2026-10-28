@@ -18,10 +18,10 @@
 import { bench, describe } from "vitest";
 
 import type { ThemeManifest, ThemeResolutionContext } from "@mosaix/contracts";
-import { InMemoryThemeAssignmentsStore } from "../src/theme/in-memory-theme-assignments-store";
-import { ThemeInjector } from "../src/theme/theme-injector";
-import { createThemeRuntime } from "../src/theme/theme-runtime";
-import { ThemeTargetRegistry } from "../src/theme/theme-target-registry";
+import { InMemoryThemeAssignmentsStore } from "@mosaix/theme";
+import { ThemeInjector } from "@mosaix/theme";
+import { createThemeRuntime } from "@mosaix/theme";
+import { ThemeTargetRegistry } from "@mosaix/theme";
 
 // Node has no requestAnimationFrame — install a guarded synchronous fallback
 // so the ≥ 40-root batching path defers to an immediate flush.

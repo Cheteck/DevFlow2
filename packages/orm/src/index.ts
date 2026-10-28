@@ -2,9 +2,9 @@
  * @mosaix/orm — Public Exports
  */
 
-export * from "./query-builder";
-export * from "./repository";
-export * from "./relations";
-export * from "./seeder";
-export * from "./cache";
-export * from "./traits";
+export * from "./query-builder.js";
+export * from "./repository.js";
+export * from "./relations.js";
+export * from "./seeder.js";
+export * from "./cache.js";
+export * from "./traits.js";

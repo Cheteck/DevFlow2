@@ -2,7 +2,7 @@
  * @mosaix/http — OpenAPI v3 Specification Generator
  */
 
-import type { RouteDefinition } from "./http";
+import type { RouteDefinition } from "./http.js";
 
 export class OpenApiGenerator {
   static generateSpec(title: string, version: string, routes: ReadonlyArray<RouteDefinition>): Record<string, unknown> {

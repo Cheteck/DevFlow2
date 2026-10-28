@@ -1,5 +1,5 @@
 import type { ApplicationManifest } from "@mosaix/contracts";
-import { AppLifecycle, type LifecycleCallbacks } from "./lifecycle";
+import { AppLifecycle, type LifecycleCallbacks } from "./lifecycle.js";
 
 export interface AppRegistryEntry {
   manifest: ApplicationManifest;

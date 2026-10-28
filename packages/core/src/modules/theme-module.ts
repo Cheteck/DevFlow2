@@ -18,7 +18,7 @@ import {
   ThemeRuntime,
   ThemeTargetRegistry,
 } from "@mosaix/theme";
-import type { KernelContext, KernelModule } from "../kernel-module";
+import type { KernelContext, KernelModule } from "../kernel-module.js";
 
 export const THEME_SERVICE = "theme" as const;
 

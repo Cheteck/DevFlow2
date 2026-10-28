@@ -9,7 +9,7 @@
  * `ctx.getService<T>(name)`.
  */
 
-import type { KernelContext, KernelModule } from "../kernel-module";
+import type { KernelContext, KernelModule } from "../kernel-module.js";
 
 export interface ClockPortLike {
   now(): Date | string | number;

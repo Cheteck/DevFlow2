@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { UuidGeneratorAdapter } from "./index";
+import { UuidGeneratorAdapter } from "./index.js";
 
 describe("UuidGeneratorAdapter", () => {
   it("generates valid UUID v4 strings", () => {

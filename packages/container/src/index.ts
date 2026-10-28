@@ -1,4 +1,4 @@
-export * from "./container";
+export * from "./container.js";
 
-export * from "./decorators";
-export * from "./di-errors";
+export * from "./decorators.js";
+export * from "./di-errors.js";
