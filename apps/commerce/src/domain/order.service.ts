@@ -125,7 +125,7 @@ export class OrderService {
       appliedPromotionId: snapshot.appliedPromotionId,
       appliedCouponCode: snapshot.appliedCouponCode,
     };
-    order.lineItems = [lineItem];
+    (order as unknown as { lineItems: OrderLineItem[] }).lineItems = [lineItem];
 
     if (params.idempotenceKey) {
       const existing = await this.orderRepository.findByIdempotencyKey(

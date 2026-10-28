@@ -6,8 +6,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
 import { SlopRule } from "./rules.js";
-import { loadSlopConfig } from "./config.ts";
-import { resolveScopeFiles, SlopScopeName } from "./scope.ts";
+import { loadSlopConfig } from "./config.js";
+import { resolveScopeFiles, SlopScopeName } from "./scope.js";
 import { globMatch, isAllowed } from "../integrity/allowlist.js";
 
 export interface SlopFinding {
