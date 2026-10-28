@@ -7,11 +7,25 @@ describe("handleMaintenanceGate (DI)", () => {
     const fakeService = {
       isMaintenanceActive: () => true,
       isUserBypassed: () => false,
-      getMaintenanceStatus: () => ({ reason: "test", estimatedDurationMinutes: 5 }),
+      getMaintenanceStatus: () => ({
+        reason: "test",
+        estimatedDurationMinutes: 5,
+      }),
     };
     const req = {} as http.IncomingMessage;
-    const res = { writeHead: () => {}, end: () => {} } as unknown as http.ServerResponse;
-    const result = handleMaintenanceGate(req, res, "/foo", "guest", "light" as any, "", fakeService as any);
+    const res = {
+      writeHead: () => {},
+      end: () => {},
+    } as unknown as http.ServerResponse;
+    const result = handleMaintenanceGate(
+      req,
+      res,
+      "/foo",
+      "guest",
+      "light" as unknown,
+      "",
+      fakeService as unknown,
+    );
     expect(result).toBe(true);
   });
 });

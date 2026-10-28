@@ -4,7 +4,12 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { URL } from "node:url";
 import { handleMcpRoutes } from "./mcp-routes.js";
 
-function fakeReq(method: string, url: string, body?: string, headers: Record<string, string> = {}): IncomingMessage {
+function fakeReq(
+  method: string,
+  url: string,
+  body?: string,
+  headers: Record<string, string> = {},
+): IncomingMessage {
   const stream = new Readable({
     read() {
       if (body !== undefined) {
@@ -20,7 +25,10 @@ function fakeReq(method: string, url: string, body?: string, headers: Record<str
   }) as unknown as IncomingMessage;
 }
 
-function fakeRes(): { res: ServerResponse; output: { statusCode: number; body: string } } {
+function fakeRes(): {
+  res: ServerResponse;
+  output: { statusCode: number; body: string };
+} {
   const output = { statusCode: 0, body: "" };
   const res = {
     writeHead: (statusCode: number) => {
@@ -56,6 +64,10 @@ describe("MCP over Streamable HTTP (remote config)", () => {
     expect(output.body).toContain("mosaix-mcp");
   });
 
+  // Timeout dédié : ce test déclenche la construction à froid du gateway MCP
+  // (imports dynamiques des 3 BAC portfolio/spaces/commerce) — ~2s isolé,
+  // peut dépasser 5s sous charge parallèle (189 fichiers). Pas d'assertion
+  // affaiblie : le délai absorbe la latence de chargement, pas un comportement.
   it("handles initialize over POST", async () => {
     const { res, output } = fakeRes();
     const handled = await handleMcpRoutes(
@@ -74,9 +86,11 @@ describe("MCP over Streamable HTTP (remote config)", () => {
     );
     expect(handled).toBe(true);
     expect(output.statusCode).toBe(200);
-    const parsed = JSON.parse(output.body) as { result: { protocolVersion: string } };
+    const parsed = JSON.parse(output.body) as {
+      result: { protocolVersion: string };
+    };
     expect(parsed.result.protocolVersion).toBe("2024-11-05");
-  });
+  }, 15000);
 
   it("denies anonymous tools/call over HTTP (MCP-03)", async () => {
     const { res, output } = fakeRes();
@@ -88,7 +102,10 @@ describe("MCP over Streamable HTTP (remote config)", () => {
           jsonrpc: "2.0",
           id: 1,
           method: "tools/call",
-          params: { name: "portfolio_listing_quality_score", arguments: { reference: "R", title: "T" } },
+          params: {
+            name: "portfolio_listing_quality_score",
+            arguments: { reference: "R", title: "T" },
+          },
         }),
       ),
       res,
