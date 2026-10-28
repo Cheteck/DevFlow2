@@ -3,7 +3,11 @@
  * Self-contained SSR presentation layer for MosaiX Citadelle (Identity, Auth, RGPD).
  */
 
-import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
+import type {
+  BacDescriptor,
+  BacExecutionContext,
+  BacRenderResult,
+} from "@mosaix/contracts";
 import { escapeHtml, isDemoMode } from "@mosaix/support";
 
 export function createCitadelleDescriptor(): BacDescriptor {
@@ -12,9 +16,27 @@ export function createCitadelleDescriptor(): BacDescriptor {
   // real data only (empty until identities are registered).
   const USERS = isDemoMode()
     ? [
-        { id: "u-001", name: "Administrateur", email: "admin@mosaix.network", role: "Platform Governor", mfa: "Enabled" },
-        { id: "u-002", name: "Sarah Connor", email: "s.connor@citadelle.io", role: "Support Agent", mfa: "Enabled" },
-        { id: "u-003", name: "John Doe", email: "j.doe@citizen.dz", role: "Citizen", mfa: "Disabled" },
+        {
+          id: "u-001",
+          name: "Administrateur",
+          email: "admin@mosaix.network",
+          role: "Platform Governor",
+          mfa: "Enabled",
+        },
+        {
+          id: "u-002",
+          name: "Sarah Connor",
+          email: "s.connor@citadelle.io",
+          role: "Support Agent",
+          mfa: "Enabled",
+        },
+        {
+          id: "u-003",
+          name: "John Doe",
+          email: "j.doe@citizen.dz",
+          role: "Citizen",
+          mfa: "Disabled",
+        },
       ]
     : [];
 
@@ -37,7 +59,8 @@ export function createCitadelleDescriptor(): BacDescriptor {
 
       let tabContentHtml: string;
       if (tab === "users") {
-        const rowsHtml = USERS.map(u => `
+        const rowsHtml = USERS.map(
+          (u) => `
           <tr class="border-b border-outline-variant/10 hover:bg-surface-variant/20 transition-all text-xs">
             <td class="p-3 font-semibold text-on-surface">${escapeHtml(u.name)}</td>
             <td class="p-3 text-on-surface-variant/90">${escapeHtml(u.email)}</td>
@@ -47,7 +70,7 @@ export function createCitadelleDescriptor(): BacDescriptor {
               </span>
             </td>
             <td class="p-3">
-              <span class="text-[10px] font-bold ${u.mfa === 'Enabled' ? 'text-emerald-400' : 'text-on-surface-variant/60'}">
+              <span class="text-[10px] font-bold ${u.mfa === "Enabled" ? "text-emerald-400" : "text-on-surface-variant/60"}">
                 ${escapeHtml(u.mfa)}
               </span>
             </td>
@@ -57,7 +80,8 @@ export function createCitadelleDescriptor(): BacDescriptor {
               </button>
             </td>
           </tr>
-        `).join("");
+        `,
+        ).join("");
 
         tabContentHtml = `
           <div class="glass-card rounded-2xl border border-outline-variant/20 overflow-hidden">
@@ -77,12 +101,15 @@ export function createCitadelleDescriptor(): BacDescriptor {
                   </tr>
                 </thead>
                 <tbody>
-                  ${rowsHtml || `
+                  ${
+                    rowsHtml ||
+                    `
                   <tr>
                     <td colspan="5" class="p-6 text-center text-xs text-on-surface-variant/70 italic">
                       Aucun utilisateur enregistré. Le registre se remplit à l'inscription des identités réelles.
                     </td>
-                  </tr>`}
+                  </tr>`
+                  }
                 </tbody>
               </table>
             </div>
@@ -120,7 +147,9 @@ export function createCitadelleDescriptor(): BacDescriptor {
                 </div>
               </div>
               <div class="space-y-2">
-                ${isDemoMode() ? `
+                ${
+                  isDemoMode()
+                    ? `
                 <div class="p-3 rounded-xl bg-surface-container-lowest/50 border border-outline-variant/10 flex justify-between items-center text-xs">
                   <div>
                     <h4 class="font-bold">Chrome (Session Actuelle)</h4>
@@ -128,9 +157,11 @@ export function createCitadelleDescriptor(): BacDescriptor {
                   </div>
                   <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Actif</span>
                 </div>
-                ` : `
+                `
+                    : `
                 <p class="p-3 text-center text-xs text-on-surface-variant/70 italic">Aucune session active.</p>
-                `}
+                `
+                }
               </div>
               <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-rose-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Sessions révoquées'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="w-full py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 text-xs font-bold text-rose-400 transition cursor-pointer">
                 Révoquer toutes les autres sessions
@@ -154,7 +185,7 @@ export function createCitadelleDescriptor(): BacDescriptor {
                 </div>
                 <div>
                   <span class="text-[10px] text-on-surface-variant uppercase tracking-wider">Adresse Email</span>
-                  <p class="font-bold text-on-surface mt-0.5">${escapeHtml(user.id === 'admin' ? 'admin@mosaix.network' : 'user@citadelle.io')}</p>
+                  <p class="font-bold text-on-surface mt-0.5">${escapeHtml(user.id === "admin" ? "admin@mosaix.network" : "user@citadelle.io")}</p>
                 </div>
                 <div>
                   <span class="text-[10px] text-on-surface-variant uppercase tracking-wider">Rôle Principal</span>
@@ -190,7 +221,7 @@ export function createCitadelleDescriptor(): BacDescriptor {
         <div class="space-y-6">
           
           <!-- Tab selector / header -->
-          <div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
+          <!--<div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center text-2xl">🛡️</div>
               <div>
@@ -199,19 +230,23 @@ export function createCitadelleDescriptor(): BacDescriptor {
               </div>
             </div>
             <div class="flex gap-2">
-              <a href="/citadelle?tab=profile" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${tab === 'profile' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              <a href="/citadelle?tab=profile" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${tab === "profile" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
                 Mon Profil
               </a>
-              <a href="/citadelle?tab=security" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${tab === 'security' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              <a href="/citadelle?tab=security" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${tab === "security" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
                 Sécurité & MFA
               </a>
-              ${user.roles?.includes("admin") || user.id === "admin" ? `
-                <a href="/citadelle?tab=users" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${tab === 'users' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              ${
+                user.roles?.includes("admin") || user.id === "admin"
+                  ? `
+                <a href="/citadelle?tab=users" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${tab === "users" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
                   Utilisateurs (Admin)
                 </a>
-              ` : ''}
+              `
+                  : ""
+              }
             </div>
-          </div>
+          </div>-->
 
           <!-- Active tab content rendering -->
           ${tabContentHtml}
