@@ -70,12 +70,12 @@ export function createCitadelleDescriptor(): BacDescriptor {
               </span>
             </td>
             <td class="p-3">
-              <span class="text-[10px] font-bold ${u.mfa === "Enabled" ? "text-emerald-400" : "text-on-surface-variant/60"}">
+              <span class="text-[10px] font-bold ${u.mfa === "Enabled" ? "text-success" : "text-on-surface-variant/60"}">
                 ${escapeHtml(u.mfa)}
               </span>
             </td>
             <td class="p-3 text-right">
-              <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Action de gestion lancee'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-[10px] font-semibold text-on-surface cursor-pointer">
+              <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-success text-on-success font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Action de gestion lancee'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-[10px] font-semibold text-on-surface cursor-pointer">
                 Gérer
               </button>
             </td>
@@ -122,7 +122,7 @@ export function createCitadelleDescriptor(): BacDescriptor {
             <!-- MFA Configuration Card -->
             <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
               <div class="flex items-center gap-3">
-                <span class="material-symbols-outlined text-emerald-400 text-2xl">mfa</span>
+                <span class="material-symbols-outlined text-success text-2xl">mfa</span>
                 <div>
                   <h3 class="text-xs font-bold text-on-surface">Double Authentification (MFA / 2FA)</h3>
                   <p class="text-[10px] text-on-surface-variant mt-0.5">Sécurisez votre compte en exigeant un code temporaire TOTP.</p>
@@ -130,9 +130,9 @@ export function createCitadelleDescriptor(): BacDescriptor {
               </div>
               <div class="p-3 rounded-xl bg-surface-container-lowest border border-outline-variant/15 flex items-center justify-between">
                 <span class="text-xs font-semibold text-on-surface">Statut MFA :</span>
-                <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Activé (TOTP)</span>
+                <span class="text-[10px] font-bold text-success uppercase tracking-wider">Activé (TOTP)</span>
               </div>
-              <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Clé MFA réinitialisée'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="w-full py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 text-xs font-bold text-on-surface transition cursor-pointer">
+              <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-success text-on-success font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Clé MFA réinitialisée'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="w-full py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 text-xs font-bold text-on-surface transition cursor-pointer">
                 Régénérer la clé secrète
               </button>
             </div>
@@ -155,7 +155,7 @@ export function createCitadelleDescriptor(): BacDescriptor {
                     <h4 class="font-bold">Chrome (Session Actuelle)</h4>
                     <p class="text-[9px] text-on-surface-variant">Paris, France • IP: 192.168.1.5</p>
                   </div>
-                  <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Actif</span>
+                  <span class="text-[10px] font-bold text-success uppercase tracking-wider">Actif</span>
                 </div>
                 `
                     : `
@@ -163,7 +163,7 @@ export function createCitadelleDescriptor(): BacDescriptor {
                 `
                 }
               </div>
-              <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-rose-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Sessions révoquées'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="w-full py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 text-xs font-bold text-rose-400 transition cursor-pointer">
+              <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-error text-on-error font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Sessions révoquées'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="w-full py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 text-xs font-bold text-error transition cursor-pointer">
                 Révoquer toutes les autres sessions
               </button>
             </div>
@@ -200,14 +200,14 @@ export function createCitadelleDescriptor(): BacDescriptor {
 
             <!-- GDPR Card -->
             <div class="lg:col-span-4 glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-rose-400">RGPD & Confidentialité</h3>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-error">RGPD & Confidentialité</h3>
               <p class="text-[11px] text-on-surface-variant leading-relaxed font-normal">Conformément aux normes RGPD de la wilaya, vous pouvez demander l'extraction de vos données ou l'anonymisation complète et irréversible de votre compte citoyen.</p>
               
               <div class="space-y-2 pt-2 text-xs">
-                <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Extraction initiée !'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="w-full py-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 font-bold text-on-surface transition cursor-pointer">
+                <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-success text-on-success font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Extraction initiée !'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="w-full py-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 font-bold text-on-surface transition cursor-pointer">
                   Exporter mes données (.json)
                 </button>
-                <button onclick="if(confirm('Voulez-vous anonymiser votre compte ?')){const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-rose-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Compte anonymisé !'; document.body.appendChild(t); setTimeout(()=>window.location.href='/',2000);}" class="w-full py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 font-bold text-rose-400 transition cursor-pointer">
+                <button onclick="if(confirm('Voulez-vous anonymiser votre compte ?')){const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-error text-on-error font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Compte anonymisé !'; document.body.appendChild(t); setTimeout(()=>window.location.href='/',2000);}" class="w-full py-2 rounded-xl bg-error-container hover:bg-error/20 border border-error/20 font-bold text-error transition cursor-pointer">
                   Anonymiser mon compte
                 </button>
               </div>
@@ -221,32 +221,34 @@ export function createCitadelleDescriptor(): BacDescriptor {
         <div class="space-y-6">
           
           <!-- Tab selector / header -->
-          <!--<div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
+          <div class="flex justify-between items-center border-b border-outline-variant/20 pb-4 flex-wrap gap-3">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center text-2xl">🛡️</div>
+              <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center">
+                <span class="material-symbols-outlined text-2xl">shield</span>
+              </div>
               <div>
-                <h1 class="text-sm font-bold text-on-surface">Citadelle IAM</h1>
-                <p class="text-[11px] text-on-surface-variant">Gestion des accès, identités et conformité RGPD</p>
+                <h1 class="text-2xl font-bold text-on-surface tracking-tight">Citadelle IAM</h1>
+                <p class="text-xs text-on-surface-variant">Gestion des accès, identités et conformité RGPD</p>
               </div>
             </div>
             <div class="flex gap-2">
-              <a href="/citadelle?tab=profile" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${tab === "profile" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
+              <a href="/citadelle?tab=profile" class="bac-tab-btn ${tab === "profile" ? "active" : ""}">
                 Mon Profil
               </a>
-              <a href="/citadelle?tab=security" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${tab === "security" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
+              <a href="/citadelle?tab=security" class="bac-tab-btn ${tab === "security" ? "active" : ""}">
                 Sécurité & MFA
               </a>
               ${
                 user.roles?.includes("admin") || user.id === "admin"
                   ? `
-                <a href="/citadelle?tab=users" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${tab === "users" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
+                <a href="/citadelle?tab=users" class="bac-tab-btn ${tab === "users" ? "active" : ""}">
                   Utilisateurs (Admin)
                 </a>
               `
                   : ""
               }
             </div>
-          </div>-->
+          </div>
 
           <!-- Active tab content rendering -->
           ${tabContentHtml}

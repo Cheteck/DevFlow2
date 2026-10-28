@@ -11,7 +11,7 @@ export const BookingAdminPageView = {
             <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Gestionnaire des Créneaux & Rendez-vous</h3>
             <p class="text-xs text-on-surface-variant mt-1">Configuration des disponibilités calendaires, créneaux ouverts et réservations confirmées.</p>
           </div>
-          <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Nouveau créneau horaire ajouté avec succès !'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-semibold flex items-center gap-1.5 transition hover:opacity-90 cursor-pointer">
+          <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-success text-on-success font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Nouveau créneau horaire ajouté avec succès !'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-semibold flex items-center gap-1.5 transition hover:opacity-90 cursor-pointer">
             <span class="material-symbols-outlined text-sm">more_time</span> Ajouter Créneau
           </button>
         </div>
@@ -20,7 +20,7 @@ export const BookingAdminPageView = {
           <div class="p-5 rounded-2xl bg-surface-container/50 border border-outline-variant/20 space-y-3">
             <div class="flex items-center justify-between">
               <span class="font-bold text-xs text-on-surface">Consultation 45m</span>
-              <span class="text-[10px] text-emerald-400 font-semibold uppercase">Disponible</span>
+              <span class="text-[10px] text-success font-semibold uppercase">Disponible</span>
             </div>
             <p class="text-[11px] text-on-surface-variant">Lundi - Vendredi · 09:00 - 18:00</p>
             <div class="text-xs font-mono tabular-nums font-bold text-primary">85.00 €</div>
@@ -36,10 +36,10 @@ export const BookingAdminPageView = {
           <div class="p-5 rounded-2xl bg-surface-container/50 border border-outline-variant/20 space-y-3">
             <div class="flex items-center justify-between">
               <span class="font-bold text-xs text-on-surface">Session Découverte</span>
-              <span class="text-[10px] text-emerald-400 font-semibold uppercase">Gratuit</span>
+              <span class="text-[10px] text-success font-semibold uppercase">Gratuit</span>
             </div>
             <p class="text-[11px] text-on-surface-variant">Tous les vendredis · 30 min</p>
-            <div class="text-xs font-mono tabular-nums font-bold text-emerald-400">0.00 €</div>
+            <div class="text-xs font-mono tabular-nums font-bold text-success">0.00 €</div>
           </div>
         </div>
       </div>
@@ -72,42 +72,40 @@ export const BookingPageView = {
   ownerApp: "@apps/booking",
   render(): string {
     return `
-      <div class="max-w-6xl mx-auto space-y-6" data-testid="booking-main-view">
+      <div data-testid="booking-main-view" class="space-y-6">
         
         <!-- Header -->
-        <div class="space-y-4">
-          <div class="flex justify-between items-center flex-wrap gap-4">
-            <div>
-              <h1 class="text-sm font-bold text-on-surface uppercase tracking-wider">Moteur de Réservation MosaiX</h1>
-              <p class="text-xs text-on-surface-variant mt-1">Plateforme unifiée de planification : Services, Ressources, Groupes & Multi-Prestations.</p>
-            </div>
-            <div class="flex gap-2">
-              <button onclick="switchBookingTab('catalog')" id="btn-tab-catalog" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold transition cursor-pointer">Catalogue & Créneaux</button>
-              <button onclick="switchBookingTab('my-bookings')" id="btn-tab-my" class="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-on-surface-variant hover:text-on-surface text-xs font-bold transition cursor-pointer">Mes Réservations</button>
-              <button onclick="toggleBookingForm()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer">
-                <span>+ Publier Créneau</span>
-              </button>
-            </div>
+        <div class="flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-outline-variant/20">
+          <div>
+            <h1 class="text-2xl font-bold text-on-surface tracking-tight">Moteur de Réservation MosaiX</h1>
+            <p class="text-xs text-on-surface-variant mt-1">Plateforme unifiée de planification : Services, Ressources, Groupes & Multi-Prestations.</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="switchBookingTab('catalog')" id="btn-tab-catalog" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold transition cursor-pointer">Catalogue & Créneaux</button>
+            <button onclick="switchBookingTab('my-bookings')" id="btn-tab-my" class="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-on-surface-variant hover:text-on-surface text-xs font-bold transition cursor-pointer">Mes Réservations</button>
+            <button onclick="toggleBookingForm()" class="px-4 py-2 rounded-xl bg-success hover:bg-success-hover text-on-success text-xs font-bold flex items-center gap-1.5 transition cursor-pointer">
+              <span class="material-symbols-outlined text-sm">add</span> Publier Créneau
+            </button>
           </div>
         </div>
 
         <!-- Metrics Overview -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="p-5 rounded-2xl bg-surface-container-high/40 border border-outline-variant/15 flex flex-col gap-1">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Créneaux Ouverts</span>
-            <span class="text-xl font-bold text-primary font-mono tabular-nums" id="stats-available-count">3</span>
+          <div class="bac-kpi-card">
+            <span class="bac-kpi-label">Créneaux Ouverts</span>
+            <span class="bac-kpi-value" id="stats-available-count">3</span>
           </div>
-          <div class="p-5 rounded-2xl bg-surface-container-high/40 border border-outline-variant/15 flex flex-col gap-1">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Capacité Globale</span>
-            <span class="text-xl font-bold text-primary font-mono tabular-nums" id="stats-capacity-count">15</span>
+          <div class="bac-kpi-card">
+            <span class="bac-kpi-label">Capacité Globale</span>
+            <span class="bac-kpi-value" id="stats-capacity-count">15</span>
           </div>
-          <div class="p-5 rounded-2xl bg-surface-container-high/40 border border-outline-variant/15 flex flex-col gap-1">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Réservations Actives</span>
-            <span class="text-xl font-bold text-primary font-mono tabular-nums" id="stats-confirmed-count">7</span>
+          <div class="bac-kpi-card">
+            <span class="bac-kpi-label">Réservations Actives</span>
+            <span class="bac-kpi-value" id="stats-confirmed-count">7</span>
           </div>
-          <div class="p-5 rounded-2xl bg-surface-container-high/40 border border-outline-variant/15 flex flex-col gap-1">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Timezone Context</span>
-            <span class="text-sm font-bold text-emerald-400">Europe/Paris</span>
+          <div class="bac-kpi-card">
+            <span class="bac-kpi-label">Timezone Context</span>
+            <span class="text-sm font-bold text-success">Europe/Paris</span>
           </div>
         </div>
 
@@ -158,7 +156,7 @@ export const BookingPageView = {
             <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 flex flex-col justify-between hover:border-primary/40 transition duration-200" data-category="service">
               <div class="space-y-3">
                 <div class="flex justify-between items-start">
-                  <span class="text-[10px] text-emerald-400 font-bold uppercase">Disponible · 1 place</span>
+                  <span class="text-[10px] text-success font-bold uppercase">Disponible · 1 place</span>
                   <span class="text-xs font-mono tabular-nums text-primary font-bold">85.00 €</span>
                 </div>
                 <div>
@@ -173,8 +171,8 @@ export const BookingPageView = {
             <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 flex flex-col justify-between hover:border-primary/40 transition duration-200" data-category="group">
               <div class="space-y-3">
                 <div class="flex justify-between items-start">
-                  <span class="text-[10px] text-emerald-400 font-bold uppercase">Disponible · 7 places rest. / 10</span>
-                  <span class="text-xs font-mono tabular-nums text-emerald-400 font-bold">Gratuit</span>
+                  <span class="text-[10px] text-success font-bold uppercase">Disponible · 7 places rest. / 10</span>
+                  <span class="text-xs font-mono tabular-nums text-success font-bold">Gratuit</span>
                 </div>
                 <div>
                   <h3 class="text-xs font-bold text-on-surface">Atelier Collaboratif — Économie Circulaire</h3>
@@ -188,7 +186,7 @@ export const BookingPageView = {
             <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 flex flex-col justify-between opacity-80 hover:opacity-100 hover:border-primary/40 transition duration-200" data-category="resource">
               <div class="space-y-3">
                 <div class="flex justify-between items-start">
-                  <span class="text-[10px] text-rose-400 font-bold uppercase">Complet · Liste d'attente</span>
+                  <span class="text-[10px] text-error font-bold uppercase">Complet · Liste d'attente</span>
                   <span class="text-xs font-mono tabular-nums text-primary font-bold">250.00 €</span>
                 </div>
                 <div>
@@ -210,7 +208,7 @@ export const BookingPageView = {
             <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 flex flex-col justify-between space-y-4">
               <div class="space-y-3">
                 <div class="flex justify-between items-start">
-                  <span class="text-[10px] text-emerald-400 font-bold uppercase">Confirmé</span>
+                  <span class="text-[10px] text-success font-bold uppercase">Confirmé</span>
                   <span class="text-[10px] font-mono text-on-surface-variant">Réf: #RES-8492</span>
                 </div>
                 <div>
@@ -219,7 +217,7 @@ export const BookingPageView = {
                 </div>
               </div>
               <div class="flex gap-2 text-xs font-semibold">
-                <button onclick="cancelRes('RES-8492')" class="px-3.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 flex-1 transition cursor-pointer">Annuler</button>
+                <button onclick="cancelRes('RES-8492')" class="px-3.5 py-1.5 rounded-lg bg-error-container hover:bg-error-container/80 border border-error/20 text-error flex-1 transition cursor-pointer">Annuler</button>
                 <button onclick="showBookingNotice('Rappel synchro calendrier actif !', 'info')" class="px-3.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 text-on-surface-variant hover:text-on-surface flex-1 transition cursor-pointer">Calendrier</button>
               </div>
             </div>
@@ -301,7 +299,7 @@ export const BookingPageView = {
           newCard.innerHTML = \`
             <div class="space-y-3">
               <div class="flex justify-between items-start">
-                <span class="text-[10px] text-emerald-400 font-bold uppercase">Disponible · \${safeCap} places</span>
+                <span class="text-[10px] text-success font-bold uppercase">Disponible · \${safeCap} places</span>
                 <span class="text-xs font-mono tabular-nums text-primary font-bold">\${safePrice.toFixed(2)} €</span>
               </div>
               <div>
@@ -331,8 +329,8 @@ export const BookingPageView = {
 
         function showBookingNotice(message, type) {
           const t = document.createElement('div');
-          t.className = 'fixed bottom-6 right-6 p-4 rounded-xl text-white font-bold text-xs shadow-lg transition-all duration-300 z-50 ' + 
-            (type === 'error' ? 'bg-rose-500' : 'bg-emerald-500');
+          t.className = 'fixed bottom-6 right-6 p-4 rounded-xl font-bold text-xs shadow-lg transition-all duration-300 z-50 ' + 
+            (type === 'error' ? 'bg-error text-on-error' : 'bg-success text-on-success');
           t.textContent = message;
           document.body.appendChild(t);
           setTimeout(() => t.remove(), 3000);

@@ -182,7 +182,7 @@ export function createCommerceDescriptor(deps: CommerceDescriptorDeps = {}): Bac
             </div>
             <div class="p-4 space-y-3 flex flex-col flex-1">
               <div class="flex items-center gap-1.5 text-[11px] min-w-0">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-success shrink-0"></span>
                 <span class="font-medium text-on-surface-variant truncate">${escapeHtml(o.seller.name ?? o.seller.id)}</span>
               </div>
               <h3 class="text-xs font-bold text-on-surface leading-snug line-clamp-2 min-h-[2rem]">${escapeHtml(o.title)}</h3>
@@ -275,7 +275,7 @@ export function createCommerceDescriptor(deps: CommerceDescriptorDeps = {}): Bac
       // Compact in-view tabs (the shell header already shows the title —
       // no duplicated header block here).
       const contentHtml = `
-        <div class="space-y-5">
+        <div class="space-y-6">
           <div class="flex items-center justify-between gap-2 border-b border-outline-variant/15">
           <div class="flex gap-1">
             <a href="/commerce?view=offers" class="px-4 py-2 text-xs font-bold transition border-b-2 -mb-px ${view === 'offers' ? "border-primary text-primary" : "border-transparent text-on-surface-variant hover:text-on-surface"}">
@@ -345,17 +345,17 @@ export function formatMoneyStrict(priceInCents: number, currency: string, locale
 
 /** Strict monetary display is the only formatter; invalid data throws. */
 function availabilityToneClass(tone: "ok" | "warn" | "out" | "unknown"): string {
-  if (tone === "warn") return "text-amber-400";
-  if (tone === "out") return "text-rose-400";
+  if (tone === "warn") return "text-warning";
+  if (tone === "out") return "text-error";
   if (tone === "unknown") return "text-on-surface-variant";
-  return "text-emerald-400";
+  return "text-success";
 }
 
 function availabilityDotClass(tone: "ok" | "warn" | "out" | "unknown"): string {
-  if (tone === "warn") return "bg-amber-400";
-  if (tone === "out") return "bg-rose-400";
-  if (tone === "unknown") return "bg-slate-400";
-  return "bg-emerald-400";
+  if (tone === "warn") return "bg-warning";
+  if (tone === "out") return "bg-error";
+  if (tone === "unknown") return "bg-surface-container-highest";
+  return "bg-success";
 }
 
 function formatOrderDate(value: unknown): string {

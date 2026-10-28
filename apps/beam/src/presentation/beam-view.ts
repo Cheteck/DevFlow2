@@ -145,8 +145,8 @@ export function createBeamDescriptor(messagingService?: BeamMessagingService): B
                 </div>
                 <div>
                   <h3 class="text-xs font-bold text-on-surface">${escapeHtml(activeConvTitle)}</h3>
-                  <span class="text-[9px] text-emerald-400 font-semibold flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span class="text-[9px] text-success font-semibold flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span>
                     Sécurisé par chiffrement E2E
                   </span>
                 </div>

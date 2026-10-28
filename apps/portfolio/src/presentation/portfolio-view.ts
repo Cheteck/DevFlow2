@@ -1,4 +1,4 @@
-import { createTypedRegistry } from "@mosaix/support";
+import { createTypedRegistry, InMemoryGuard } from "@mosaix/support";
 import type {
   BacDescriptor,
   BacExecutionContext,
@@ -51,7 +51,10 @@ export function overridePortfolioSubView(
 export function createPortfolioView(service?: PortfolioService) {
   const activeService =
     // eslint-disable-next-line no-restricted-syntax
-    service || new PortfolioService(new InMemoryVendableRepository());
+    service || (() => {
+      InMemoryGuard.reportFallback("VendableRepository", "no portfolioService provided to createPortfolioView");
+      return new PortfolioService(new InMemoryVendableRepository());
+    })();
 
   return {
     async render(context: {
@@ -134,8 +137,8 @@ export function createPortfolioView(service?: PortfolioService) {
                 <a href="/portfolio?view=all" class="text-xs text-primary font-bold hover:underline">&larr; Retour au catalogue</a>
                 <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
                   vendable.identity.status === "Published"
-                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                    : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    ? "bg-success-container text-on-success border border-success/20"
+                    : "bg-warning-container text-on-warning border border-warning/20"
                 }">${escapeHtml(vendable.identity.status)}</span>
               </div>
 
@@ -173,7 +176,7 @@ export function createPortfolioView(service?: PortfolioService) {
         } else {
           innerViewHtml = `
             <div class="glass-card p-8 rounded-2xl border border-outline-variant/20 text-center space-y-4">
-              <p class="text-xs text-rose-400 font-bold">Fiche introuvable pour la référence [${escapeHtml(selectedRef)}].</p>
+              <p class="text-xs text-error font-bold">Fiche introuvable pour la référence [${escapeHtml(selectedRef)}].</p>
               <a href="/portfolio?view=all" class="text-xs text-primary font-bold hover:underline">&larr; Retour au catalogue</a>
             </div>
           `;
@@ -193,17 +196,17 @@ export function createPortfolioView(service?: PortfolioService) {
               <div class="glass-card p-4 rounded-2xl border border-outline-variant/20 flex items-center justify-between">
                 <div>
                   <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block">Publiés / Validés</span>
-                  <span class="text-xl font-extrabold text-emerald-400 tabular-nums">${publishedCount}</span>
+                  <span class="text-xl font-extrabold text-success tabular-nums">${publishedCount}</span>
                 </div>
-                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-lg">✅</div>
+                <div class="w-10 h-10 rounded-xl bg-success-container text-on-success flex items-center justify-center font-bold text-lg">✅</div>
               </div>
 
               <div class="glass-card p-4 rounded-2xl border border-outline-variant/20 flex items-center justify-between">
                 <div>
                   <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block">Brouillons (Draft)</span>
-                  <span class="text-xl font-extrabold text-amber-400 tabular-nums">${draftCount}</span>
+                  <span class="text-xl font-extrabold text-warning tabular-nums">${draftCount}</span>
                 </div>
-                <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-lg">⏳</div>
+                <div class="w-10 h-10 rounded-xl bg-warning-container text-on-warning flex items-center justify-center font-bold text-lg">⏳</div>
               </div>
 
               <div class="glass-card p-4 rounded-2xl border border-outline-variant/20 flex items-center justify-between">
@@ -253,7 +256,7 @@ export function createPortfolioView(service?: PortfolioService) {
                         <td class="py-3 font-mono text-primary">${escapeHtml(v.identity.reference)}</td>
                         <td>${escapeHtml(v.content.fr?.name || v.content.en?.name || v.identity.reference)}</td>
                         <td><span class="px-2 py-0.5 rounded bg-surface-container text-[10px]">${escapeHtml(v.identity.type)}</span></td>
-                        <td><span class="text-emerald-400 font-bold">${escapeHtml(v.identity.status)}</span></td>
+                        <td><span class="text-success font-bold">${escapeHtml(v.identity.status)}</span></td>
                       </tr>
                     `,
                       )
@@ -328,10 +331,10 @@ export function createPortfolioView(service?: PortfolioService) {
                 <h3 class="text-xs font-bold text-on-surface">${escapeHtml(v.content.fr?.name || v.content.en?.name || v.identity.reference)}</h3>
                 <span class="text-[10px] font-bold uppercase tracking-wider ${
                   v.identity.status === "Published"
-                    ? "text-emerald-400"
+                    ? "text-success"
                     : v.identity.status === "Draft"
                       ? "text-on-surface-variant/50"
-                      : "text-amber-400"
+                      : "text-warning"
                 }">
                   ${escapeHtml(v.identity.status)}
                 </span>
@@ -380,35 +383,20 @@ export function createPortfolioView(service?: PortfolioService) {
 
       const contentHtml = `
         <div class="space-y-6">
-          <!-- <div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center text-2xl">🎨</div>
-              <div>
-                <h1 class="text-sm font-bold text-on-surface">Portfolio Catalog (BAC Domain v2.0)</h1>
-                <p class="text-[11px] text-on-surface-variant">Gestion de catalogue de vendables (CS-Cart EAV, Modèles de Variantes, Validation Qualité)</p>
-              </div>
+          <div class="bac-page-header">
+            <div>
+              <h1>Portfolio Catalog</h1>
+              <p class="bac-page-subtitle">Gestion de catalogue de vendables (CS-Cart EAV, Modèles de Variantes, Validation Qualité)</p>
             </div>
             <div class="flex gap-2 flex-wrap">
-              <a href="/portfolio?view=dashboard" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === "dashboard" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
-                Dashboard
-              </a>
-              <a href="/portfolio?view=all" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === "all" || view === "detail" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
-                Tous les Produits
-              </a>
-              <a href="/portfolio?view=features" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === "features" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
-                Caractéristiques EAV
-              </a>
-              <a href="/portfolio?view=categories" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === "categories" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
-                Catégories
-              </a>
-              <a href="/portfolio?view=proposals" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === "proposals" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
-                Propositions
-              </a>
-              <a href="/portfolio?view=bulk" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === "bulk" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
-                Import/Export
-              </a>
+              <a href="/portfolio?view=dashboard" class="bac-tab-btn ${view === "dashboard" ? "active" : ""}">Dashboard</a>
+              <a href="/portfolio?view=all" class="bac-tab-btn ${view === "all" || view === "detail" ? "active" : ""}">Tous les Produits</a>
+              <a href="/portfolio?view=features" class="bac-tab-btn ${view === "features" ? "active" : ""}">Caractéristiques EAV</a>
+              <a href="/portfolio?view=categories" class="bac-tab-btn ${view === "categories" ? "active" : ""}">Catégories</a>
+              <a href="/portfolio?view=proposals" class="bac-tab-btn ${view === "proposals" ? "active" : ""}">Propositions</a>
+              <a href="/portfolio?view=bulk" class="bac-tab-btn ${view === "bulk" ? "active" : ""}">Import/Export</a>
             </div>
-          </div>-->
+          </div>
 
           ${innerViewHtml}
         </div>

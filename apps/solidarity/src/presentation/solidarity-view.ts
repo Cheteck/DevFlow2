@@ -96,7 +96,7 @@ function needCard(n: OpsNeed): string {
           <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 flex flex-col justify-between hover:border-primary/40 transition duration-200">
             <div class="space-y-3">
               <div class="flex items-center justify-between gap-2">
-                <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${n.status === "OPEN" ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" : "bg-surface-container text-on-surface-variant"} font-mono">
+                <span class="bac-badge ${n.status === "OPEN" ? "bac-badge-warning" : "bac-badge-neutral"}">
                   ${n.status}
                 </span>
                 <span class="text-[10px] font-mono text-on-surface-variant">#${escapeHtml(n.id)}</span>
@@ -179,7 +179,7 @@ export function createSolidarityDescriptor(
               ${
                 isAdmin
                   ? `
-                <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Signalement enregistre pour qualification'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center gap-1 cursor-pointer">
+                <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-success text-on-success font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Signalement enregistre pour qualification'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center gap-1 cursor-pointer">
                   <span class="material-symbols-outlined text-sm">add_circle</span>
                   <span>Signaler un besoin</span>
                 </button>
@@ -218,7 +218,7 @@ export function createSolidarityDescriptor(
                   <h4 class="font-bold">Rapport OCHA — export HXL v1</h4>
                   <p class="text-[10px] text-on-surface-variant">#crisis+name, #adm1+code, #indicator+num+needed, #indicator+num+distributed, #indicator+pct+coverage</p>
                 </div>
-                <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Export du rapport HXL lance !'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-3.5 py-1.5 rounded-lg bg-primary text-on-primary font-bold text-[10px] cursor-pointer">Exporter HXL</button>
+                <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-success text-on-success font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Export du rapport HXL lancé !'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-3.5 py-1.5 rounded-lg bg-primary text-on-primary font-bold text-[10px] cursor-pointer">Exporter HXL</button>
               </div>
             </div>
           </div>
@@ -263,29 +263,18 @@ export function createSolidarityDescriptor(
 
       const contentHtml = `
         <div class="space-y-6">
-          <!-- <div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center text-2xl">🤝</div>
-              <div>
-                <h1 class="text-sm font-bold text-on-surface">Solidarity Hub</h1>
-                <p class="text-[11px] text-on-surface-variant">Besoins, benevoles, missions et conformite OCHA</p>
-              </div>
+          <div class="bac-page-header">
+            <div>
+              <h1>Solidarity Hub</h1>
+              <p class="bac-page-subtitle">Besoins, bénévoles, missions et conformité OCHA</p>
             </div>
             <div class="flex gap-2">
-              <a href="/solidarity?view=list" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === "list" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
-                Operations
-              </a>
-              <a href="/solidarity?view=needs" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === "needs" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
-                Besoins
-              </a>
-              <a href="/solidarity?view=volunteers" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === "volunteers" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
-                Benevoles
-              </a>
-              <a href="/solidarity?view=reports" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === "reports" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
-                Rapports OCHA / HXL
-              </a>
+              <a href="/solidarity?view=list" class="bac-tab-btn ${view === "list" ? "active" : ""}">Opérations</a>
+              <a href="/solidarity?view=needs" class="bac-tab-btn ${view === "needs" ? "active" : ""}">Besoins</a>
+              <a href="/solidarity?view=volunteers" class="bac-tab-btn ${view === "volunteers" ? "active" : ""}">Bénévoles</a>
+              <a href="/solidarity?view=reports" class="bac-tab-btn ${view === "reports" ? "active" : ""}">Rapports OCHA / HXL</a>
             </div>
-          </div>-->
+          </div>
           ${innerViewHtml}
         </div>
       `;

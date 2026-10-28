@@ -53,19 +53,19 @@ export function createSubscriptionDescriptor(service?: SubscriptionService): Bac
       const plans = subscriptionService.listPlans();
 
       const notificationHtml = subscriptionSuccess && selectedPlanId ? `
-        <div class="p-3 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary font-medium flex items-center justify-between animate-fade-in">
+        <div class="p-3 rounded-xl bg-info-container border border-info/20 text-xs text-on-info font-medium flex items-center justify-between animate-fade-in">
           <span>✨ Votre souscription au forfait <strong>${escapeHtml(selectedPlanId)}</strong> a été activée avec succès !</span>
           <a href="/subscription" class="text-[10px] underline font-bold">Masquer</a>
         </div>
       ` : '';
 
       const activeStatusBannerHtml = activeSubscription ? `
-        <div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 flex items-center justify-between">
+        <div class="p-4 rounded-xl bg-success-container border border-success/20 text-xs text-on-success flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="material-symbols-outlined text-lg">verified</span>
             <span>Abonnement Actif : <strong class="uppercase font-bold">${escapeHtml(activeSubscription.planId)}</strong></span>
           </div>
-          <span class="text-[10px] text-emerald-300 font-mono">Status: ${escapeHtml(activeSubscription.status)}</span>
+          <span class="text-[10px] text-on-success font-mono">Status: ${escapeHtml(activeSubscription.status)}</span>
         </div>
       ` : '';
 
@@ -103,10 +103,12 @@ export function createSubscriptionDescriptor(service?: SubscriptionService): Bac
       const contentHtml = `
         <div class="space-y-6">
           <div class="flex items-center gap-3 border-b border-outline-variant/15 pb-4">
-            <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center text-2xl">💳</div>
+            <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center">
+              <span class="material-symbols-outlined text-2xl">credit_card</span>
+            </div>
             <div>
-              <h1 class="text-sm font-bold text-on-surface">Moteur d'Abonnements (Billing Engine)</h1>
-              <p class="text-[11px] text-on-surface-variant">Plans, forfaits et factures consolidées pour l'organisation</p>
+              <h1 class="text-2xl font-bold text-on-surface tracking-tight">Moteur d'Abonnements (Billing Engine)</h1>
+              <p class="text-xs text-on-surface-variant">Plans, forfaits et factures consolidées pour l'organisation</p>
             </div>
           </div>
 

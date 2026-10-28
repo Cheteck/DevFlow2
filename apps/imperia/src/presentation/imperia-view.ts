@@ -75,7 +75,7 @@ allow {
             <div class="space-y-2">
               <div class="p-3 rounded-xl bg-surface-container/60 border border-outline-variant/20 flex items-center justify-between text-xs font-mono">
                 <div>
-                  <span class="font-bold text-emerald-400">auth.session.created</span>
+                  <span class="font-bold text-success">auth.session.created</span>
                   <p class="text-[10px] text-on-surface-variant">Identity: usr_admin &bull; IP: 127.0.0.1</p>
                 </div>
                 <span class="text-[10px] text-on-surface-variant">Récemment</span>
@@ -103,7 +103,7 @@ allow {
               </div>
               <div class="p-4 rounded-xl bg-surface-container/60 border border-outline-variant/20 space-y-2">
                 <span class="text-xs font-bold text-on-surface">Mode Démo Utilisateurs</span>
-                <p class="text-[11px] text-emerald-400 font-bold">Actif (MOSAIX_DEMO_USERS=true)</p>
+                <p class="text-[11px] text-success font-bold">Actif (MOSAIX_DEMO_USERS=true)</p>
               </div>
             </div>
           </div>
@@ -121,11 +121,11 @@ allow {
               </div>
               <div class="glass-card p-4 rounded-2xl border border-outline-variant/20">
                 <span class="text-[10px] uppercase font-bold text-on-surface-variant">Revue Humaine Requise</span>
-                <p class="text-2xl font-bold text-amber-400 mt-1">${pendingReviews.length}</p>
+                <p class="text-2xl font-bold text-warning mt-1">${pendingReviews.length}</p>
               </div>
               <div class="glass-card p-4 rounded-2xl border border-outline-variant/20">
                 <span class="text-[10px] uppercase font-bold text-on-surface-variant">AI Override Rate</span>
-                <p class="text-2xl font-bold text-emerald-400 mt-1">${metrics.overrideRate}%</p>
+                <p class="text-2xl font-bold text-success mt-1">${metrics.overrideRate}%</p>
               </div>
               <div class="glass-card p-4 rounded-2xl border border-outline-variant/20">
                 <span class="text-[10px] uppercase font-bold text-on-surface-variant">Coût Estimé ($)</span>
@@ -139,7 +139,7 @@ allow {
                   <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface">Queue de Revue Humaine (Human-in-the-Loop)</h3>
                   <p class="text-[11px] text-on-surface-variant">Décisions probabilistes nécessitant une validation manuelle selon les seuils de confiance.</p>
                 </div>
-                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">${pendingReviews.length} en attente</span>
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-warning-container text-on-warning border border-warning/20">${pendingReviews.length} en attente</span>
               </div>
 
               ${
@@ -152,15 +152,15 @@ allow {
                           <div>
                             <div class="flex items-center gap-2">
                               <span class="font-bold text-primary font-mono">${esc(item.capability)}</span>
-                              <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300">Confiance : ${(item.originalResult.confidence * 100).toFixed(1)}%</span>
+                              <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-warning-container text-on-warning">Confiance : ${(item.originalResult.confidence * 100).toFixed(1)}%</span>
                             </div>
                             <p class="text-[10px] text-on-surface-variant mt-1">ID Décision : ${esc(item.decisionId)} &bull; Provider : ${esc(item.originalResult.provider)}</p>
                           </div>
                           <div class="flex items-center gap-2">
-                            <button onclick="fetch('/api/intelligence/review-queue/${esc(item.id)}/resolve', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'APPROVED'})}).then(()=>location.reload())" class="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 font-bold text-xs cursor-pointer">
+                            <button onclick="fetch('/api/intelligence/review-queue/${esc(item.id)}/resolve', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'APPROVED'})}).then(()=>location.reload())" class="px-3 py-1.5 rounded-lg bg-success-container text-on-success border border-success/30 font-bold text-xs cursor-pointer">
                               Approuver
                             </button>
-                            <button onclick="fetch('/api/intelligence/review-queue/${esc(item.id)}/resolve', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'REJECTED'})}).then(()=>location.reload())" class="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-bold text-xs cursor-pointer">
+                            <button onclick="fetch('/api/intelligence/review-queue/${esc(item.id)}/resolve', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'REJECTED'})}).then(()=>location.reload())" class="px-3 py-1.5 rounded-lg bg-error-container text-on-error border border-error/30 font-bold text-xs cursor-pointer">
                               Rejeter
                             </button>
                           </div>
@@ -183,7 +183,7 @@ allow {
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
               <div class="p-3.5 rounded-xl bg-surface-container/60 border border-outline-variant/20">
                 <span class="text-[10px] uppercase font-bold text-on-surface-variant">Moteur OPA/Rego</span>
-                <p class="text-sm font-bold text-emerald-400 mt-0.5">Actif (Compliant)</p>
+                <p class="text-sm font-bold text-success mt-0.5">Actif (Compliant)</p>
               </div>
               <div class="p-3.5 rounded-xl bg-surface-container/60 border border-outline-variant/20">
                 <span class="text-[10px] uppercase font-bold text-on-surface-variant">Kill Switch IA</span>
@@ -191,7 +191,7 @@ allow {
               </div>
               <div class="p-3.5 rounded-xl bg-surface-container/60 border border-outline-variant/20">
                 <span class="text-[10px] uppercase font-bold text-on-surface-variant">Précision Globale</span>
-                <p class="text-sm font-bold text-emerald-400 mt-0.5">99.4% Validé</p>
+                <p class="text-sm font-bold text-success mt-0.5">99.4% Validé</p>
               </div>
             </div>
           </div>

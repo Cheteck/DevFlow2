@@ -171,9 +171,9 @@ export function createSpacesDescriptor(
           bad_stock: "Stock invalide : entier positif ou nul attendu.",
         };
         const bannerHtml = submittedId
-          ? `<div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-medium">Proposition <strong>${escapeHtml(submittedId)}</strong> transmise à la modération du catalogue.</div>`
+          ? `<div class="success-container text-xs font-medium">Proposition <strong>${escapeHtml(submittedId)}</strong> transmise à la modération du catalogue.</div>`
           : errorCode
-            ? `<div class="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-300 font-medium">${escapeHtml(errorMessages[errorCode] ?? "Soumission refusée : vérifiez les champs.")}</div>`
+            ? `<div class="error-container text-xs font-medium">${escapeHtml(errorMessages[errorCode] ?? "Soumission refusée : vérifiez les champs.")}</div>`
             : "";
         if (!targetSpace) {
           const options = spaceService
@@ -567,11 +567,11 @@ export function createSpacesDescriptor(
             </div>
           </div>`
             : `
-          <div class="space-y-6 w-full max-w-[1400px] mx-auto">
+          <div class="w-full">
             <!-- Hero Editorial -->
             <div class="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary/10 via-surface-container-low to-transparent border border-outline-variant/10 p-5 sm:p-6 lg:p-8 mb-6">
               <div class="absolute -right-20 -top-20 w-80 h-80 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
-              <div class="absolute right-1/4 -bottom-20 w-72 h-72 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
+              <div class="absolute right-1/4 -bottom-20 w-72 h-72 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
               <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
                 <div class="space-y-2 max-w-3xl">
                   <div class="flex items-center gap-2.5">
@@ -588,17 +588,17 @@ export function createSpacesDescriptor(
                   </p>
                   <div class="flex flex-wrap items-center gap-3 text-xs text-on-surface-variant pt-1">
                     <span class="flex items-center gap-1.5">
-                      <span class="material-symbols-outlined text-amber-400 text-sm">bolt</span>
+                      <span class="material-symbols-outlined text-warning text-sm">bolt</span>
                       <span>+280 nouveaux produits</span>
                     </span>
                     <span class="text-on-surface-variant/40">•</span>
                     <span class="flex items-center gap-1.5">
-                      <span class="material-symbols-outlined text-emerald-400 text-sm">verified</span>
+                      <span class="material-symbols-outlined text-success text-sm">verified</span>
                       <span>100% Espaces modérés</span>
                     </span>
                     <span class="text-on-surface-variant/40">•</span>
                     <span class="flex items-center gap-1.5">
-                      <span class="material-symbols-outlined text-indigo-400 text-sm">location_on</span>
+                      <span class="material-symbols-outlined text-primary text-sm">location_on</span>
                       <span>Hub Algérie &amp; International</span>
                     </span>
                   </div>
@@ -628,7 +628,7 @@ export function createSpacesDescriptor(
                     <span>Tous les Espaces</span>
                   </a>
                   <a href="${buildHref({ sort: "popular" })}" class="px-3 py-1.5 rounded-lg ${sortMode === "popular" ? "bg-primary text-on-primary font-semibold shadow-sm" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"} transition text-xs flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-amber-400 text-[11px]">local_fire_department</span>
+                    <span class="material-symbols-outlined text-warning text-[11px]">local_fire_department</span>
                     <span>Tendances</span>
                   </a>
                   <a href="${buildHref({ sort: "recent", created: "7d" })}" class="px-3 py-1.5 rounded-lg ${sortMode === "recent" && createdFilter === "7d" ? "bg-primary text-on-primary font-semibold shadow-sm" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"} transition text-xs flex items-center gap-1.5">
@@ -641,10 +641,10 @@ export function createSpacesDescriptor(
                     <span class="material-symbols-outlined text-sm">tune</span>
                     <span>Filtres (${(categoryFilter !== "all" ? 1 : 0) + (createdFilter !== "any" ? 1 : 0) + (searchQuery ? 1 : 0)})</span>
                   </button>
-                  <span class="hidden sm:inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-lg text-primary font-medium">
+                  <!--<span class="hidden sm:inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-lg text-primary font-medium">
                     <span class="material-symbols-outlined text-brand-400 text-sm">grid_view</span>
                     Vue Mosaïque Bento
-                  </span>
+                  </span>-->
                 </div>
               </div>
             </div>
