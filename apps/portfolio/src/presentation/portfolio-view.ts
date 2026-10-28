@@ -29,22 +29,34 @@ export type PortfolioSubViewRenderer = (
   deps: { portfolioService: PortfolioService; vendables: Vendable[] },
 ) => Promise<string | BacRenderResult> | string | BacRenderResult;
 
-const portfolioSubViewRegistry = createTypedRegistry<string, PortfolioSubViewRenderer>([], { name: "PortfolioSubViewRegistry" });
+const portfolioSubViewRegistry = createTypedRegistry<
+  string,
+  PortfolioSubViewRenderer
+>([], { name: "PortfolioSubViewRegistry" });
 
-export function registerPortfolioSubView(viewKey: string, renderer: PortfolioSubViewRenderer): void {
+export function registerPortfolioSubView(
+  viewKey: string,
+  renderer: PortfolioSubViewRenderer,
+): void {
   portfolioSubViewRegistry.register(viewKey, renderer);
 }
 
-export function overridePortfolioSubView(viewKey: string, renderer: PortfolioSubViewRenderer): void {
+export function overridePortfolioSubView(
+  viewKey: string,
+  renderer: PortfolioSubViewRenderer,
+): void {
   portfolioSubViewRegistry.override(viewKey, renderer);
 }
 
 export function createPortfolioView(service?: PortfolioService) {
-  // eslint-disable-next-line no-restricted-syntax
-  const activeService = service || new PortfolioService(new InMemoryVendableRepository());
+  const activeService =
+    // eslint-disable-next-line no-restricted-syntax
+    service || new PortfolioService(new InMemoryVendableRepository());
 
   return {
-    async render(context: { query?: Record<string, string> }): Promise<BacRenderResult> {
+    async render(context: {
+      query?: Record<string, string>;
+    }): Promise<BacRenderResult> {
       const view = context.query?.view || "dashboard";
       const searchQuery = context.query?.search || "";
       const selectedRef = context.query?.ref || "";
@@ -64,8 +76,15 @@ export function createPortfolioView(service?: PortfolioService) {
       // Check registered custom subview handlers (OCP extension)
       const customRenderer = portfolioSubViewRegistry.get(view);
       if (customRenderer) {
-        const customRes = await customRenderer(context, { portfolioService: activeService, vendables });
-        if (typeof customRes === "object" && customRes !== null && "contentHtml" in customRes) {
+        const customRes = await customRenderer(context, {
+          portfolioService: activeService,
+          vendables,
+        });
+        if (
+          typeof customRes === "object" &&
+          customRes !== null &&
+          "contentHtml" in customRes
+        ) {
           return customRes;
         }
         return {
@@ -76,13 +95,21 @@ export function createPortfolioView(service?: PortfolioService) {
 
       let innerViewHtml: string;
 
-      const publishedCount = vendables.filter((v) => v.identity.status === "Published").length;
-      const draftCount = vendables.filter((v) => v.identity.status === "Draft").length;
-      const archivedCount = vendables.filter((v) => v.identity.status === "Archived").length;
+      const publishedCount = vendables.filter(
+        (v) => v.identity.status === "Published",
+      ).length;
+      const draftCount = vendables.filter(
+        (v) => v.identity.status === "Draft",
+      ).length;
+      const archivedCount = vendables.filter(
+        (v) => v.identity.status === "Archived",
+      ).length;
 
       if (view === "detail" && selectedRef) {
         let vendable: Vendable | undefined = vendables.find(
-          (v) => v.identity.reference === selectedRef || v.identity.id === selectedRef
+          (v) =>
+            v.identity.reference === selectedRef ||
+            v.identity.id === selectedRef,
         );
         if (!vendable) {
           try {
@@ -93,9 +120,12 @@ export function createPortfolioView(service?: PortfolioService) {
         }
 
         if (vendable) {
-          const titleFr = vendable.content.fr?.name || vendable.identity.reference;
+          const titleFr =
+            vendable.content.fr?.name || vendable.identity.reference;
           const titleEn = vendable.content.en?.name || "";
-          const descFr = vendable.content.fr?.description || "Aucune description renseignée.";
+          const descFr =
+            vendable.content.fr?.description ||
+            "Aucune description renseignée.";
           const specs = vendable.characteristics?.specifications || {};
 
           innerViewHtml = `
@@ -103,14 +133,16 @@ export function createPortfolioView(service?: PortfolioService) {
               <div class="flex items-center justify-between">
                 <a href="/portfolio?view=all" class="text-xs text-primary font-bold hover:underline">&larr; Retour au catalogue</a>
                 <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                  vendable.identity.status === 'Published' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                  vendable.identity.status === "Published"
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
                 }">${escapeHtml(vendable.identity.status)}</span>
               </div>
 
               <div class="glass-card p-6 rounded-2xl border border-outline-variant/20 space-y-6">
                 <div>
                   <h2 class="text-lg font-bold text-on-surface">${escapeHtml(titleFr)}</h2>
-                  ${titleEn ? `<p class="text-xs text-on-surface-variant font-medium mt-0.5">${escapeHtml(titleEn)}</p>` : ''}
+                  ${titleEn ? `<p class="text-xs text-on-surface-variant font-medium mt-0.5">${escapeHtml(titleEn)}</p>` : ""}
                   <p class="text-xs text-on-surface-variant font-mono mt-1">Réf / Code: <span class="text-primary font-bold">${escapeHtml(vendable.identity.reference)}</span> · Type: ${escapeHtml(vendable.identity.type)}</p>
                 </div>
 
@@ -122,13 +154,17 @@ export function createPortfolioView(service?: PortfolioService) {
                 <div class="space-y-3">
                   <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Spécifications & Attributs EAV</h3>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                    ${Object.entries(specs).map(([k, v]) => `
+                    ${Object.entries(specs)
+                      .map(
+                        ([k, v]) => `
                       <div class="p-3 rounded-xl bg-surface-container/40 border border-outline-variant/10 flex justify-between items-center">
                         <span class="font-medium text-on-surface-variant capitalize">${escapeHtml(k)}</span>
                         <span class="font-bold text-on-surface">${escapeHtml(String(v))}</span>
                       </div>
-                    `).join("")}
-                    ${Object.keys(specs).length === 0 ? '<p class="text-xs text-on-surface-variant italic col-span-2">Aucun attribut EAV renseigné.</p>' : ''}
+                    `,
+                      )
+                      .join("")}
+                    ${Object.keys(specs).length === 0 ? '<p class="text-xs text-on-surface-variant italic col-span-2">Aucun attribut EAV renseigné.</p>' : ""}
                   </div>
                 </div>
               </div>
@@ -210,15 +246,19 @@ export function createPortfolioView(service?: PortfolioService) {
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-outline-variant/10 text-on-surface font-semibold">
-                    ${vendables.map((v) => `
+                    ${vendables
+                      .map(
+                        (v) => `
                       <tr>
                         <td class="py-3 font-mono text-primary">${escapeHtml(v.identity.reference)}</td>
                         <td>${escapeHtml(v.content.fr?.name || v.content.en?.name || v.identity.reference)}</td>
                         <td><span class="px-2 py-0.5 rounded bg-surface-container text-[10px]">${escapeHtml(v.identity.type)}</span></td>
                         <td><span class="text-emerald-400 font-bold">${escapeHtml(v.identity.status)}</span></td>
                       </tr>
-                    `).join("")}
-                    ${vendables.length === 0 ? '<tr><td colspan="4" class="py-4 text-center text-on-surface-variant">Aucun vendable trouvé.</td></tr>' : ''}
+                    `,
+                      )
+                      .join("")}
+                    ${vendables.length === 0 ? '<tr><td colspan="4" class="py-4 text-center text-on-surface-variant">Aucun vendable trouvé.</td></tr>' : ""}
                   </tbody>
                 </table>
               </div>
@@ -279,14 +319,19 @@ export function createPortfolioView(service?: PortfolioService) {
         `;
       } else {
         // All products view
-        const rowsHtml = vendables.map((v) => `
+        const rowsHtml = vendables
+          .map(
+            (v) => `
           <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 flex flex-col justify-between hover:border-primary/40 transition duration-200">
             <div class="space-y-3">
               <div class="flex justify-between items-start">
                 <h3 class="text-xs font-bold text-on-surface">${escapeHtml(v.content.fr?.name || v.content.en?.name || v.identity.reference)}</h3>
                 <span class="text-[10px] font-bold uppercase tracking-wider ${
-                  v.identity.status === 'Published' ? 'text-emerald-400' :
-                  v.identity.status === 'Draft' ? 'text-on-surface-variant/50' : 'text-amber-400'
+                  v.identity.status === "Published"
+                    ? "text-emerald-400"
+                    : v.identity.status === "Draft"
+                      ? "text-on-surface-variant/50"
+                      : "text-amber-400"
                 }">
                   ${escapeHtml(v.identity.status)}
                 </span>
@@ -310,7 +355,9 @@ export function createPortfolioView(service?: PortfolioService) {
               </a>
             </div>
           </div>
-        `).join("");
+        `,
+          )
+          .join("");
 
         innerViewHtml = `
           <div class="space-y-6">
@@ -325,7 +372,7 @@ export function createPortfolioView(service?: PortfolioService) {
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               ${rowsHtml}
-              ${vendables.length === 0 ? '<div class="col-span-full text-center py-8 text-xs text-on-surface-variant">Aucun vendable ne correspond à la recherche.</div>' : ''}
+              ${vendables.length === 0 ? '<div class="col-span-full text-center py-8 text-xs text-on-surface-variant">Aucun vendable ne correspond à la recherche.</div>' : ""}
             </div>
           </div>
         `;
@@ -333,7 +380,7 @@ export function createPortfolioView(service?: PortfolioService) {
 
       const contentHtml = `
         <div class="space-y-6">
-          <div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
+          <!-- <div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center text-2xl">🎨</div>
               <div>
@@ -342,26 +389,26 @@ export function createPortfolioView(service?: PortfolioService) {
               </div>
             </div>
             <div class="flex gap-2 flex-wrap">
-              <a href="/portfolio?view=dashboard" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === 'dashboard' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              <a href="/portfolio?view=dashboard" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === "dashboard" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
                 Dashboard
               </a>
-              <a href="/portfolio?view=all" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === 'all' || view === 'detail' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              <a href="/portfolio?view=all" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === "all" || view === "detail" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
                 Tous les Produits
               </a>
-              <a href="/portfolio?view=features" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === 'features' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              <a href="/portfolio?view=features" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === "features" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
                 Caractéristiques EAV
               </a>
-              <a href="/portfolio?view=categories" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === 'categories' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              <a href="/portfolio?view=categories" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === "categories" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
                 Catégories
               </a>
-              <a href="/portfolio?view=proposals" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === 'proposals' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              <a href="/portfolio?view=proposals" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === "proposals" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
                 Propositions
               </a>
-              <a href="/portfolio?view=bulk" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === 'bulk' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              <a href="/portfolio?view=bulk" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${view === "bulk" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
                 Import/Export
               </a>
             </div>
-          </div>
+          </div>-->
 
           ${innerViewHtml}
         </div>
@@ -375,7 +422,9 @@ export function createPortfolioView(service?: PortfolioService) {
   };
 }
 
-export function createPortfolioDescriptor(service?: PortfolioService): BacDescriptor {
+export function createPortfolioDescriptor(
+  service?: PortfolioService,
+): BacDescriptor {
   const view = createPortfolioView(service);
   return {
     id: "@apps/portfolio",
