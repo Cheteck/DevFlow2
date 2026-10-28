@@ -1,8 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-  InMemoryAuctionRepository,
-  PostgresAuctionRepository,
-} from "./postgres-auction-repository.js";
+import { PostgresAuctionRepository } from "./postgres-auction-repository.js";
 import { AuctionService } from "../domain/auction.service.js";
 import type { DatabasePort } from "@mosaix/ports-database";
 
@@ -12,13 +9,39 @@ class MockDatabasePort implements DatabasePort {
 
   async query<T = unknown>(sql: string, params: unknown[] = []): Promise<T[]> {
     if (sql.includes('INSERT INTO "commerce"."auctions"')) {
-      const [id, vendableId, sellerId, startingPriceInCents, reservePriceInCents, currentHighBidInCents, status, startTime, endTime, antiSnipingTriggered, createdAt, updatedAt] = params;
-      const record = { id, vendableId, sellerId, startingPriceInCents, reservePriceInCents, currentHighBidInCents, status, startTime, endTime, antiSnipingTriggered, createdAt, updatedAt };
+      const [
+        id,
+        vendableId,
+        sellerId,
+        startingPriceInCents,
+        reservePriceInCents,
+        currentHighBidInCents,
+        status,
+        startTime,
+        endTime,
+        antiSnipingTriggered,
+        createdAt,
+        updatedAt,
+      ] = params;
+      const record = {
+        id,
+        vendableId,
+        sellerId,
+        startingPriceInCents,
+        reservePriceInCents,
+        currentHighBidInCents,
+        status,
+        startTime,
+        endTime,
+        antiSnipingTriggered,
+        createdAt,
+        updatedAt,
+      };
       this.auctions.set(String(id), record);
       return [] as T[];
     }
 
-    if (sql.includes('SELECT') && sql.includes('FROM "commerce"."auctions"')) {
+    if (sql.includes("SELECT") && sql.includes('FROM "commerce"."auctions"')) {
       if (sql.includes('WHERE a."id" = $2')) {
         const id = String(params[1]);
         const record = this.auctions.get(id);
@@ -39,15 +62,41 @@ class MockDatabasePort implements DatabasePort {
 
   async transaction<T>(callback: (tx: DatabasePort) => Promise<T>): Promise<T> {
     const txMock: DatabasePort = {
-      query: async <R = unknown>(sql: string, params: unknown[] = []): Promise<R[]> => {
+      query: async <R = unknown>(
+        sql: string,
+        params: unknown[] = [],
+      ): Promise<R[]> => {
         if (sql.includes('INSERT INTO "commerce"."auction_bids"')) {
-          const [id, auctionId, bidderId, amountInCents, auditHash, previousHash, createdAt] = params;
-          this.bids.push({ id, auctionId, bidderId, amountInCents, auditHash, previousHash, createdAt });
+          const [
+            id,
+            auctionId,
+            bidderId,
+            amountInCents,
+            auditHash,
+            previousHash,
+            createdAt,
+          ] = params;
+          this.bids.push({
+            id,
+            auctionId,
+            bidderId,
+            amountInCents,
+            auditHash,
+            previousHash,
+            createdAt,
+          });
           return [] as R[];
         }
 
         if (sql.includes('UPDATE "commerce"."auctions"')) {
-          const [currentHighBidInCents, status, endTime, antiSnipingTriggered, updatedAt, id] = params;
+          const [
+            currentHighBidInCents,
+            status,
+            endTime,
+            antiSnipingTriggered,
+            updatedAt,
+            id,
+          ] = params;
           const record = this.auctions.get(String(id));
           if (record) {
             record["currentHighBidInCents"] = currentHighBidInCents;
@@ -61,7 +110,8 @@ class MockDatabasePort implements DatabasePort {
 
         return [] as R[];
       },
-      transaction: async <R>(cb: (t: DatabasePort) => Promise<R>): Promise<R> => cb(txMock),
+      transaction: async <R>(cb: (t: DatabasePort) => Promise<R>): Promise<R> =>
+        cb(txMock),
     };
     return callback(txMock);
   }
@@ -108,7 +158,12 @@ describe("AUCTION-PERSIST — PostgresAuctionRepository & AuctionService", () =>
       durationMinutes: 60,
     });
 
-    const bid1 = await service.placeBid(auction.id, "usr_bidder_1", "Alice", 60);
+    const bid1 = await service.placeBid(
+      auction.id,
+      "usr_bidder_1",
+      "Alice",
+      60,
+    );
     expect(bid1.success).toBe(true);
     expect(mockDb.bids.length).toBe(1);
     expect(mockDb.bids[0]["previousHash"]).toBe("GENESIS");

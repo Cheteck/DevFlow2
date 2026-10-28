@@ -5,13 +5,25 @@
 
 import type { DatabasePort } from "@mosaix/ports-database";
 import { InMemoryGuard } from "@mosaix/support";
-import type { Auction, AuctionBid, AuctionStatus } from "../domain/auction.service.js";
+import type {
+  Auction,
+  AuctionBid,
+  AuctionStatus,
+} from "../domain/auction.service.js";
 
 export interface AuctionRepositoryPort {
   saveAuction(auction: Auction): Promise<void>;
   getAuction(id: string): Promise<Auction | null>;
-  listAuctions(filter?: { status?: AuctionStatus; sellerId?: string; spaceId?: string }): Promise<Auction[]>;
-  saveBid(auctionId: string, bid: AuctionBid, updatedAuction: Auction): Promise<void>;
+  listAuctions(filter?: {
+    status?: AuctionStatus;
+    sellerId?: string;
+    spaceId?: string;
+  }): Promise<Auction[]>;
+  saveBid(
+    auctionId: string,
+    bid: AuctionBid,
+    updatedAuction: Auction,
+  ): Promise<void>;
 }
 
 export class PostgresAuctionRepository implements AuctionRepositoryPort {
@@ -48,7 +60,7 @@ export class PostgresAuctionRepository implements AuctionRepositoryPort {
         auction.extensionsCount > 0,
         auction.createdAt,
         auction.updatedAt,
-      ]
+      ],
     );
   }
 
@@ -62,7 +74,7 @@ export class PostgresAuctionRepository implements AuctionRepositoryPort {
        FROM "commerce"."auctions" a
        LEFT JOIN "portfolio"."translations" t ON t."vendableId" = a."vendableId" AND t."lang" = $1
        WHERE a."id" = $2 LIMIT 1`,
-      ["fr", id]
+      ["fr", id],
     );
 
     if (rows.length === 0) return null;
@@ -73,7 +85,11 @@ export class PostgresAuctionRepository implements AuctionRepositoryPort {
     return this.mapToAuction(row, bids);
   }
 
-  async listAuctions(filter?: { status?: AuctionStatus; sellerId?: string; spaceId?: string }): Promise<Auction[]> {
+  async listAuctions(filter?: {
+    status?: AuctionStatus;
+    sellerId?: string;
+    spaceId?: string;
+  }): Promise<Auction[]> {
     let query = `SELECT
       a."id", a."vendableId", a."sellerId", a."startingPriceInCents", a."reservePriceInCents",
       a."currentHighBidInCents", a."status", a."startTime", a."endTime", a."antiSnipingTriggered",
@@ -113,12 +129,16 @@ export class PostgresAuctionRepository implements AuctionRepositoryPort {
     return result;
   }
 
-  async saveBid(auctionId: string, bid: AuctionBid, updatedAuction: Auction): Promise<void> {
+  async saveBid(
+    auctionId: string,
+    bid: AuctionBid,
+    updatedAuction: Auction,
+  ): Promise<void> {
     await this.db.transaction(async (tx) => {
       // 1. Lock auction record for update
       await tx.query(
         `SELECT "id" FROM "commerce"."auctions" WHERE "id" = $1 FOR UPDATE`,
-        [auctionId]
+        [auctionId],
       );
 
       // 2. Insert bid record
@@ -134,7 +154,7 @@ export class PostgresAuctionRepository implements AuctionRepositoryPort {
           bid.auditHash,
           bid.previousHash ?? null,
           bid.timestamp,
-        ]
+        ],
       );
 
       // 3. Update auction record
@@ -153,7 +173,7 @@ export class PostgresAuctionRepository implements AuctionRepositoryPort {
           updatedAuction.extensionsCount > 0,
           updatedAuction.updatedAt,
           auctionId,
-        ]
+        ],
       );
     });
   }
@@ -164,7 +184,7 @@ export class PostgresAuctionRepository implements AuctionRepositoryPort {
        FROM "commerce"."auction_bids"
        WHERE "auctionId" = $1
        ORDER BY "createdAt" ASC`,
-      [auctionId]
+      [auctionId],
     );
 
     return rows.map((r) => ({
@@ -177,12 +197,17 @@ export class PostgresAuctionRepository implements AuctionRepositoryPort {
     }));
   }
 
-  private mapToAuction(row: Record<string, unknown>, bids: AuctionBid[]): Auction {
+  private mapToAuction(
+    row: Record<string, unknown>,
+    bids: AuctionBid[],
+  ): Auction {
     const startPrice = Number(row["startingPriceInCents"] ?? 0) / 100;
-    const reservePrice = row["reservePriceInCents"] != null
-      ? Number(row["reservePriceInCents"]) / 100
-      : startPrice;
-    const currentBid = Number(row["currentHighBidInCents"] ?? 0) / 100 || startPrice;
+    const reservePrice =
+      row["reservePriceInCents"] != null
+        ? Number(row["reservePriceInCents"]) / 100
+        : startPrice;
+    const _currentBid =
+      Number(row["currentHighBidInCents"] ?? 0) / 100 || startPrice;
 
     const highestBid = bids.length > 0 ? bids[bids.length - 1] : undefined;
 
@@ -202,10 +227,15 @@ export class PostgresAuctionRepository implements AuctionRepositoryPort {
       endTime: String(row["endTime"]),
       antiSnipingWindowMinutes: 5,
       antiSnipingExtensionMinutes: 5,
-      extensionsCount: Boolean(row["antiSnipingTriggered"]) ? 1 : 0,
+      extensionsCount: row["antiSnipingTriggered"] ? 1 : 0,
       bidHistory: bids,
       reserveMet: (highestBid ? highestBid.amount : startPrice) >= reservePrice,
-      winningBid: (row["status"] === "closed" && highestBid && highestBid.amount >= reservePrice) ? highestBid : undefined,
+      winningBid:
+        row["status"] === "closed" &&
+        highestBid &&
+        highestBid.amount >= reservePrice
+          ? highestBid
+          : undefined,
       createdAt: String(row["createdAt"]),
       updatedAt: String(row["updatedAt"]),
     };
@@ -223,7 +253,10 @@ export class InMemoryAuctionRepository implements AuctionRepositoryPort {
   }
 
   async saveAuction(auction: Auction): Promise<void> {
-    this.auctions.set(auction.id, { ...auction, bidHistory: [...auction.bidHistory] });
+    this.auctions.set(auction.id, {
+      ...auction,
+      bidHistory: [...auction.bidHistory],
+    });
   }
 
   async getAuction(id: string): Promise<Auction | null> {
@@ -231,18 +264,30 @@ export class InMemoryAuctionRepository implements AuctionRepositoryPort {
     return auc ? { ...auc, bidHistory: [...auc.bidHistory] } : null;
   }
 
-  async listAuctions(filter?: { status?: AuctionStatus; sellerId?: string; spaceId?: string }): Promise<Auction[]> {
+  async listAuctions(filter?: {
+    status?: AuctionStatus;
+    sellerId?: string;
+    spaceId?: string;
+  }): Promise<Auction[]> {
     return Array.from(this.auctions.values())
       .filter((auc) => {
         if (filter?.status && auc.status !== filter.status) return false;
         if (filter?.sellerId && auc.sellerId !== filter.sellerId) return false;
-        if (filter?.spaceId && auc.sellerSpaceId !== filter.spaceId) return false;
+        if (filter?.spaceId && auc.sellerSpaceId !== filter.spaceId)
+          return false;
         return true;
       })
       .map((auc) => ({ ...auc, bidHistory: [...auc.bidHistory] }));
   }
 
-  async saveBid(auctionId: string, bid: AuctionBid, updatedAuction: Auction): Promise<void> {
-    this.auctions.set(auctionId, { ...updatedAuction, bidHistory: [...updatedAuction.bidHistory] });
+  async saveBid(
+    auctionId: string,
+    bid: AuctionBid,
+    updatedAuction: Auction,
+  ): Promise<void> {
+    this.auctions.set(auctionId, {
+      ...updatedAuction,
+      bidHistory: [...updatedAuction.bidHistory],
+    });
   }
 }

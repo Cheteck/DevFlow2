@@ -1,9 +1,13 @@
 import * as crypto from "node:crypto";
-import { OrderModel, type OrderStatus } from './order.model.js';
-import { OrderStateMachine } from './order-state-machine.js';
-import { OrderValidationError, OrderNotFoundError } from './commerce.errors.js';
-import { CheckoutOrderWorkflow, type PaymentPort, type InventoryPort } from '../workflows/checkout-order.workflow.js';
-import { getGlobalPluginEngine } from '../../../../src/shell/plugin-engine-bootstrap.js';
+import { OrderModel, type OrderStatus } from "./order.model.js";
+import { OrderStateMachine } from "./order-state-machine.js";
+import { OrderValidationError, OrderNotFoundError } from "./commerce.errors.js";
+import {
+  CheckoutOrderWorkflow,
+  type PaymentPort,
+  type InventoryPort,
+} from "../workflows/checkout-order.workflow.js";
+import { getGlobalPluginEngine } from "../../../../src/shell/plugin-engine-bootstrap.js";
 
 export interface OrderRepositoryPort {
   save(order: OrderModel): Promise<OrderModel>;
@@ -40,34 +44,58 @@ export class OrderService {
     private readonly inventoryPort?: InventoryPort,
   ) {}
 
-  async createOrder(params: CreateOrderParams): Promise<{ order: OrderModel; sagaState: unknown }> {
-    if (!params.userId || typeof params.userId !== 'string' || params.userId.trim() === '') {
-      throw new OrderValidationError('Field "userId" is required and must be a non-empty string.');
+  async createOrder(
+    params: CreateOrderParams,
+  ): Promise<{ order: OrderModel; sagaState: unknown }> {
+    if (
+      !params.userId ||
+      typeof params.userId !== "string" ||
+      params.userId.trim() === ""
+    ) {
+      throw new OrderValidationError(
+        'Field "userId" is required and must be a non-empty string.',
+      );
     }
-    if (!params.vendableId || typeof params.vendableId !== 'string' || params.vendableId.trim() === '') {
-      throw new OrderValidationError('Field "vendableId" is required and must be a non-empty string.');
+    if (
+      !params.vendableId ||
+      typeof params.vendableId !== "string" ||
+      params.vendableId.trim() === ""
+    ) {
+      throw new OrderValidationError(
+        'Field "vendableId" is required and must be a non-empty string.',
+      );
     }
-    if (params.amount !== undefined && (typeof params.amount !== 'number' || params.amount <= 0 || isNaN(params.amount))) {
-      throw new OrderValidationError('Field "amount", if provided, must be a positive number.');
+    if (
+      params.amount !== undefined &&
+      (typeof params.amount !== "number" ||
+        params.amount <= 0 ||
+        isNaN(params.amount))
+    ) {
+      throw new OrderValidationError(
+        'Field "amount", if provided, must be a positive number.',
+      );
     }
 
     const order = new OrderModel();
     order.id = `ord-${crypto.randomUUID()}`;
     order.userId = params.userId;
     order.vendableId = params.vendableId;
-    order.status = 'Pending';
+    order.status = "Pending";
 
     let orderAmount = params.amount ?? 50;
 
     // Execute plugin hook for discount calculation (PLG-06)
     const pluginEngine = getGlobalPluginEngine();
-    const discountResult = await pluginEngine.runHook<{ total: number }, number>(
-      "commerce.checkout.calculateDiscount",
-      { total: orderAmount }
-    );
+    const discountResult = await pluginEngine.runHook<
+      { total: number },
+      number
+    >("commerce.checkout.calculateDiscount", { total: orderAmount });
     if (discountResult.results && discountResult.results.length > 0) {
       const calculatedTotal = discountResult.results[0];
-      if (typeof calculatedTotal === "number" && calculatedTotal < orderAmount) {
+      if (
+        typeof calculatedTotal === "number" &&
+        calculatedTotal < orderAmount
+      ) {
         orderAmount = calculatedTotal;
       }
     }
@@ -82,14 +110,15 @@ export class OrderService {
       currency: order.currency || "EUR",
     };
 
-    const lineItem: any = {
+    const lineItem: Record<string, unknown> = {
       id: `li-${order.id}`,
       sku: params.vendableId,
       vendableId: params.vendableId,
       title: "Article Commande",
       quantity: 1,
       unitPrice: snapshot.unitPriceInCents / 100,
-      subtotal: (snapshot.unitPriceInCents - (snapshot.discountInCents || 0)) / 100,
+      subtotal:
+        (snapshot.unitPriceInCents - (snapshot.discountInCents || 0)) / 100,
       unitPriceInCents: snapshot.unitPriceInCents,
       discountInCents: snapshot.discountInCents,
       currency: snapshot.currency,
@@ -99,9 +128,14 @@ export class OrderService {
     order.lineItems = [lineItem];
 
     if (params.idempotenceKey) {
-      const existing = await this.orderRepository.findByIdempotencyKey(params.idempotenceKey);
+      const existing = await this.orderRepository.findByIdempotencyKey(
+        params.idempotenceKey,
+      );
       if (existing) {
-        return { order: existing, sagaState: { replayed: true, orderId: existing.id } };
+        return {
+          order: existing,
+          sagaState: { replayed: true, orderId: existing.id },
+        };
       }
     }
     order.idempotencyKey = idempotenceKey;
@@ -112,13 +146,20 @@ export class OrderService {
       idempotenceKey,
     };
 
-    const workflow = new CheckoutOrderWorkflow(this.paymentPort, this.inventoryPort);
+    const workflow = new CheckoutOrderWorkflow(
+      this.paymentPort,
+      this.inventoryPort,
+    );
     const sagaState = await workflow.execute(initialState);
 
-    if (sagaState.success && sagaState.context.paymentAuthorized && sagaState.context.inventoryReserved) {
-      order.status = 'PendingPayment';
+    if (
+      sagaState.success &&
+      sagaState.context.paymentAuthorized &&
+      sagaState.context.inventoryReserved
+    ) {
+      order.status = "PendingPayment";
     } else {
-      order.status = 'Cancelled';
+      order.status = "Cancelled";
     }
 
     await this.orderRepository.save(order);
