@@ -3,7 +3,11 @@
  * Self-contained SSR presentation layer for MosaiX Solara Social & Content (inspired by Facebook).
  */
 
-import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
+import type {
+  BacDescriptor,
+  BacExecutionContext,
+  BacRenderResult,
+} from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
 import { SolaraSocialService } from "../domain/social.model.js";
 import {
@@ -11,10 +15,12 @@ import {
   TrendingVelocityRanker,
   SponsoredPostInjector,
   ContentSafetyFilter,
-  isSponsoredPost
+  isSponsoredPost,
 } from "@mosaix/feed-engine";
 
-export function createSolaraDescriptor(socialService?: SolaraSocialService): BacDescriptor {
+export function createSolaraDescriptor(
+  socialService?: SolaraSocialService,
+): BacDescriptor {
   const service = socialService || new SolaraSocialService();
 
   const FRIENDS = [
@@ -23,7 +29,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
     { name: "Sarah", role: "Support", avatar: "👤" },
     { name: "Sofiane", role: "Citizen", avatar: "🚴" },
     { name: "Yasmine", role: "Educator", avatar: "🎨" },
-    { name: "Karim", role: "Manager", avatar: "📊" }
+    { name: "Karim", role: "Manager", avatar: "📊" },
   ];
 
   return {
@@ -48,9 +54,18 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
 
       if (view === "profile") {
         // --- HIGH FIDELITY FACEBOOK-STYLE PROFILE VIEW ---
-        const userPosts = (await service.listFeedAsync()).filter(p => p.actorId === user.id || p.actorId === "Administrateur" || !p.actorId);
-        
-        const userPostsHtml = userPosts.length > 0 ? userPosts.map(p => `
+        const userPosts = (await service.listFeedAsync()).filter(
+          (p) =>
+            p.actorId === user.id ||
+            p.actorId === "Administrateur" ||
+            !p.actorId,
+        );
+
+        const userPostsHtml =
+          userPosts.length > 0
+            ? userPosts
+                .map(
+                  (p) => `
           <article class="glass-card rounded-2xl p-5 space-y-3 border border-outline-variant/20 hover:border-primary/30 transition-all duration-200">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-3">
@@ -79,7 +94,10 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
               </div>
             </div>
           </article>
-        `).join("") : `
+        `,
+                )
+                .join("")
+            : `
           <div class="glass-card rounded-2xl p-8 text-center text-xs text-on-surface-variant border border-outline-variant/20">
             Aucune publication sur votre journal pour le moment.
           </div>
@@ -161,14 +179,16 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
                     <span class="text-[10px] text-primary font-bold font-mono tabular-nums">6 actives</span>
                   </div>
                   <div class="grid grid-cols-3 gap-3">
-                    ${FRIENDS.map(f => `
+                    ${FRIENDS.map(
+                      (f) => `
                       <div class="text-center group cursor-pointer">
                         <div class="aspect-square rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/15 flex items-center justify-center text-xl shadow-sm transition group-hover:scale-105">
                           ${f.avatar}
                         </div>
                         <span class="text-[9px] font-bold text-on-surface block mt-1 truncate">${escapeHtml(f.name)}</span>
                       </div>
-                    `).join("")}
+                    `,
+                    ).join("")}
                   </div>
                 </div>
               </div>
@@ -210,29 +230,43 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
         if (feedMode === "trending") {
           rankedPosts = TrendingVelocityRanker.rankByTrending(rawPosts);
         } else if (feedMode === "media") {
-          rankedPosts = rawPosts.filter(p => p.mediaUrls && p.mediaUrls.length > 0);
+          rankedPosts = rawPosts.filter(
+            (p) => p.mediaUrls && p.mediaUrls.length > 0,
+          );
         } else if (feedMode === "chronological") {
-          rankedPosts = [...rawPosts].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+          rankedPosts = [...rawPosts].sort(
+            (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+          );
         } else {
           // Default: "for_you" personalized AI recommendation
-          rankedPosts = ForYouRecommendationEngine.generateForYouFeed(rawPosts, {
-            userId: user.id || "Administrateur",
-            followedSpaceIds: ["space-commerce", "space-events"],
-            interestTags: ["artisanat", "booking", "musique", "tech"]
-          });
+          rankedPosts = ForYouRecommendationEngine.generateForYouFeed(
+            rawPosts,
+            {
+              userId: user.id || "Administrateur",
+              followedSpaceIds: ["space-commerce", "space-events"],
+              interestTags: ["artisanat", "booking", "musique", "tech"],
+            },
+          );
         }
 
         // 3. Native Non-Intrusive Sponsored Insertion
-        const displayPosts = SponsoredPostInjector.inject(rankedPosts, service.getSponsoredPool(), {
-          interval: 3,
-          maxSponsoredPosts: 2
-        });
+        const displayPosts = SponsoredPostInjector.inject(
+          rankedPosts,
+          service.getSponsoredPool(),
+          {
+            interval: 3,
+            maxSponsoredPosts: 2,
+          },
+        );
 
-        const postsHtml = displayPosts.length > 0 ? displayPosts.map(p => {
-          const isSponsored = isSponsoredPost(p);
+        const postsHtml =
+          displayPosts.length > 0
+            ? displayPosts
+                .map((p) => {
+                  const isSponsored = isSponsoredPost(p);
 
-          if (isSponsored) {
-            return `
+                  if (isSponsored) {
+                    return `
               <article class="glass-card rounded-2xl p-5 space-y-4 border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-surface-container-high/30 to-purple-500/5 shadow-lg relative overflow-hidden transition-all duration-200 hover:border-amber-500/50">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-3">
@@ -258,11 +292,15 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
 
                 <p class="text-xs text-on-surface leading-relaxed whitespace-pre-line font-medium">${escapeHtml(p.content)}</p>
 
-                ${p.mediaUrls && p.mediaUrls.length > 0 ? `
+                ${
+                  p.mediaUrls && p.mediaUrls.length > 0
+                    ? `
                   <div class="rounded-xl overflow-hidden border border-outline-variant/20 shadow-md">
                     <img src="${escapeHtml(p.mediaUrls[0])}" alt="Média sponsorisé" class="w-full h-48 md:h-56 object-cover hover:scale-[1.01] transition-transform duration-300" />
                   </div>
-                ` : ""}
+                `
+                    : ""
+                }
 
                 <div class="pt-2 flex items-center justify-between text-xs text-on-surface-variant border-t border-outline-variant/10">
                   <div class="flex items-center gap-3">
@@ -276,18 +314,22 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
                     </button>
                   </div>
 
-                  ${p.ctaText ? `
-                    <a href="${escapeHtml(p.ctaUrl || '#')}" onclick="fetch('/api/solara/telemetry/ad', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({campaignId:'${p.campaignId}', postId:'${p.id}', eventType:'cta_conversion'})});" class="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer">
+                  ${
+                    p.ctaText
+                      ? `
+                    <a href="${escapeHtml(p.ctaUrl || "#")}" onclick="fetch('/api/solara/telemetry/ad', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({campaignId:'${p.campaignId}', postId:'${p.id}', eventType:'cta_conversion'})});" class="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer">
                       <span>${escapeHtml(p.ctaText)}</span>
                       <span class="material-symbols-outlined text-sm">arrow_forward</span>
                     </a>
-                  ` : ""}
+                  `
+                      : ""
+                  }
                 </div>
               </article>
             `;
-          }
+                  }
 
-          return `
+                  return `
             <article class="glass-card rounded-2xl p-5 space-y-3 border border-outline-variant/20 hover:border-primary/30 transition-all duration-200">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -310,11 +352,15 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
 
               <p class="text-xs text-on-surface leading-relaxed whitespace-pre-line">${escapeHtml(p.content)}</p>
 
-              ${p.mediaUrls && p.mediaUrls.length > 0 ? `
+              ${
+                p.mediaUrls && p.mediaUrls.length > 0
+                  ? `
                 <div class="rounded-xl overflow-hidden border border-outline-variant/20 shadow-md">
                   <img src="${escapeHtml(p.mediaUrls[0])}" alt="Média publication" class="w-full h-48 md:h-56 object-cover" />
                 </div>
-              ` : ""}
+              `
+                  : ""
+              }
 
               <div class="pt-2 flex items-center justify-between text-xs text-on-surface-variant border-t border-outline-variant/10">
                 <div class="flex items-center gap-3">
@@ -337,7 +383,9 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
               </div>
             </article>
           `;
-        }).join("") : `
+                })
+                .join("")
+            : `
           <div class="glass-card rounded-2xl p-10 text-center space-y-3 border border-outline-variant/20">
             <h3 class="font-bold text-sm text-on-surface">Aucune publication dans ce flux</h3>
             <p class="text-xs text-on-surface-variant max-w-sm mx-auto">Changez d'onglet d'algorithme ou soyez le premier à publier.</p>
@@ -347,7 +395,9 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
         subViewHtml = `
           <div class="space-y-6">
             <!-- Space Banner if applicable -->
-            ${currentSpace ? `
+            ${
+              currentSpace
+                ? `
               <div class="glass-card rounded-2xl p-4 flex items-center justify-between border-l-4 border-l-secondary bg-surface-container-high/40">
                 <div class="flex items-center gap-3">
                   <span class="material-symbols-outlined text-secondary text-2xl">workspaces</span>
@@ -357,23 +407,25 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
                   </div>
                 </div>
               </div>
-            ` : ""}
+            `
+                : ""
+            }
 
             <!-- Feed Algorithm Selector (Bluesky / Phoenix Style) -->
             <div class="flex items-center gap-2 p-1.5 rounded-2xl bg-surface-container-low/70 border border-outline-variant/20 overflow-x-auto">
-              <a href="/solara?view=feed&mode=for_you" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === 'for_you' ? 'bg-primary text-on-primary shadow-sm shadow-primary/20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}">
+              <a href="/solara?view=feed&mode=for_you" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === "for_you" ? "bg-primary text-on-primary shadow-sm shadow-primary/20" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"}">
                 <span class="text-sm">✨</span>
                 <span>Pour Toi</span>
               </a>
-              <a href="/solara?view=feed&mode=trending" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === 'trending' ? 'bg-primary text-on-primary shadow-sm shadow-primary/20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}">
+              <a href="/solara?view=feed&mode=trending" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === "trending" ? "bg-primary text-on-primary shadow-sm shadow-primary/20" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"}">
                 <span class="text-sm">🔥</span>
                 <span>Tendances</span>
               </a>
-              <a href="/solara?view=feed&mode=chronological" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === 'chronological' ? 'bg-primary text-on-primary shadow-sm shadow-primary/20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}">
+              <a href="/solara?view=feed&mode=chronological" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === "chronological" ? "bg-primary text-on-primary shadow-sm shadow-primary/20" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"}">
                 <span class="text-sm">⏱️</span>
                 <span>Chronologique</span>
               </a>
-              <a href="/solara?view=feed&mode=media" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === 'media' ? 'bg-primary text-on-primary shadow-sm shadow-primary/20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}">
+              <a href="/solara?view=feed&mode=media" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === "media" ? "bg-primary text-on-primary shadow-sm shadow-primary/20" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"}">
                 <span class="text-sm">🖼️</span>
                 <span>Médias</span>
               </a>
@@ -395,7 +447,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
               </div>
 
               <div class="relative">
-                <textarea id="composer-text" rows="3" placeholder="Quoi de neuf aujourd'hui, ${escapeHtml(user.id || 'Administrateur')} ?" class="w-full bg-surface-container-low/60 border border-outline-variant/30 rounded-xl p-3 text-xs text-on-surface focus:outline-none focus:border-primary transition resize-none placeholder:text-on-surface-variant/50"></textarea>
+                <textarea id="composer-text" rows="3" placeholder="Quoi de neuf aujourd'hui, ${escapeHtml(user.id || "Administrateur")} ?" class="w-full bg-surface-container-low/60 border border-outline-variant/30 rounded-xl p-3 text-xs text-on-surface focus:outline-none focus:border-primary transition resize-none placeholder:text-on-surface-variant/50"></textarea>
               </div>
 
               <div class="flex items-center justify-between pt-1">
@@ -429,7 +481,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
         <div class="space-y-6">
           
           <!-- Solara Navigation header -->
-          <div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
+          <!--<div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center text-2xl">☀️</div>
               <div>
@@ -438,16 +490,16 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
               </div>
             </div>
             <div class="flex gap-2">
-              <a href="/solara?view=feed" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${view === 'feed' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              <a href="/solara?view=feed" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${view === "feed" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
                 <span class="material-symbols-outlined text-sm">dynamic_feed</span>
                 <span>Fil d'actualité</span>
               </a>
-              <a href="/solara?view=profile" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${view === 'profile' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              <a href="/solara?view=profile" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${view === "profile" ? "bg-primary text-on-primary" : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15"}">
                 <span class="material-symbols-outlined text-sm">person</span>
                 <span>Mon Profil</span>
               </a>
             </div>
-          </div>
+          </div>-->
 
           <!-- Active View Render -->
           ${subViewHtml}
@@ -463,11 +515,11 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
           </div>
           <div class="space-y-1">
             <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant px-2 font-mono">Navigation</span>
-            <a href="/solara?view=feed" class="flex items-center gap-2 px-3 py-2 rounded-xl ${view === 'feed' ? 'bg-primary/10 text-primary font-bold' : 'hover:bg-surface-variant/40 text-on-surface-variant hover:text-on-surface'} text-xs transition">
+            <a href="/solara?view=feed" class="flex items-center gap-2 px-3 py-2 rounded-xl ${view === "feed" ? "bg-primary/10 text-primary font-bold" : "hover:bg-surface-variant/40 text-on-surface-variant hover:text-on-surface"} text-xs transition">
               <span class="material-symbols-outlined text-base">dynamic_feed</span>
               <span>Fil d'actualité</span>
             </a>
-            <a href="/solara?view=profile" class="flex items-center gap-2 px-3 py-2 rounded-xl ${view === 'profile' ? 'bg-primary/10 text-primary font-bold' : 'hover:bg-surface-variant/40 text-on-surface-variant hover:text-on-surface'} text-xs transition">
+            <a href="/solara?view=profile" class="flex items-center gap-2 px-3 py-2 rounded-xl ${view === "profile" ? "bg-primary/10 text-primary font-bold" : "hover:bg-surface-variant/40 text-on-surface-variant hover:text-on-surface"} text-xs transition">
               <span class="material-symbols-outlined text-base">person</span>
               <span>Mon Profil</span>
             </a>
@@ -477,7 +529,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
 
       return {
         contentHtml,
-        pageTitle: `Solara — ${view === 'profile' ? 'Mon Profil' : 'Réseau Social'}`,
+        pageTitle: `Solara — ${view === "profile" ? "Mon Profil" : "Réseau Social"}`,
         contextualSidebarHtml,
       };
     },
