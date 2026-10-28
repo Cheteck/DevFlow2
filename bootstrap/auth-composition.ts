@@ -14,6 +14,7 @@ import type { CredentialStore } from "@mosaix/ports-credential-store";
 import type { TokenStore } from "@mosaix/ports-token-store";
 import type { IdGeneratorPort } from "@mosaix/ports-id";
 import type { AuthenticationProvider } from "@mosaix/contracts";
+import { InMemoryGuard } from "@mosaix/support";
 import * as crypto from "node:crypto";
 
 export interface AuthCompositionContainer {
@@ -39,6 +40,10 @@ export interface SharedAuthOptions {
 
 class InMemorySessionStore implements SessionStore {
   private sessions = new Map<string, Session>();
+
+  constructor() {
+    InMemoryGuard.reportFallback("InMemorySessionStore", "no sessionStore option provided in auth-composition");
+  }
 
   async create(session: Session): Promise<void> {
     this.sessions.set(session.id, session);
@@ -75,6 +80,38 @@ class DefaultIdGenerator implements IdGeneratorPort {
   }
 }
 
+/**
+ * Fail-closed store used when no persistent session store is configured and
+ * the InMemoryGuard forbids the in-memory fallback (production or demo-off).
+ * Reads resolve to "no session" (anonymous), writes are rejected — never a
+ * fabricated session, and never a 500 from the composition root.
+ */
+const DisabledSessionStore: SessionStore = {
+  create: async () => {
+    throw new Error(
+      "Session store disabled: no persistent session store configured.",
+    );
+  },
+  get: async () => null,
+  revoke: async () => {
+    /* no-op: nothing to revoke in a disabled store */
+  },
+  revokeAllForIdentity: async () => {
+    /* no-op */
+  },
+  listActiveForIdentity: async () => [],
+};
+
+function resolveSessionStore(options?: SharedAuthOptions): SessionStore {
+  if (options?.sessionStore) return options.sessionStore;
+  try {
+    return new InMemorySessionStore();
+  } catch (_err) {
+    // Production/demo-off without a persistent store: fail closed.
+    return DisabledSessionStore;
+  }
+}
+
 let sharedAuthContainer: AuthCompositionContainer | null = null;
 
 export function getSharedAuthComposition(
@@ -85,7 +122,7 @@ export function getSharedAuthComposition(
   }
 
   // eslint-disable-next-line no-restricted-syntax -- couche 2 : SSR/logout exigent un store fonctionnel sans DB disponible ici ; brancher un vrai store (couche 2) avant de durcir en fail-fast.
-  const sessionStore = options?.sessionStore ?? new InMemorySessionStore();
+  const sessionStore = resolveSessionStore(options);
   const idGenerator = new DefaultIdGenerator();
   const sessionManager = new SessionManager(sessionStore, idGenerator);
   const identityStore = options?.identityStore;

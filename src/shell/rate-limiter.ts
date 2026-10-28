@@ -13,11 +13,37 @@ interface RateLimitBucket {
 
 export class RateLimiter {
   private buckets = new Map<string, RateLimitBucket>();
+  private sweepTimer?: ReturnType<typeof setInterval>;
 
   constructor(
     private readonly capacity: number = 60, // max tokens
     private readonly refillRatePerSecond: number = 10, // tokens per second
+    private readonly bucketTtlMs: number = 5 * 60 * 1000, // idle bucket eviction
   ) {}
+
+  /** Start the idle-bucket sweeper. Idempotent; safe to call multiple times. */
+  startSweep(intervalMs: number = 60_000): void {
+    if (this.sweepTimer) return;
+    this.sweepTimer = setInterval(() => this.sweep(), intervalMs);
+    this.sweepTimer.unref?.();
+  }
+
+  /** Stop the sweeper. Safe to call when never started. */
+  stopSweep(): void {
+    if (this.sweepTimer) {
+      clearInterval(this.sweepTimer);
+      this.sweepTimer = undefined;
+    }
+  }
+
+  private sweep(): void {
+    const now = Date.now();
+    for (const [key, bucket] of this.buckets) {
+      if (now - bucket.lastRefill > this.bucketTtlMs) {
+        this.buckets.delete(key);
+      }
+    }
+  }
 
   private getClientIp(req: IncomingMessage): string {
     // Anti-spoofing (VULN-06): only trust X-Forwarded-For behind an
@@ -90,3 +116,8 @@ export class RateLimiter {
 
 export const standardRateLimiter = new RateLimiter(100, 20);
 export const strictRateLimiter = new RateLimiter(15, 2);
+
+// Idle-bucket sweeper: prevents unbounded Map growth under distributed
+// attack patterns (VULN-06 follow-up). Unref'd so it never blocks shutdown.
+standardRateLimiter.startSweep();
+strictRateLimiter.startSweep();

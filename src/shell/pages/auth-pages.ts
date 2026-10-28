@@ -1,12 +1,11 @@
 /**
- * @shell/pages — Public auth pages (login + registration waiting room).
+ * @shell/pages — Public auth pages (login + public registration).
  *
  * `/login` is a functional form wired to `POST /api/auth/login` (uniform
  * errors, strict rate-limit bucket, `__Host-` cookie set server-side).
- * `/register` is an explicit WAITING page (product decision: no fake
- * signup while real registration/AUTH-05 is not implemented) linking back
- * to login. `POST /api/auth/register` answers 501 as the machine-readable
- * contract — never a fabricated account.
+ * `/register` is a fully operational public signup form wired to
+ * `POST /api/auth/register` (server-side validation, forced non-privileged
+ * role, strict rate-limit bucket, 409 on duplicate email).
  */
 
 import type { ThemeMode } from "@mosaix/contracts";
@@ -71,7 +70,7 @@ export function renderLoginPage(opts: AuthPageOptions): string {
             <input id="login-password" name="password" type="password" required autocomplete="current-password"
               class="w-full bg-surface-container border border-outline-variant/20 focus:border-primary/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none transition" />
           </div>
-          <p id="login-error" class="hidden text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2" role="alert"></p>
+          <p id="login-error" class="hidden text-xs font-semibold text-error bg-error-container border border-error/20 rounded-xl px-3 py-2" role="alert"></p>
           <button type="submit" id="login-submit"
             class="w-full py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-sm font-bold transition disabled:opacity-50">
             Se connecter
@@ -79,7 +78,7 @@ export function renderLoginPage(opts: AuthPageOptions): string {
         </form>
         <p class="text-xs text-on-surface-variant text-center">
           Pas encore de compte ?
-          <a href="/register?next=${encodeURIComponent(safeNext)}" class="text-primary font-semibold hover:underline">Voir comment s'inscrire</a>
+          <a href="/register?next=${encodeURIComponent(safeNext)}" class="text-primary font-semibold hover:underline">Créer un compte</a>
         </p>
       </div>
       <script>
@@ -120,21 +119,86 @@ export function renderLoginPage(opts: AuthPageOptions): string {
 }
 
 export function renderRegisterPage(opts: AuthPageOptions): string {
-  const { activeMode, sharedStyles } = opts;
+  const { activeMode, sharedStyles, safeNext } = opts;
   const card = `
       <div class="glass-card rounded-2xl p-6 space-y-5">
         <div>
           <h1 class="font-bold text-lg text-on-surface">Créer un compte</h1>
-          <p class="text-xs text-on-surface-variant mt-1">L'inscription publique n'est pas encore ouverte : les comptes sont créés par un administrateur pendant cette phase.</p>
+          <p class="text-xs text-on-surface-variant mt-1">Rejoignez la plateforme MosaiX. Votre compte vous donne accès à vos espaces, vos commandes et votre fil.</p>
         </div>
-        <div class="text-xs text-on-surface-variant bg-surface-container/60 border border-outline-variant/15 rounded-xl px-4 py-3 leading-relaxed">
-          Vous avez déjà un compte ? Connectez-vous pour retrouver votre fil, vos espaces et vos commandes.
-          L'ouverture des inscriptions sera annoncée ici même.
-        </div>
-        <a href="/login?next=${encodeURIComponent(opts.safeNext)}"
-          class="block text-center w-full py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-sm font-bold transition">
-          Se connecter
-        </a>
-      </div>`;
+        <form id="register-form" class="space-y-4" autocomplete="on">
+          <div>
+            <label for="register-email" class="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">Email</label>
+            <input id="register-email" name="email" type="email" required autocomplete="username"
+              class="w-full bg-surface-container border border-outline-variant/20 focus:border-primary/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none transition" />
+          </div>
+          <div>
+            <label for="register-display-name" class="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">Nom d'affichage</label>
+            <input id="register-display-name" name="displayName" type="text" required autocomplete="name"
+              class="w-full bg-surface-container border border-outline-variant/20 focus:border-primary/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none transition" />
+          </div>
+          <div>
+            <label for="register-password" class="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">Mot de passe</label>
+            <input id="register-password" name="password" type="password" required autocomplete="new-password"
+              class="w-full bg-surface-container border border-outline-variant/20 focus:border-primary/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none transition" />
+            <p class="text-[10px] text-on-surface-variant/60 mt-1">8 caractères minimum</p>
+          </div>
+          <p id="register-error" class="hidden text-xs font-semibold text-error bg-error-container border border-error/20 rounded-xl px-3 py-2" role="alert"></p>
+          <p id="register-success" class="hidden text-xs font-semibold text-success bg-success-container border border-success/20 rounded-xl px-3 py-2" role="status"></p>
+          <button type="submit" id="register-submit"
+            class="w-full py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-sm font-bold transition disabled:opacity-50">
+            Créer mon compte
+          </button>
+        </form>
+        <p class="text-xs text-on-surface-variant text-center">
+          Vous avez déjà un compte ?
+          <a href="/login?next=${encodeURIComponent(safeNext)}" class="text-primary font-semibold hover:underline">Se connecter</a>
+        </p>
+      </div>
+      <script>
+        (function() {
+          var next = ${JSON.stringify(safeNext)};
+          var form = document.getElementById('register-form');
+          var err = document.getElementById('register-error');
+          var success = document.getElementById('register-success');
+          var btn = document.getElementById('register-submit');
+          form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            err.classList.add('hidden');
+            success.classList.add('hidden');
+            btn.disabled = true;
+            btn.textContent = 'Création en cours…';
+            try {
+              var res = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  email: document.getElementById('register-email').value,
+                  password: document.getElementById('register-password').value,
+                  displayName: document.getElementById('register-display-name').value
+                })
+              });
+              if (res.ok) {
+                success.textContent = 'Compte créé avec succès. Vous pouvez maintenant vous connecter.';
+                success.classList.remove('hidden');
+                form.reset();
+                setTimeout(function() {
+                  window.location.href = '/login?next=' + encodeURIComponent(next);
+                }, 1500);
+              } else {
+                var data = await res.json().catch(function() { return {}; });
+                err.textContent = data.error || 'Erreur lors de la création du compte. Réessayez.';
+                err.classList.remove('hidden');
+              }
+            } catch (ex) {
+              err.textContent = 'Service momentanément indisponible. Réessayez dans un instant.';
+              err.classList.remove('hidden');
+            } finally {
+              btn.disabled = false;
+              btn.textContent = 'Créer mon compte';
+            }
+          });
+        })();
+      </script>`;
   return authShell("Inscription", activeMode, sharedStyles, card);
 }

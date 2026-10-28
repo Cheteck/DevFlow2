@@ -7,11 +7,28 @@ import * as http from "node:http";
 import { URL } from "node:url";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as crypto from "node:crypto";
 
 import type { ThemeMode, BacExecutionContext } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
 import { platformSettingsService, ConsoleLogger } from "@mosaix/core";
 import { createApplication } from "../bootstrap/index.js";
+import { AuthManager } from "@mosaix/auth";
+import { LocalPasswordProvider } from "@mosaix/adapter-auth-local";
+import { EnvSecretsAdapter } from "@mosaix/adapter-secrets-env";
+import type { IdentityStore } from "@mosaix/ports-identity-store";
+import type { SessionStore } from "@mosaix/ports-session-store";
+import type { CredentialStore } from "@mosaix/ports-credential-store";
+import type { TokenStore } from "@mosaix/ports-token-store";
+import { getSharedAuthComposition } from "../bootstrap/auth-composition.js";
+import { SQLiteSessionStoreAdapter } from "@mosaix/adapter-session-store-sqlite";
+import { SQLiteTokenStoreAdapter } from "@mosaix/adapter-token-store-sqlite";
+import { SQLiteCredentialStoreAdapter } from "@mosaix/adapter-credential-store-sqlite";
+import { SQLiteIdentityStoreAdapter } from "@mosaix/adapter-identity-store-sqlite";
+import { PostgresSessionStoreAdapter } from "@mosaix/adapter-session-store-postgres";
+import { PostgresTokenStoreAdapter } from "@mosaix/adapter-token-store-postgres";
+import { PostgresCredentialStoreAdapter } from "@mosaix/adapter-credential-store-postgres";
+import { PostgresIdentityStoreAdapter } from "@mosaix/adapter-identity-store-postgres";
 
 // Shell services & state
 import { apps } from "./shell/discovery.js";
@@ -66,6 +83,20 @@ const logger = new ConsoleLogger("info", { component: "ShellServer" });
  * Fait partie du batch "and 14 more". Vérifier la signature ConsoleLogger et le boot (build + démarrage)
  * après toute restauration. */
 
+// Request hard ceiling: a hung upstream (descriptor.render, DB, cluster relay) can
+// never pin a worker indefinitely. 30s is generous for SSR + MCP round-trips;
+// anything slower is almost certainly stuck, not slow (S-09).
+const REQUEST_TIMEOUT_MS = Number.parseInt(
+  process.env.MOSAIX_REQUEST_TIMEOUT_MS || "30000",
+  10,
+);
+
+// Stable per-request id: links logs, traces, and the response header so a
+// slow request is traceable without server-side correlation tables (OBS-TRC-01).
+function generateRequestId(): string {
+  return `req_${crypto.randomUUID()}`;
+}
+
 // Single composition root (Laravel `bootstrap/app.php`): env → security →
 // database (connect only, PRAGMAs awaited) → migrations fail-fast →
 // composition overrides → persisted theme. Schema comes from versioned
@@ -75,6 +106,50 @@ const logger = new ConsoleLogger("info", { component: "ShellServer" });
 const app = await createApplication();
 const { compositionOverrideManager } = app;
 const PORT = app.env.resolvedPort;
+
+// ---------------------------------------------------------------------------
+// Shared Auth Composition (Shell) — public registration + login
+// Wires persistent SQLite stores + LocalPasswordProvider into the singleton
+// used by `src/server/routes/auth-routes.ts` and `src/shell/ssr-auth-context.ts`.
+// ---------------------------------------------------------------------------
+// Dialect-aware store selection: SQLite by default, Postgres when the
+// database adapter reports a postgres dialect (production deployments).
+const isPostgres = app.dbAdapter.capabilities.dialect === "postgres";
+const identityStore: IdentityStore = isPostgres
+  ? new PostgresIdentityStoreAdapter(app.dbAdapter)
+  : new SQLiteIdentityStoreAdapter(app.dbAdapter);
+const sessionStore: SessionStore = isPostgres
+  ? new PostgresSessionStoreAdapter(app.dbAdapter)
+  : new SQLiteSessionStoreAdapter(app.dbAdapter);
+const credentialStore: CredentialStore = isPostgres
+  ? new PostgresCredentialStoreAdapter(app.dbAdapter)
+  : new SQLiteCredentialStoreAdapter(app.dbAdapter);
+const tokenStore: TokenStore = isPostgres
+  ? new PostgresTokenStoreAdapter(app.dbAdapter)
+  : new SQLiteTokenStoreAdapter(app.dbAdapter);
+
+const authContainer = getSharedAuthComposition({
+  sessionStore,
+  identityStore,
+  credentialStore,
+  tokenStore,
+  providers: new Map(),
+});
+
+// Register the local password provider. The Shell routes call
+// `authManager.authenticate({ provider: "credentials", ... })`, so the
+// provider is registered under the key "credentials".
+if (authContainer.authManager) {
+  authContainer.authManager.registerProvider(
+    new LocalPasswordProvider({
+      credentialStore,
+      identityStore,
+      secrets: new EnvSecretsAdapter(),
+      // AuthManager implements SessionCreationPort (createSession).
+      sessionCreation: authContainer.authManager,
+    }),
+  );
+}
 
 // Initialize platform feature flags with database adapter for persistent storage
 await getPlatformFeatureFlags(app.dbAdapter);
@@ -145,13 +220,19 @@ function headersToRecord(
   return out;
 }
 
-const server = http.createServer(async (req, res) => {
+async function handleRequest(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  requestId: string,
+): Promise<void> {
   try {
     // Inject standard OWASP security headers
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "SAMEORIGIN");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("X-XSS-Protection", "1; mode=block");
+    // Per-request tracing header (OBS-TRC-01)
+    res.setHeader("X-Request-Id", requestId);
 
     const parsedUrl = new URL(
       req.url || "/",
@@ -252,7 +333,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 4b. Public auth pages (login functional, register = waiting room).
+    // 4b. Public auth pages (login + public registration, both functional).
     // Authenticated/demo sessions have no business here → back to `next`.
     if (pathname === "/login" || pathname === "/register") {
       if (req.method !== "GET") {
@@ -515,11 +596,64 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(homeHtml);
   } catch (err: unknown) {
-    logger.error("[ServerError]", { err: String(err) });
+    const isTimeout =
+      err instanceof Error && err.name === "TimeoutError";
+    logger.error("[ServerError]", {
+      requestId,
+      err: String(err),
+      timeout: isTimeout,
+    });
     if (!res.headersSent) {
-      res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
-      const message = err instanceof Error ? err.message : "Unknown error";
-      res.end(`Internal Server Error: ${message}`);
+      res.writeHead(isTimeout ? 503 : 500, {
+        "Content-Type": "text/plain; charset=utf-8",
+      });
+      const message = isTimeout
+        ? "Service Unavailable: request timed out"
+        : err instanceof Error
+          ? err.message
+          : "Unknown error";
+      res.end(isTimeout ? message : `Internal Server Error: ${message}`);
+    }
+  }
+}
+
+const server = http.createServer(async (req, res) => {
+  const requestId = generateRequestId();
+  // Hard request ceiling (S-09): a hung upstream (descriptor.render, DB
+  // query, cluster relay) can never pin a worker indefinitely. The race
+  // rejects the handler's promise; the socket is closed with 503. The
+  // orphaned handler promise is left to run to completion (or be GC'd) —
+  // Node's event loop does not await it.
+  const timeoutSignal = new Promise<never>((_, reject) => {
+    const timer = setTimeout(() => {
+      const err = new Error("Request timed out");
+      err.name = "TimeoutError";
+      reject(err);
+    }, REQUEST_TIMEOUT_MS);
+    timer.unref?.();
+    res.on("finish", () => clearTimeout(timer));
+  });
+
+  try {
+    await Promise.race([handleRequest(req, res, requestId), timeoutSignal]);
+  } catch (err: unknown) {
+    const isTimeout =
+      err instanceof Error && err.name === "TimeoutError";
+    logger.error("[ServerError]", {
+      requestId,
+      err: String(err),
+      timeout: isTimeout,
+    });
+    if (!res.headersSent) {
+      res.writeHead(isTimeout ? 503 : 500, {
+        "Content-Type": "text/plain; charset=utf-8",
+      });
+      const message = isTimeout
+        ? "Service Unavailable: request timed out"
+        : err instanceof Error
+          ? err.message
+          : "Unknown error";
+      res.end(isTimeout ? message : `Internal Server Error: ${message}`);
     }
   }
 });
