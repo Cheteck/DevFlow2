@@ -264,8 +264,8 @@ console.log("MosaiX Standalone Kernel is active.");
       type: "module",
       main: "server.js",
       dependencies: {
-        "@mosaix/core": "workspace:*",
-        "@mosaix/contracts": "workspace:*",
+        "@mosaix/core": "file:./build/packages/core",
+        "@mosaix/contracts": "file:./build/packages/contracts",
       },
     };
 

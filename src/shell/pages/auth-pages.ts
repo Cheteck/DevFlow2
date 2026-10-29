@@ -185,7 +185,6 @@ const AUTH_EXTRA_STYLES = `<style>
 
   /* Transition entre vues (navigation réelle) */
   @media (prefers-reduced-motion: no-preference) {
-    @view-transition { navigation: auto; }
     .auth-frame { view-transition-name: auth-panel; }
     ::view-transition-old(auth-panel) { animation: authOut 120ms ease-in both; }
     ::view-transition-new(auth-panel) { animation: authIn var(--auth-dur-view) var(--auth-ease) both; }

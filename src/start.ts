@@ -125,15 +125,19 @@ const authContainer = getSharedAuthComposition({
 // `authManager.authenticate({ provider: "credentials", ... })`, so the
 // provider is registered under the key "credentials".
 if (authContainer.authManager) {
-  authContainer.authManager.registerProvider(
-    new LocalPasswordProvider({
-      credentialStore,
-      identityStore,
-      secrets: new EnvSecretsAdapter(),
-      // AuthManager implements SessionCreationPort (createSession).
-      sessionCreation: authContainer.authManager,
-    }),
-  );
+  const localProvider = new LocalPasswordProvider({
+    credentialStore,
+    identityStore,
+    secrets: new EnvSecretsAdapter(),
+    sessionCreation: authContainer.authManager,
+  });
+  authContainer.authManager.registerProvider(localProvider);
+  // Also register under "credentials" for backward compatibility with Shell routes
+  authContainer.authManager.registerProvider({
+    id: "credentials",
+    capabilities: localProvider.capabilities,
+    authenticate: (req) => localProvider.authenticate(req),
+  });
 }
 
 // Initialize platform feature flags with database adapter for persistent storage
@@ -145,13 +149,23 @@ await getPlatformFeatureFlags(app.dbAdapter);
 await wireBacDescriptors(app.dbAdapter);
 
 // Static MIME types (module-level: never rebuilt per request).
+// Extended set for PWA assets and common static files.
 const STATIC_MIME_TYPES: Record<string, string> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
   ".svg": "image/svg+xml",
-  ".css": "text/css",
-  ".js": "application/javascript",
-  ".json": "application/json",
+  ".css": "text/css; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".mjs": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
+  ".ico": "image/x-icon",
+  ".txt": "text/plain; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".woff2": "font/woff2",
+  ".woff": "font/woff",
+  ".ttf": "font/ttf",
 };
 
 // API routes with sensitive side effects get the strict bucket.
@@ -237,21 +251,35 @@ async function handleRequest(
       if (!allow(req, res)) return;
     }
 
-    // 1. Static Assets Delivery (/public/)
+    // 1. Static Assets Delivery (public/ root serves both /public/* and root assets like /site.webmanifest)
+    const publicDir = path.resolve(process.cwd(), "public");
+    let staticPath: string | null = null;
+    
     if (pathname.startsWith("/public/")) {
-      const publicDir = path.resolve(process.cwd(), "public");
-      const safePath = path.resolve(process.cwd(), "." + pathname);
-      if (!safePath.startsWith(publicDir)) {
+      // Explicit /public/* path
+      staticPath = path.resolve(process.cwd(), "." + pathname);
+    } else if (
+      // Root-level static assets (favicon, manifest, etc.)
+      pathname === "/site.webmanifest" ||
+      pathname === "/favicon.ico" ||
+      pathname === "/favicon.svg" ||
+      pathname === "/robots.txt"
+    ) {
+      staticPath = path.resolve(publicDir, "." + pathname);
+    }
+    
+    if (staticPath) {
+      if (!staticPath.startsWith(publicDir)) {
         res.writeHead(403, { "Content-Type": "text/plain" });
         res.end("Forbidden");
         return;
       }
-      if (fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
-        const ext = path.extname(safePath).toLowerCase();
+      if (fs.existsSync(staticPath) && fs.statSync(staticPath).isFile()) {
+        const ext = path.extname(staticPath).toLowerCase();
         res.writeHead(200, {
           "Content-Type": STATIC_MIME_TYPES[ext] || "application/octet-stream",
         });
-        fs.createReadStream(safePath).pipe(res);
+        fs.createReadStream(staticPath).pipe(res);
         return;
       }
     }
