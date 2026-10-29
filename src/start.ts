@@ -25,10 +25,6 @@ import { SQLiteSessionStoreAdapter } from "@mosaix/adapter-session-store-sqlite"
 import { SQLiteTokenStoreAdapter } from "@mosaix/adapter-token-store-sqlite";
 import { SQLiteCredentialStoreAdapter } from "@mosaix/adapter-credential-store-sqlite";
 import { SQLiteIdentityStoreAdapter } from "@mosaix/adapter-identity-store-sqlite";
-import { PostgresSessionStoreAdapter } from "@mosaix/adapter-session-store-postgres";
-import { PostgresTokenStoreAdapter } from "@mosaix/adapter-token-store-postgres";
-import { PostgresCredentialStoreAdapter } from "@mosaix/adapter-credential-store-postgres";
-import { PostgresIdentityStoreAdapter } from "@mosaix/adapter-identity-store-postgres";
 
 // Shell services & state
 import { apps } from "./shell/discovery.js";
@@ -112,21 +108,10 @@ const PORT = app.env.resolvedPort;
 // Wires persistent SQLite stores + LocalPasswordProvider into the singleton
 // used by `src/server/routes/auth-routes.ts` and `src/shell/ssr-auth-context.ts`.
 // ---------------------------------------------------------------------------
-// Dialect-aware store selection: SQLite by default, Postgres when the
-// database adapter reports a postgres dialect (production deployments).
-const isPostgres = app.dbAdapter.capabilities.dialect === "postgres";
-const identityStore: IdentityStore = isPostgres
-  ? new PostgresIdentityStoreAdapter(app.dbAdapter)
-  : new SQLiteIdentityStoreAdapter(app.dbAdapter);
-const sessionStore: SessionStore = isPostgres
-  ? new PostgresSessionStoreAdapter(app.dbAdapter)
-  : new SQLiteSessionStoreAdapter(app.dbAdapter);
-const credentialStore: CredentialStore = isPostgres
-  ? new PostgresCredentialStoreAdapter(app.dbAdapter)
-  : new SQLiteCredentialStoreAdapter(app.dbAdapter);
-const tokenStore: TokenStore = isPostgres
-  ? new PostgresTokenStoreAdapter(app.dbAdapter)
-  : new SQLiteTokenStoreAdapter(app.dbAdapter);
+const identityStore: IdentityStore = new SQLiteIdentityStoreAdapter(app.dbAdapter);
+const sessionStore: SessionStore = new SQLiteSessionStoreAdapter(app.dbAdapter);
+const credentialStore: CredentialStore = new SQLiteCredentialStoreAdapter(app.dbAdapter);
+const tokenStore: TokenStore = new SQLiteTokenStoreAdapter(app.dbAdapter);
 
 const authContainer = getSharedAuthComposition({
   sessionStore,
