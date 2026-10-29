@@ -168,6 +168,194 @@
     color: var(--color-on-primary);
     border-color: transparent;
   }
+
+  /* ==========================================================================
+     Auth Pages — Unified Form Components
+     Inspired by ergonomic reference; expressed in existing Mosaix tokens.
+     ========================================================================== */
+
+  /* Sliding tab pill for the unified auth switcher */
+  .auth-pill {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    width: calc(50% - 4px);
+    border-radius: 0.75rem;
+    background-color: var(--color-surface-container);
+    border: 1px solid var(--color-outline-variant);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Floating label engine — pure CSS, accessible */
+  .auth-floating {
+    position: relative;
+  }
+  .auth-floating label {
+    position: absolute;
+    left: 0.875rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    font-size: 0.8125rem;
+    color: var(--color-on-surface-variant);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: left center;
+    user-select: none;
+  }
+  .auth-floating input:focus ~ label,
+  .auth-floating input:not(:placeholder-shown) ~ label {
+    top: 0.5rem;
+    transform: translateY(0) scale(0.72);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--color-primary);
+  }
+  .auth-floating input.has-error ~ label {
+    color: var(--color-error);
+  }
+  .auth-floating .auth-field-icon {
+    position: absolute;
+    inset-y: 0;
+    left: 0.875rem;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    color: var(--color-on-surface-variant);
+    transition: color 0.2s ease;
+  }
+  .auth-floating input:focus ~ .auth-field-icon {
+    color: var(--color-primary);
+  }
+  .auth-floating input.has-error ~ .auth-field-icon {
+    color: var(--color-error);
+  }
+
+  /* Auth input base */
+  .auth-input {
+    width: 100%;
+    padding: 1rem 0.875rem 0.45rem 2.5rem;
+    background-color: var(--color-surface-container);
+    border: 1px solid var(--color-outline-variant);
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-on-surface);
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .auth-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 16%, transparent);
+  }
+  .auth-input.has-error {
+    border-color: var(--color-error) !important;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-error) 16%, transparent) !important;
+  }
+  .auth-input.is-valid:not(:focus) {
+    border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
+  }
+
+  /* Field-level validation slot (prevents layout shift) */
+  .auth-validation-slot {
+    min-height: 1.15rem;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  /* Password strength meter */
+  .auth-strength-meter {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.375rem;
+    width: 7rem;
+  }
+  .auth-strength-meter .str-seg {
+    height: 0.25rem;
+    border-radius: 9999px;
+    background-color: var(--color-surface-container-highest);
+    transition: background-color 0.3s ease;
+  }
+
+  /* Password checklist item */
+  .auth-check-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.6875rem;
+    color: var(--color-on-surface-variant);
+    transition: color 0.2s ease;
+  }
+  .auth-check-item .check-dot {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 9999px;
+    background-color: var(--color-on-surface-variant);
+    opacity: 0.4;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+  }
+  .auth-check-item.satisfied {
+    color: var(--color-success);
+  }
+  .auth-check-item.satisfied .check-dot {
+    background-color: var(--color-success);
+    opacity: 1;
+  }
+
+  /* Submit button with glow + spinner */
+  .auth-submit {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--color-on-primary);
+    background-color: var(--color-primary);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .auth-submit:hover:not(:disabled) {
+    box-shadow: 0 0 20px color-mix(in srgb, var(--color-primary) 30%, transparent);
+    transform: translateY(-1px);
+  }
+  .auth-submit:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  .auth-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* Success card */
+  .auth-success-card {
+    padding: 1.5rem;
+    border-radius: 1rem;
+    background-color: color-mix(in srgb, var(--color-success-container) 60%, var(--color-surface-container));
+    border: 1px solid color-mix(in srgb, var(--color-success) 24%, transparent);
+    text-align: center;
+  }
+
+  /* Split editorial layout */
+  .auth-editorial {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .auth-pill, .auth-submit, .auth-floating label, .auth-input {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
 }
 [data-theme-mode="dark"], .dark, html.dark {
   --color-primary: var(--mx-color-primary, #6366f1);

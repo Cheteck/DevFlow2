@@ -354,7 +354,7 @@ describe(
       expect(html).toContain("/api/auth/login");
     });
 
-    it("POST /api/auth/login without a wired AuthManager is an honest 503", async () => {
+    it("POST /api/auth/login without valid credentials returns 401", async () => {
       const res = await fetch(`${server.baseUrl}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -363,23 +363,25 @@ describe(
           password: "wrong",
         }),
       });
-      // No providers/stores in the shared Shell composition (Citadelle owns
-      // login): 503, never a fabricated 401 — credentials are not even read.
-      expect(res.status).toBe(503);
+      // Auth is wired with SQLite stores (public registration enabled).
+      // Invalid credentials return 401 with uniform error, never leaking email.
+      expect(res.status).toBe(401);
       const body = (await res.json()) as Record<string, unknown>;
       expect(body.error).toBeDefined();
       expect(JSON.stringify(body)).not.toContain("nobody@example.com");
     });
 
-    it("POST /api/auth/register is an explicit 501 (no fake signup)", async () => {
+    it("POST /api/auth/register with invalid input returns 400", async () => {
       const res = await fetch(`${server.baseUrl}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: "a@b.c", password: "x" }),
       });
-      expect(res.status).toBe(501);
+      // Registration is enabled (SQLite stores wired).
+      // Password < 8 chars returns 400 with clear error.
+      expect(res.status).toBe(400);
       expect(((await res.json()) as Record<string, unknown>).error).toBe(
-        "registration_not_enabled",
+        "Password must be at least 8 characters",
       );
     });
   },
