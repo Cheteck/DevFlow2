@@ -349,9 +349,223 @@
     justify-content: space-between;
   }
 
+  /* ==========================================================================
+     Auth Frame — architectural container à la maquette
+     ========================================================================== */
+
+  /* Subtle geometric grid background (48 px, 3.5 % surface tint) */
+  .auth-bg-grid {
+    background-size: 48px 48px;
+    background-image:
+      linear-gradient(to right, color-mix(in srgb, var(--color-on-surface) 3.5%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in srgb, var(--color-on-surface) 3.5%, transparent) 1px, transparent 1px);
+  }
+
+  /* Framed card container */
+  .auth-frame {
+    position: relative;
+    border: 1px solid var(--color-outline-variant);
+    border-radius: 1rem;
+    background-color: color-mix(in srgb, var(--color-surface) 92%, transparent);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-outline-variant) 12%, transparent),
+                0 24px 64px -12px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+  }
+
+  /* Corner crosshairs (technical ticks on the frame) */
+  .auth-crosshair {
+    position: relative;
+  }
+  .auth-crosshair::before,
+  .auth-crosshair::after {
+    content: '';
+    position: absolute;
+    background: color-mix(in srgb, var(--color-primary) 35%, transparent);
+    z-index: 20;
+  }
+  /* Top-left crosshair */
+  .auth-crosshair::before {
+    width: 9px;
+    height: 1px;
+    left: -4px;
+    top: -1px;
+  }
+  .auth-crosshair::after {
+    width: 1px;
+    height: 9px;
+    left: 0;
+    top: -5px;
+  }
+
+  /* Bottom-left crosshair */
+  .auth-crosshair-bl::before {
+    width: 9px;
+    height: 1px;
+    left: -4px;
+    top: auto;
+    bottom: -1px;
+  }
+  .auth-crosshair-bl::after {
+    width: 1px;
+    height: 9px;
+    left: 0;
+    top: auto;
+    bottom: -5px;
+  }
+
+  /* Top-right crosshair */
+  .auth-crosshair-tr::before {
+    width: 9px;
+    height: 1px;
+    left: auto;
+    right: -4px;
+    top: -1px;
+  }
+  .auth-crosshair-tr::after {
+    width: 1px;
+    height: 9px;
+    left: auto;
+    right: 0;
+    top: -5px;
+  }
+
+  /* Bottom-right crosshair */
+  .auth-crosshair-br::before {
+    width: 9px;
+    height: 1px;
+    left: auto;
+    right: -4px;
+    top: auto;
+    bottom: -1px;
+  }
+  .auth-crosshair-br::after {
+    width: 1px;
+    height: 9px;
+    left: auto;
+    right: 0;
+    top: auto;
+    bottom: -5px;
+  }
+
+  /* Animated check mark in checklist items */
+  .auth-check-item .check-mark {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    opacity: 0;
+    transform: scale(0.5) rotate(-45deg);
+    transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .auth-check-item.satisfied .check-mark {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+
+  /* Password generator button */
+  .auth-pwd-gen {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--color-primary);
+    background-color: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .auth-pwd-gen:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--color-primary) 14%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+  }
+  .auth-pwd-gen:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Register success view (replaces form) */
+  .auth-success-view {
+    display: none;
+  }
+  .auth-success-view.visible {
+    display: block;
+  }
+  .auth-form-container.hidden {
+    display: none;
+  }
+
+  /* Editorial H1 gradient text (tokens only) */
+  .auth-h1-gradient {
+    background-image: linear-gradient(
+      100deg,
+      var(--color-primary) 0%,
+      var(--color-secondary) 60%,
+      var(--color-primary) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Valid-state check icon (right side of input) */
+  .auth-valid-icon {
+    position: absolute;
+    inset-y: 0;
+    right: 0.875rem;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    color: var(--color-success);
+    opacity: 0;
+    transform: translateX(4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .auth-valid-icon.visible {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  /* Tab status dot */
+  .auth-tab-dot {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 9999px;
+    background-color: var(--color-on-surface-variant);
+    opacity: 0.4;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+  }
+  .auth-tab-dot-active {
+    background-color: var(--color-primary);
+    opacity: 1;
+    animation: authDotPulse 2s ease-in-out infinite;
+  }
+
+  /* Success icon animation */
+  .auth-success-icon {
+    animation: authSuccessPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  @keyframes authSuccessPop {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  /* Tab status dot pulse */
+  .auth-tab-dot-active {
+    animation: authDotPulse 2s ease-in-out infinite;
+  }
+  @keyframes authDotPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
   /* Reduced motion */
   @media (prefers-reduced-motion: reduce) {
-    .auth-pill, .auth-submit, .auth-floating label, .auth-input {
+    .auth-pill, .auth-submit, .auth-floating label, .auth-input,
+    .auth-check-item .check-mark, .auth-success-icon, .auth-tab-dot-active {
       transition: none !important;
       animation: none !important;
     }
