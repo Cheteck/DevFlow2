@@ -1,4 +1,6 @@
 import * as path from "node:path";
+import * as fs from "node:fs";
+import { execSync } from "node:child_process";
 import type { CliCommand, CommandContext, CLIResult } from "../command.js";
 import { EXIT_CODES } from "../folder-manager.js";
 import { MosaixFolderManager } from "../folder-manager.js";
@@ -77,8 +79,31 @@ export class DevCommand implements CliCommand {
 export class BuildCommand implements CliCommand {
   readonly name = "build";
   execute(ctx: CommandContext): CLIResult {
+    // Step 1: Compile TypeScript to .mosaix/build/ (if tsconfig.build.json exists)
+    const tsconfigBuildPath = path.join(ctx.rootDir, "tsconfig.build.json");
+    if (fs.existsSync(tsconfigBuildPath)) {
+      const buildOutputDir = path.join(ctx.rootDir, ".mosaix", "build");
+      
+      // Ensure .mosaix/build exists before tsc writes to it
+      if (!fs.existsSync(buildOutputDir)) {
+        fs.mkdirSync(buildOutputDir, { recursive: true });
+      }
+
+      try {
+        execSync("tsc -p tsconfig.build.json", { 
+          stdio: "pipe",
+          cwd: ctx.rootDir 
+        });
+      } catch (error: any) {
+        const output = error.stdout?.toString() || error.stderr?.toString() || error.message;
+        return ctx.error(`TypeScript compilation failed:\n${output}`, EXIT_CODES.BUILD_FAILURE);
+      }
+    }
+
+    // Step 2: Synthesize manifests and generate standalone bundle
     const buildCompiler = new ProductionBuildCompiler(ctx.rootDir);
     const manifest = buildCompiler.compile();
+    
     return ctx.respond("Build completed successfully.", manifest);
   }
 }

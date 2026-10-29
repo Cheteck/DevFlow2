@@ -275,6 +275,16 @@ console.log("MosaiX Standalone Kernel is active.");
       JSON.stringify(packageJsonContent, null, 2),
       "utf8",
     );
+
+    // Copy compiled manifests
+    if (fs.existsSync(struct.manifestsDir.root)) {
+      fs.cpSync(struct.manifestsDir.root, path.join(struct.standaloneDir.root, 'manifests'), { recursive: true });
+    }
+
+    // Copy compiled build artifacts
+    if (fs.existsSync(struct.buildDir.root)) {
+      fs.cpSync(struct.buildDir.root, path.join(struct.standaloneDir.root, 'build'), { recursive: true });
+    }
   }
 
   inspect(): Record<string, unknown> {
