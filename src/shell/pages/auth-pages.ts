@@ -6,18 +6,14 @@
  *   - POST /api/auth/register { email, password, displayName }
  *   - exports : renderLoginPage, renderRegisterPage, AuthPageOptions
  *
- * Principes de cette version :
- *   - Le rendu serveur reste inchangé (chaînes HTML), mais la logique client
- *     commune (validation, bannières, POST, bascule MDP) est factorisée dans
- *     un unique runtime `window.MxAuth` injecté une seule fois.
- *   - Aucun `innerHTML` alimenté par des données utilisateur ou serveur :
- *     tout passe par `textContent` / nœuds DOM.
- *   - Animations : transform/opacity/couleurs uniquement, durées centralisées
- *     en variables CSS (--auth-dur-*), `prefers-reduced-motion` respecté.
- *   - Transition entre Connexion/Inscription : CSS View Transitions
- *     (amélioration progressive, zéro JS, ignorée si non supportée).
- *
- * Tokens : variables CSS du design system MosaiX (theme-aware).
+ * Principes de design & cohérence MosaiX :
+ *   - Identité de marque canonique : logo auto_awesome à gradient MosaïX (from-primary via-indigo-500 to-secondary).
+ *   - Barre d'en-tête globale avec sélecteur de thème persistant (Clair / Sombre / Contraste) + retour vitrine.
+ *   - Script d'amorçage thème dans le `<head>` aligné sur home-page & bac-page (zéro flash de mauvais thème).
+ *   - Typographie harmonisée : Plus Jakarta Sans (titres) & JetBrains Mono (badges, technique) & Inter (corps).
+ *   - Composants : tokens Tailwind & Material 3 stricts (`--color-*`), glassmorphism, frames, crosshairs.
+ *   - Sécurité XSS : aucun innerHTML avec données utilisateur ; textContent / nœuds DOM stricts.
+ *   - Accessibilité : WCAG AA (zones tactiles ≥ 44px, contrastes, autocomplete, labels associés, aria-live).
  */
 
 import type { ThemeMode } from "@mosaix/contracts";
@@ -87,8 +83,6 @@ const ICON = {
 };
 
 // ─── Styles spécifiques aux pages auth ───────────────────────────────────────
-// Durées/courbes centralisées. Repères : micro 140 ms, champs 180 ms,
-// états/messages 200 ms, changement de vue 240 ms.
 const AUTH_EXTRA_STYLES = `<style>
   :root {
     --auth-dur-micro: 140ms;
@@ -104,10 +98,11 @@ const AUTH_EXTRA_STYLES = `<style>
   }
   .auth-skip {
     position: absolute; left: 0.75rem; top: 0.75rem; z-index: 50;
-    padding: 0.5rem 0.75rem; border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem; border-radius: 0.75rem;
     background: var(--color-surface); color: var(--color-on-surface);
     border: 1px solid var(--color-outline-variant);
     transform: translateY(-200%);
+    transition: transform var(--auth-dur-micro) var(--auth-ease);
   }
   .auth-skip:focus { transform: translateY(0); }
 
@@ -137,31 +132,31 @@ const AUTH_EXTRA_STYLES = `<style>
   .auth-floating input:not(:placeholder-shown) ~ .auth-label-with-icon,
   .auth-floating input:-webkit-autofill ~ .auth-label-with-icon {
     top: 0.5rem;
-    transform: translateY(0) scale(0.8);
+    transform: translateY(0) scale(0.78);
     font-weight: 600;
     letter-spacing: 0.02em;
     color: var(--color-primary);
   }
   .auth-floating input.has-error ~ .auth-label-with-icon { color: var(--color-error); }
 
-  /* Icône de champ : réactive en CSS pur (plus de JS focus/blur) */
+  /* Icône de champ : réactive en CSS pur */
   .auth-floating .auth-field-icon { transition: color var(--auth-dur-field) var(--auth-ease); }
   .auth-floating input:focus ~ .auth-field-icon { color: var(--color-primary); }
   .auth-floating input.is-valid ~ .auth-field-icon { color: var(--color-success); }
   .auth-floating input.has-error ~ .auth-field-icon { color: var(--color-error); }
 
-  /* Messages : emplacement réservé (pas de saut de mise en page) + fondu */
+  /* Messages : emplacement réservé (pas de saut de mise en page) + animation douce */
   .auth-validation-slot { min-height: 1.125rem; color: var(--color-on-surface-variant); }
   .auth-hint-msg { display: inline-flex; align-items: center; gap: 0.375rem; animation: authFadeIn var(--auth-dur-state) var(--auth-ease); }
-  .auth-hint-error { color: var(--color-error); }
-  .auth-hint-ok { color: var(--color-success); }
+  .auth-hint-error { color: var(--color-error); font-weight: 500; }
+  .auth-hint-ok { color: var(--color-success); font-weight: 500; }
   .auth-banner-in { animation: authFadeIn var(--auth-dur-state) var(--auth-ease); }
   @keyframes authFadeIn {
     from { opacity: 0; transform: translateY(-4px); }
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  /* Boutons */
+  /* Bouton principal de soumission */
   .auth-submit {
     transition: background-color var(--auth-dur-field) var(--auth-ease),
                 box-shadow var(--auth-dur-field) var(--auth-ease),
@@ -172,7 +167,7 @@ const AUTH_EXTRA_STYLES = `<style>
   .auth-submit:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
   .auth-submit[aria-disabled="true"] { cursor: progress; opacity: 0.8; }
 
-  /* Jauge + checklist (état non porté par la seule couleur : coche + texte masqué) */
+  /* Jauge + checklist */
   .auth-strength-meter .str-seg { transition: background-color var(--auth-dur-state) var(--auth-ease); }
   #reg-pwd-checklist { list-style: none; padding: 0; margin: 0; }
   .auth-check-item { display: flex; align-items: center; gap: 0.375rem; font-size: 0.75rem; color: var(--color-on-surface-variant); }
@@ -183,12 +178,12 @@ const AUTH_EXTRA_STYLES = `<style>
     font-size: 0.625rem; line-height: 1; color: var(--color-on-primary);
     transition: background-color var(--auth-dur-state) var(--auth-ease), border-color var(--auth-dur-state) var(--auth-ease);
   }
-  .auth-check-item.satisfied { color: var(--color-on-surface); }
+  .auth-check-item.satisfied { color: var(--color-on-surface); font-weight: 500; }
   .auth-check-item.satisfied .check-dot { border-color: var(--color-success); }
 
   .auth-frame { overflow: visible; }
 
-  /* Transition entre vues (navigation réelle) — amélioration progressive */
+  /* Transition entre vues (navigation réelle) */
   @media (prefers-reduced-motion: no-preference) {
     @view-transition { navigation: auto; }
     .auth-frame { view-transition-name: auth-panel; }
@@ -199,7 +194,7 @@ const AUTH_EXTRA_STYLES = `<style>
     @keyframes authIn  { from { opacity: 0; transform: translateY(6px); } }
   }
 
-  /* Réduction des animations : mouvement supprimé, information conservée par le texte */
+  /* Réduction des animations */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
@@ -212,8 +207,6 @@ const AUTH_EXTRA_STYLES = `<style>
 </style>`;
 
 // ─── Runtime client commun (injecté une seule fois) ──────────────────────────
-// NB : volontairement sans antislash ni backtick pour rester sûr dans un
-// template literal TypeScript.
 const AUTH_CLIENT_RUNTIME = `<script>
 (function () {
   var ICON_ERR = '<svg class="w-3.5 h-3.5 shrink-0" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
@@ -225,13 +218,11 @@ const AUTH_CLIENT_RUNTIME = `<script>
     return at > 0 && v.indexOf('@', at + 1) < 0 && v.indexOf(' ') < 0 && dot > at + 1 && dot < v.length - 1;
   }
 
-  // Défense en profondeur : le serveur valide déjà "next", on re-vérifie avant redirection.
   function safeNext(n) {
     var bs = String.fromCharCode(92);
     return (typeof n === 'string' && n.charAt(0) === '/' && n.charAt(1) !== '/' && n.charAt(1) !== bs) ? n : '/';
   }
 
-  // kind : 'error' | 'ok' | 'clear'. Texte injecté via nœuds DOM uniquement.
   function setHint(hint, kind, msg) {
     if (!hint) return;
     hint.textContent = '';
@@ -239,7 +230,7 @@ const AUTH_CLIENT_RUNTIME = `<script>
     if (kind === 'ok' && !msg) return;
     var s = document.createElement('span');
     s.className = 'auth-hint-msg auth-hint-' + kind;
-    s.innerHTML = kind === 'error' ? ICON_ERR : ICON_OK; // constantes statiques de confiance
+    s.innerHTML = kind === 'error' ? ICON_ERR : ICON_OK;
     s.appendChild(document.createTextNode(msg));
     hint.appendChild(s);
   }
@@ -269,11 +260,10 @@ const AUTH_CLIENT_RUNTIME = `<script>
       a.href = linkHref; a.className = 'underline font-semibold ml-1'; a.textContent = linkText;
       el.appendChild(a);
     }
-    el.className = 'auth-banner-in p-3.5 rounded-xl font-mono text-xs border ' + b.cls;
+    el.className = 'auth-banner-in p-3.5 rounded-2xl font-mono text-xs border shadow-sm ' + b.cls;
   }
   function hideBanner(el) { if (el) el.className = 'hidden'; }
 
-  // aria-disabled (et non disabled) : le focus n'est pas perdu, mais la soumission est bloquée.
   function setBusy(ui, busy) {
     ui.btn.setAttribute('aria-disabled', busy ? 'true' : 'false');
     ui.btn.setAttribute('aria-busy', busy ? 'true' : 'false');
@@ -316,7 +306,6 @@ const AUTH_CLIENT_RUNTIME = `<script>
     return 'Service momentan\u00e9ment indisponible. Vos saisies sont conserv\u00e9es\u00a0; r\u00e9essayez.';
   }
 
-  // Le libellé accessible suit le libellé visible (WCAG 2.5.3) ; le focus reste sur le bouton.
   function bindPasswordToggle(input, btn, showI, hideI, text) {
     if (!btn) return;
     btn.addEventListener('click', function () {
@@ -329,59 +318,145 @@ const AUTH_CLIENT_RUNTIME = `<script>
     });
   }
 
+  // Gestion unifiée du thème sur les pages auth (zéro inline onclick)
+  function applyTheme(mode) {
+    var html = document.documentElement;
+    html.setAttribute('data-theme-mode', mode);
+    html.classList.remove('dark', 'high-contrast');
+    if (mode === 'dark') html.classList.add('dark');
+    if (mode === 'high-contrast') html.classList.add('high-contrast');
+    try { localStorage.setItem('mosaix_theme_mode', mode); } catch (e) {}
+    try { fetch('/api/theme?mode=' + mode, { method: 'POST' }); } catch (e) {}
+    updateThemeBtns(mode);
+  }
+
+  function updateThemeBtns(mode) {
+    document.querySelectorAll('[data-theme-btn]').forEach(function(b) {
+      var active = b.getAttribute('data-theme-btn') === mode;
+      b.classList.toggle('bg-primary', active);
+      b.classList.toggle('text-on-primary', active);
+      b.classList.toggle('shadow-sm', active);
+      b.classList.toggle('text-on-surface-variant', !active);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var mode = document.documentElement.getAttribute('data-theme-mode') || 'light';
+    updateThemeBtns(mode);
+    document.querySelectorAll('[data-theme-btn]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        applyTheme(this.getAttribute('data-theme-btn'));
+      });
+    });
+  });
+
+  window.setTheme = applyTheme;
+
   window.MxAuth = Object.freeze({
     isEmail: isEmail, safeNext: safeNext, setHint: setHint, setFieldState: setFieldState,
     showBanner: showBanner, hideBanner: hideBanner, setBusy: setBusy, postJson: postJson,
-    errorMessage: errorMessage, networkMessage: networkMessage, bindPasswordToggle: bindPasswordToggle
+    errorMessage: errorMessage, networkMessage: networkMessage, bindPasswordToggle: bindPasswordToggle,
+    applyTheme: applyTheme
   });
 })();
 </script>`;
+
+// ─── En-tête globale MosaiX (partagée avec le shell) ─────────────────────────
+function authTopHeader(): string {
+  return `
+    <header class="w-full border-b border-outline-variant/15 bg-surface/75 backdrop-blur-xl px-4 sm:px-8 py-3.5 flex items-center justify-between sticky top-0 z-30 select-none">
+      <a href="/commerce" class="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary via-indigo-500 to-secondary flex items-center justify-center shadow-lg shadow-primary/25 border border-primary/20 group-hover:scale-105 active:scale-95 transition-all">
+          <span class="material-symbols-outlined text-surface-container-lowest font-extrabold text-2xl group-hover:rotate-12 transition-transform">auto_awesome</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-lg text-on-surface tracking-tight group-hover:text-primary transition-colors">MosaiX</span>
+          <span class="text-[10px] font-mono font-medium tracking-wider px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant border border-outline-variant/30 hidden sm:inline-block">MODULAR OS</span>
+        </div>
+      </a>
+      
+      <div class="flex items-center gap-3">
+        <!-- Sélecteur de Thème Accessible (aligné sur le système MosaiX) -->
+        <div class="flex items-center bg-surface-container p-1 rounded-2xl border border-outline-variant/30 text-xs font-mono" role="group" aria-label="Mode d'affichage">
+          <button type="button" data-theme-btn="light" aria-label="Mode Clair" title="Mode Clair" class="px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-on-surface-variant hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]">
+            <span class="material-symbols-outlined text-base leading-none">light_mode</span>
+            <span class="text-[11px] font-medium hidden md:inline">Clair</span>
+          </button>
+          <button type="button" data-theme-btn="dark" aria-label="Mode Sombre" title="Mode Sombre" class="px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-on-surface-variant hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]">
+            <span class="material-symbols-outlined text-base leading-none">dark_mode</span>
+            <span class="text-[11px] font-medium hidden md:inline">Sombre</span>
+          </button>
+          <button type="button" data-theme-btn="high-contrast" aria-label="Mode Contraste Élevé" title="Mode Contraste Élevé" class="px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-on-surface-variant hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]">
+            <span class="material-symbols-outlined text-base leading-none">contrast</span>
+            <span class="text-[11px] font-medium hidden md:inline">Contraste</span>
+          </button>
+        </div>
+
+        <a href="/commerce" class="hidden sm:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-outline-variant/30 text-xs font-mono font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[44px]">
+          <span class="material-symbols-outlined text-base">storefront</span>
+          <span>Retour vitrine</span>
+        </a>
+      </div>
+    </header>`;
+}
 
 // ─── Colonne éditoriale (décorative, masquée < lg) ───────────────────────────
 function editorialColumn(): string {
   return `
     <aside class="hidden lg:flex lg:w-[480px] xl:w-[540px] flex-col justify-between border-r border-outline-variant/20 bg-surface-container-low/50 p-12 auth-bg-grid relative">
       <div class="flex items-center gap-2 text-on-surface-variant">
-        <span aria-hidden="true" class="w-2 h-2 rounded-full bg-primary"></span>
-        <span class="text-xs font-mono">MosaiX Gateway</span>
+        <span aria-hidden="true" class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+        <span class="text-xs font-mono font-semibold tracking-wider uppercase">MosaiX Gateway</span>
       </div>
 
       <div class="space-y-8 my-auto py-10">
-        <div aria-hidden="true" class="relative w-fit p-5 rounded-2xl bg-surface-container border border-outline-variant/30 shadow-lg auth-crosshair">
-          <div class="grid grid-cols-2 gap-2.5">
-            <div class="w-8 h-8 rounded-lg bg-primary"></div>
-            <div class="w-8 h-8 rounded-lg bg-surface-container-high border border-outline-variant/40"></div>
-            <div class="w-8 h-8 rounded-lg bg-surface-container-high border border-outline-variant/40"></div>
-            <div class="w-8 h-8 rounded-lg bg-secondary opacity-80"></div>
+        <!-- Emblème modulaire architectural MosaiX -->
+        <div aria-hidden="true" class="relative w-fit p-6 rounded-3xl bg-surface-container/70 border border-outline-variant/30 shadow-xl backdrop-blur-xl auth-crosshair">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary to-indigo-600 shadow-md shadow-primary/25 flex items-center justify-center text-on-primary">
+              <span class="material-symbols-outlined text-xl">auto_awesome</span>
+            </div>
+            <div class="w-10 h-10 rounded-2xl bg-surface-container-high border border-outline-variant/40 flex items-center justify-center text-on-surface-variant">
+              <span class="material-symbols-outlined text-xl">widgets</span>
+            </div>
+            <div class="w-10 h-10 rounded-2xl bg-surface-container-high border border-outline-variant/40 flex items-center justify-center text-on-surface-variant">
+              <span class="material-symbols-outlined text-xl">dashboard</span>
+            </div>
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-secondary to-primary/80 opacity-90 shadow-md shadow-secondary/25 flex items-center justify-center text-surface-container-lowest">
+              <span class="material-symbols-outlined text-xl">hub</span>
+            </div>
           </div>
         </div>
 
         <div class="space-y-3">
-          <p class="text-3xl xl:text-4xl font-bold text-on-surface tracking-tight leading-tight">
-            L'écosystème <span class="text-primary">modulaire.</span>
-          </p>
+          <h2 class="text-3xl xl:text-4xl font-extrabold text-on-surface tracking-tight leading-tight">
+            L'écosystème <span class="auth-h1-gradient">modulaire.</span>
+          </h2>
           <p class="text-sm text-on-surface-variant leading-relaxed max-w-sm">
-            Espaces connectés, composables et orchestrés. Un compte unique, un accès unifié.
+            Vos espaces connectés, composables et orchestrés en toute souveraineté. Un compte unique pour l'ensemble de vos modules.
           </p>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 max-w-sm">
-          <div class="p-3 rounded-xl bg-surface-container border border-outline-variant/20">
-            <div class="flex items-center gap-2 text-xs font-mono text-primary mb-1">
-              ${icon(ICON.lock, "w-3.5 h-3.5 shrink-0")}<span>Compte unique</span>
+        <!-- Garanties vérifiables et factuelles -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
+          <div class="p-3.5 rounded-2xl bg-surface-container/80 border border-outline-variant/25 backdrop-blur-sm shadow-sm">
+            <div class="flex items-center gap-2 text-xs font-mono font-semibold text-primary mb-1.5">
+              ${icon(ICON.lock, "w-4 h-4 shrink-0")}
+              <span>Compte unique</span>
             </div>
-            <p class="text-xs text-on-surface-variant leading-snug">Un seul accès pour tous vos espaces.</p>
+            <p class="text-xs text-on-surface-variant leading-relaxed">Accès centralisé pour tous vos espaces et applications.</p>
           </div>
-          <div class="p-3 rounded-xl bg-surface-container border border-outline-variant/20">
-            <div class="flex items-center gap-2 text-xs font-mono text-primary mb-1">
-              ${icon(ICON.bolt, "w-3.5 h-3.5 shrink-0")}<span>Modulaire</span>
+          <div class="p-3.5 rounded-2xl bg-surface-container/80 border border-outline-variant/25 backdrop-blur-sm shadow-sm">
+            <div class="flex items-center gap-2 text-xs font-mono font-semibold text-primary mb-1.5">
+              ${icon(ICON.bolt, "w-4 h-4 shrink-0")}
+              <span>Modulaire</span>
             </div>
-            <p class="text-xs text-on-surface-variant leading-snug">Espaces connectés et configurables.</p>
+            <p class="text-xs text-on-surface-variant leading-relaxed">Espaces configurables selon vos rôles et permissions.</p>
           </div>
         </div>
       </div>
 
-      <div class="text-xs font-mono text-on-surface-variant flex items-center justify-between">
+      <div class="text-xs font-mono text-on-surface-variant flex items-center justify-between border-t border-outline-variant/20 pt-4">
         <span>MosaiX Platform — accès membre</span>
         <span>${new Date().getFullYear()}</span>
       </div>
@@ -394,13 +469,13 @@ function tabSwitcher(active: "login" | "register", safeNext: string): string {
   const q = encodeURIComponent(safeNext);
   const link = (href: string, label: string, isActive: boolean) => `
       <a href="${href}?next=${q}"${isActive ? ' aria-current="page"' : ""}
-         class="relative z-10 flex-1 min-h-[44px] px-3 rounded-lg text-xs font-mono font-semibold flex items-center justify-center gap-2 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${isActive ? "text-on-surface" : "text-on-surface-variant hover:text-on-surface"}">
-        <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full ${isActive ? "bg-primary" : "bg-outline-variant"}"></span>
+         class="relative z-10 flex-1 min-h-[44px] px-4 rounded-xl text-xs font-mono font-semibold flex items-center justify-center gap-2 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${isActive ? "text-on-surface" : "text-on-surface-variant hover:text-on-surface"}">
+        <span aria-hidden="true" class="w-1.5 h-1.5 rounded-full ${isActive ? "bg-primary animate-pulse" : "bg-outline-variant"}"></span>
         ${label}
       </a>`;
   return `
-    <nav aria-label="Mode d'accès" class="relative p-1 bg-surface-container-high rounded-xl border border-outline-variant/30 flex items-center">
-      <div aria-hidden="true" class="absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg bg-surface border border-outline-variant/40 shadow-sm"
+    <nav aria-label="Mode d'accès" class="relative p-1 bg-surface-container-high/80 rounded-2xl border border-outline-variant/30 flex items-center">
+      <div aria-hidden="true" class="absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-xl bg-surface border border-outline-variant/40 shadow-sm transition-transform duration-200"
            style="transform:translateX(${loginActive ? "0" : "100"}%)"></div>
       ${link("/login", "Connexion", loginActive)}
       ${link("/register", "Créer un compte", !loginActive)}
@@ -443,7 +518,6 @@ function floatingField({
   validIconId?: string;
   hintId?: string;
   ariaDescribedBy?: string;
-  /** HTML inséré après l'icône de champ (ex : bouton afficher/masquer MDP) */
   afterInput?: string;
 }): string {
   const inputmodeAttr = inputmode ? ` inputmode="${inputmode}"` : "";
@@ -459,8 +533,8 @@ function floatingField({
   return `<div class="auth-floating relative">
     <input id="${id}" name="${name}" type="${type}"${required ? ' required aria-required="true"' : ""} autocomplete="${autocomplete}"
       placeholder="${placeholder}"${inputmodeAttr} ${extraAttrs}
-      class="auth-input block w-full pl-11 ${extraInputClass} pt-5 pb-2"${describedBy}/>
-    <label for="${id}" class="auth-label-with-icon">${label}</label>
+      class="auth-input block w-full pl-11 ${extraInputClass} pt-5 pb-2 text-sm text-on-surface bg-surface-container/60 hover:bg-surface-container border border-outline-variant/30 focus:border-primary focus:bg-surface rounded-xl transition-all"${describedBy}/>
+    <label for="${id}" class="auth-label-with-icon font-medium">${label}</label>
     <div class="auth-field-icon absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-on-surface-variant">
       ${icon(iconPath)}
     </div>
@@ -472,18 +546,18 @@ function floatingField({
 function passwordToggle(prefix: string): string {
   return `
     <button type="button" id="${prefix}-toggle-pwd" aria-label="Afficher le mot de passe" aria-pressed="false"
-      class="absolute inset-y-0 right-0 pr-3 pl-2 flex items-center gap-1.5 text-xs font-mono text-on-surface-variant hover:text-on-surface transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-r-xl">
-      <span id="${prefix}-icon-show">${icon(ICON.eye)}</span>
-      <span id="${prefix}-icon-hide" class="hidden">${icon(ICON.eyeOff)}</span>
-      <span class="select-none" id="${prefix}-toggle-text">Afficher</span>
+      class="absolute inset-y-0 right-0 pr-3 pl-2 flex items-center gap-1.5 text-xs font-mono text-on-surface-variant hover:text-on-surface transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-r-xl min-h-[44px]">
+      <span id="${prefix}-icon-show" class="flex items-center">${icon(ICON.eye)}</span>
+      <span id="${prefix}-icon-hide" class="hidden flex items-center">${icon(ICON.eyeOff)}</span>
+      <span class="select-none text-[11px]" id="${prefix}-toggle-text">Afficher</span>
     </button>`;
 }
 
 function submitButton(prefix: string, id: string, label: string): string {
   return `
-    <button type="submit" id="${id}" class="auth-submit w-full min-h-[48px] flex items-center justify-center gap-3" aria-disabled="false">
+    <button type="submit" id="${id}" class="auth-submit w-full min-h-[48px] px-6 rounded-xl font-bold tracking-wide text-sm flex items-center justify-center gap-2.5 bg-primary text-on-primary hover:bg-primary/90 shadow-lg shadow-primary/20 hover:shadow-primary/35 active:scale-[0.99] transition-all cursor-pointer" aria-disabled="false">
       <span id="${prefix}-btn-text">${label}</span>
-      <span id="${prefix}-btn-icon">${icon(ICON.arrow, "w-4 h-4 shrink-0", 2.5)}</span>
+      <span id="${prefix}-btn-icon" class="flex items-center">${icon(ICON.arrow, "w-4 h-4 shrink-0", 2.5)}</span>
       <span class="auth-spinner hidden w-4 h-4 border-2 border-on-primary border-t-transparent rounded-full animate-spin" id="${prefix}-btn-spinner" aria-hidden="true"></span>
     </button>`;
 }
@@ -501,23 +575,32 @@ function authShell(
 <!-- Fragments de confiance internes : style compilé themes/*.json + CSS partagé renderer (jamais de données utilisateur brutes). -->
 ${renderHeadBlock(title, activeMode, renderThemeStyleTag(activeMode), sharedStyles)}
   ${getShellClientScripts()}
+  <script>
+    (function() {
+      try {
+        const savedTheme = localStorage.getItem('mosaix_theme_mode');
+        if (savedTheme) {
+          document.documentElement.setAttribute('data-theme-mode', savedTheme);
+          document.documentElement.classList.remove('dark', 'high-contrast');
+          if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+          if (savedTheme === 'high-contrast') document.documentElement.classList.add('high-contrast');
+        }
+      } catch (e) {}
+    })();
+  </script>
   ${AUTH_EXTRA_STYLES}
 </head>
-<body class="bg-background text-on-surface min-h-screen font-sans antialiased">
+<body class="bg-background text-on-surface min-h-screen font-sans antialiased flex flex-col selection:bg-primary/30 selection:text-primary">
   <a href="#auth-main" class="auth-skip text-sm">Aller au formulaire</a>
+  ${authTopHeader()}
   ${AUTH_CLIENT_RUNTIME}
-  <div class="min-h-screen flex">
+  <div class="flex-1 flex min-h-[calc(100vh-65px)]">
     ${editorialColumn()}
-    <main id="auth-main" class="flex-1 flex items-center justify-center p-4 lg:p-8 auth-bg-grid">
-      <div class="w-full max-w-md space-y-5">
-        <a href="/commerce" class="flex lg:hidden items-center justify-center gap-2 group mb-2">
-          <span aria-hidden="true" class="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-on-primary font-bold">M</span>
-          <span class="font-bold text-on-surface group-hover:text-primary transition-colors text-sm">MosaiX Platform</span>
-        </a>
-
-        <div class="glass-card auth-frame auth-crosshair p-6 sm:p-8 space-y-6">
+    <main id="auth-main" class="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-12 auth-bg-grid relative">
+      <div class="w-full max-w-md space-y-6">
+        <div class="glass-card auth-frame auth-crosshair rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl border border-outline-variant/25 backdrop-blur-2xl">
           <noscript>
-            <p role="alert" class="p-3.5 rounded-xl font-mono text-xs border bg-error-container border-error/30 text-error">
+            <p role="alert" class="p-3.5 rounded-2xl font-mono text-xs border bg-error-container border-error/30 text-error">
               JavaScript est requis pour utiliser ce formulaire.
             </p>
           </noscript>
@@ -542,7 +625,7 @@ export function renderLoginPage(opts: AuthPageOptions): string {
   const formHtml = `
     ${tabSwitcher("login", safeNext)}
 
-    <div class="space-y-1">
+    <div class="space-y-1.5">
       <h1 class="text-2xl font-bold text-on-surface tracking-tight">Bon retour</h1>
       <p class="text-sm text-on-surface-variant">Accédez à votre fil, vos espaces et vos commandes.</p>
     </div>
@@ -590,15 +673,15 @@ export function renderLoginPage(opts: AuthPageOptions): string {
         }
       </div>
 
-      <div class="pt-1">
+      <div class="pt-2">
         ${submitButton("login", "login-submit", "Se connecter")}
       </div>
     </form>
 
-    <div class="border-t border-outline-variant/30 pt-4 text-center">
+    <div class="border-t border-outline-variant/20 pt-4 text-center">
       <p class="text-sm text-on-surface-variant">
         Nouveau sur l'écosystème ?
-        <a href="/register?next=${encodeURIComponent(safeNext)}" class="inline-flex items-center min-h-[44px] font-mono text-primary hover:underline underline-offset-4 ml-1">Créer un compte</a>
+        <a href="/register?next=${encodeURIComponent(safeNext)}" class="inline-flex items-center min-h-[44px] font-mono font-medium text-primary hover:underline underline-offset-4 ml-1">Créer un compte</a>
       </p>
     </div>
 
@@ -636,7 +719,6 @@ export function renderLoginPage(opts: AuthPageOptions): string {
           A.setFieldState(pass, null, passHint, 'clear'); A.hideBanner(banner);
         });
 
-        // Retour via l'historique (bfcache) : on ne laisse pas le bouton figé.
         window.addEventListener('pageshow', function (e) {
           if (e.persisted) { redirecting = false; busy = false; A.setBusy(ui, false); }
         });
@@ -707,10 +789,10 @@ export function renderRegisterPage(opts: AuthPageOptions): string {
   const formHtml = `
     ${tabSwitcher("register", safeNext)}
 
-    <div class="space-y-1">
+    <div class="space-y-1.5">
       <div class="flex items-center justify-between gap-3">
         <h1 class="text-2xl font-bold text-on-surface tracking-tight">Créer votre compte</h1>
-        <span class="text-xs font-mono px-2 py-0.5 rounded bg-surface-container text-primary border border-outline-variant/30">Gratuit</span>
+        <span class="text-xs font-mono font-medium px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">Gratuit</span>
       </div>
       <p class="text-sm text-on-surface-variant">Rejoignez le réseau modulaire MosaiX. Aucune carte bancaire requise.</p>
     </div>
@@ -757,8 +839,8 @@ export function renderRegisterPage(opts: AuthPageOptions): string {
       <div class="space-y-1.5">
         <div class="flex justify-end">
           <button type="button" id="reg-gen-pwd"
-            class="inline-flex items-center gap-1 min-h-[32px] text-xs font-mono text-primary hover:underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
-            ${icon(ICON.bolt, "w-3 h-3")}Générer un mot de passe fort
+            class="auth-pwd-gen inline-flex items-center gap-1.5 min-h-[32px] px-2.5 py-1 rounded-lg text-xs font-mono font-medium text-primary hover:text-primary-hover bg-primary/10 hover:bg-primary/15 border border-primary/20 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer">
+            ${icon(ICON.bolt, "w-3 h-3 text-primary")}Générer un mot de passe fort
           </button>
         </div>
         ${floatingField({
@@ -775,28 +857,28 @@ export function renderRegisterPage(opts: AuthPageOptions): string {
           afterInput: passwordToggle("reg"),
         })}
 
-        <div class="space-y-1.5 px-0.5">
+        <div class="space-y-2 px-0.5 pt-1">
           <div class="flex items-center justify-between gap-3">
-            <div aria-hidden="true" class="auth-strength-meter" id="reg-strength-meter">
-              <div class="str-seg" id="reg-str-1"></div>
-              <div class="str-seg" id="reg-str-2"></div>
-              <div class="str-seg" id="reg-str-3"></div>
-              <div class="str-seg" id="reg-str-4"></div>
+            <div aria-hidden="true" class="auth-strength-meter grid grid-cols-4 gap-1.5 w-32" id="reg-strength-meter">
+              <div class="str-seg h-1.5 rounded-full bg-surface-container-highest transition-colors" id="reg-str-1"></div>
+              <div class="str-seg h-1.5 rounded-full bg-surface-container-highest transition-colors" id="reg-str-2"></div>
+              <div class="str-seg h-1.5 rounded-full bg-surface-container-highest transition-colors" id="reg-str-3"></div>
+              <div class="str-seg h-1.5 rounded-full bg-surface-container-highest transition-colors" id="reg-str-4"></div>
             </div>
-            <span class="text-xs font-mono text-on-surface-variant" id="reg-strength-label">Force : saisissez un mot de passe</span>
+            <span class="text-xs font-mono text-on-surface-variant font-medium" id="reg-strength-label">Force : saisissez un mot de passe</span>
           </div>
-          <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 pt-0.5" id="reg-pwd-checklist" aria-label="Critères du mot de passe">
+          <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1.5 pt-1" id="reg-pwd-checklist" aria-label="Critères du mot de passe">
             ${checklist}
           </ul>
         </div>
         <div id="register-password-hint" class="auth-validation-slot text-xs font-mono px-1" aria-live="polite"></div>
       </div>
 
-      <div>
+      <div class="pt-1">
         <label class="flex items-start cursor-pointer select-none gap-2.5 min-h-[44px] py-1" for="reg-terms">
           <span class="relative flex items-center h-5 mt-0.5 shrink-0">
             <input type="checkbox" id="reg-terms" name="terms" required aria-required="true" aria-describedby="reg-terms-hint"
-              class="w-5 h-5 rounded border-outline-variant bg-surface text-primary focus:ring-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 cursor-pointer" />
+              class="w-4 h-4 rounded border-outline-variant bg-surface text-primary focus:ring-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 cursor-pointer" />
           </span>
           <span class="font-mono text-xs text-on-surface-variant leading-snug">
             J’accepte les ${linkOrText(terms, "Conditions Générales")} &amp; la ${linkOrText(privacy, "Politique de Confidentialité")}. ${req}
@@ -805,30 +887,32 @@ export function renderRegisterPage(opts: AuthPageOptions): string {
         <div class="auth-validation-slot text-xs font-mono px-1" id="reg-terms-hint" aria-live="polite"></div>
       </div>
 
-      <div class="pt-1">
+      <div class="pt-2">
         ${submitButton("reg", "register-submit", "Créer mon compte")}
       </div>
     </form>
 
-    <div id="register-success-view" class="hidden space-y-4 p-6 rounded-2xl border text-center auth-banner-in" style="background:color-mix(in srgb, var(--color-success-container) 40%, var(--color-surface));border-color:color-mix(in srgb, var(--color-success) 30%, transparent);">
-      <div aria-hidden="true" class="w-12 h-12 rounded-full mx-auto flex items-center justify-center text-success" style="background:color-mix(in srgb, var(--color-success) 12%, transparent);border:1px solid color-mix(in srgb, var(--color-success) 30%, transparent)">
-        ${icon(ICON.check, "w-6 h-6", 2.5)}
+    <div id="register-success-view" class="hidden space-y-5 p-6 sm:p-8 rounded-3xl border text-center auth-banner-in glass-card" style="background:color-mix(in srgb, var(--color-success-container) 30%, var(--color-surface));border-color:color-mix(in srgb, var(--color-success) 30%, transparent);">
+      <div aria-hidden="true" class="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center text-success shadow-lg" style="background:color-mix(in srgb, var(--color-success) 16%, transparent);border:1px solid color-mix(in srgb, var(--color-success) 35%, transparent)">
+        ${icon(ICON.check, "w-7 h-7", 2.5)}
       </div>
-      <div class="space-y-1.5">
-        <h2 id="register-success-title" tabindex="-1" class="text-xl font-bold text-on-surface focus:outline-none">Compte créé avec succès !</h2>
-        <p class="text-sm text-on-surface-variant">Vous pouvez maintenant vous connecter à votre espace.</p>
+      <div class="space-y-2">
+        <h2 id="register-success-title" tabindex="-1" class="text-xl sm:text-2xl font-bold text-on-surface tracking-tight focus:outline-none">Compte créé avec succès !</h2>
+        <p class="text-sm text-on-surface-variant max-w-sm mx-auto leading-relaxed">Votre identité MosaiX est prête. Vous pouvez vous connecter immédiatement à vos espaces.</p>
       </div>
-      <a href="/login?next=${encodeURIComponent(safeNext)}"
-        class="auth-submit inline-flex items-center justify-center gap-2 w-full min-h-[48px] px-6 rounded-xl font-mono text-sm font-semibold">
-        Aller à la connexion
-        ${icon(ICON.arrow, "w-4 h-4", 2.5)}
-      </a>
+      <div class="pt-2">
+        <a href="/login?next=${encodeURIComponent(safeNext)}"
+          class="auth-submit inline-flex items-center justify-center gap-2 w-full min-h-[48px] px-6 rounded-xl font-bold tracking-wide text-sm bg-primary text-on-primary hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all">
+          Aller à la connexion
+          ${icon(ICON.arrow, "w-4 h-4", 2.5)}
+        </a>
+      </div>
     </div>
 
-    <div class="border-t border-outline-variant/30 pt-4 text-center">
+    <div class="border-t border-outline-variant/20 pt-4 text-center">
       <p class="text-sm text-on-surface-variant">
         Déjà membre de l’écosystème ?
-        <a href="/login?next=${encodeURIComponent(safeNext)}" class="inline-flex items-center min-h-[44px] font-mono text-primary hover:underline underline-offset-4 ml-1">Se connecter</a>
+        <a href="/login?next=${encodeURIComponent(safeNext)}" class="inline-flex items-center min-h-[44px] font-mono font-medium text-primary hover:underline underline-offset-4 ml-1">Se connecter</a>
       </p>
     </div>
 
@@ -856,8 +940,6 @@ export function renderRegisterPage(opts: AuthPageOptions): string {
         var EMAIL_MSG = 'Format attendu\\u00a0: exemple@domaine.com';
         var PWD_MSG = 'Le mot de passe doit comporter au moins 8 caractères.';
 
-        // ── Jauge + checklist. Seule la longueur minimale bloque la soumission :
-        // les autres critères sont des conseils (la politique réelle est côté serveur).
         var segs = [1, 2, 3, 4].map(function (i) { return $('reg-str-' + i); });
         var strengthLabel = $('reg-strength-label');
         var items = ['len', 'long', 'case', 'mix'].map(function (k) { return $('chk-' + k); });
@@ -923,7 +1005,6 @@ export function renderRegisterPage(opts: AuthPageOptions): string {
           if (this.checked) { terms.removeAttribute('aria-invalid'); A.setHint(termsHint, 'clear'); }
         });
 
-        // ── Générateur : CSPRNG (crypto.getRandomValues), tirage sans biais.
         if (genBtn) {
           if (!(window.crypto && window.crypto.getRandomValues)) {
             genBtn.hidden = true;
@@ -940,7 +1021,7 @@ export function renderRegisterPage(opts: AuthPageOptions): string {
               while (out.length < 16) out.push(all.charAt(randInt(all.length)));
               for (i = out.length - 1; i > 0; i--) { j = randInt(i + 1); t = out[i]; out[i] = out[j]; out[j] = t; }
               pass.value = out.join('');
-              if (pass.type === 'password') toggleBtn.click(); // le mot de passe doit pouvoir être relu/enregistré
+              if (pass.type === 'password') toggleBtn.click();
               updateStrength(pass.value);
               A.setFieldState(pass, null, passHint, 'ok', 'Mot de passe généré et affiché. Enregistrez-le dans votre gestionnaire de mots de passe.');
               pass.focus();
@@ -975,7 +1056,7 @@ export function renderRegisterPage(opts: AuthPageOptions): string {
             });
             if (r.res.ok) {
               done = true;
-              pass.value = ''; // on ne garde pas le mot de passe dans le DOM
+              pass.value = '';
               form.classList.add('hidden');
               success.classList.remove('hidden');
               $('register-success-title').focus();

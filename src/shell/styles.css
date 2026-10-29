@@ -240,20 +240,41 @@
     border: 1px solid var(--color-outline-variant);
     border-radius: 0.75rem;
     font-size: 0.875rem;
-    color: var(--color-on-surface);
+    color: var(--color-on-surface) !important; /* Force explicit color */
     outline: none;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    -webkit-appearance: none;
+    appearance: none;
   }
-  .auth-input:focus {
+  .auth-input::placeholder {
+    color: var(--color-on-surface-variant);
+    opacity: 0.6;
+  }
+  .auth-input:focus-visible {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 16%, transparent);
+    outline: none;
+  }
+  .auth-input:focus:not(:focus-visible) {
+    border-color: var(--color-outline-variant);
+    box-shadow: none;
+  }
+  .auth-input:disabled,
+  .auth-input[readonly] {
+    background-color: var(--color-surface-container-low);
+    color: var(--color-on-surface-variant);
+    cursor: not-allowed;
+    opacity: 0.7;
   }
   .auth-input.has-error {
     border-color: var(--color-error) !important;
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-error) 16%, transparent) !important;
   }
-  .auth-input.is-valid:not(:focus) {
+  .auth-input.is-valid:not(:focus):not(:focus-visible) {
     border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
+  }
+  .auth-input:invalid:not(.has-error):not(.is-valid) {
+    border-color: var(--color-error);
   }
 
   /* Field-level validation slot (prevents layout shift) */
@@ -569,6 +590,96 @@
       transition: none !important;
       animation: none !important;
     }
+  }
+
+  /* ==========================================================================
+     Utility Classes — Surface & Text Tokens
+     ========================================================================== */
+
+  /* Text colors */
+  .text-on-surface { color: var(--color-on-surface); }
+  .text-on-surface-variant { color: var(--color-on-surface-variant); }
+  .text-on-primary { color: var(--color-on-primary); }
+  .text-on-error { color: var(--color-on-error); }
+  .text-on-success { color: var(--color-on-success); }
+  .text-on-warning { color: var(--color-on-warning); }
+  .text-on-info { color: var(--color-on-info); }
+  .text-primary { color: var(--color-primary); }
+  .text-error { color: var(--color-error); }
+  .text-success { color: var(--color-success); }
+  .text-warning { color: var(--color-warning); }
+  .text-info { color: var(--color-info); }
+
+  /* Background colors */
+  .bg-surface { background-color: var(--color-surface); }
+  .bg-surface-container { background-color: var(--color-surface-container); }
+  .bg-surface-container-low { background-color: var(--color-surface-container-low); }
+  .bg-surface-container-lowest { background-color: var(--color-surface-container-lowest); }
+  .bg-surface-container-high { background-color: var(--color-surface-container-high); }
+  .bg-surface-container-highest { background-color: var(--color-surface-container-highest); }
+  .bg-primary { background-color: var(--color-primary); }
+  .bg-error { background-color: var(--color-error); }
+  .bg-success { background-color: var(--color-success); }
+  .bg-warning { background-color: var(--color-warning); }
+  .bg-info { background-color: var(--color-info); }
+  .bg-error-container { background-color: var(--color-error-container); }
+  .bg-success-container { background-color: var(--color-success-container); }
+  .bg-warning-container { background-color: var(--color-warning-container); }
+  .bg-info-container { background-color: var(--color-info-container); }
+
+  /* Border colors */
+  .border-outline-variant { border-color: var(--color-outline-variant); }
+  .border-primary { border-color: var(--color-primary); }
+  .border-error { border-color: var(--color-error); }
+  .border-success { border-color: var(--color-success); }
+
+  /* Placeholder styling */
+  .auth-input::placeholder,
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-on-surface-variant);
+    opacity: 0.8; /* Increased opacity for better contrast */
+  }
+
+  /* Focus visible outline for inputs */
+  .auth-input:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  /* Generic input styling (for non-auth forms) */
+  input:not(.auth-input):not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background-color: var(--color-surface-container);
+    border: 1px solid var(--color-outline-variant);
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-on-surface);
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  }
+  input:not(.auth-input):not([type="checkbox"]):not([type="radio"]):focus,
+  textarea:focus,
+  select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 16%, transparent);
+  }
+  input:not(.auth-input):not([type="checkbox"]):not([type="radio"]):disabled,
+  textarea:disabled,
+  select:disabled,
+  input:not(.auth-input):not([type="checkbox"]):not([type="radio"])[readonly],
+  textarea[readonly],
+  select[readonly] {
+    background-color: var(--color-surface-container-low);
+    color: var(--color-on-surface-variant);
+    cursor: not-allowed;
+    opacity: 0.7;
   }
 }
 [data-theme-mode="dark"], .dark, html.dark {
