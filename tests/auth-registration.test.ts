@@ -7,25 +7,24 @@ import { registerAuthRoutes } from "../src/server/routes/auth-routes.js";
 // in isolation without a real database.
 // ---------------------------------------------------------------------------
 
-let mockRegisterUser: ReturnType<typeof vi.fn>;
+const mocks = vi.hoisted(() => ({
+  mockRegisterUser: vi.fn(),
+}));
 
-vi.mock("../../bootstrap/auth-composition.js", () => {
-  mockRegisterUser = vi.fn().mockResolvedValue("identity_123");
-  return {
-    getSharedAuthComposition: vi.fn(() => ({
-      authManager: {
-        registerUser: mockRegisterUser,
-        authenticate: vi.fn(),
-      },
-      sessionManager: {
-        get: vi.fn().mockResolvedValue(null),
-        isExpired: vi.fn().mockReturnValue(false),
-        isRevoked: vi.fn().mockReturnValue(false),
-        revoke: vi.fn().mockResolvedValue(undefined),
-      },
-    })),
-  };
-});
+vi.mock("../bootstrap/auth-composition.js", () => ({
+  getSharedAuthComposition: vi.fn(() => ({
+    authManager: {
+      registerUser: mocks.mockRegisterUser,
+      authenticate: vi.fn(),
+    },
+    sessionManager: {
+      get: vi.fn().mockResolvedValue(null),
+      isExpired: vi.fn().mockReturnValue(false),
+      isRevoked: vi.fn().mockReturnValue(false),
+      revoke: vi.fn().mockResolvedValue(undefined),
+    },
+  })),
+}));
 
 interface TestRouteHandler {
   path: string;
@@ -53,7 +52,7 @@ function findRoute(
 describe("Public registration (POST /api/auth/register)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mockRegisterUser.mockResolvedValue("identity_123");
+    mocks.mockRegisterUser.mockResolvedValue("identity_123");
   });
 
   it("register route exists and is a POST handler", () => {
@@ -131,7 +130,7 @@ describe("Public registration (POST /api/auth/register)", () => {
     expect(res.body.success).toBe(true);
     expect(res.body.identityId).toBe("identity_123");
 
-    expect(mockRegisterUser).toHaveBeenCalledWith({
+    expect(mocks.mockRegisterUser).toHaveBeenCalledWith({
       provider: "credentials",
       tenantId: "default",
       email: "new.user@example.com",
@@ -158,7 +157,7 @@ describe("Public registration (POST /api/auth/register)", () => {
       },
     });
 
-    expect(mockRegisterUser).toHaveBeenCalledWith(
+    expect(mocks.mockRegisterUser).toHaveBeenCalledWith(
       expect.objectContaining({ email: "user@example.com" }),
     );
   });
@@ -177,7 +176,7 @@ describe("Public registration (POST /api/auth/register)", () => {
       },
     });
 
-    expect(mockRegisterUser).toHaveBeenCalledWith(
+    expect(mocks.mockRegisterUser).toHaveBeenCalledWith(
       expect.objectContaining({
         attributes: expect.objectContaining({ role: "member" }),
       }),
@@ -189,7 +188,7 @@ describe("Public registration (POST /api/auth/register)", () => {
     registerAuthRoutes(router);
     const route = findRoute(router, "/api/auth/register", "POST")!;
 
-    mockRegisterUser.mockRejectedValue(
+    mocks.mockRegisterUser.mockRejectedValue(
       new Error("SQLITE_CONSTRAINT_UNIQUE: email"),
     );
 
@@ -206,7 +205,7 @@ describe("Public registration (POST /api/auth/register)", () => {
     registerAuthRoutes(router);
     const route = findRoute(router, "/api/auth/register", "POST")!;
 
-    mockRegisterUser.mockImplementation(async (input: any) => {
+    mocks.mockRegisterUser.mockImplementation(async (input: any) => {
       expect(typeof input.password).toBe("string");
       expect(input.password.length).toBeGreaterThanOrEqual(8);
       return "identity_hashed";
