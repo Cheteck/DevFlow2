@@ -54,6 +54,8 @@ function escAttr(s: string): string {
 function jsonForScript(v: unknown): string {
   return JSON.stringify(v)
     .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");
 }
@@ -469,7 +471,7 @@ function floatingField({
 
 function passwordToggle(prefix: string): string {
   return `
-    <button type="button" id="${prefix}-toggle-pwd" aria-label="Afficher le mot de passe"
+    <button type="button" id="${prefix}-toggle-pwd" aria-label="Afficher le mot de passe" aria-pressed="false"
       class="absolute inset-y-0 right-0 pr-3 pl-2 flex items-center gap-1.5 text-xs font-mono text-on-surface-variant hover:text-on-surface transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-r-xl">
       <span id="${prefix}-icon-show">${icon(ICON.eye)}</span>
       <span id="${prefix}-icon-hide" class="hidden">${icon(ICON.eyeOff)}</span>
