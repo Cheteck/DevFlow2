@@ -33,7 +33,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:typecheck": "tsc --noEmit -p packages/contracts/tsconfig.test.json && tsc --noEmit -p packages/schemas/tsconfig.json",
+    "test:typecheck": "tsc --build packages/types && tsc --build packages/contracts && tsc --noEmit",
     "check": "pnpm check:conformance && pnpm check:manifests && pnpm check:contracts && pnpm check:themes && pnpm build && pnpm lint && pnpm test:typecheck && pnpm test && tsx scripts/check-format.ts && pnpm check:ui-contracts",
     "check:conformance": "tsx scripts/validate-conformance.ts",
     "check:env": "tsx scripts/check-env.ts",
