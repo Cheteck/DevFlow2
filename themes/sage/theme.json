@@ -111,36 +111,6 @@
         "outline-variant": "#626460",
         "background": "#20201f"
       }
-    },
-    "high-contrast": {
-      "colors": {
-        "primary": "#82978d",
-        "primaryHover": "#9fafa8",
-        "background": "#000000",
-        "surface": "#000000",
-        "text": "#ffffff",
-        "textMuted": "#ffffff",
-        "border": "#ffffff"
-      },
-      "tailwind": {
-        "surface": "#000000",
-        "surface-container-lowest": "#000000",
-        "surface-container-low": "#000000",
-        "surface-container": "#000000",
-        "surface-container-high": "#1a1a1a",
-        "surface-container-highest": "#2a2a2a",
-        "surface-variant": "#1a1a1a",
-        "on-surface": "#ffffff",
-        "on-surface-variant": "#ffffff",
-        "primary": "#82978d",
-        "on-primary": "#000000",
-        "primary-container": "#82978d",
-        "secondary": "#ffffff",
-        "tertiary": "#ffffff",
-        "outline": "#ffffff",
-        "outline-variant": "#ffffff",
-        "background": "#000000"
-      }
     }
   }
 }
