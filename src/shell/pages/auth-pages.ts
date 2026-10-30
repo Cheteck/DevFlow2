@@ -321,9 +321,8 @@ const AUTH_CLIENT_RUNTIME = `<script>
   function applyTheme(mode) {
     var html = document.documentElement;
     html.setAttribute('data-theme-mode', mode);
-    html.classList.remove('dark', 'high-contrast');
+    html.classList.remove('dark');
     if (mode === 'dark') html.classList.add('dark');
-    if (mode === 'high-contrast') html.classList.add('high-contrast');
     try { localStorage.setItem('mosaix_theme_mode', mode); } catch (e) {}
     try { fetch('/api/theme?mode=' + mode, { method: 'POST' }); } catch (e) {}
     updateThemeBtns(mode);
@@ -385,10 +384,7 @@ function authTopHeader(): string {
             <span class="material-symbols-outlined text-base leading-none">dark_mode</span>
             <span class="text-[11px] font-medium hidden md:inline">Sombre</span>
           </button>
-          <button type="button" data-theme-btn="high-contrast" aria-label="Mode Contraste Élevé" title="Mode Contraste Élevé" class="px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-on-surface-variant hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]">
-            <span class="material-symbols-outlined text-base leading-none">contrast</span>
-            <span class="text-[11px] font-medium hidden md:inline">Contraste</span>
-          </button>
+
         </div>
 
         <a href="/commerce" class="hidden sm:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-outline-variant/30 text-xs font-mono font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[44px]">
@@ -569,7 +565,7 @@ function authShell(
   formHtml: string,
 ): string {
   return `<!DOCTYPE html>
-<html class="${activeMode === "dark" ? "dark" : activeMode === "high-contrast" ? "high-contrast" : ""}" lang="fr" data-theme-mode="${activeMode}">
+<html class="${activeMode === "dark" ? "dark" : ""}" lang="fr" data-theme-mode="${activeMode}">
 <head>
 <!-- Fragments de confiance internes : style compilé themes/*.json + CSS partagé renderer (jamais de données utilisateur brutes). -->
 ${renderHeadBlock(title, activeMode, renderThemeStyleTag(activeMode), sharedStyles)}
@@ -580,9 +576,8 @@ ${renderHeadBlock(title, activeMode, renderThemeStyleTag(activeMode), sharedStyl
         const savedTheme = localStorage.getItem('mosaix_theme_mode');
         if (savedTheme) {
           document.documentElement.setAttribute('data-theme-mode', savedTheme);
-          document.documentElement.classList.remove('dark', 'high-contrast');
+          document.documentElement.classList.remove('dark');
           if (savedTheme === 'dark') document.documentElement.classList.add('dark');
-          if (savedTheme === 'high-contrast') document.documentElement.classList.add('high-contrast');
         }
       } catch (e) {}
     })();

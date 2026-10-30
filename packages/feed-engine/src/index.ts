@@ -108,7 +108,7 @@ export interface GroupedActivityCard {
 
 export interface FeedCardContext {
   currentUser: { id: string; roles?: string[] };
-  theme?: "light" | "dark" | "high-contrast";
+  theme?: "light" | "dark" | "system";
   locale?: string;
   capabilities?: Record<string, boolean>;
 }
@@ -450,14 +450,16 @@ export interface FeedAggregationOptions {
   now?: Date;
 }
 
-
 export type FeedSortStrategy = (
   a: FeedPost,
   b: FeedPost,
   context: { referenceDate: Date },
 ) => number;
 
-const feedSortStrategyRegistry = createTypedRegistry<string, FeedSortStrategy>([], { name: "FeedSortStrategyRegistry" });
+const feedSortStrategyRegistry = createTypedRegistry<string, FeedSortStrategy>(
+  [],
+  { name: "FeedSortStrategyRegistry" },
+);
 
 export function registerFeedSortStrategy(
   name: string,
@@ -473,8 +475,14 @@ export function overrideFeedSortStrategy(
   feedSortStrategyRegistry.override(name, strategy);
 }
 
-registerFeedSortStrategy("chronological", (a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-registerFeedSortStrategy("reverse_chronological", (a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+registerFeedSortStrategy(
+  "chronological",
+  (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+);
+registerFeedSortStrategy(
+  "reverse_chronological",
+  (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+);
 registerFeedSortStrategy("engagement", (a, b) => {
   const scoreA = a.likeCount + a.commentsCount * 2 + (a.repostCount || 0) * 3;
   const scoreB = b.likeCount + b.commentsCount * 2 + (b.repostCount || 0) * 3;
@@ -486,7 +494,6 @@ registerFeedSortStrategy("score", (a, b, ctx) => {
   return scoreB - scoreA;
 });
 
-
 export type FeedTargetFilter = (
   post: FeedPost,
   ctx: {
@@ -497,7 +504,10 @@ export type FeedTargetFilter = (
   },
 ) => boolean;
 
-const feedTargetFilterRegistry = createTypedRegistry<string, FeedTargetFilter>([], { name: "FeedTargetFilterRegistry" });
+const feedTargetFilterRegistry = createTypedRegistry<string, FeedTargetFilter>(
+  [],
+  { name: "FeedTargetFilterRegistry" },
+);
 
 export function registerFeedTargetFilter(
   targetType: string,
@@ -514,9 +524,15 @@ export function overrideFeedTargetFilter(
 }
 
 registerFeedTargetFilter("feed", () => true);
-registerFeedTargetFilter("space", (post, ctx) => ctx.spaceIds.has(post.targetId));
-registerFeedTargetFilter("group", (post, ctx) => ctx.groupIds.has(post.targetId));
-registerFeedTargetFilter("event", (post, ctx) => ctx.eventIds.has(post.targetId));
+registerFeedTargetFilter("space", (post, ctx) =>
+  ctx.spaceIds.has(post.targetId),
+);
+registerFeedTargetFilter("group", (post, ctx) =>
+  ctx.groupIds.has(post.targetId),
+);
+registerFeedTargetFilter("event", (post, ctx) =>
+  ctx.eventIds.has(post.targetId),
+);
 
 export class FeedAggregator {
   public static aggregate(

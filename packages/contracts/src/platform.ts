@@ -32,7 +32,8 @@ export interface PlatformSettings {
   /** Roles allowed during maintenance */
   allowedRolesInMaintenance: string[];
   /** Strategy for unauthenticated visitors */
-  unauthenticatedStrategy: "redirect_login" | "render_public_landing" | "render_auth_bac";
+  unauthenticatedStrategy:
+    "redirect_login" | "render_public_landing" | "render_auth_bac";
   /** Auth BAC ID for login rendering */
   authBacId: string;
   /** Guest experience — independent from defaultBacId (PRD Guest vs Authenticated) */
@@ -66,7 +67,7 @@ export interface BacExecutionContext {
     isAuthenticated: boolean;
   };
   theme: {
-    mode: "light" | "dark" | "high-contrast";
+    mode: "light" | "dark" | "system";
     tokens?: Record<string, string>;
   };
   request: {
@@ -113,4 +114,3 @@ export interface BacDescriptor {
    */
   render(context: BacExecutionContext): Promise<BacRenderResult>;
 }
-

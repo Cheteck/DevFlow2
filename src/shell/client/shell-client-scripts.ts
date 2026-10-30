@@ -322,9 +322,8 @@ export function getShellClientScripts(): string {
           const nextMode = current === 'dark' ? 'light' : 'dark';
 
           html.setAttribute('data-theme-mode', nextMode);
-          html.classList.remove('dark', 'high-contrast');
+          html.classList.remove('dark');
           if (nextMode === 'dark') html.classList.add('dark');
-          if (nextMode === 'high-contrast') html.classList.add('high-contrast');
 
           localStorage.setItem('mosaix_theme_mode', nextMode);
           try {
@@ -487,9 +486,8 @@ export function getShellClientScripts(): string {
           if (savedTheme) {
             const html = document.documentElement;
             html.setAttribute('data-theme-mode', savedTheme);
-            html.classList.remove('dark', 'high-contrast');
+            html.classList.remove('dark');
             if (savedTheme === 'dark') html.classList.add('dark');
-            if (savedTheme === 'high-contrast') html.classList.add('high-contrast');
           }
         }, 50);
       })();

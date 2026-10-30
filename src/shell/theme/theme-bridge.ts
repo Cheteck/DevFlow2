@@ -91,7 +91,7 @@ function tailwindBase(manifest: ThemeManifest): TailwindMap {
 
 function tailwindOverlay(
   manifest: ThemeManifest,
-  mode: "light" | "dark" | "high-contrast",
+  mode: "light" | "dark",
 ): TailwindMap {
   const holder = manifest as unknown as {
     modes?: Record<string, Record<string, unknown>>;
@@ -218,21 +218,9 @@ export function generateUnifiedThemeCssVariables(
 }
 
 export function renderThemeStyleTag(overrideMode?: ThemeMode): string {
-  const mode = overrideMode ?? currentMode;
   const manifest = getActiveManifest();
 
-  // Ensure compiled theme exists synchronously if possible
-  if (!currentCompiledTheme || compiledForThemeId !== activeThemeId) {
-    // Compile fallback for sync SSR if apply() hasn't completed
-    currentCompiledTheme = compile(manifest, mode);
-    compiledForThemeId = activeThemeId;
-  }
-
-  const vars = currentCompiledTheme || {};
-
-  // Fallback values are derived from the manifest itself (compiled
-  // light/dark) — they only apply if an --mx-* var is missing, and they
-  // always track themes/*.json. Trailing literals are dead defaults.
+  // Compile both light and dark modes — both are emitted to CSS for hot-switching.
   const lightVars = compile(manifest, "light");
   const darkVars = compile(manifest, "dark");
   const lightTw = tailwindForMode(manifest, "light");
@@ -241,17 +229,15 @@ export function renderThemeStyleTag(overrideMode?: ThemeMode): string {
     v[key] ?? dead;
 
   const lines: string[] = [];
-  lines.push("/* MosaiX Compiled Theme — Source of Truth: --mx-* */");
-  lines.push(":root {");
+  lines.push(
+    "/* MosaiX Compiled Theme — Source of Truth: --mx-* (hot-switching enabled) */",
+  );
 
-  // Output primary --mx-* variables
-  for (const [key, val] of Object.entries(vars)) {
+  // Light mode (default) — all --mx-* variables for light
+  lines.push(':root, [data-theme-mode="light"] {');
+  for (const [key, val] of Object.entries(lightVars)) {
     lines.push(`  ${key}: ${val};`);
   }
-
-  // Unified Tailwind CSS & Material 3 Surface Tokens mapping.
-  // Every value below comes from themes/*.json (compiled vars + tailwind
-  // ramps) — see tailwindForMode. No hardcoded palette.
   lines.push("  /* Tailwind CSS & Material Design 3 Surface Tokens Mapping */");
   lines.push(
     `  --color-primary: var(--mx-color-primary, ${fb(lightVars, "--mx-color-primary", "#4f46e5")});`,
@@ -259,9 +245,6 @@ export function renderThemeStyleTag(overrideMode?: ThemeMode): string {
   lines.push(
     `  --color-primary-hover: var(--mx-color-primaryHover, ${fb(lightVars, "--mx-color-primaryHover", "#4338ca")});`,
   );
-  // NOTE: --color-on-primary stays a static #ffffff in both blocks (current
-  // rendered reality). The tailwind-config side uses on-primary from
-  // themes/*.json — reconciling both is backlog (a11y contrast).
   lines.push("  --color-on-primary: #ffffff;");
   lines.push(
     `  --color-secondary: var(--mx-color-secondary, ${fb(lightVars, "--mx-color-secondary", "#06b6d4")});`,
@@ -294,7 +277,12 @@ export function renderThemeStyleTag(overrideMode?: ThemeMode): string {
   );
   lines.push("}");
 
+  // Dark mode — all --mx-* variables for dark, scoped to [data-theme-mode="dark"]
   lines.push('[data-theme-mode="dark"], .dark, html.dark {');
+  for (const [key, val] of Object.entries(darkVars)) {
+    lines.push(`  ${key}: ${val};`);
+  }
+  lines.push("  /* Tailwind CSS & Material Design 3 Surface Tokens Mapping */");
   lines.push(
     `  --color-primary: var(--mx-color-primary, ${fb(darkVars, "--mx-color-primary", "#6366f1")});`,
   );
@@ -333,7 +321,7 @@ export function renderThemeStyleTag(overrideMode?: ThemeMode): string {
   );
   lines.push("}");
 
-  // Accessibility media queries (Item 4)
+  // Accessibility media queries
   lines.push("@media (prefers-reduced-motion: reduce) {");
   lines.push("  :root {");
   lines.push("    --mx-motion-duration-fast: 0ms;");
@@ -362,9 +350,7 @@ function tailwindForMode(
   const normalized =
     mode === "light"
       ? "light"
-      : mode === "high-contrast"
-        ? "high-contrast"
-        : "dark";
+      : "dark";
   const merged = deepMergeTokens(
     tailwindBase(manifest),
     tailwindOverlay(manifest, normalized),

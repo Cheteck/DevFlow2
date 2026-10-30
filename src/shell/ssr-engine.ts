@@ -60,8 +60,8 @@ export interface RenderShellOptions {
 /** Fragments HTML de confiance — voir l'en-tête du module. */
 export type TrustedHeadHtml = string;
 
-function toBridgeMode(mode: string): "light" | "dark" | "high-contrast" {
-  return mode === "dark" || mode === "high-contrast" ? mode : "light";
+function toBridgeMode(mode: string): "light" | "dark" | "system" {
+  return mode === "dark" ? mode : "light";
 }
 
 /** FNV-1a 32 bits — empreinte courte non crypto, suffisante pour une clé. */
@@ -123,7 +123,23 @@ export function renderHeadBlock(
           darkMode: "class",
           theme: {
             extend: {
-              colors: ${safeJsonForScript(getTailwindThemeColors(bridgeMode))}
+              colors: {
+                'primary': 'var(--color-primary)',
+                'primary-hover': 'var(--color-primary-hover)',
+                'on-primary': 'var(--color-on-primary)',
+                'secondary': 'var(--color-secondary)',
+                'surface': 'var(--color-surface)',
+                'on-surface': 'var(--color-on-surface)',
+                'on-surface-variant': 'var(--color-on-surface-variant)',
+                'surface-variant': 'var(--color-surface-variant)',
+                'surface-container-lowest': 'var(--color-surface-container-lowest)',
+                'surface-container-low': 'var(--color-surface-container-low)',
+                'surface-container': 'var(--color-surface-container)',
+                'surface-container-high': 'var(--color-surface-container-high)',
+                'surface-container-highest': 'var(--color-surface-container-highest)',
+                'outline-variant': 'var(--color-outline-variant)',
+                'background': 'var(--color-surface, #ffffff)',
+              }
             }
           }
         }

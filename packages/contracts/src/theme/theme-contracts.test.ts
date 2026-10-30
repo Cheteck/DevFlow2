@@ -36,8 +36,8 @@ import type {
 } from "../index.js";
 
 describe("ThemeMode (D-09, drift prevention)", () => {
-  it("is exactly light | dark | high-contrast | system", () => {
-    expectTypeOf<ThemeMode>().toEqualTypeOf<"light" | "dark" | "high-contrast" | "system">();
+  it("is exactly light | dark | system", () => {
+    expectTypeOf<ThemeMode>().toEqualTypeOf<"light" | "dark" | "system">();
   });
 });
 

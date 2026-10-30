@@ -8,7 +8,6 @@
  * - light overlay: background/surface/text/textMuted/border verbatim.
  * - dark overlay: background/surface pushed toward black, text toward white,
  *   primary/accent/status lightened for vibrancy on dark.
- * - high-contrast overlay: pure black/white + lightened primary.
  * - tailwind ramps: surface container steps mixed between surface and text;
  *   primary-container tinted toward background; on-primary picked by WCAG
  *   contrast (white vs ink, best ratio wins).
@@ -406,7 +405,6 @@ function buildManifest(
     textMuted: mix(p.muted, "#ffffff", 0.35),
     border: mix(p.border, "#000000", 0.55),
   };
-  const hcPrimary = mix(p.primary, "#ffffff", 0.35);
   const colors = {
     primary: p.primary,
     primaryHover: mix(p.primary, "#000000", 0.15),
@@ -459,25 +457,6 @@ function buildManifest(
     "outline-variant": dark.border,
     background: dark.background,
   };
-  const tailwindHc = {
-    surface: "#000000",
-    "surface-container-lowest": "#000000",
-    "surface-container-low": "#000000",
-    "surface-container": "#000000",
-    "surface-container-high": "#1a1a1a",
-    "surface-container-highest": "#2a2a2a",
-    "surface-variant": "#1a1a1a",
-    "on-surface": "#ffffff",
-    "on-surface-variant": "#ffffff",
-    primary: hcPrimary,
-    "on-primary": "#000000",
-    "primary-container": hcPrimary,
-    secondary: "#ffffff",
-    tertiary: "#ffffff",
-    outline: "#ffffff",
-    "outline-variant": "#ffffff",
-    background: "#000000",
-  };
   return {
     type: "theme",
     id: p.id,
@@ -510,18 +489,6 @@ function buildManifest(
           border: dark.border,
         },
         tailwind: tailwindDark,
-      },
-      "high-contrast": {
-        colors: {
-          primary: hcPrimary,
-          primaryHover: mix(p.primary, "#ffffff", 0.5),
-          background: "#000000",
-          surface: "#000000",
-          text: "#ffffff",
-          textMuted: "#ffffff",
-          border: "#ffffff",
-        },
-        tailwind: tailwindHc,
       },
     },
   };

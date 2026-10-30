@@ -18,7 +18,7 @@ import "./contextual-actions";
 /**
  * CSS partagé du rail primaire — source unique embarquée par `getSharedStyles`
  * (`src/start.ts`) sur TOUTES les pages. Indépendant du mode : couleurs via
- * les variables `--color-*` du thème compilé (light/dark/high-contrast).
+ * les variables `--color-*` du thème compilé (light/dark).
  *
  * Couvre le bug pré-existant du rail minimisé :
  * - `.no-scrollbar` manquait sur les pages BAC (`renderBacPage` n'inclut pas
@@ -916,7 +916,6 @@ export function renderMobileDrawer(
           <div class="grid grid-cols-3 gap-1 bg-surface-container-low border border-outline-variant/20 p-1 rounded-xl text-xs">
             <button onclick="setTheme('light'); toggleMobileDrawer();" class="py-1.5 rounded-lg transition text-center cursor-pointer ${activeMode === "light" ? "bg-primary text-on-primary font-bold shadow" : "text-on-surface-variant hover:text-on-surface"}">Light</button>
             <button onclick="setTheme('dark'); toggleMobileDrawer();" class="py-1.5 rounded-lg transition text-center cursor-pointer ${activeMode === "dark" ? "bg-primary text-on-primary font-bold shadow" : "text-on-surface-variant hover:text-on-surface"}">Dark</button>
-            <button onclick="setTheme('high-contrast'); toggleMobileDrawer();" class="py-1.5 rounded-lg transition text-center cursor-pointer ${activeMode === "high-contrast" ? "bg-primary text-on-primary font-bold shadow" : "text-on-surface-variant hover:text-on-surface"}">Contrast</button>
           </div>
         </div>
 

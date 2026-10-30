@@ -56,7 +56,7 @@ export function renderHomePage(opts: HomePageOptions): string {
   const nav = opts.navProfile ?? currentUser;
 
   return `<!DOCTYPE html>
-<html class="${activeMode === "dark" ? "dark" : activeMode === "high-contrast" ? "high-contrast" : ""}" lang="fr" data-theme-mode="${activeMode}">
+<html class="${activeMode === "dark" ? "dark" : ""}" lang="fr" data-theme-mode="${activeMode}">
 <head>
 <!-- Fragments de confiance internes : style compilé themes/*.json + CSS partagé renderer (jamais de données utilisateur brutes). -->
 ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode), sharedStyles)}
@@ -67,9 +67,8 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
         const savedTheme = localStorage.getItem('mosaix_theme_mode');
         if (savedTheme) {
           document.documentElement.setAttribute('data-theme-mode', savedTheme);
-          document.documentElement.classList.remove('dark', 'high-contrast');
+          document.documentElement.classList.remove('dark');
           if (savedTheme === 'dark') document.documentElement.classList.add('dark');
-          if (savedTheme === 'high-contrast') document.documentElement.classList.add('high-contrast');
         }
         if (localStorage.getItem('mosaix_secondary_sidebar_collapsed') === 'true') {
           document.documentElement.classList.add('sidebar-collapsed');
@@ -141,7 +140,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
           <div class="hidden lg:flex items-center gap-0.5 bg-surface-container-low border border-outline-variant/20 p-0.5 rounded-xl text-xs">
             <button onclick="setTheme('light')" class="px-2 py-1 rounded-lg transition ${activeMode === "light" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Clair">Light</button>
             <button onclick="setTheme('dark')" class="px-2 py-1 rounded-lg transition ${activeMode === "dark" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Sombre">Dark</button>
-            <button onclick="setTheme('high-contrast')" class="px-2 py-1 rounded-lg transition ${activeMode === "high-contrast" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Contraste Élevé">Contrast</button>
+
           </div>
 
           <div class="hidden lg:block h-5 w-px bg-outline-variant/20"></div>
@@ -430,12 +429,11 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
 
   <script>
     async function setTheme(mode) {
-      if (!['light', 'dark', 'high-contrast'].includes(mode)) return;
+      if (!['light', 'dark'].includes(mode)) return;
       const html = document.documentElement;
       html.setAttribute('data-theme-mode', mode);
-      html.classList.remove('dark', 'high-contrast');
+      html.classList.remove('dark');
       if (mode === 'dark') html.classList.add('dark');
-      if (mode === 'high-contrast') html.classList.add('high-contrast');
       localStorage.setItem('mosaix_theme_mode', mode);
       try {
         await fetch('/api/theme?mode=' + mode, { method: 'POST' });

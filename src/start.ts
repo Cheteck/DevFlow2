@@ -307,7 +307,6 @@ async function handleRequest(
     const requestedTheme = themeCookie ? themeCookie[1] : "";
     const currentThemeMode: ThemeMode =
       requestedTheme === "light" ||
-      requestedTheme === "high-contrast" ||
       requestedTheme === "system"
         ? requestedTheme
         : "dark";

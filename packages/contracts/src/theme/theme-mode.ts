@@ -14,4 +14,4 @@
  * Consumers: theme/* contracts, ThemeModeSchema.
  */
 
-export type ThemeMode = "light" | "dark" | "high-contrast" | "system";
+export type ThemeMode = "light" | "dark" | "system";

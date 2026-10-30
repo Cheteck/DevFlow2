@@ -27,6 +27,5 @@ export interface ThemeManifest extends MosaixArtifactManifest {
   modes?: {
     readonly light?: DesignTokens;
     readonly dark?: DesignTokens;
-    readonly "high-contrast"?: DesignTokens;
   };
 }

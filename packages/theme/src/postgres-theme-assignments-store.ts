@@ -35,7 +35,7 @@ export class PostgresThemeAssignmentsStore implements ThemeAssignmentsStore {
   private rowToAssignment(row: Record<string, unknown>): ThemeAssignment {
     const rawMode = row["mode"];
     const mode =
-      rawMode === "light" || rawMode === "dark" || rawMode === "high-contrast" || rawMode === "system"
+      rawMode === "light" || rawMode === "dark" || rawMode === "system"
         ? rawMode
         : "system";
     return {

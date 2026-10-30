@@ -40,14 +40,15 @@ export class PlatformThemeService {
         try {
           const content = fs.readFileSync(manifestPath, "utf-8");
           const json = JSON.parse(content);
-          
+
           const result = ThemeManifestSchema.safeParse(json);
           if (!result.success) {
             continue; // Skip invalid manifests
           }
 
           const primary = (json.tokens?.colors?.primary as string) || "#4f46e5";
-          const background = (json.tokens?.colors?.background as string) || "#f8fafc";
+          const background =
+            (json.tokens?.colors?.background as string) || "#f8fafc";
 
           summaries.push({
             id: json.id,
@@ -66,13 +67,19 @@ export class PlatformThemeService {
 
   async getActiveThemeId(): Promise<string> {
     if (this.themeRuntime) {
-      const active = this.themeRuntime.getAssignment({ type: "shell", id: "shell" });
+      const active = this.themeRuntime.getAssignment({
+        type: "shell",
+        id: "shell",
+      });
       return active?.themeId || "mosaix-default";
     }
     return "mosaix-default";
   }
 
-  async applyTheme(themeId: string, mode: "light" | "dark" | "high-contrast" | "system"): Promise<void> {
+  async applyTheme(
+    themeId: string,
+    mode: "light" | "dark" | "system",
+  ): Promise<void> {
     // Security Defense: strict input format check
     if (!themeId || !/^[a-zA-Z0-9-]+$/.test(themeId)) {
       throw new Error(`Invalid theme ID: '${themeId}'`);
