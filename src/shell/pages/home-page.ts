@@ -140,6 +140,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
           <div class="hidden lg:flex items-center gap-0.5 bg-surface-container-low border border-outline-variant/20 p-0.5 rounded-xl text-xs">
             <button onclick="setTheme('light')" class="px-2 py-1 rounded-lg transition ${activeMode === "light" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Clair">Light</button>
             <button onclick="setTheme('dark')" class="px-2 py-1 rounded-lg transition ${activeMode === "dark" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Sombre">Dark</button>
+            <button onclick="setTheme('system')" class="px-2 py-1 rounded-lg transition ${activeMode === "system" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Automatique">Auto</button>
 
           </div>
 
@@ -428,17 +429,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
   ${renderShellConfirmModal()}
 
   <script>
-    async function setTheme(mode) {
-      if (!['light', 'dark'].includes(mode)) return;
-      const html = document.documentElement;
-      html.setAttribute('data-theme-mode', mode);
-      html.classList.remove('dark');
-      if (mode === 'dark') html.classList.add('dark');
-      localStorage.setItem('mosaix_theme_mode', mode);
-      try {
-        await fetch('/api/theme?mode=' + mode, { method: 'POST' });
-      } catch (e) {}
-    }
+    function setTheme(mode) { if (window.setTheme) window.setTheme(mode); }
 
     function toggleSecondarySidebar() {
       const isCollapsed = document.documentElement.classList.toggle('sidebar-collapsed');

@@ -916,6 +916,7 @@ export function renderMobileDrawer(
           <div class="grid grid-cols-3 gap-1 bg-surface-container-low border border-outline-variant/20 p-1 rounded-xl text-xs">
             <button onclick="setTheme('light'); toggleMobileDrawer();" class="py-1.5 rounded-lg transition text-center cursor-pointer ${activeMode === "light" ? "bg-primary text-on-primary font-bold shadow" : "text-on-surface-variant hover:text-on-surface"}">Light</button>
             <button onclick="setTheme('dark'); toggleMobileDrawer();" class="py-1.5 rounded-lg transition text-center cursor-pointer ${activeMode === "dark" ? "bg-primary text-on-primary font-bold shadow" : "text-on-surface-variant hover:text-on-surface"}">Dark</button>
+            <button onclick="setTheme('system'); toggleMobileDrawer();" class="py-1.5 rounded-lg transition text-center cursor-pointer ${activeMode === "system" ? "bg-primary text-on-primary font-bold shadow" : "text-on-surface-variant hover:text-on-surface"}">Auto</button>
           </div>
         </div>
 
@@ -1378,6 +1379,14 @@ export function renderCommandPaletteModal(): string {
               <div class="flex items-center gap-3">
                 <span class="material-symbols-outlined text-primary text-base">light_mode</span>
                 <span>Activer le Mode Clair</span>
+              </div>
+              <span class="text-[10px] text-on-surface-variant">Thème</span>
+            </button>
+
+            <button onclick="setTheme('system'); closeCommandPalette();" class="cmd-item w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-primary/10 transition group text-xs font-semibold text-on-surface text-left">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary text-base">desktop_windows</span>
+                <span>Thème Automatique (Système OS)</span>
               </div>
               <span class="text-[10px] text-on-surface-variant">Thème</span>
             </button>

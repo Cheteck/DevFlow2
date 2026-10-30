@@ -23,9 +23,9 @@ import type { ThemeTarget } from "./theme-target.js";
 
 export interface ThemeAssignmentsStore {
   /** Persists an assignment (create or replace by target key). */
-  assign(assignment: ThemeAssignment): void;
+  assign(assignment: ThemeAssignment): void | Promise<void>;
   /** Removes the assignment for the target; idempotent no-op if absent. */
-  unassign(target: ThemeTarget): void;
+  unassign(target: ThemeTarget): void | Promise<void>;
   /** Returns the assignment for the target, or undefined when absent. */
   get(target: ThemeTarget): ThemeAssignment | undefined;
   /** All assignments as a snapshot copy. */

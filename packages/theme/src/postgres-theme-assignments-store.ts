@@ -62,14 +62,16 @@ export class PostgresThemeAssignmentsStore implements ThemeAssignmentsStore {
     }
   }
 
-  assign(assignment: ThemeAssignment): void {
+  async assign(assignment: ThemeAssignment): Promise<void> {
     const result = ThemeAssignmentSchema.safeParse(assignment);
     if (!result.success) {
       throw new ThemeValidationError(result.error.issues);
     }
-    this.cache.set(this.keyFor(assignment.target), assignment);
-    void this.db
-      .execute(
+    const key = this.keyFor(assignment.target);
+    const previous = this.cache.get(key);
+
+    try {
+      await this.db.execute(
         `INSERT INTO "${this.table}" (target_type, target_id, theme_id, mode, version, source, updated_at, updated_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          ON CONFLICT (target_type, target_id) DO UPDATE SET theme_id=$3, mode=$4, version=$5, source=$6, updated_at=$7, updated_by=$8`,
@@ -83,33 +85,44 @@ export class PostgresThemeAssignmentsStore implements ThemeAssignmentsStore {
           assignment.updatedAt ?? new Date().toISOString(),
           assignment.updatedBy ?? "system",
         ],
-      )
-      .catch(() => {});
-    this.emit({
-      target: assignment.target,
-      assignment,
-      changedBy: (assignment.updatedBy ?? "system").trim() || "system",
-      at: assignment.updatedAt ?? new Date().toISOString(),
-    });
+      );
+      this.cache.set(key, assignment);
+      this.emit({
+        target: assignment.target,
+        assignment,
+        changedBy: (assignment.updatedBy ?? "system").trim() || "system",
+        at: assignment.updatedAt ?? new Date().toISOString(),
+      });
+    } catch (error) {
+      if (previous !== undefined) {
+        this.cache.set(key, previous);
+      } else {
+        this.cache.delete(key);
+      }
+      throw error;
+    }
   }
 
-  unassign(target: ThemeTarget): void {
+  async unassign(target: ThemeTarget): Promise<void> {
     const key = this.keyFor(target);
     const removed = this.cache.get(key);
     if (removed === undefined) return;
-    this.cache.delete(key);
-    void this.db
-      .execute(`DELETE FROM "${this.table}" WHERE target_type=$1 AND target_id=$2`, [
+
+    try {
+      await this.db.execute(`DELETE FROM "${this.table}" WHERE target_type=$1 AND target_id=$2`, [
         target.type,
         target.id,
-      ])
-      .catch(() => {});
-    this.emit({
-      target,
-      assignment: removed,
-      changedBy: (removed.updatedBy ?? "system").trim() || "system",
-      at: removed.updatedAt ?? new Date().toISOString(),
-    });
+      ]);
+      this.cache.delete(key);
+      this.emit({
+        target,
+        assignment: removed,
+        changedBy: (removed.updatedBy ?? "system").trim() || "system",
+        at: removed.updatedAt ?? new Date().toISOString(),
+      });
+    } catch (error) {
+      throw error;
+    }
   }
 
   get(target: ThemeTarget): ThemeAssignment | undefined {

@@ -15,18 +15,18 @@ import type {
   ThemeManifest,
   ThemeMode,
 } from "@mosaix/contracts";
+import { container } from "@mosaix/core";
 import {
   compile,
   createThemeRuntime,
   deepMergeTokens,
   InMemoryThemeAssignmentsStore,
+  PostgresThemeAssignmentsStore,
+  registerBacThemeTargets,
   ThemeDiscovery,
   ThemeRuntime,
   ThemeTargetRegistry,
-  PostgresThemeAssignmentsStore,
-  registerBacThemeTargets,
-  container,
-} from "@mosaix/core";
+} from "@mosaix/theme";
 
 let activeRuntime: ThemeRuntime | null = null;
 let currentCompiledTheme: CompiledTheme | null = null;
@@ -234,7 +234,7 @@ export function renderThemeStyleTag(overrideMode?: ThemeMode): string {
   );
 
   // Light mode (default) — all --mx-* variables for light
-  lines.push(':root, [data-theme-mode="light"] {');
+  lines.push(':root, [data-theme-mode="light"], [data-resolved-mode="light"] {');
   for (const [key, val] of Object.entries(lightVars)) {
     lines.push(`  ${key}: ${val};`);
   }
@@ -278,7 +278,7 @@ export function renderThemeStyleTag(overrideMode?: ThemeMode): string {
   lines.push("}");
 
   // Dark mode — all --mx-* variables for dark, scoped to [data-theme-mode="dark"]
-  lines.push('[data-theme-mode="dark"], .dark, html.dark {');
+  lines.push('[data-theme-mode="dark"], [data-resolved-mode="dark"], .dark, html.dark {');
   for (const [key, val] of Object.entries(darkVars)) {
     lines.push(`  ${key}: ${val};`);
   }
@@ -319,6 +319,16 @@ export function renderThemeStyleTag(overrideMode?: ThemeMode): string {
   lines.push(
     `  --color-outline-variant: var(--mx-color-border, ${fb(darkVars, "--mx-color-border", "#334155")});`,
   );
+  lines.push("}");
+
+  // Accessibility and OS preferences
+  lines.push("@media (prefers-color-scheme: dark) {");
+  lines.push('  html[data-theme-mode="system"]:not([data-resolved-mode="light"]),');
+  lines.push('  :root:not([data-theme-mode]):not([data-resolved-mode="light"]) {');
+  for (const [key, val] of Object.entries(darkVars)) {
+    lines.push(`    ${key}: ${val};`);
+  }
+  lines.push("  }");
   lines.push("}");
 
   // Accessibility media queries

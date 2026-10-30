@@ -315,24 +315,64 @@ export function getShellClientScripts(): string {
           }
         };
 
-        // Theme Mode Toggle (Light/Dark)
-        window.toggleThemeMode = function() {
+        // Theme Mode Engine (Light / Dark / System) with hot switching & cross-tab sync
+        window.setTheme = function(mode) {
+          const validMode = (mode === "light" || mode === "dark" || mode === "system") ? mode : "system";
           const html = document.documentElement;
-          const current = html.getAttribute('data-theme-mode') || 'dark';
-          const nextMode = current === 'dark' ? 'light' : 'dark';
 
-          html.setAttribute('data-theme-mode', nextMode);
-          html.classList.remove('dark');
-          if (nextMode === 'dark') html.classList.add('dark');
-
-          localStorage.setItem('mosaix_theme_mode', nextMode);
-          try {
-            fetch('/api/theme?mode=' + nextMode, { method: 'POST' });
-          } catch {}
-          if (typeof window.showToast === 'function') {
-            window.showToast('Thème ' + (nextMode === 'dark' ? 'Sombre' : 'Clair') + ' activé', 'info', 2000);
+          let effectiveMode = validMode;
+          if (validMode === "system") {
+            effectiveMode = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
           }
+
+          html.setAttribute("data-theme-mode", validMode);
+          html.setAttribute("data-resolved-mode", effectiveMode);
+
+          if (effectiveMode === "dark") {
+            html.classList.add("dark");
+            html.classList.remove("light");
+          } else {
+            html.classList.remove("dark");
+            html.classList.add("light");
+          }
+
+          try {
+            localStorage.setItem("mosaix_theme_mode", validMode);
+          } catch (e) {}
+
+          try {
+            fetch("/api/theme?mode=" + validMode, { method: "POST" });
+          } catch (e) {}
+
+          window.dispatchEvent(new CustomEvent("mosaix:theme-changed", {
+            detail: { mode: validMode, effectiveMode: effectiveMode }
+          }));
         };
+
+        window.toggleThemeMode = function() {
+          const current = document.documentElement.getAttribute("data-theme-mode") || "system";
+          const nextMode = current === "dark" ? "light" : current === "light" ? "system" : "dark";
+          window.setTheme(nextMode);
+        };
+
+        // System OS Dark Preference Change Listener
+        if (window.matchMedia) {
+          try {
+            window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function() {
+              const currentMode = document.documentElement.getAttribute("data-theme-mode") || localStorage.getItem("mosaix_theme_mode") || "system";
+              if (currentMode === "system") {
+                window.setTheme("system");
+              }
+            });
+          } catch (e) {}
+        }
+
+        // Cross-tab theme sync
+        window.addEventListener("storage", function(e) {
+          if (e.key === "mosaix_theme_mode" && e.newValue) {
+            window.setTheme(e.newValue);
+          }
+        });
 
         // Close dropdowns and modals on click outside or keydown
         document.addEventListener('click', function(e) {
@@ -482,13 +522,8 @@ export function getShellClientScripts(): string {
           if (presenceSelect) presenceSelect.value = savedStatus;
           window.updatePresenceStatus(savedStatus);
 
-          const savedTheme = localStorage.getItem('mosaix_theme_mode');
-          if (savedTheme) {
-            const html = document.documentElement;
-            html.setAttribute('data-theme-mode', savedTheme);
-            html.classList.remove('dark');
-            if (savedTheme === 'dark') html.classList.add('dark');
-          }
+          const savedTheme = localStorage.getItem('mosaix_theme_mode') || 'system';
+          window.setTheme(savedTheme);
         }, 50);
       })();
     </script>
