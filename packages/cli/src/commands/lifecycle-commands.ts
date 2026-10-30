@@ -81,7 +81,7 @@ export class BuildCommand implements CliCommand {
   execute(ctx: CommandContext): CLIResult {
     // Step 1: Compile TypeScript to .mosaix/build/ (if tsconfig.build.json exists)
     const tsconfigBuildPath = path.join(ctx.rootDir, "tsconfig.build.json");
-    if (fs.existsSync(tsconfigBuildPath)) {
+    if (fs.existsSync(tsconfigBuildPath) && !ctx.args.includes("--skip-tsc")) {
       const buildOutputDir = path.join(ctx.rootDir, ".mosaix", "build");
       
       // Ensure .mosaix/build exists before tsc writes to it
