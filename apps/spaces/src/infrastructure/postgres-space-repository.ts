@@ -158,6 +158,22 @@ export class PostgresSpaceRepository {
     return space?.followersCount ?? 0;
   }
 
+  /** Update the space-level theme assignment (themeId stored in data blob). */
+  async setSpaceTheme(spaceId: string, themeId: string): Promise<Space | null> {
+    return this.mutateSpace(spaceId, (s) => {
+      (s as unknown as Record<string, unknown>)["themeId"] = themeId;
+      return s;
+    });
+  }
+
+  /** Remove the space-level theme assignment, resetting to inherited. */
+  async resetSpaceTheme(spaceId: string): Promise<Space | null> {
+    return this.mutateSpace(spaceId, (s) => {
+      delete (s as unknown as Record<string, unknown>)["themeId"];
+      return s;
+    });
+  }
+
   private hydrate(data: Record<string, unknown> | string): Space {
     const raw = (typeof data === "string" ? JSON.parse(data) : data) as Record<string, unknown>;
     const asStringArray = (value: unknown): string[] =>
@@ -198,6 +214,9 @@ export class PostgresSpaceRepository {
       createdAt: asDate(raw["createdAt"], now),
       ...(raw["updatedAt"] !== undefined && raw["updatedAt"] !== null
         ? { updatedAt: asDate(raw["updatedAt"], now) }
+        : {}),
+      ...(raw["themeId"] !== undefined && raw["themeId"] !== null
+        ? { themeId: String(raw["themeId"]) }
         : {}),
     };
   }

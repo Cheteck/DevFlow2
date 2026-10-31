@@ -66,6 +66,11 @@ export interface Space {
    * Persisté dans le blob `data` (Postgres) et préservé par `hydrate`.
    */
   metadata?: SpaceMetadata;
+  /**
+   * Theme assigned to this Space (theme slug from themes/ catalog).
+   * `undefined` / absent = inherits global platform theme.
+   */
+  themeId?: string;
   createdAt: Date;
   updatedAt?: Date;
 }
@@ -79,6 +84,8 @@ export interface SpaceRepositoryPort {
   addTeamMember(spaceId: string, member: SpaceTeamMember): Promise<Space | null>;
   setCustomDomain(spaceId: string, domain: string): Promise<Space | null>;
   followSpace(spaceId: string): Promise<number>;
+  setSpaceTheme(spaceId: string, themeId: string): Promise<Space | null>;
+  resetSpaceTheme(spaceId: string): Promise<Space | null>;
 }
 
 export class SpaceService {
@@ -250,5 +257,33 @@ export class SpaceService {
       await this.repository.followSpace(spaceId);
     }
     return space.followersCount;
+  }
+
+  async setSpaceTheme(spaceId: string, themeId: string): Promise<Space> {
+    const space = await this.getSpaceAsync(spaceId);
+    if (!space) throw new Error(`Space [${spaceId}] non trouvé.`);
+    if (this.repository) {
+      const updated = await this.repository.setSpaceTheme(spaceId, themeId);
+      if (!updated) throw new Error(`Failed to update theme for Space [${spaceId}]`);
+      this.spaces.set(spaceId, updated);
+      return updated;
+    }
+    space.themeId = themeId;
+    this.spaces.set(spaceId, space);
+    return space;
+  }
+
+  async resetSpaceTheme(spaceId: string): Promise<Space> {
+    const space = await this.getSpaceAsync(spaceId);
+    if (!space) throw new Error(`Space [${spaceId}] non trouvé.`);
+    if (this.repository) {
+      const updated = await this.repository.resetSpaceTheme(spaceId);
+      if (!updated) throw new Error(`Failed to reset theme for Space [${spaceId}]`);
+      this.spaces.set(spaceId, updated);
+      return updated;
+    }
+    delete space.themeId;
+    this.spaces.set(spaceId, space);
+    return space;
   }
 }

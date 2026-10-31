@@ -129,9 +129,11 @@ export const USER_PROFILES: Record<string, UserProfile> = {
 export interface SpaceProfile {
   id: string;
   name: string;
-  handle: string;
-  avatar: string;
+  description?: string;
+  themeId?: string;
   ownerUserRole: "member" | "moderator" | "admin";
+  avatar?: string;
+  handle?: string;
   badge: string;
 }
 
