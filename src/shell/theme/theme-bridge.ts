@@ -27,6 +27,7 @@ import {
   ThemeRuntime,
   ThemeTargetRegistry,
 } from "@mosaix/theme";
+import { tryGetRenderContext } from "../../server/context/render-context.js";
 
 let activeRuntime: ThemeRuntime | null = null;
 let currentCompiledTheme: CompiledTheme | null = null;
@@ -41,6 +42,15 @@ const DEFAULT_THEME_ID = "mosaix-default";
 
 const themeCatalog = new Map<string, ThemeManifest>();
 let activeThemeId = DEFAULT_THEME_ID;
+/**
+ * Resolve the current theme identifier, preferring the request‑scoped render context
+ * when available. Falls back to the legacy module‑level `activeThemeId` for non‑SSR
+ * usage (e.g., client‑side scripts, tests).
+ */
+function getEffectiveThemeId(): string {
+  const ctx = tryGetRenderContext();
+  return ctx?.theme?.themeId ?? activeThemeId;
+}
 let catalogLoaded = false;
 let compiledForThemeId: string | null = null;
 
@@ -66,15 +76,16 @@ export function setActiveThemeId(id: string): void {
 }
 
 export function getActiveThemeId(): string {
-  return activeThemeId;
+  return getEffectiveThemeId();
 }
 
 function getActiveManifest(): ThemeManifest {
   ensureCatalog();
-  const manifest = themeCatalog.get(activeThemeId);
+  const themeId = getEffectiveThemeId();
+  const manifest = themeCatalog.get(themeId);
   if (!manifest) {
     throw new Error(
-      `[theme] active theme "${activeThemeId}" not found in ${THEMES_DIR} — themes/ is the single source of truth, check theme.json manifests.`,
+      `[theme] active theme "${themeId}" not found in ${THEMES_DIR} — themes/ is the single source of truth, check theme.json manifests.`,
     );
   }
   return manifest;
@@ -193,17 +204,17 @@ export function getThemeMode(): ThemeMode {
  * backward-compatibility fallbacks, and accessibility media queries.
  */
 export function getResolvedTheme(mode: ThemeMode = "light"): CompiledTheme {
-  if (
-    currentCompiledTheme &&
-    currentMode === mode &&
-    compiledForThemeId === activeThemeId
-  ) {
+if (
+      currentCompiledTheme &&
+      currentMode === mode &&
+      compiledForThemeId === getEffectiveThemeId()
+    ) {
     return currentCompiledTheme;
   }
   const compiled = compile(getActiveManifest(), mode);
   currentCompiledTheme = compiled;
   currentMode = mode;
-  compiledForThemeId = activeThemeId;
+  compiledForThemeId = getEffectiveThemeId();
   return compiled;
 }
 

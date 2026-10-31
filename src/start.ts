@@ -57,7 +57,10 @@ import {
   renderThemeStyleTag,
   generateUnifiedThemeCssVariables,
   getResolvedTheme,
+  ShellThemeProvider,
 } from "./shell/theme/theme-bridge.js";
+import { renderContext } from "./server/context/render-context.js";
+import { resolveTheme } from "./server/services/theme-resolution.service.js";
 import { renderBacAdminSafely } from "./shell/renderer.js";
 import { PRIMARY_RAIL_SHARED_CSS } from "./shell/renderer.js";
 import { getPlatformFeatureFlags } from "./shell/feature-flags.js";
@@ -301,6 +304,12 @@ async function handleRequest(
     const navProfile: UserProfile = buildNavProfile(ssrAuth, apps);
     const activeSpaceProfile = await getActiveSpaceProfile(req, parsedUrl, app.dbAdapter);
     const currentSpace = activeSpaceProfile ? activeSpaceProfile.id : null;
+    // Resolve the theme for the resolved space (or fallback to platform default)
+    const resolvedTheme = await resolveTheme(activeSpaceProfile?.themeId);
+    // Store in AsyncLocalStorage so downstream rendering can access it without globals
+    renderContext.enterWith({ space: activeSpaceProfile, theme: resolvedTheme });
+    // Tell the theme bridge the active theme id
+    ShellThemeProvider.setActiveThemeId(resolvedTheme.themeId);
     const themeCookie = (req.headers.cookie || "").match(
       /mosaix_theme_mode=([a-z-]+)/,
     );
