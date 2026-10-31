@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — TerminalRenderer lifecycle tests (P0 duplication bug).
+ * @mosaix/command-center — TerminalRenderer lifecycle tests (P0 duplication bug).
  *
  * Proves: one instance paints in place (cursor addressing, never append),
  * bursts coalesce into a single paint, no timer per refresh, full cleanup.

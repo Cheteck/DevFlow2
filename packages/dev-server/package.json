@@ -11,7 +11,8 @@
   "dependencies": {
     "@mosaix/contracts": "workspace:*",
     "@mosaix/core": "workspace:*",
-    "@mosaix/dev-session": "workspace:*"
+    "@mosaix/dev-session": "workspace:*",
+    "@mosaix/command-center": "workspace:*"
   },
   "exports": {
     ".": {

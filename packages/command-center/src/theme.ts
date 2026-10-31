@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — centralized cockpit palette.
+ * @mosaix/command-center — centralized cockpit palette.
  *
  * Stable meaning everywhere: cyan = identity/infrastructure, blue = info,
  * violet = processes/sessions, green = healthy/confirmed, amber = warning

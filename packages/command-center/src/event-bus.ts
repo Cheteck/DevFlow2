@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — structured event bus + bounded circular history.
+ * @mosaix/command-center — structured event bus + bounded circular history.
  */
 import type {
   EventCategory,

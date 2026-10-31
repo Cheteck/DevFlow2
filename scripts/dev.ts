@@ -13,7 +13,7 @@
  *
  * Dev-only. Production (`pnpm start`) boots once and never watches.
  */
-import { DevSupervisor } from "../packages/dev-server/src/command-center/supervisor.js";
+import { DevSupervisor } from "../packages/command-center/src/index.js";
 
 const ROOT = process.cwd();
 

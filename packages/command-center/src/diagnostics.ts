@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — fact-based diagnostics. Every finding references an
+ * @mosaix/command-center — fact-based diagnostics. Every finding references an
  * actually observed condition; nothing claims an automatic root cause.
  * `at` is stamped by the supervisor (detection time per snapshot).
  */

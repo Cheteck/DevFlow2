@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — robust .env file watcher.
+ * @mosaix/command-center — robust .env file watcher.
  *
  * - Watches each file directly when present; otherwise watches the parent
  *   directory until the file is created (covers missing `.env.local`).

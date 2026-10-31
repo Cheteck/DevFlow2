@@ -66,6 +66,7 @@ export default defineConfig({
       "@mosaix/adapter-intelligence-typesafe": path.resolve(__dirname, "./packages/adapters/intelligence-typesafe/src/index.ts"),
       "@mosaix/dev-session": path.resolve(__dirname, "./packages/dev-session/src/index.ts"),
       "@mosaix/dev-server": path.resolve(__dirname, "./packages/dev-server/src/index.ts"),
+      "@mosaix/command-center": path.resolve(__dirname, "./packages/command-center/src/index.ts"),
     },
   },
 });

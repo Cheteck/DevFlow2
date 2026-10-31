@@ -1350,6 +1350,12 @@ importers:
         specifier: ^3.2.7
         version: 3.2.7(@types/node@22.20.3)(tsx@4.23.13)
 
+  packages/command-center:
+    dependencies:
+      '@mosaix/dev-session':
+        specifier: workspace:*
+        version: link:../dev-session
+
   packages/commands:
     dependencies:
       '@mosaix/types':
@@ -1488,6 +1494,9 @@ importers:
 
   packages/dev-server:
     dependencies:
+      '@mosaix/command-center':
+        specifier: workspace:*
+        version: link:../command-center
       '@mosaix/contracts':
         specifier: workspace:*
         version: link:../contracts

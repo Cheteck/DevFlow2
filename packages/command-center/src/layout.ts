@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — adaptive cockpit grid.
+ * @mosaix/command-center — adaptive cockpit grid.
  *
  * Pure layout computation (no I/O, no rendering): from real terminal
  * dimensions to panel placement + row budgets. Three columns on wide

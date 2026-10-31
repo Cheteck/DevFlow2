@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — DevSupervisor: orchestration for COMMAND CENTER.
+ * @mosaix/command-center — DevSupervisor: orchestration for COMMAND CENTER.
  *
  * Owns two independent ManagedProcess instances (api + mcp), the EnvWatcher,
  * the bounded event/log history, the RestartTracker and the TUI loop.

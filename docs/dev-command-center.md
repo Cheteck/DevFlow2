@@ -72,7 +72,7 @@ Supervision indépendante, 1 processus/service, restarts sérialisés
 (mutex + génération), backoff 500 ms → 8 s (5/min max), SIGTERM + grâce
 1 s Windows puis `taskkill /T /F`, watchers debounce 300 ms + recréation.
 
-## Architecture (`packages/dev-server/src/command-center/`)
+## Architecture (`packages/command-center/src/`)
 
 `supervisor-types.ts` · `secret-guard.ts` · `event-bus.ts` ·
 `process-manager.ts` · `env-watcher.ts` · `restart-tracker.ts` ·
@@ -80,3 +80,8 @@ Supervision indépendante, 1 processus/service, restarts sérialisés
 (grille 3/2/1 + budgets) · `palette.ts` (modèle Ctrl+K) · `cockpit.ts`
 (panneaux) · `renderer.ts` (compositeur) · `terminal-renderer.ts`
 (moteur) · `supervisor.ts` (+ `resolveKnownPort`, stats hôte) · tests.
+
+> **Note (2026-10-31) :** Le Command Center a été extrait dans son propre package
+> `@mosaix/command-center` (ADR-0023). `dev-server` le ré-exporte pour
+> compatibilité, mais l'import direct depuis `@mosaix/command-center` est
+> recommandé.

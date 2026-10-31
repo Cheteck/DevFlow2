@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — Restart Time Machine: bounded in-memory history of
+ * @mosaix/command-center — Restart Time Machine: bounded in-memory history of
  * restart cycles with genuinely measured step durations.
  */
 import type {

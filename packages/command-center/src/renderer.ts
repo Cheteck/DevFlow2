@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — cockpit grid composer (MOSAIX // COMMAND CENTER).
+ * @mosaix/command-center — cockpit grid composer (MOSAIX // COMMAND CENTER).
  *
  * Turns the live snapshot into a multi-panel frame: header bar, adaptive
  * 3/2/1-column grid of bordered panels, command palette overlay, help

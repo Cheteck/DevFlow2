@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — TerminalRenderer: single-owner VT screen painter.
+ * @mosaix/command-center — TerminalRenderer: single-owner VT screen painter.
  *
  * Root cause of the P0 duplication bug: the supervisor repainted with
  * `write("\x1b[2J\x1b[H" + frame)` on every event AND every second, assuming

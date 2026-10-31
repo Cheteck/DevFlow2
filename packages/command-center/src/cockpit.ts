@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — cockpit panels. Bordered, titled, data-real-only.
+ * @mosaix/command-center — cockpit panels. Bordered, titled, data-real-only.
  *
  * Every panel renders from the live snapshot; unavailable data is labeled
  * explicitly ("—"), never invented. Borders are thin with the title fused

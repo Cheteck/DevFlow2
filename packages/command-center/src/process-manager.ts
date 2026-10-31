@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — supervised child process with honest readiness.
+ * @mosaix/command-center — supervised child process with honest readiness.
  *
  * Guarantees:
  * - api and mcp are supervised independently (one instance per manager);

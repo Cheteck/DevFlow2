@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — shared contracts for MOSAIX // COMMAND CENTER.
+ * @mosaix/command-center — shared contracts for MOSAIX // COMMAND CENTER.
  *
  * Dev-only tooling. Never imported by production bundles.
  */

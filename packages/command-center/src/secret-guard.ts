@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — secret redaction guard.
+ * @mosaix/command-center — secret redaction guard.
  *
  * .env files may hold secrets. This module is the single choke point used
  * before anything reaches the timeline, logs, errors or diagnostics.

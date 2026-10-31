@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — DEVELOPER COCKPIT acceptance tests.
+ * @mosaix/command-center — DEVELOPER COCKPIT acceptance tests.
  * Fast fakes only (node -e sleepers); never boots the real platform.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";

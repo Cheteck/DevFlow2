@@ -1,20 +1,11 @@
 /**
  * @mosaix/dev-server — public entry. Re-exports the HMR DevServer (legacy
  * API, kept stable) and the MOSAIX // COMMAND CENTER cockpit.
+ *
+ * @deprecated (v0.2.0) For TUI supervision, import @mosaix/command-center directly.
+ * This package will focus on HMR session management only in the next major.
  */
 export * from "./dev-server.js";
-export * from "./command-center/supervisor-types.js";
-export * from "./command-center/secret-guard.js";
-export * from "./command-center/event-bus.js";
-export * from "./command-center/process-manager.js";
-export * from "./command-center/env-watcher.js";
-export * from "./command-center/restart-tracker.js";
-export * from "./command-center/diagnostics.js";
-export * from "./command-center/theme.js";
-export * from "./command-center/format.js";
-export * from "./command-center/layout.js";
-export * from "./command-center/palette.js";
-export * from "./command-center/cockpit.js";
-export * from "./command-center/renderer.js";
-export * from "./command-center/terminal-renderer.js";
-export * from "./command-center/supervisor.js";
+
+// Re-export Command Center (transitional, will be removed in v0.2.0)
+export * from "@mosaix/command-center";

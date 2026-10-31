@@ -1,4 +1,4 @@
-/** @mosaix/dev-server — shared cockpit formatting helpers. */
+/** @mosaix/command-center — shared cockpit formatting helpers. */
 
 export function formatDuration(ms: number | null): string {
   if (ms === null) return "—";

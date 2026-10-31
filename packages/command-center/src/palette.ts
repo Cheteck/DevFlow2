@@ -1,5 +1,5 @@
 /**
- * @mosaix/dev-server — Ctrl+K command palette model (pure, testable).
+ * @mosaix/command-center — Ctrl+K command palette model (pure, testable).
  *
  * Every entry executes a REAL supervisor action via its `run` key — the
  * renderer only displays, the supervisor dispatches. Fuzzy filter is a
