@@ -50,13 +50,27 @@ Structurer et valider le WIP "Space-level themes" + audit production en commits 
 4. **P0-5** R01: Secrets versioning + revocation
 5. **P0-6** R07: Backup/DR script + tested restore runbook
 
+## Commits supplémentaires (nettoyage documentation)
+7. `edb4a9b` docs(project): compact .project documentation, archive obsolete reports (98 fichiers)
+8. `d0c24d9` chore: remove root build artifacts (6 fichiers `.tsc-*.txt`)
+9. `032bcc2` docs(reports): archive obsolete audit-applicatif-mosaix-2026.md
+10. `d1488eb` docs(dashboard): update with 2026-10-31 cleanup summary
+
+## Nettoyage .project (2026-10-31)
+- **98 fichiers archivés** vers `_archive_review/` (sessions 2026-09-24 → 2026-11-06, audits obsolètes, plans dépassés, DEV-SERVER foreign work, fichiers temp)
+- **7 artefacts build racine supprimés** (`.tsc-*.txt`, `prompt.txt`)
+- **1 doublon corrigé** dans `BACKLOG.md` (VIEW-E2E-A)
+- **`PROJECT_OVERVIEW.md` créé** comme source canonique d'état courant (vérifié contre le code)
+- **`dashboard.md` mis à jour** avec métriques 2026-10-31 et résumé nettoyage
+- **`CLEANUP_REPORT.md` créé** avec compte-rendu complet
+
 ## État Git
-- Branche: `audit-technique-mosaix-8397822254578305712` (7 commits ahead of remote)
-- Commits créés: 6
-- Fichiers modifiés: 12 (+ 7 créés)
-- Untracked restant: `.project/working/`, `chatgpt-web-mcp/`, root artifacts
+- Branche: `audit-technique-mosaix-8397822254578305712` (207 commits ahead of `devflow2`)
+- Commits créés cette session: 10
+- Modifications restantes : travail étranger (dev-server → command-center refactor) — non commité
 
 ## Rollback disponible
 ```bash
+git reset --hard f8a76d4  # avant nettoyage documentation
 git reset --hard 457ce11  # pre-session HEAD
 ```
