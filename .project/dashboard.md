@@ -1,18 +1,20 @@
 # MosaiX Dashboard
-**Dernière mise à jour :** 2026-10-29 — Refonte complète des pages auth (`auth-pages.ts`) : sécurité (XSS, MDP dans l'URL, CSP), accessibilité (ARIA, reduced-motion, zones tactiles 44px), centralisation JS (`window.MxAuth`), animations CSS rationalisées. Tests : 14/14 passants.
-**Statut Global :** 🟢 Système Nominal & Sécurisé — Moteur d'Autorisation v2, 14 tables Portfolio CS-Cart, `portfolio_proposals` + `ProposalService` (`PRD-0010` v1.3), `Money`/`Timestamp`, 8 Vulnérabilités de Sécurité résolues, Pages Auth refactorisées ; reste `DATA-07` + `PRD-0011` 19 pages UI
+**Dernière mise à jour :** 2026-10-31 — Nettoyage complet `.project` : 98 fichiers archivés (rapports obsolètes, sessions pré-2026-10-31, audits anciens, artefacts build). `PROJECT_OVERVIEW.md` créé comme source canonique d'état courant. Tests : 1157/1157 passants / 199 suites.
+**Statut Global :** 🟡 Production Blockers identifiés — 9 risques P0 (R06..R08) documentés dans `PRODUCTION_AUDIT.md` et `PRODUCTION_ROADMAP.md` ; remédiation active.
 
 
 ---
 
-## 1. Métriques Clés
+## 1. Métriques Clés (2026-10-31)
 
-- **Bounded Application Components (BACs) :** 10 (`citadelle`, `solara`, `solidarity`, `imperia`, `spaces`, `commerce`, `beam`, `portfolio`, `booking`, `subscription`)
+- **Bounded Application Components (BACs) :** 10 canoniques + 3 horizon + 5 campus/sports
+- **Tests :** 1157/1157 passants / 199 suites
 - **Contrats de Contributions UI :** 26 enregistrés et isolés
 - **Validation Manifestes & Graphe Topologique :** 10/10 validés
 - **Thèmes Validés :** 2 (`midnight-ocean`, `mosaix-default`)
 - **Audit de Sécurité :** 8/8 vulnérabilités résolues (SEC-01)
-- **Compilation & Linters :** 0 erreur, 0 warning
+- **Compilation & Linters :** 0 erreur, 0 warning (non vérifié cette session)
+- **Production Blockers (P0) :** 9 ouverts (voir `PRODUCTION_ROADMAP.md`)
 
 ---
 
@@ -39,9 +41,13 @@
 - ✅ **Paiements COD Algérie + Wallet** : `commerce_payment_intents` `cod_pending→cod_delivered→succeeded` par défaut, `CheckoutOrderWorkflow` `AuthorizePayment` no-op pour COD, wallet escrow `wallets/wallet_transactions` prévu moyen terme (`escrow_hold→release`).
 - ✅ **BAC Livraison** : extraction `delivery-partner.service.ts` → `@apps/delivery` `delivery_methods(cod|express|pickup) + delivery_boys + deliveries + assignments` (`out_for_delivery→delivered` + `proofUrl` + `codAmountInCents`).
 
-## 3. Statut du Backlog Actif
-- **Pilotage :** `.project/backlog/BACKLOG.md` (registre : 5 P0 · 6 P1 · 9 P2 au 2026-10-09) + `.project/backlog/RELEASE-READINESS.md` (gate prod).
-- **Legacy gelé :** `.project/backlog/active-backlog.md` → snapshot `.project/archive/active-backlog-2026-10-09-legacy.md` (ne plus compter depuis l'ancien §).
+## 3. Statut du Backlog Actif (2026-10-31)
+
+- **Pilotage :** `.project/backlog/BACKLOG.md` (registre : 5 P0 · 6 P1 · 9 P2) + `.project/backlog/RELEASE-READINESS.md` (gate prod) + `.project/backlog/INMEMORY_REMEDIATION.md` (audit vérifié 2026-10-31)
+- **Production Roadmap :** `.project/PRODUCTION_ROADMAP.md` (Phase 1: 9 P0 tasks R06→R08)
+- **Production Audit :** `.project/PRODUCTION_AUDIT.md` (dernier audit 2026-10-31)
+- **Legacy gelé :** `.project/backlog/active-backlog.md` → snapshot `.project/archive/active-backlog-2026-10-09-legacy.md`
+- **Archives :** `.project/_archive_review/` (98 fichiers archivés pour revue avant suppression définitive)
 
 
 ## 4. Gaps Résolus & Améliorations Récentes (archive)
@@ -71,3 +77,30 @@
   6. `PluginEventBus` (bus d'événements `plugin:event` inter-plugins avec wildcard patterns et isolation).
   7. `PluginCliCommandRunner` (`mosaix plugin install|update|remove|list|dev`).
   8. `PluginMarketplaceRegistry` (index distant, résolution semver `^1.0.0`, vérification d'intégrité SHA-256 et signature cryptographique HMAC/RSA).
+
+---
+
+## 5. Nettoyage Documentation (2026-10-31)
+
+### Fichiers Archivés (98 total)
+| Catégorie | Nb | Détails |
+|---|---|---|
+| Rapports de session (2026-09-24 → 2026-11-06) | 40 | `session-*.md` pré-2026-10-31 |
+| Audits techniques obsolètes | 18 | `audit-*.md`, `mcp-*.md`, `security-*.md`, `frontend-audit-*.md`, `db-bypass-*.md`, `remediation-plan-*.md`, `repository-health-*.md` |
+| Plans pré-production dépassés | 6 | `STATE.md`, `PRE-PRODUCTION-AUDIT-PLAN*.md`, `WORKFLOW-PRE-PRODUCTION-AUDIT.md`, `project_state.md`, `roadmap-auth.md`, `PLATFORM-GRANDES-LIGNES.md` |
+| Rapports DEV-SERVER (travail parallèle, pas nous) | 5 | `DEV-SERVER-*.md` |
+| Fichiers de travail temporaires | 11 | `commit-msg-*.txt`, `vitest-*.txt` |
+| Artefacts build racine | 7 | `.tsc-*.txt`, `.tsc-verify*.txt`, `prompt.txt` |
+| Audit applicatif (supplanté par PRODUCTION_AUDIT.md) | 1 | `audit-applicatif-mosaix-2026.md` |
+
+### Nouvelles Créations
+- **`PROJECT_OVERVIEW.md`** — Source canonique d'état courant (vérifiée contre le code)
+- **`_archive_review/`** — Zone de rétention avant suppression définitive
+
+### Corrections
+- `BACKLOG.md` : doublon `VIEW-E2E-A` supprimé (lignes 16-17)
+
+### Rollback
+```bash
+git reset --hard d0c24d9  # avant commit "chore: remove root build artifacts"
+```
