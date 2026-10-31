@@ -17,6 +17,7 @@ import { sendProblemResponse } from "../shell/http-errors.js";
 import { handleMaintenanceRoutes } from "./routes/maintenance-routes.js";
 import { handleThemeRoutes } from "./routes/theme-routes.js";
 import { handlePlatformThemeRoutes } from "./routes/platform-theme-routes.js";
+import { handleSpaceThemeRoutes } from "./routes/space-theme-routes.js";
 import { handleUserAndSpaceRoutes } from "./routes/user-routes.js";
 import { handleFeatureFlagRoutes } from "./routes/feature-flag-routes.js";
 import { handleCompositionRoutes } from "./routes/composition-routes.js";
@@ -111,6 +112,11 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   handlePlatformThemeRoutes(req, res, parsedUrl, ctx.currentUser.role),
 );
 
+// 2c. Space-level theme management (per-space theme selection, admin/owner only).
+apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
+  handleSpaceThemeRoutes(req, res, parsedUrl, ctx.currentUser, ctx.db),
+);
+
 // 3. User Role & Space switching API
 apiRouteRegistry.register((req, res, parsedUrl) =>
   handleUserAndSpaceRoutes(req, res, parsedUrl),
@@ -190,7 +196,7 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
 
 // Register built-in system routes (OCP: extensible via systemRouteRegistry.register)
 systemRouteRegistry.register(
-  (p) => p === "/healthz",
+  (p) => p === "/healthz" || p === "/health" || p === "/health/live",
   async (req, res) => {
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
     res.end(JSON.stringify({ status: "alive", timestamp: new Date().toISOString() }));
@@ -199,11 +205,58 @@ systemRouteRegistry.register(
 );
 
 systemRouteRegistry.register(
-  (p) => p === "/readyz",
+  (p) => p === "/readyz" || p === "/health/ready",
+  async (req, res, _parsedUrl, ctx) => {
+    const services: Record<string, { status: "up" | "down"; latencyMs?: number }> = {};
+    let allHealthy = true;
+
+    const isProduction = process.env.NODE_ENV === "production" || process.env.NODE_ENV === "prod" || process.env.MOSAIX_ENV === "production";
+
+    // Check database
+    if (ctx.db) {
+      const start = Date.now();
+      try {
+        await ctx.db.query("SELECT 1 AS health_check");
+        const latency = Date.now() - start;
+        services.database = { status: "up", latencyMs: latency };
+      } catch {
+        services.database = { status: "down" };
+        allHealthy = false;
+      }
+    } else {
+      services.database = { status: "down" };
+      if (isProduction) allHealthy = false;
+    }
+
+    // Cache check — Redis is optional (env schema: MOSAIX_REDIS_URL / REDIS_URL
+    // are optional). Only required for readiness when actually configured.
+    const redisConfigured =
+      Boolean(process.env.MOSAIX_REDIS_URL) || Boolean(process.env.REDIS_URL);
+    if (redisConfigured) {
+      // TODO: P0-2 — wire CachePort ping once the Redis adapter is boot-wired.
+      services.cache = { status: "down" };
+      allHealthy = false;
+    }
+
+    const status = allHealthy ? "healthy" : "unhealthy";
+    const statusCode = allHealthy ? 200 : 503;
+
+    res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({
+      status,
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version ?? "1.0.0",
+      services,
+    }));
+    return true;
+  },
+);
+
+systemRouteRegistry.register(
+  (p) => p === "/health/startup",
   async (req, res) => {
-    const isReady = true;
-    res.writeHead(isReady ? 200 : 503, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
-    res.end(JSON.stringify({ status: isReady ? "ready" : "not_ready", timestamp: new Date().toISOString() }));
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ status: "healthy", timestamp: new Date().toISOString() }));
     return true;
   },
 );

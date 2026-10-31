@@ -51,6 +51,11 @@ function handleHealthCheck(
   status: "healthy" | "degraded" | "unhealthy",
   version: string
 ) {
+    // TODO: P0-2 — Implémenter les vérifications DB/Redis
+    // pour /health/ready et /health/live
+    // (à extraire dans des fonctions séparées)
+    // https://github.com/mosaiX-org/mosaix/blob/main/.project/PRODUCTION_AUDIT.md#2-état-des-lieux-vérifié
+
   const health: HealthCheck = {
     status,
     timestamp: new Date().toISOString(),
