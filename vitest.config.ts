@@ -10,6 +10,7 @@ export default defineConfig({
       "**/dist/**",
       "**/.mosaix/**",
       "apps/_template/**",
+      "chatgpt-web-mcp/**",
     ],
   },
   resolve: {
