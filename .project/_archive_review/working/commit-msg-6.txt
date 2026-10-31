@@ -1,0 +1,7 @@
+docs(audit): production audit + roadmap + MCP improvement report
+
+- PRODUCTION_AUDIT.md: 9 P0 risks (R01-R09), architect verdict = no Go-Live
+- PRODUCTION_ROADMAP.md: 9 Phase-1 tasks ordered by dependency (R06→R08)
+- mcp-improvement-report.md: MCP server enhancements proposed
+
+Evidence-based audit linked to BACKLOG.md and PRODUCTION_ROADMAP.md.

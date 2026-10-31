@@ -1,0 +1,9 @@
+feat(theme): wire space-scoped theme into SSR render context
+
+- renderContext AsyncLocalStorage carries resolved space + theme per request
+- start.ts resolves theme via resolveTheme(activeSpaceProfile?.themeId)
+- theme-bridge.getEffectiveThemeId prefers request-scoped context,
+  falls back to module-level activeThemeId for non-SSR usage
+- ShellThemeProvider.setActiveThemeId bridges context into legacy bridge
+
+Eliminates global-state coupling between request scope and theme selection.

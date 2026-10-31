@@ -14,7 +14,6 @@
 | DB-PGSQL-E2E | `db:setup` vert sur Postgres réelle | VERIFY | P0 | Câbler `PgClient` réel derrière `DB_CONNECTION=pgsql` + e2e ledger + seeds |
 | BOUND-02 | Extraire Payments derrière `PaymentPort` | DONE | P0 | `UnifiedPaymentPort` formalisé ; webhook HMAC-SHA256 fail-closed imposé avant CONFIRM (V3.1, 21/21 commerce). Reste : alignement canonisation SATIM avant prod réelle |
 | VIEW-E2E-A | Parcours Commerce/Portfolio utilisables | VERIFY | P1 | E2E `/commerce` (offres→panier→commande) + `/portfolio` (grille→fiche→search) — 10 vues existent, preuve manquante |
-| VIEW-E2E-A | Parcours Commerce/Portfolio utilisables | VERIFY | P1 | E2E `/commerce` (offres→panier→commande) + `/portfolio` (grille→fiche→search) — 10 vues existent, preuve manquante |
 | VIEW-E2E-B | Parcours Spaces/Citadelle utilisables | VERIFY | P1 | E2E `/spaces` (liste→création→membres/rôles) + `/citadelle` (profil/sessions/MFA) |
 | BOUND-07 | Garde-fou rôles métier vs identité | DONE | P1 | `CitadellePolicyEvaluator` formalisé dans `citadelle-policy.ts` et validé par tests unitaires |
 | PRD-0011-A | Lot A vente (grille/fiche/search) | OPEN | P1 | Implémenter 5 écrans vente, découper B/C en P2 |

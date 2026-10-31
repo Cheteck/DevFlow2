@@ -1,0 +1,9 @@
+feat(theme): space theme API routes + resolution service + catalogue cache
+
+- GET /api/themes — catalog of available themes
+- GET/PUT/DELETE /api/spaces/:spaceId/theme — admin/owner only
+- theme-resolution.service: space themeId -> platform default -> fallback
+- theme-catalogue-cache: singleton caching of ThemeDiscovery
+- SpaceRequestContext middleware helper + tests
+
+Tests: 12/12 (theme-resolution, catalogue-cache, space-resolution)

@@ -1,0 +1,6 @@
+test(theme): render-context tests + exclude chatgpt-web-mcp from vitest
+
+- theme-bridge-context.test.ts: 2 tests covering request-scoped vs fallback theme id
+- vitest.config.ts: exclude chatgpt-web-mcp/** (inert phase1.test.js outside scope)
+
+Tests: 14/14 across theme WIP suites.

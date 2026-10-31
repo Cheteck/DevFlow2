@@ -1,0 +1,11 @@
+docs(backlog): update INMEMORY_REMEDIATION.md with verified 2026-10-31 audit
+
+Source-verified by direct code inspection (not from prior docs):
+- 5 components guarded via InMemoryGuard.reportFallback in constructor
+- 10 components still unguarded (4 citadelle stores, theme store x3,
+  portfolio repos x2, platform-settings default)
+- 3 providers fail-closed (no in-memory fallback)
+- 1 justified by-design volatile store (requestDiagnosticsStore)
+- 1 known gap documented (InMemoryUserRepository — no Postgres adapter yet)
+
+Doc was stale; replaced with verified table.
