@@ -10,6 +10,7 @@
  */
 
 import * as path from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
 import type {
   CompiledTheme,
   ThemeManifest,
@@ -31,8 +32,35 @@ import { tryGetRenderContext } from "../../server/context/render-context.js";
 import { InMemoryGuard } from "@mosaix/support";
 
 let activeRuntime: ThemeRuntime | null = null;
-let currentCompiledTheme: CompiledTheme | null = null;
-let currentMode: ThemeMode = "light";
+
+interface ThemeRequestState {
+  currentCompiledTheme: CompiledTheme | null;
+  currentMode: ThemeMode;
+  compiledForThemeId: string | null;
+}
+
+const themeStorage = new AsyncLocalStorage<ThemeRequestState>();
+
+const fallbackState: ThemeRequestState = {
+  currentCompiledTheme: null,
+  currentMode: "light",
+  compiledForThemeId: null,
+};
+
+function getState(): ThemeRequestState {
+  return themeStorage.getStore() ?? fallbackState;
+}
+
+export function runWithThemeContext<T>(fn: () => Promise<T> | T): Promise<T> | T {
+  return themeStorage.run(
+    {
+      currentCompiledTheme: null,
+      currentMode: "light",
+      compiledForThemeId: null,
+    },
+    fn,
+  );
+}
 
 // ── Single source of truth: themes/ on disk ─────────────────────────
 // The active theme id selects which discovered manifest is compiled.
@@ -72,7 +100,7 @@ export function setActiveThemeId(id: string): void {
   }
   if (id !== activeThemeId) {
     activeThemeId = id;
-    currentCompiledTheme = null;
+    getState().currentCompiledTheme = null;
   }
 }
 
@@ -170,7 +198,7 @@ export function initThemeBridge(
     activeRuntime.registerTheme(manifest);
   }
 
-  currentMode = options.defaultMode ?? "light";
+  getState().currentMode = options.defaultMode ?? "light";
 
   return activeRuntime;
 }
@@ -180,25 +208,26 @@ export async function applyThemeMode(mode: ThemeMode): Promise<CompiledTheme> {
     initThemeBridge();
   }
 
-  currentMode = mode;
+  const state = getState();
+  state.currentMode = mode;
   const outcome = await activeRuntime!.apply({
     target: { type: "shell", id: "shell" },
     applicationPreference: { inherit: false, preferredMode: mode },
   });
 
   if (outcome.compiled) {
-    currentCompiledTheme = outcome.compiled;
+    state.currentCompiledTheme = outcome.compiled;
   }
 
-  return currentCompiledTheme!;
+  return state.currentCompiledTheme!;
 }
 
 export function getCompiledTheme(): CompiledTheme | null {
-  return currentCompiledTheme;
+  return getState().currentCompiledTheme;
 }
 
 export function getThemeMode(): ThemeMode {
-  return currentMode;
+  return getState().currentMode;
 }
 
 /**
@@ -206,17 +235,18 @@ export function getThemeMode(): ThemeMode {
  * backward-compatibility fallbacks, and accessibility media queries.
  */
 export function getResolvedTheme(mode: ThemeMode = "light"): CompiledTheme {
-if (
-      currentCompiledTheme &&
-      currentMode === mode &&
-      compiledForThemeId === getEffectiveThemeId()
-    ) {
-    return currentCompiledTheme;
+  const state = getState();
+  if (
+    state.currentCompiledTheme &&
+    state.currentMode === mode &&
+    state.compiledForThemeId === getEffectiveThemeId()
+  ) {
+    return state.currentCompiledTheme;
   }
   const compiled = compile(getActiveManifest(), mode);
-  currentCompiledTheme = compiled;
-  currentMode = mode;
-  compiledForThemeId = getEffectiveThemeId();
+  state.currentCompiledTheme = compiled;
+  state.currentMode = mode;
+  state.compiledForThemeId = getEffectiveThemeId();
   return compiled;
 }
 

@@ -60,6 +60,7 @@ import {
   ShellThemeProvider,
 } from "./shell/theme/theme-bridge.js";
 import { renderContext } from "./server/context/render-context.js";
+import { runWithThemeContext } from "./shell/theme/theme-bridge.js";
 import { resolveTheme } from "./server/services/theme-resolution.service.js";
 import { renderBacAdminSafely } from "./shell/renderer.js";
 import { PRIMARY_RAIL_SHARED_CSS } from "./shell/renderer.js";
@@ -193,12 +194,6 @@ function getSharedStyles(mode: ThemeMode): string {
       background-color: var(--background);
       color: var(--on-surface);
     }
-    .glass-card {
-      background: ${mode === "light" ? "rgba(255, 255, 255, 0.7)" : "rgba(26, 28, 44, 0.7)"};
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid ${mode === "light" ? "rgba(15, 23, 42, 0.08)" : "rgba(255, 255, 255, 0.08)"};
-    }
     .sidebar-collapsed .secondary-sidebar {
       display: none !important;
     }
@@ -209,6 +204,9 @@ function getSharedStyles(mode: ThemeMode): string {
        les pages BAC + tooltips flottants. Source unique : renderer.ts. */
     ${PRIMARY_RAIL_SHARED_CSS}
   `;
+  /* NOTE: .glass-card is defined exclusively in src/shell/styles.css using
+     --color-* tokens so it adapts to all themes and modes automatically.
+     Do not add hardcoded RGBA overrides here — they bypass the Theme Manager. */
 }
 
 function headersToRecord(
@@ -308,84 +306,91 @@ async function handleRequest(
     const resolvedTheme = await resolveTheme(activeSpaceProfile?.themeId);
     // Store in AsyncLocalStorage so downstream rendering can access it without globals
     renderContext.enterWith({ space: activeSpaceProfile, theme: resolvedTheme });
-    // Tell the theme bridge the active theme id
-    ShellThemeProvider.setActiveThemeId(resolvedTheme.themeId);
-    const themeCookie = (req.headers.cookie || "").match(
-      /mosaix_theme_mode=([a-z-]+)/,
-    );
-    const requestedTheme = themeCookie ? themeCookie[1] : "";
-    const currentThemeMode: ThemeMode =
-      requestedTheme === "light" ||
-      requestedTheme === "system"
-        ? requestedTheme
-        : "dark";
-    const sharedStyles = getSharedStyles(currentThemeMode);
 
-    // 3. Platform Maintenance Gate Middleware (FEAT-01)
-    if (
-      handleMaintenanceGate(
-        req,
-        res,
-        pathname,
-        currentUser.role,
-        currentThemeMode,
-        sharedStyles,
-      )
-    ) {
-      return;
-    }
+    await runWithThemeContext(async () => {
+      // Tell the theme bridge the active theme id
+      ShellThemeProvider.setActiveThemeId(resolvedTheme.themeId);
+      const themeCookie = (req.headers.cookie || "").match(
+        /mosaix_theme_mode=([a-z-]+)/,
+      );
+      const requestedTheme = themeCookie ? themeCookie[1] : "";
+      const currentThemeMode: ThemeMode =
+        requestedTheme === "light" ||
+        requestedTheme === "system"
+          ? requestedTheme
+          : "dark";
+      
+      await applyThemeMode(currentThemeMode);
+      
+      const sharedStyles = getSharedStyles(currentThemeMode);
 
-    // 4. API Request Dispatcher (Theme, User, Flags, Compositions, Auth, Feed, GDPR, SSE)
-    const isApiHandled = await dispatchApiRequest(req, res, parsedUrl, {
-      activeMode: currentThemeMode,
-      currentUser,
-      compositionOverrideManager,
-      feedService: getFeedService(app.dbAdapter),
-      eventBackplane: distributedEventBackplane,
-      anonymizationOrchestrator: getAnonymizationOrchestrator(app.dbAdapter),
-      db: app.dbAdapter,
-      buildProposalServices: (db) => {
-        const portfolioService = new PortfolioService(new PostgresVendableRepository(db));
-        const proposalService = new ProposalService(new PostgresProposalRepository(db), portfolioService);
-        return { portfolioService, proposalService };
-      },
+      // 3. Platform Maintenance Gate Middleware (FEAT-01)
+      if (
+        handleMaintenanceGate(
+          req,
+          res,
+          pathname,
+          currentUser.role,
+          currentThemeMode,
+          sharedStyles,
+        )
+      ) {
+        return;
+      }
+
+      // 4. API Request Dispatcher (Theme, User, Flags, Compositions, Auth, Feed, GDPR, SSE)
+      const isApiHandled = await dispatchApiRequest(req, res, parsedUrl, {
+        activeMode: currentThemeMode,
+        currentUser,
+        compositionOverrideManager,
+        feedService: getFeedService(app.dbAdapter),
+        eventBackplane: distributedEventBackplane,
+        anonymizationOrchestrator: getAnonymizationOrchestrator(app.dbAdapter),
+        db: app.dbAdapter,
+        buildProposalServices: (db) => {
+          const portfolioService = new PortfolioService(new PostgresVendableRepository(db));
+          const proposalService = new ProposalService(new PostgresProposalRepository(db), portfolioService);
+          return { portfolioService, proposalService };
+        },
+      });
+      if (isApiHandled) {
+        return;
+      }
+
+      // 4b. Public auth pages (login + public registration, both functional).
+      // Authenticated/demo sessions have no business here → back to `next`.
+      if (pathname === "/login" || pathname === "/register") {
+        if (req.method !== "GET") {
+          res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
+          res.end("Method not allowed");
+          return;
+        }
+        const safeNext = resolveSafeNext(parsedUrl.searchParams.get("next"));
+        if (ssrAuth.kind !== "anonymous") {
+          res.writeHead(302, { Location: safeNext });
+          res.end();
+          return;
+        }
+        const html =
+          pathname === "/login"
+            ? renderLoginPage({
+                activeMode: currentThemeMode,
+                sharedStyles,
+                safeNext,
+                requestUrl: req.url,
+              })
+            : renderRegisterPage({
+                activeMode: currentThemeMode,
+                sharedStyles,
+                safeNext,
+                requestUrl: req.url,
+              });
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(html);
+        return;
+      }
     });
-    if (isApiHandled) {
-      return;
-    }
 
-    // 4b. Public auth pages (login + public registration, both functional).
-    // Authenticated/demo sessions have no business here → back to `next`.
-    if (pathname === "/login" || pathname === "/register") {
-      if (req.method !== "GET") {
-        res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
-        res.end("Method not allowed");
-        return;
-      }
-      const safeNext = resolveSafeNext(parsedUrl.searchParams.get("next"));
-      if (ssrAuth.kind !== "anonymous") {
-        res.writeHead(302, { Location: safeNext });
-        res.end();
-        return;
-      }
-      const html =
-        pathname === "/login"
-          ? renderLoginPage({
-              activeMode: currentThemeMode,
-              sharedStyles,
-              safeNext,
-              requestUrl: req.url,
-            })
-          : renderRegisterPage({
-              activeMode: currentThemeMode,
-              sharedStyles,
-              safeNext,
-              requestUrl: req.url,
-            });
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(html);
-      return;
-    }
 
     // 5. BAC Workspace Views Routing
     const matchedApp = apps.find(

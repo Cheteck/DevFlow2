@@ -31,7 +31,8 @@ describe("ThemeBridge context integration", () => {
   });
 
   it("emits semantic status --color-* aliases backed by --mx-* tokens", () => {
-    const tag = renderThemeStyleTag();
+    setActiveThemeId("midnight-ocean");
+    const tag = renderThemeStyleTag("dark");
     for (const token of [
       "success",
       "success-hover",
@@ -57,6 +58,6 @@ describe("ThemeBridge context integration", () => {
       "--color-error: var(--mx-color-error, var(--mx-color-danger,",
     );
     // Dark mode compiles its own status values.
-    expect(tag).toContain("--mx-color-success: #34d399");
+    expect(tag).toContain("--mx-color-success: #10b981");
   });
 });
