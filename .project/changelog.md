@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-11-01 — Pages auth Citadelle : tokens Tailwind sémantiques
+
+### Fixed
+- **Ayants droit aux tokens du projet** : les pages auth n'utilisent plus de
+  couleurs de palette codées en dur (`indigo-500`/`indigo-600` remplacés par
+  `primary-hover`).
+- **Palette sémantique complète** : `renderThemeStyleTag` émet désormais
+  `--color-{success,warning,error,info}` + variantes `-hover`, `-container`,
+  `on-*` pour les modes clair et sombre, adossées aux tokens compilés
+  `--mx-color-*` (alias legacy `danger` conservé). Le config Tailwind du shell
+  mappe ces mêmes tokens, ce qui rend `bg-*-container`, `text-*` et
+  `border-*` effectifs.
+- **Source de vérité** : `themes/mosaix-default/theme.json` déclare les
+  tokens sémantiques dans `tokens.colors` + `tokens.tailwind` et leurs
+  overlays `modes.dark`.
+
+### Changed
+- `src/shell/ssr-engine.ts` : suppression d'un import et d'un helper morts
+  signalés par ESLint, en-tête de module aligné sur la réalité.
+
+### Validation
+- `npx vitest run src/shell apps/citadelle/src/presentation/citadelle-view.test.ts`
+  → 111 tests passants.
+- `check-themes` (19), `validate-manifests` (17), `validate-ui-contracts` (11),
+  `validate-conformance` (11) → OK.
+- `npx eslint` sur les fichiers modifiés → 0 erreur.
+
 ## 2026-10-14 — COMMAND CENTER : cockpit multi-panneaux (grille 3/2/1, palette Ctrl+K)
 
 ### Added
