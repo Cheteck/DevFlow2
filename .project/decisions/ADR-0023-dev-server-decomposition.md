@@ -58,6 +58,13 @@ Découpler le Command Center dans un package autonome :
 
 - `pnpm -F @mosaix/command-center build` ✅
 - `pnpm -F @mosaix/dev-server build` ✅
-- `pnpm test` ✅ (199 fichiers, 1157 tests passés)
+- `pnpm test` ✅ (202 fichiers, 1167 tests passés)
 - `pnpm dev` smoke test ✅ (superviseur démarre, spawn api+mcp, détection
   EADDRINUSE:3000 = comportement attendu)
+- `npx eslint packages/command-center` ✅ (0 erreur, règle boundaries active)
+
+## Notes post-implémentation
+
+- **Import package** : `scripts/dev.ts` utilise maintenant `import { DevSupervisor } from "@mosaix/command-center"` (dépendance workspace racine ajoutée).
+- **Test HTTP corrigé** : `tests/http/bac-access.http.test.ts` était en échec (timeout 150s) à cause de `InMemoryGuard` sur `PlatformSettingsService`. Corrigé via `ALLOW_IN_MEMORY_IN_PRODUCTION=true` dans les env du test (commit `c330dd9`).
+- **Dual-write** : maintenu jusqu'à v0.2.0 (prévu dans `packages/dev-server/src/index.ts`).
