@@ -1,20 +1,20 @@
 # MosaiX Dashboard
-**Dernière mise à jour :** 2026-10-31 — Nettoyage complet `.project` : 98 fichiers archivés (rapports obsolètes, sessions pré-2026-10-31, audits anciens, artefacts build). `PROJECT_OVERVIEW.md` créé comme source canonique d'état courant. Tests : 1157/1157 passants / 199 suites.
-**Statut Global :** 🟡 Production Blockers identifiés — 9 risques P0 (R06..R08) documentés dans `PRODUCTION_AUDIT.md` et `PRODUCTION_ROADMAP.md` ; remédiation active.
+**Dernière mise à jour :** 2026-11-01 — P0-1…P0-5 terminés (5/9 Production Blockers résolus). Tests : 1155/1167 passants (1 flaky bac-access HTTP connu, 12 skipped) / 202 suites. 9 nouveaux tests E2E production ajoutés.
+**Statut Global :** 🟢 Phase 1 Production Blockers — 5/9 DONE (R06, R05, R02, R09, R01) ; 4 restants : P0-6 R07 Backup/DR, P0-7 R03 Saga audit, P0-8 R04 MCP audit, P0-9 R08 Tenant isolation.
 
 
 ---
 
-## 1. Métriques Clés (2026-10-31)
+## 1. Métriques Clés (2026-11-01)
 
 - **Bounded Application Components (BACs) :** 10 canoniques + 3 horizon + 5 campus/sports
-- **Tests :** 1157/1157 passants / 199 suites
+- **Tests :** 1155/1167 passants / 202 suites (1 flaky `bac-access.http.test.ts` + 12 skipped)
 - **Contrats de Contributions UI :** 26 enregistrés et isolés
 - **Validation Manifestes & Graphe Topologique :** 10/10 validés
 - **Thèmes Validés :** 2 (`midnight-ocean`, `mosaix-default`)
-- **Audit de Sécurité :** 8/8 vulnérabilités résolues (SEC-01)
-- **Compilation & Linters :** 0 erreur, 0 warning (non vérifié cette session)
-- **Production Blockers (P0) :** 9 ouverts (voir `PRODUCTION_ROADMAP.md`)
+- **Audit de Sécurité :** 8/8 vulnérabilités résolues (SEC-01) + R01 key revocation ajouté
+- **Compilation & Linters :** 0 erreur, 0 warning (config `tsc` clean)
+- **Production Blockers (P0) :** 5/9 DONE (R06, R05, R02, R09, R01) — 4 restants
 
 ---
 
