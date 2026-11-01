@@ -40,6 +40,9 @@ jobs:
       - name: Run Tests (full suite)
         run: pnpm test
 
+      - name: Security Audit (dependencies)
+        run: pnpm audit --audit-level=moderate || true
+
       - name: Format Check
         run: tsx scripts/check-format.ts
 
