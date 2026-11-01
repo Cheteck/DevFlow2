@@ -15,7 +15,7 @@ pannes, migrations, sauvegardes, secrets, déploiements et récupération **test
 | P0-3 | **R02** Migrations : lock de concurrence + guard checksum (MIG-IMMUT-01) + test double-instance | `b2ce7b1` — `migrations-concurrency.e2e.test.ts` (2 tests : collision lock → `MigrationLockError`, migration modifiée → `MigrationChecksumError`) | DONE |
 | P0-4 | **R09** CI GitHub Actions : build + test + security scan + artefact versionné | `66795c7` — pipeline typecheck/lint/build/test/validators/security + `pnpm audit --audit-level=moderate` | DONE |
 | P0-5 | **R01** Secrets : versioning + révocation + refus de boot prod si secrets absents | `c0c7bb2` — `app-key.test.ts` 9/9 passent ; versioning + révocation dans `requireAppKey()` | DONE |
-| P0-6 | **R07** Backup/DR : script dump PG + procédure restauration + test de restauration documenté | Runbook + preuve de restauration | OPEN |
+| P0-6 | **R07** Backup/DR : script dump PG + procédure restauration + test de restauration documenté | `91c84e2` — `scripts/db-backup.ts` + `backup-restore.e2e.test.ts` (3/3 tests) + RUNBOOK-DR-001 | DONE |
 | P0-7 | **R03** Audit sagas/compensation workflows inter-BACs (commerce, booking, subscription) | Rapport d'audit + tests d'idempotence | OPEN |
 | P0-8 | **R04** Audit MCP : permissions par outil, principal, ops sensibles | Rapport + tests deny | OPEN |
 | P0-9 | **R08** Isolation tenant : clés Redis tenant-scoped + test E2E anti-fuite | Test rouge→vert | OPEN |
