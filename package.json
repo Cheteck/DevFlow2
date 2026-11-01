@@ -84,6 +84,7 @@
     "@mosaix/adapter-token-store-sqlite": "workspace:*",
     "@mosaix/auth": "workspace:*",
     "@mosaix/cli": "workspace:*",
+    "@mosaix/command-center": "workspace:*",
     "@mosaix/container": "workspace:*",
     "@mosaix/contracts": "workspace:*",
     "@mosaix/core": "workspace:*",

@@ -44,6 +44,7 @@ const elementTypes = [
   { type: "dev-tooling", pattern: "packages/conformance/**" },
   { type: "dev-tooling", pattern: "packages/ui-runtime/**" },
   { type: "dev-tooling", pattern: "packages/testing/**" },
+  { type: "command-center", pattern: "packages/command-center/**" },
 
   // Layer 6: SDK
   { type: "sdk", pattern: "packages/sdk/**" },
@@ -151,6 +152,15 @@ export default [
               allow: [
                 "dev-tooling",
                 "sdk",
+                "framework-primitive",
+                "framework-port",
+                "framework-foundation",
+              ],
+            },
+            {
+              from: "command-center",
+              allow: [
+                "command-center",
                 "framework-primitive",
                 "framework-port",
                 "framework-foundation",

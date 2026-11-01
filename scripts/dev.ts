@@ -13,7 +13,7 @@
  *
  * Dev-only. Production (`pnpm start`) boots once and never watches.
  */
-import { DevSupervisor } from "../packages/command-center/src/index.js";
+import { DevSupervisor } from "@mosaix/command-center";
 
 const ROOT = process.cwd();
 
