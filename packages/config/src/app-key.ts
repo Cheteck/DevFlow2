@@ -159,9 +159,18 @@ export interface AppKeyEnv {
   key: string | undefined;
   cipher: AppCipher;
   previousKeys: string[];
+  version: string | undefined;
+  revokedVersions: string[];
 }
 
-/** Read `MOSAIX_APP_KEY` / `MOSAIX_APP_CIPHER` / `MOSAIX_APP_PREVIOUS_KEYS` from a source. */
+/**
+ * Read `MOSAIX_APP_KEY` / `MOSAIX_APP_CIPHER` / `MOSAIX_APP_PREVIOUS_KEYS` from a source.
+ *
+ * Key versioning (R01): `MOSAIX_APP_KEY_VERSION` labels the active key, and
+ * `MOSAIX_APP_REVOKED_KEY_VERSIONS` (comma-separated) lists versions whose
+ * tokens must no longer be accepted — enabling explicit revocation without
+ * rotating the encryption key itself.
+ */
 export function readAppKeyEnv(
   source: Record<string, string | undefined> = process.env as Record<
     string,
@@ -173,7 +182,22 @@ export function readAppKeyEnv(
     key: source.MOSAIX_APP_KEY,
     cipher: APP_CIPHERS.includes(cipher) ? cipher : "AES-256-CBC",
     previousKeys: parsePreviousKeys(source.MOSAIX_APP_PREVIOUS_KEYS),
+    version: source.MOSAIX_APP_KEY_VERSION?.trim() || undefined,
+    revokedVersions: parsePreviousKeys(source.MOSAIX_APP_REVOKED_KEY_VERSIONS),
   };
+}
+
+/** Throw if the active key version is explicitly revoked. */
+export function assertKeyVersionNotRevoked(
+  version: string | undefined,
+  revokedVersions: readonly string[],
+): void {
+  if (!version) return;
+  if (revokedVersions.includes(version)) {
+    throw new InvalidAppKeyError(
+      `key version "${version}" has been revoked (MOSAIX_APP_REVOKED_KEY_VERSIONS)`,
+    );
+  }
 }
 
 /** Require a valid app key (throws `MissingAppKeyError` / `InvalidAppKeyError`). */
@@ -183,7 +207,8 @@ export function requireAppKey(
     string | undefined
   >,
 ): Buffer {
-  const { key, cipher } = readAppKeyEnv(source);
+  const { key, cipher, version, revokedVersions } = readAppKeyEnv(source);
   if (!key) throw new MissingAppKeyError();
+  assertKeyVersionNotRevoked(version, revokedVersions);
   return parseAppKey(key, cipher);
 }
