@@ -7,7 +7,7 @@
  *   - exports : renderLoginPage, renderRegisterPage, AuthPageOptions
  *
  * Principes de design & cohérence MosaiX :
- *   - Identité de marque canonique : logo auto_awesome à gradient MosaïX (from-primary via-indigo-500 to-secondary).
+ *   - Identité de marque canonique : logo auto_awesome à gradient MosaïX (from-primary via-primary-hover to-secondary).
  *   - Barre d'en-tête globale avec sélecteur de thème persistant (Clair / Sombre / Contraste) + retour vitrine.
  *   - Script d'amorçage thème dans le `<head>` aligné sur home-page & bac-page (zéro flash de mauvais thème).
  *   - Typographie harmonisée : Plus Jakarta Sans (titres) & JetBrains Mono (badges, technique) & Inter (corps).
@@ -364,7 +364,7 @@ function authTopHeader(): string {
   return `
     <header class="w-full border-b border-outline-variant/15 bg-surface/75 backdrop-blur-xl px-4 sm:px-8 py-3.5 flex items-center justify-between sticky top-0 z-30 select-none">
       <a href="/commerce" class="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl">
-        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary via-indigo-500 to-secondary flex items-center justify-center shadow-lg shadow-primary/25 border border-primary/20 group-hover:scale-105 active:scale-95 transition-all">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary via-primary-hover to-secondary flex items-center justify-center shadow-lg shadow-primary/25 border border-primary/20 group-hover:scale-105 active:scale-95 transition-all">
           <span class="material-symbols-outlined text-surface-container-lowest font-extrabold text-2xl group-hover:rotate-12 transition-transform">auto_awesome</span>
         </div>
         <div class="flex items-center gap-2">
@@ -408,7 +408,7 @@ function editorialColumn(): string {
         <!-- Emblème modulaire architectural MosaiX -->
         <div aria-hidden="true" class="relative w-fit p-6 rounded-3xl bg-surface-container/70 border border-outline-variant/30 shadow-xl backdrop-blur-xl auth-crosshair">
           <div class="grid grid-cols-2 gap-3">
-            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary to-indigo-600 shadow-md shadow-primary/25 flex items-center justify-center text-on-primary">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary to-primary-hover shadow-md shadow-primary/25 flex items-center justify-center text-on-primary">
               <span class="material-symbols-outlined text-xl">auto_awesome</span>
             </div>
             <div class="w-10 h-10 rounded-2xl bg-surface-container-high border border-outline-variant/40 flex items-center justify-center text-on-surface-variant">

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { renderContext } from "../../server/context/render-context.js";
-import { getActiveThemeId, setActiveThemeId } from "./theme-bridge.js";
+import { getActiveThemeId, renderThemeStyleTag, setActiveThemeId } from "./theme-bridge.js";
 
 describe("ThemeBridge context integration", () => {
   const defaultThemeId = "mosaix-default";
@@ -28,5 +28,35 @@ describe("ThemeBridge context integration", () => {
 
   it("falls back to the module-level active theme id when no context is set", () => {
     expect(getActiveThemeId()).toBe(defaultThemeId);
+  });
+
+  it("emits semantic status --color-* aliases backed by --mx-* tokens", () => {
+    const tag = renderThemeStyleTag();
+    for (const token of [
+      "success",
+      "success-hover",
+      "success-container",
+      "on-success",
+      "warning",
+      "warning-hover",
+      "warning-container",
+      "on-warning",
+      "error",
+      "error-hover",
+      "error-container",
+      "on-error",
+      "info",
+      "info-hover",
+      "info-container",
+      "on-info",
+    ]) {
+      expect(tag).toContain(`--color-${token}:`);
+    }
+    // `error` must keep resolving the legacy `danger` alias.
+    expect(tag).toContain(
+      "--color-error: var(--mx-color-error, var(--mx-color-danger,",
+    );
+    // Dark mode compiles its own status values.
+    expect(tag).toContain("--mx-color-success: #34d399");
   });
 });

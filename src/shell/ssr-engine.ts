@@ -8,8 +8,8 @@
  *   internes (`theme-bridge.renderThemeStyleTag()`, `renderer.PRIMARY_RAIL_*`,
  *   navigation filtrée RBAC). Ne JAMAIS y concaténer de données utilisateur
  *   brutes. Les passer tels quels (les échapper afficherait les balises).
- * - Couleurs Tailwind sérialisées en JSON puis neutralisées (`<` → `\u003c`)
- *   pour empêcher toute sortie du contexte `<script>`.
+ * - La configuration Tailwind (`#tailwind-config`) est un littéral statique :
+ *   elle ne contient aucune donnée utilisateur, seulement des `var(--color-*)`.
  *
  * Cache : `FragmentCache.getOrCompute(key, fn, ttlMs)` — le 3e argument est
  * un TTL en millisecondes. La clé couvre TOUTES les entrées dynamiques
@@ -37,7 +37,6 @@ import { ssrFragmentCache } from "./ssr-cache.js";
 import { escapeHtml } from "@mosaix/support";
 import {
   getActiveThemeId,
-  getTailwindThemeColors,
 } from "./theme/theme-bridge.js";
 
 // Single canonical escapeHtml lives in @mosaix/support (A-03).
@@ -72,11 +71,6 @@ function hashFragment(value: string): string {
     hash = Math.imul(hash, 0x01000193);
   }
   return (hash >>> 0).toString(16).padStart(8, "0");
-}
-
-/** Sérialisation JSON sûre en contexte `<script>` : neutralise `</script>`. */
-function safeJsonForScript(value: unknown): string {
-  return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
 /**
@@ -138,6 +132,22 @@ export function renderHeadBlock(
                 'surface-container-high': 'var(--color-surface-container-high)',
                 'surface-container-highest': 'var(--color-surface-container-highest)',
                 'outline-variant': 'var(--color-outline-variant)',
+                'success': 'var(--color-success)',
+                'success-hover': 'var(--color-success-hover)',
+                'success-container': 'var(--color-success-container)',
+                'on-success': 'var(--color-on-success)',
+                'warning': 'var(--color-warning)',
+                'warning-hover': 'var(--color-warning-hover)',
+                'warning-container': 'var(--color-warning-container)',
+                'on-warning': 'var(--color-on-warning)',
+                'error': 'var(--color-error)',
+                'error-hover': 'var(--color-error-hover)',
+                'error-container': 'var(--color-error-container)',
+                'on-error': 'var(--color-on-error)',
+                'info': 'var(--color-info)',
+                'info-hover': 'var(--color-info-hover)',
+                'info-container': 'var(--color-info-container)',
+                'on-info': 'var(--color-on-info)',
                 'background': 'var(--color-surface, #ffffff)',
               }
             }

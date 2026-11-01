@@ -230,7 +230,37 @@ export function generateUnifiedThemeCssVariables(
   return lines.join("\n");
 }
 
-export function renderThemeStyleTag(overrideMode?: ThemeMode): string {
+/**
+ * Emits the `--color-*` semantic status aliases consumed by Tailwind utility
+ * classes (`bg-error-container`, `text-success`, …). Values resolve through
+ * the compiled `--mx-color-*` truth; the literal is only a last-resort
+ * fallback for manifests that do not declare the token yet.
+ */
+function renderStatusColorDeclarations(tailwind: TailwindMap): string[] {
+  const declare = (css: string, mx: string, fallback: string): string =>
+    `  --color-${css}: var(--mx-color-${mx}, ${tailwind[css] ?? fallback});`;
+  return [
+    declare("success", "success", "#10b981"),
+    declare("success-hover", "successHover", "#059669"),
+    declare("success-container", "successContainer", "#d1fae5"),
+    declare("on-success", "onSuccess", "#022c22"),
+    declare("warning", "warning", "#f59e0b"),
+    declare("warning-hover", "warningHover", "#d97706"),
+    declare("warning-container", "warningContainer", "#fef3c7"),
+    declare("on-warning", "onWarning", "#422006"),
+    // `danger` is the historical alias — keep themes that only declare it working.
+    `  --color-error: var(--mx-color-error, var(--mx-color-danger, ${tailwind["error"] ?? "#ef4444"}));`,
+    declare("error-hover", "errorHover", "#dc2626"),
+    declare("error-container", "errorContainer", "#fee2e2"),
+    declare("on-error", "onError", "#450a0a"),
+    declare("info", "info", "#3b82f6"),
+    declare("info-hover", "infoHover", "#2563eb"),
+    declare("info-container", "infoContainer", "#dbeafe"),
+    declare("on-info", "onInfo", "#0c2a5a"),
+  ];
+}
+
+export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
   const manifest = getActiveManifest();
 
   // Compile both light and dark modes — both are emitted to CSS for hot-switching.
@@ -288,6 +318,8 @@ export function renderThemeStyleTag(overrideMode?: ThemeMode): string {
   lines.push(
     `  --color-outline-variant: var(--mx-color-border, ${fb(lightVars, "--mx-color-border", "#e2e8f0")});`,
   );
+  lines.push("  /* Semantic status tokens (Material 3) */");
+  lines.push(...renderStatusColorDeclarations(lightTw));
   lines.push("}");
 
   // Dark mode — all --mx-* variables for dark, scoped to [data-theme-mode="dark"]
@@ -332,6 +364,8 @@ export function renderThemeStyleTag(overrideMode?: ThemeMode): string {
   lines.push(
     `  --color-outline-variant: var(--mx-color-border, ${fb(darkVars, "--mx-color-border", "#334155")});`,
   );
+  lines.push("  /* Semantic status tokens (Material 3) */");
+  lines.push(...renderStatusColorDeclarations(darkTw));
   lines.push("}");
 
   // Accessibility and OS preferences

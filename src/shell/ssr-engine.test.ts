@@ -79,6 +79,33 @@ describe("renderHeadBlock safety & composition", () => {
   });
 });
 
+describe("renderHeadBlock Tailwind token bridge", () => {
+  it("maps every semantic status token to its --color-* variable", () => {
+    ssrFragmentCache.invalidate("head:");
+    const out = renderHeadBlock("T", "dark", THEME_A, SHARED_A);
+    for (const token of [
+      "success",
+      "success-hover",
+      "success-container",
+      "on-success",
+      "warning",
+      "warning-hover",
+      "warning-container",
+      "on-warning",
+      "error",
+      "error-hover",
+      "error-container",
+      "on-error",
+      "info",
+      "info-hover",
+      "info-container",
+      "on-info",
+    ]) {
+      expect(out).toContain(`'${token}': 'var(--color-${token})'`);
+    }
+  });
+});
+
 describe("renderMobileDrawer accessibility", () => {
   const nav = `<a href="/spaces">Espaces</a>`;
   const out = renderMobileDrawer(nav);
