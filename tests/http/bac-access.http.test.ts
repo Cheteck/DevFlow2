@@ -181,6 +181,10 @@ async function bootServer(
     MOSAIX_DATABASE_URL: databaseUrl,
     DATABASE_URL: databaseUrl,
     MOSAIX_DEMO_USERS: demoUsers ? "true" : "false",
+    // Allows the server to boot in non-demo mode for HTTP tests without
+    // requiring a dedicated persistent PlatformSettingsStore adapter.
+    // The test targets HTTP routing, not settings persistence.
+    ALLOW_IN_MEMORY_IN_PRODUCTION: "true",
   };
 
   const child: ChildProcess = spawn("npx", ["tsx", "src/start.ts"], {
