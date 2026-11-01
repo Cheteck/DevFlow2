@@ -5,6 +5,7 @@
 
 import type { PlatformSettings } from "@mosaix/contracts";
 import type { DatabasePort } from "@mosaix/ports-database";
+import { InMemoryGuard } from "@mosaix/support";
 
 export interface PlatformSettingsPort {
   getSettings(): Promise<PlatformSettings>;
@@ -27,6 +28,7 @@ export class InMemoryPlatformSettingsStore implements PlatformSettingsPort {
   private settings: PlatformSettings;
 
   constructor(initialSettings: Partial<PlatformSettings> = {}) {
+    InMemoryGuard.reportFallback("InMemoryPlatformSettingsStore");
     this.settings = {
       ...CANONICAL_DEFAULT_PLATFORM_SETTINGS,
       ...initialSettings,
@@ -123,7 +125,9 @@ export class PlatformSettingsService {
   private lastFetchedAt = 0;
 
   // eslint-disable-next-line no-restricted-syntax -- couche 2 : le singleton et le defaut de constructeur exigent un cablage boot-time du store persistant ; en attendant, memoire explicite (jamais en prod via InMemoryGuard des appelants critiques).
-  constructor(private readonly store: PlatformSettingsPort = new InMemoryPlatformSettingsStore()) {}
+  constructor(private readonly store: PlatformSettingsPort = new InMemoryPlatformSettingsStore()) {
+    InMemoryGuard.reportFallback("PlatformSettingsService:defaultStore");
+  }
 
   async getSettings(forceRefresh = false): Promise<PlatformSettings> {
     const now = Date.now();

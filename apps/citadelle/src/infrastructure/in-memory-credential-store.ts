@@ -1,8 +1,13 @@
 import * as crypto from "node:crypto";
 import type { CredentialStore, Credential, SaveCredentialInput } from "@mosaix/ports-credential-store";
+import { InMemoryGuard } from "@mosaix/support";
 
 export class InMemoryCredentialStore implements CredentialStore {
   private credentials = new Map<string, Credential>();
+
+  constructor() {
+    InMemoryGuard.reportFallback("InMemoryCredentialStore");
+  }
 
   async get(identityId: string, type: string): Promise<Credential | null> {
     for (const cred of this.credentials.values()) {

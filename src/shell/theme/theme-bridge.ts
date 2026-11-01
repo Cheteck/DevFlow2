@@ -28,6 +28,7 @@ import {
   ThemeTargetRegistry,
 } from "@mosaix/theme";
 import { tryGetRenderContext } from "../../server/context/render-context.js";
+import { InMemoryGuard } from "@mosaix/support";
 
 let activeRuntime: ThemeRuntime | null = null;
 let currentCompiledTheme: CompiledTheme | null = null;
@@ -152,6 +153,7 @@ export function initThemeBridge(
     } else {
       // eslint-disable-next-line no-restricted-syntax -- couche 2 : assignments de theme UI sans DatabasePort ici (aucun container au boot SSR) ; a cabler au boot comme les feature flags. Defaut d'affichage uniquement, jamais de donnee metier.
       store = new InMemoryThemeAssignmentsStore();
+      InMemoryGuard.reportFallback("ThemeBridge:inMemoryStore");
     }
 
     activeRuntime = createThemeRuntime({ registry, store });

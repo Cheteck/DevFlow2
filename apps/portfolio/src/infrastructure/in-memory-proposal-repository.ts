@@ -1,8 +1,13 @@
 import type { Proposal, ProposalStatus } from "../domain/proposal.js";
 import type { ProposalRepository } from "../domain/proposal-repository.js";
+import { InMemoryGuard } from "@mosaix/support";
 
 export class InMemoryProposalRepository implements ProposalRepository {
   private proposals = new Map<string, Proposal>();
+
+  constructor() {
+    InMemoryGuard.reportFallback("InMemoryProposalRepository");
+  }
 
   async findById(id: string): Promise<Proposal | null> {
     return this.proposals.get(id) ?? null;

@@ -1,7 +1,12 @@
 import type { TokenEntry, TokenStore } from "@mosaix/ports-token-store";
+import { InMemoryGuard } from "@mosaix/support";
 
 export class InMemoryTokenStore implements TokenStore {
   private tokens = new Map<string, TokenEntry>();
+
+  constructor() {
+    InMemoryGuard.reportFallback("InMemoryTokenStore");
+  }
 
   async save(entry: TokenEntry): Promise<void> {
     this.tokens.set(entry.tokenId, { ...entry });

@@ -1,7 +1,12 @@
 import type { SessionStore, Session } from "@mosaix/ports-session-store";
+import { InMemoryGuard } from "@mosaix/support";
 
 export class InMemorySessionStore implements SessionStore {
   private sessions = new Map<string, Session>();
+
+  constructor() {
+    InMemoryGuard.reportFallback("InMemorySessionStore");
+  }
 
   async create(session: Session): Promise<void> {
     this.sessions.set(session.id, session);

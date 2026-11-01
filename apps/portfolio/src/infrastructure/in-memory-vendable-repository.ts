@@ -1,8 +1,13 @@
 import type { Vendable } from "../domain/vendable.js";
 import type { VendableRepository } from "../domain/vendable-repository.js";
+import { InMemoryGuard } from "@mosaix/support";
 
 export class InMemoryVendableRepository implements VendableRepository {
   private vendables = new Map<string, Vendable>();
+
+  constructor() {
+    InMemoryGuard.reportFallback("InMemoryVendableRepository");
+  }
 
   save(vendable: Vendable): void {
     this.vendables.set(vendable.identity.id, vendable);
