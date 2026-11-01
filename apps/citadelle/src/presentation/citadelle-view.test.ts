@@ -54,4 +54,21 @@ describe("Citadelle View Descriptor", () => {
     expect(res.contentHtml).toContain("Registre des Citoyens");
     expect(res.contentHtml).toContain('data-action="manage-user"');
   });
+
+  it("consumes theme CSS variables and dark-mode selectors instead of hardcoded colors", async () => {
+    const ctx = createMockContext("profile", true, ["citizen"]);
+    const res = await descriptor.render(ctx);
+
+    // Explicit theme-variable consumption in the view root style block.
+    expect(res.contentHtml).toContain("var(--color-primary");
+    expect(res.contentHtml).toContain("var(--mx-color-primary");
+    expect(res.contentHtml).toContain("var(--color-surface");
+    expect(res.contentHtml).toContain("var(--mx-color-surface");
+    expect(res.contentHtml).toContain("var(--color-on-surface");
+    expect(res.contentHtml).toContain("var(--mx-color-text");
+
+    // Dark-mode hot-switching scope injected by the shell runtime.
+    expect(res.contentHtml).toContain('[data-theme-mode="dark"]');
+    expect(res.contentHtml).toContain('[data-resolved-mode="dark"]');
+  });
 });

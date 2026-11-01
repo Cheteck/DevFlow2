@@ -2,7 +2,9 @@
  * @apps/citadelle — Autonomous BAC View & Descriptor
  * Self-contained SSR presentation layer for MosaiX Citadelle (Identity, Auth, RGPD).
  *
- * UX/UI Hardened (ChatGPT Web MCP Recommendations Applied):
+ * UX/UI Hardened & Mosaix Theme Compliant:
+ * - Declarative theme contract: consumes CSS variables (--color-*, --mx-*) injected by shell
+ * - Supports light/dark/system theme hot-switching via [data-theme-mode="dark"] / [data-resolved-mode="dark"]
  * - Clean Material 3 typography hierarchy (text-sm/text-base instead of text-[10px])
  * - Accessible keyboard-navigable tabs (role="tablist", role="tab", aria-selected)
  * - Removed inline mock JS onClick handlers in favor of data-action and real API endpoints (/api/user/gdpr-anonymize)
@@ -352,7 +354,25 @@ export function createCitadelleDescriptor(): BacDescriptor {
       const isAdminUser = user.roles?.includes("admin") || user.id === "admin";
 
       const contentHtml = `
-        <div class="space-y-6 max-w-7xl mx-auto">
+        <style>
+          .citadelle-view-root {
+            --citadelle-accent: var(--color-primary, var(--mx-color-primary, #4f46e5));
+            --citadelle-surface: var(--color-surface, var(--mx-color-surface, #ffffff));
+            --citadelle-text: var(--color-on-surface, var(--mx-color-text, #0f172a));
+            --citadelle-muted: var(--color-on-surface-variant, var(--mx-color-textMuted, #64748b));
+            --citadelle-border: var(--color-outline-variant, var(--mx-color-border, #cbd5e1));
+          }
+          [data-theme-mode="dark"] .citadelle-view-root,
+          [data-resolved-mode="dark"] .citadelle-view-root,
+          .dark .citadelle-view-root {
+            --citadelle-accent: var(--color-primary, var(--mx-color-primary, #6366f1));
+            --citadelle-surface: var(--color-surface, var(--mx-color-surface, #0f172a));
+            --citadelle-text: var(--color-on-surface, var(--mx-color-text, #f8fafc));
+            --citadelle-muted: var(--color-on-surface-variant, var(--mx-color-textMuted, #94a3b8));
+            --citadelle-border: var(--color-outline-variant, var(--mx-color-border, #334155));
+          }
+        </style>
+        <div class="citadelle-view-root space-y-6 max-w-7xl mx-auto">
 
           <!-- Tab selector / header -->
           <div class="flex justify-between items-center border-b border-outline-variant/20 pb-4 flex-wrap gap-4">
