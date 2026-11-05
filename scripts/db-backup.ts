@@ -46,11 +46,12 @@ export async function createBackup(): Promise<BackupResult> {
   const dir = ensureBackupDir();
   const timestamp = getTimestamp();
 
-  if (config.connection === "postgres" || config.connection === "pgsql") {
+  if (config.connection === "pgsql") {
     const filename = `mosaix-backup-${timestamp}.sql`;
     const filepath = path.join(dir, filename);
 
-    const connStr = config.connectionString;
+    // config is a union; when connection is pgsql we have connectionString
+    const connStr = (config as any).connectionString as string | undefined;
     if (!connStr) {
       throw new Error("Missing Postgres connection string (DATABASE_URL)");
     }
@@ -179,12 +180,14 @@ export async function restoreBackup(filepath: string, targetDbName?: string): Pr
   const { config } = app;
 
   if (filepath.endsWith(".sql")) {
-    const connStr = config.connectionString;
-    const dbName = targetDbName || (connStr ? connStr.split("/").pop()?.split("?")[0] : "mosaix");
+    // config is a union; when connection is pgsql we have connectionString
+    const connStr = (config as any).connectionString as string | undefined;
+    const dbName = targetDbName || (connStr ? connStr.split("/").pop()?.split("?")[0]! : "mosaix");
+    const connectionStringOrDb = connStr ?? dbName;
 
     try {
       execFileSync("psql", ["--version"], { stdio: "ignore" });
-      execFileSync("psql", ["-d", connStr || dbName, "-f", filepath], {
+      execFileSync("psql", ["-d", connectionStringOrDb, "-f", filepath], {
         stdio: "pipe",
         timeout: 120_000,
       });
@@ -198,7 +201,8 @@ export async function restoreBackup(filepath: string, targetDbName?: string): Pr
       });
     }
   } else if (filepath.endsWith(".sqlite")) {
-    const dbPath = path.resolve(process.cwd(), config.database || "data/mosaix.sqlite");
+    // config is a union; when connection is sqlite we have database
+    const dbPath = path.resolve(process.cwd(), (config as any).database || "data/mosaix.sqlite");
     fs.copyFileSync(filepath, dbPath);
   } else {
     throw new Error("Unsupported backup format for restore");
