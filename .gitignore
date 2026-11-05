@@ -26,7 +26,6 @@ tsc*.txt
 tsc_*.txt
 
 # Audit logs
-.agents/
 .ua/
 .kilo/
 
