@@ -5,7 +5,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ThemeManifest } from "@mosaix/contracts";
-import { ThemeError } from "./theme-errors.js";
+import { ThemeError, ThemeValidationError } from "./theme-errors.js";
+import { ThemeManifestSchema } from "@mosaix/schemas";
+
 
 function findWorkspaceRoot(startDir: string = process.cwd()): string {
   let curr = path.resolve(startDir);
@@ -71,17 +73,36 @@ export class ThemeDiscovery {
         let manifest: ThemeManifest;
         try {
           const raw = fs.readFileSync(manifestPath, "utf-8");
-          manifest = JSON.parse(raw) as ThemeManifest;
+          const parsed = JSON.parse(raw) as unknown;
+          // Single validation entry point — no inline regex, no duplicate checks.
+          const result = ThemeManifestSchema.safeParse(parsed);
+          if (!result.success) {
+            throw new ThemeValidationError(result.error.issues);
+          }
+          manifest = result.data as unknown as ThemeManifest;
+          // Enforce folder name === manifest id invariant
+          if (manifest.id !== entry.name) {
+            throw new ThemeError(
+              `Theme ID mismatch: folder name is '${entry.name}' but manifest id is '${manifest.id}'`,
+              { themeId: entry.name, manifestId: manifest.id },
+            );
+          }
         } catch (err) {
-          throw new ThemeError(`Failed to parse theme.json for '${entry.name}': ${(err as Error).message}`, { themeId: entry.name });
-        }
-
-        if (manifest.id !== entry.name) {
-          throw new ThemeError(`Theme ID mismatch: folder name is '${entry.name}' but manifest id is '${manifest.id}'`, { themeId: entry.name, manifestId: manifest.id });
-        }
-
-        if (!manifest.contractVersion || !/^\d+\.\d+\.\d+(-[0-9a-zA-Z.-]+)?(\+[0-9a-zA-Z.-]+)?$/.test(manifest.contractVersion)) {
-          throw new ThemeError(`Invalid or missing contractVersion semver in theme '${entry.name}'`, { themeId: entry.name, contractVersion: manifest.contractVersion });
+          if (err instanceof ThemeError) throw err;
+          if (err instanceof ThemeValidationError) {
+            throw new ThemeError(
+              `Invalid manifest in '${entry.name}': ${err.message}`,
+              {
+                themeId: entry.name,
+                path: manifestPath,
+                issues: err.details.issues,
+              },
+            );
+          }
+          throw new ThemeError(
+            `Failed to parse theme.json for '${entry.name}': ${(err as Error).message}`,
+            { themeId: entry.name, path: manifestPath },
+          );
         }
 
         discovered.set(manifest.id, {

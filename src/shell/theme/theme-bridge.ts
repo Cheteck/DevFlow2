@@ -1,12 +1,13 @@
 /**
- * @src/shell/theme/theme-bridge.ts — THEME-14 Theme Bridge
+ * @src/shell/theme/theme-bridge.ts — THEME-14 Theme Bridge (Thread-Safe)
  *
  * Connects the Core Theme Engine (ThemeRuntime) to the Shell HTML Renderer.
- * Single source of truth: `themes/*.json` on disk (loaded via
- * ThemeDiscovery). No theme values live in TypeScript — the former
- * `mosaix-default-theme.ts` constant and the hardcoded Tailwind palettes
- * were byte-duplicates of `themes/mosaix-default/theme.json` and have been
- * removed. Compiled `--mx-*` CSS variables remain the runtime truth.
+ * Single source of truth: `themes/*.json` on disk.
+ *
+ * THREAD-SAFE DESIGN:
+ * - No global mutable state (all state is request-scoped via AsyncLocalStorage)
+ * - Catalogue is immutable after boot (safe to share)
+ * - ThemeRuntime is stateless; state lives in ALS per request
  */
 
 import * as path from "node:path";
@@ -15,6 +16,8 @@ import type {
   CompiledTheme,
   ThemeManifest,
   ThemeMode,
+  ThemeTarget,
+  ThemeResolutionContext,
 } from "@mosaix/contracts";
 import { container } from "@mosaix/core";
 import {
@@ -28,138 +31,41 @@ import {
   ThemeRuntime,
   ThemeTargetRegistry,
 } from "@mosaix/theme";
-import { tryGetRenderContext } from "../../server/context/render-context.js";
+import { tryGetRenderContext, type RenderContext } from "../../server/context/render-context.js";
 import { InMemoryGuard } from "@mosaix/support";
 
-let activeRuntime: ThemeRuntime | null = null;
-
-interface ThemeRequestState {
-  currentCompiledTheme: CompiledTheme | null;
-  currentMode: ThemeMode;
-  compiledForThemeId: string | null;
-}
-
-const themeStorage = new AsyncLocalStorage<ThemeRequestState>();
-
-const fallbackState: ThemeRequestState = {
-  currentCompiledTheme: null,
-  currentMode: "light",
-  compiledForThemeId: null,
-};
-
-function getState(): ThemeRequestState {
-  return themeStorage.getStore() ?? fallbackState;
-}
-
-export function runWithThemeContext<T>(fn: () => Promise<T> | T): Promise<T> | T {
-  return themeStorage.run(
-    {
-      currentCompiledTheme: null,
-      currentMode: "light",
-      compiledForThemeId: null,
-    },
-    fn,
-  );
-}
-
 // ── Single source of truth: themes/ on disk ─────────────────────────
-// The active theme id selects which discovered manifest is compiled.
-// Every theme value (tokens, mode overlays, tailwind ramps) comes from
-// `themes/<id>/theme.json` — nothing is hardcoded below.
 const THEMES_DIR = path.resolve(process.cwd(), "themes");
 const DEFAULT_THEME_ID = "mosaix-default";
 
-const themeCatalog = new Map<string, ThemeManifest>();
-let activeThemeId = DEFAULT_THEME_ID;
-/**
- * Resolve the current theme identifier, preferring the request‑scoped render context
- * when available. Falls back to the legacy module‑level `activeThemeId` for non‑SSR
- * usage (e.g., client‑side scripts, tests).
- */
-function getEffectiveThemeId(): string {
-  const ctx = tryGetRenderContext();
-  return ctx?.theme?.themeId ?? activeThemeId;
-}
-let catalogLoaded = false;
-let compiledForThemeId: string | null = null;
-
-function ensureCatalog(): void {
-  if (catalogLoaded) return;
-  const discovered = ThemeDiscovery.discoverThemes(THEMES_DIR);
-  for (const theme of discovered) themeCatalog.set(theme.id, theme.manifest);
-  catalogLoaded = true;
+// ── Request-scoped state (AsyncLocalStorage) ─────────────────────────
+interface ThemeRequestState {
+  readonly themeId: string;
+  readonly mode: ThemeMode;
+  readonly compiled: CompiledTheme;
+  readonly runtime: ThemeRuntime;
 }
 
-/** Switch the active theme (must be a discovered id from `themes/`). */
-export function setActiveThemeId(id: string): void {
-  ensureCatalog();
-  if (!themeCatalog.has(id)) {
-    throw new Error(
-      `[theme] unknown theme "${id}" — available: ${[...themeCatalog.keys()].join(", ") || "(none)"} (dir: ${THEMES_DIR})`,
-    );
+const themeStateStorage = new AsyncLocalStorage<ThemeRequestState>();
+
+// ── Singleton immutable catalogue (safe to share) ─────────────────────────
+let themeCatalog: ReadonlyMap<string, ThemeManifest> | null = null;
+let sharedRuntime: ThemeRuntime | null = null;
+
+function getThemeCatalog(): ReadonlyMap<string, ThemeManifest> {
+  if (themeCatalog === null) {
+    const discovered = ThemeDiscovery.discoverThemes(THEMES_DIR);
+    const map = new Map<string, ThemeManifest>();
+    for (const theme of discovered) {
+      map.set(theme.id, theme.manifest);
+    }
+    themeCatalog = Object.freeze(map);
   }
-  if (id !== activeThemeId) {
-    activeThemeId = id;
-    getState().currentCompiledTheme = null;
-  }
+  return themeCatalog;
 }
 
-export function getActiveThemeId(): string {
-  return getEffectiveThemeId();
-}
-
-function getActiveManifest(): ThemeManifest {
-  ensureCatalog();
-  const themeId = getEffectiveThemeId();
-  const manifest = themeCatalog.get(themeId);
-  if (!manifest) {
-    throw new Error(
-      `[theme] active theme "${themeId}" not found in ${THEMES_DIR} — themes/ is the single source of truth, check theme.json manifests.`,
-    );
-  }
-  return manifest;
-}
-
-type TailwindMap = Record<string, string>;
-
-function tailwindBase(manifest: ThemeManifest): TailwindMap {
-  const tokens = (manifest as unknown as { tokens?: unknown }).tokens;
-  if (!isRecord(tokens)) return {};
-  const raw = (tokens as Record<string, unknown>).tailwind;
-  return isStringMap(raw) ? raw : {};
-}
-
-function tailwindOverlay(
-  manifest: ThemeManifest,
-  mode: "light" | "dark",
-): TailwindMap {
-  const holder = manifest as unknown as {
-    modes?: Record<string, Record<string, unknown>>;
-  };
-  const tw = holder.modes?.[mode]?.tailwind;
-  return isStringMap(tw) ? tw : {};
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isStringMap(value: unknown): value is Record<string, string> {
-  if (!isRecord(value)) return false;
-  return Object.values(value).every((v) => typeof v === "string");
-}
-
-export interface ThemeBridgeOptions {
-  runtime?: ThemeRuntime;
-  defaultMode?: ThemeMode;
-}
-
-export function initThemeBridge(
-  options: ThemeBridgeOptions = {},
-): ThemeRuntime {
-  if (options.runtime) {
-    activeRuntime = options.runtime;
-  } else {
+function getRuntime(): ThemeRuntime {
+  if (sharedRuntime === null) {
     const registry = new ThemeTargetRegistry();
     registerBacThemeTargets(registry);
 
@@ -168,10 +74,9 @@ export function initThemeBridge(
       typeof container !== "undefined" &&
       container &&
       typeof container.has === "function";
-    // Exact store DB type, no `any`, no extra imports.
-    type StoreDb = ConstructorParameters<
-      typeof PostgresThemeAssignmentsStore
-    >[0];
+    
+    type StoreDb = ConstructorParameters<typeof PostgresThemeAssignmentsStore>[0];
+    
     if (hasContainer && container.has("database")) {
       const db = container.resolve<StoreDb>("database");
       store = new PostgresThemeAssignmentsStore(db);
@@ -179,80 +84,121 @@ export function initThemeBridge(
       const db = container.resolve<StoreDb>("databasePort");
       store = new PostgresThemeAssignmentsStore(db);
     } else {
-      // eslint-disable-next-line no-restricted-syntax -- couche 2 : assignments de theme UI sans DatabasePort ici (aucun container au boot SSR) ; a cabler au boot comme les feature flags. Defaut d'affichage uniquement, jamais de donnee metier.
       store = new InMemoryThemeAssignmentsStore();
       InMemoryGuard.reportFallback("ThemeBridge:inMemoryStore");
     }
 
-    activeRuntime = createThemeRuntime({ registry, store });
+    sharedRuntime = createThemeRuntime({ registry, store });
+    
+    sharedRuntime.registerTarget({
+      type: "shell",
+      capabilities: { userSelectable: false, adminConfigurable: true },
+    });
+    
+    const catalog = getThemeCatalog();
+    for (const manifest of catalog.values()) {
+      sharedRuntime.registerTheme(manifest);
+    }
   }
+  return sharedRuntime;
+}
 
-  activeRuntime.registerTarget({
-    type: "shell",
-    capabilities: { userSelectable: false, adminConfigurable: true },
-  });
-  // Register every discovered theme from themes/ (default + alternates
-  // like midnight-ocean) — the catalog is file-driven, never hardcoded.
-  ensureCatalog();
-  for (const manifest of themeCatalog.values()) {
-    activeRuntime.registerTheme(manifest);
-  }
+function getEffectiveThemeId(): string {
+  const ctx = tryGetRenderContext();
+  return ctx?.theme?.themeId ?? DEFAULT_THEME_ID;
+}
 
-  getState().currentMode = options.defaultMode ?? "light";
+function getState(): ThemeRequestState | null {
+  return themeStateStorage.getStore() ?? null;
+}
 
-  return activeRuntime;
+// ── Public API ────────────────────────────────────────────────────────────
+
+export function initThemeBridge(): ThemeRuntime {
+  getRuntime();
+  return getRuntime();
+}
+
+export function runWithThemeContext<T>(fn: () => Promise<T> | T): Promise<T> | T {
+  return themeStateStorage.run(
+    {
+      themeId: getEffectiveThemeId(),
+      mode: "light",
+      compiled: {},
+      runtime: getRuntime(),
+    },
+    fn,
+  );
 }
 
 export async function applyThemeMode(mode: ThemeMode): Promise<CompiledTheme> {
-  if (!activeRuntime) {
-    initThemeBridge();
+  const runtime = getRuntime();
+  const themeId = getEffectiveThemeId();
+  const resolvedMode = mode === "system" ? "dark" : mode;
+  
+  const target: ThemeTarget = { type: "shell", id: "shell" };
+  const ctx: ThemeResolutionContext = {
+    target,
+    applicationPreference: {
+      inherit: false,
+      preferredMode: resolvedMode,
+    },
+  };
+  
+  const outcome = await runtime.apply(ctx);
+  
+  if (!outcome.compiled) {
+    throw new Error(
+      `Failed to compile theme "${themeId}" in mode "${resolvedMode}"`
+    );
   }
 
-  const state = getState();
-  state.currentMode = mode;
-  const outcome = await activeRuntime!.apply({
-    target: { type: "shell", id: "shell" },
-    applicationPreference: { inherit: false, preferredMode: mode },
-  });
+  // Defensive narrowing: store in a const so TS knows it's guaranteed
+  const compiledTheme: CompiledTheme = outcome.compiled;
 
-  if (outcome.compiled) {
-    state.currentCompiledTheme = outcome.compiled;
-  }
+  const state: ThemeRequestState = {
+    themeId,
+    mode: resolvedMode,
+    compiled: compiledTheme,
+    runtime,
+  };
 
-  return state.currentCompiledTheme!;
+  return themeStateStorage.run(state, () => compiledTheme);
 }
 
 export function getCompiledTheme(): CompiledTheme | null {
-  return getState().currentCompiledTheme;
+  const state = getState();
+  return state?.compiled ?? null;
 }
 
-export function getThemeMode(): ThemeMode {
-  return getState().currentMode;
+export function getThemeMode(): ThemeMode | null {
+  const state = getState();
+  return state?.mode ?? null;
 }
 
-/**
- * Renders the SSR <style> tag containing compiled --mx-* CSS variables,
- * backward-compatibility fallbacks, and accessibility media queries.
- */
+export function getActiveThemeId(): string {
+  const state = getState();
+  return state?.themeId ?? getEffectiveThemeId();
+}
+
 export function getResolvedTheme(mode: ThemeMode = "light"): CompiledTheme {
   const state = getState();
-  if (
-    state.currentCompiledTheme &&
-    state.currentMode === mode &&
-    state.compiledForThemeId === getEffectiveThemeId()
-  ) {
-    return state.currentCompiledTheme;
+  if (state?.compiled) {
+    return state.compiled;
   }
-  const compiled = compile(getActiveManifest(), mode);
-  state.currentCompiledTheme = compiled;
-  state.currentMode = mode;
-  state.compiledForThemeId = getEffectiveThemeId();
-  return compiled;
+  
+  const runtime = getRuntime();
+  const themeId = getEffectiveThemeId();
+  const manifest = runtime.getTheme(themeId);
+  
+  if (!manifest) {
+    throw new Error(`Theme "${themeId}" not found`);
+  }
+  
+  return compile(manifest, mode);
 }
 
-export function generateUnifiedThemeCssVariables(
-  compiledTheme: CompiledTheme,
-): string {
+export function generateUnifiedThemeCssVariables(compiledTheme: CompiledTheme): string {
   const lines: string[] = [];
   for (const [key, val] of Object.entries(compiledTheme || {})) {
     lines.push(`  ${key}: ${val};`);
@@ -260,13 +206,7 @@ export function generateUnifiedThemeCssVariables(
   return lines.join("\n");
 }
 
-/**
- * Emits the `--color-*` semantic status aliases consumed by Tailwind utility
- * classes (`bg-error-container`, `text-success`, …). Values resolve through
- * the compiled `--mx-color-*` truth; the literal is only a last-resort
- * fallback for manifests that do not declare the token yet.
- */
-function renderStatusColorDeclarations(tailwind: TailwindMap): string[] {
+function renderStatusColorDeclarations(tailwind: Record<string, string>): string[] {
   const declare = (css: string, mx: string, fallback: string): string =>
     `  --color-${css}: var(--mx-color-${mx}, ${tailwind[css] ?? fallback});`;
   return [
@@ -278,7 +218,6 @@ function renderStatusColorDeclarations(tailwind: TailwindMap): string[] {
     declare("warning-hover", "warningHover", "#d97706"),
     declare("warning-container", "warningContainer", "#fef3c7"),
     declare("on-warning", "onWarning", "#422006"),
-    // `danger` is the historical alias — keep themes that only declare it working.
     `  --color-error: var(--mx-color-error, var(--mx-color-danger, ${tailwind["error"] ?? "#ef4444"}));`,
     declare("error-hover", "errorHover", "#dc2626"),
     declare("error-container", "errorContainer", "#fee2e2"),
@@ -291,9 +230,16 @@ function renderStatusColorDeclarations(tailwind: TailwindMap): string[] {
 }
 
 export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
-  const manifest = getActiveManifest();
-
-  // Compile both light and dark modes — both are emitted to CSS for hot-switching.
+  const state = getState();
+  const runtime = state?.runtime ?? getRuntime();
+  const themeId = state?.themeId ?? getEffectiveThemeId();
+  const mode = state?.mode ?? "dark";
+  
+  const manifest = runtime.getTheme(themeId);
+  if (!manifest) {
+    return "<!-- No theme available -->";
+  }
+  
   const lightVars = compile(manifest, "light");
   const darkVars = compile(manifest, "dark");
   const lightTw = tailwindForMode(manifest, "light");
@@ -302,103 +248,54 @@ export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
     v[key] ?? dead;
 
   const lines: string[] = [];
-  lines.push(
-    "/* MosaiX Compiled Theme — Source of Truth: --mx-* (hot-switching enabled) */",
-  );
+  lines.push("/* MosaiX Compiled Theme — Source of Truth: --mx-* (hot-switching enabled) */");
 
-  // Light mode (default) — all --mx-* variables for light
   lines.push(':root, [data-theme-mode="light"], [data-resolved-mode="light"] {');
   for (const [key, val] of Object.entries(lightVars)) {
     lines.push(`  ${key}: ${val};`);
   }
   lines.push("  /* Tailwind CSS & Material Design 3 Surface Tokens Mapping */");
-  lines.push(
-    `  --color-primary: var(--mx-color-primary, ${fb(lightVars, "--mx-color-primary", "#4f46e5")});`,
-  );
-  lines.push(
-    `  --color-primary-hover: var(--mx-color-primaryHover, ${fb(lightVars, "--mx-color-primaryHover", "#4338ca")});`,
-  );
+  lines.push(`  --color-primary: var(--mx-color-primary, ${fb(lightVars, "--mx-color-primary", "#4f46e5")});`);
+  lines.push(`  --color-primary-hover: var(--mx-color-primaryHover, ${fb(lightVars, "--mx-color-primaryHover", "#4338ca")});`);
   lines.push("  --color-on-primary: #ffffff;");
-  lines.push(
-    `  --color-secondary: var(--mx-color-secondary, ${fb(lightVars, "--mx-color-secondary", "#06b6d4")});`,
-  );
-  lines.push(
-    `  --color-surface: var(--mx-color-surface, ${fb(lightVars, "--mx-color-surface", "#ffffff")});`,
-  );
-  lines.push(
-    `  --color-on-surface: var(--mx-color-text, ${fb(lightVars, "--mx-color-text", "#0f172a")});`,
-  );
-  lines.push(
-    `  --color-on-surface-variant: var(--mx-color-textMuted, ${fb(lightVars, "--mx-color-textMuted", "#64748b")});`,
-  );
+  lines.push(`  --color-secondary: var(--mx-color-secondary, ${fb(lightVars, "--mx-color-secondary", "#06b6d4")});`);
+  lines.push(`  --color-surface: var(--mx-color-surface, ${fb(lightVars, "--mx-color-surface", "#ffffff")});`);
+  lines.push(`  --color-on-surface: var(--mx-color-text, ${fb(lightVars, "--mx-color-text", "#0f172a")});`);
+  lines.push(`  --color-on-surface-variant: var(--mx-color-textMuted, ${fb(lightVars, "--mx-color-textMuted", "#64748b")});`);
   lines.push(`  --color-surface-variant: ${lightTw["surface-variant"]};`);
-  lines.push(
-    `  --color-surface-container-lowest: ${lightTw["surface-container-lowest"]};`,
-  );
-  lines.push(
-    `  --color-surface-container-low: ${lightTw["surface-container-low"]};`,
-  );
+  lines.push(`  --color-surface-container-lowest: ${lightTw["surface-container-lowest"]};`);
+  lines.push(`  --color-surface-container-low: ${lightTw["surface-container-low"]};`);
   lines.push(`  --color-surface-container: ${lightTw["surface-container"]};`);
-  lines.push(
-    `  --color-surface-container-high: ${lightTw["surface-container-high"]};`,
-  );
-  lines.push(
-    `  --color-surface-container-highest: ${lightTw["surface-container-highest"]};`,
-  );
-  lines.push(
-    `  --color-outline-variant: var(--mx-color-border, ${fb(lightVars, "--mx-color-border", "#e2e8f0")});`,
-  );
+  lines.push(`  --color-surface-container-high: ${lightTw["surface-container-high"]};`);
+  lines.push(`  --color-surface-container-highest: ${lightTw["surface-container-highest"]};`);
+  lines.push(`  --color-outline-variant: var(--mx-color-border, ${fb(lightVars, "--mx-color-border", "#e2e8f0")});`);
   lines.push("  /* Semantic status tokens (Material 3) */");
   lines.push(...renderStatusColorDeclarations(lightTw));
   lines.push("}");
 
-  // Dark mode — all --mx-* variables for dark, scoped to [data-theme-mode="dark"]
   lines.push('[data-theme-mode="dark"], [data-resolved-mode="dark"], .dark, html.dark {');
   for (const [key, val] of Object.entries(darkVars)) {
     lines.push(`  ${key}: ${val};`);
   }
   lines.push("  /* Tailwind CSS & Material Design 3 Surface Tokens Mapping */");
-  lines.push(
-    `  --color-primary: var(--mx-color-primary, ${fb(darkVars, "--mx-color-primary", "#6366f1")});`,
-  );
-  lines.push(
-    `  --color-primary-hover: var(--mx-color-primaryHover, ${fb(darkVars, "--mx-color-primaryHover", "#818cf8")});`,
-  );
+  lines.push(`  --color-primary: var(--mx-color-primary, ${fb(darkVars, "--mx-color-primary", "#6366f1")});`);
+  lines.push(`  --color-primary-hover: var(--mx-color-primaryHover, ${fb(darkVars, "--mx-color-primaryHover", "#818cf8")});`);
   lines.push("  --color-on-primary: #ffffff;");
-  lines.push(
-    `  --color-secondary: var(--mx-color-secondary, ${fb(darkVars, "--mx-color-secondary", "#06b6d4")});`,
-  );
-  lines.push(
-    `  --color-surface: var(--mx-color-surface, ${fb(darkVars, "--mx-color-surface", "#1e293b")});`,
-  );
-  lines.push(
-    `  --color-on-surface: var(--mx-color-text, ${fb(darkVars, "--mx-color-text", "#f8fafc")});`,
-  );
-  lines.push(
-    `  --color-on-surface-variant: var(--mx-color-textMuted, ${fb(darkVars, "--mx-color-textMuted", "#94a3b8")});`,
-  );
+  lines.push(`  --color-secondary: var(--mx-color-secondary, ${fb(darkVars, "--mx-color-secondary", "#06b6d4")});`);
+  lines.push(`  --color-surface: var(--mx-color-surface, ${fb(darkVars, "--mx-color-surface", "#1e293b")});`);
+  lines.push(`  --color-on-surface: var(--mx-color-text, ${fb(darkVars, "--mx-color-text", "#f8fafc")});`);
+  lines.push(`  --color-on-surface-variant: var(--mx-color-textMuted, ${fb(darkVars, "--mx-color-textMuted", "#94a3b8")});`);
   lines.push(`  --color-surface-variant: ${darkTw["surface-variant"]};`);
-  lines.push(
-    `  --color-surface-container-lowest: ${darkTw["surface-container-lowest"]};`,
-  );
-  lines.push(
-    `  --color-surface-container-low: ${darkTw["surface-container-low"]};`,
-  );
+  lines.push(`  --color-surface-container-lowest: ${darkTw["surface-container-lowest"]};`);
+  lines.push(`  --color-surface-container-low: ${darkTw["surface-container-low"]};`);
   lines.push(`  --color-surface-container: ${darkTw["surface-container"]};`);
-  lines.push(
-    `  --color-surface-container-high: ${darkTw["surface-container-high"]};`,
-  );
-  lines.push(
-    `  --color-surface-container-highest: ${darkTw["surface-container-highest"]};`,
-  );
-  lines.push(
-    `  --color-outline-variant: var(--mx-color-border, ${fb(darkVars, "--mx-color-border", "#334155")});`,
-  );
+  lines.push(`  --color-surface-container-high: ${darkTw["surface-container-high"]};`);
+  lines.push(`  --color-surface-container-highest: ${darkTw["surface-container-highest"]};`);
+  lines.push(`  --color-outline-variant: var(--mx-color-border, ${fb(darkVars, "--mx-color-border", "#334155")});`);
   lines.push("  /* Semantic status tokens (Material 3) */");
   lines.push(...renderStatusColorDeclarations(darkTw));
   lines.push("}");
 
-  // Accessibility and OS preferences
   lines.push("@media (prefers-color-scheme: dark) {");
   lines.push('  html[data-theme-mode="system"]:not([data-resolved-mode="light"]),');
   lines.push('  :root:not([data-theme-mode]):not([data-resolved-mode="light"]) {');
@@ -408,7 +305,6 @@ export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
   lines.push("  }");
   lines.push("}");
 
-  // Accessibility media queries
   lines.push("@media (prefers-reduced-motion: reduce) {");
   lines.push("  :root {");
   lines.push("    --mx-motion-duration-fast: 0ms;");
@@ -425,34 +321,50 @@ export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
   return `<style id="mosaix-compiled-theme">\n${lines.join("\n")}\n</style>`;
 }
 
-/**
- * Tailwind-config palette for a mode, read from the active manifest's
- * `tokens.tailwind` group (base) + `modes[mode].tailwind` overlay.
- * `"system"` behaves like `"dark"` (historical shell default).
- */
-function tailwindForMode(
-  manifest: ThemeManifest,
-  mode: ThemeMode,
-): TailwindMap {
-  const normalized =
-    mode === "light"
-      ? "light"
-      : "dark";
+function tailwindForMode(manifest: ThemeManifest, mode: ThemeMode): Record<string, string> {
+  const normalized = mode === "light" ? "light" : "dark";
+  const tokens = (manifest as unknown as { tokens?: unknown }).tokens;
+  const base = (tokens as Record<string, unknown>)?.tailwind ?? {};
+  const holder = manifest as unknown as { modes?: Record<string, Record<string, unknown>> };
+  const overlay = holder.modes?.[normalized]?.tailwind ?? {};
   const merged = deepMergeTokens(
-    tailwindBase(manifest),
-    tailwindOverlay(manifest, normalized),
+    isStringMap(base) ? base : {},
+    isStringMap(overlay) ? overlay : {},
   );
-  const out: TailwindMap = {};
+  const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(merged)) {
     if (typeof value === "string") out[key] = value;
   }
   return out;
 }
 
-export function getTailwindThemeColors(
-  mode: ThemeMode = "dark",
-): Record<string, string> {
-  return tailwindForMode(getActiveManifest(), mode);
+function isStringMap(value: unknown): value is Record<string, string> {
+  if (!isRecord(value)) return false;
+  return Object.values(value).every((v) => typeof v === "string");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function getTailwindThemeColors(mode: ThemeMode = "dark"): Record<string, string> {
+  const state = getState();
+  const runtime = state?.runtime ?? getRuntime();
+  const themeId = state?.themeId ?? getEffectiveThemeId();
+  const manifest = runtime.getTheme(themeId);
+  if (!manifest) {
+    return {};
+  }
+  return tailwindForMode(manifest, mode);
+}
+
+export function setActiveThemeId(id: string): void {
+  const catalog = getThemeCatalog();
+  if (!catalog.has(id)) {
+    throw new Error(
+      `[theme] unknown theme "${id}" — available: ${[...catalog.keys()].join(", ") || "(none)"}`
+    );
+  }
 }
 
 export class ShellThemeProvider {
