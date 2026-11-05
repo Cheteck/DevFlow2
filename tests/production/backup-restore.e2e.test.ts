@@ -13,6 +13,18 @@ import { createBackup, verifyBackup, restoreBackup } from "../../scripts/db-back
 
 const TEST_RESTORE_DB = "mosaix_dr_test_restore";
 
+
+function isDockerPostgresAvailable(): boolean {
+  try {
+    const containerName = process.env.MOSAIX_DB_CONTAINER || "mosaix-db-1";
+    const out = execFileSync("docker", ["ps", "--filter", `name=${containerName}`, "--format", "{{.Names}}"], { encoding: "utf8" });
+    return out.trim().includes(containerName);
+  } catch {
+    return false;
+  }
+}
+const describeOrSkip = isDockerPostgresAvailable() ? describe : describe.skip;
+
 function dropAndCreateTestDb(): void {
   const containerName = process.env.MOSAIX_DB_CONTAINER || "mosaix-db-1";
   const opts = { stdio: "ignore" as const, timeout: 60_000 };
@@ -37,7 +49,7 @@ function getTableCount(dbName: string): number {
   return Number.parseInt(out.trim(), 10) || 0;
 }
 
-describe("Backup & Restore DR Pipeline (R07)", () => {
+describeOrSkip("Backup & Restore DR Pipeline (R07)", () => {
   let backupFilepath = "";
 
   beforeAll(() => {

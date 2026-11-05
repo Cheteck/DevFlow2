@@ -122,6 +122,9 @@ importers:
       '@mosaix/support':
         specifier: workspace:*
         version: link:packages/support
+      '@mosaix/theme':
+        specifier: workspace:*
+        version: link:packages/theme
       zod:
         specifier: ^3.25.76
         version: 3.25.76

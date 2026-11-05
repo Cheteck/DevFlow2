@@ -11,19 +11,23 @@ describe("ThemeBridge context integration", () => {
 
   it("uses the request-scoped render context theme when present", () => {
     const customId = "midnight-ocean";
-    renderContext.enterWith({
-      space: undefined,
-      theme: {
-        themeId: customId,
-        source: "space",
-        manifest: {
-          name: "Midnight Ocean",
-          version: "1.0.0",
-          modes: { light: {} },
+    renderContext.run(
+      {
+        space: undefined,
+        theme: {
+          themeId: customId,
+          source: "space",
+          manifest: {
+            name: "Midnight Ocean",
+            version: "1.0.0",
+            modes: { light: {} },
+          },
         },
       },
-    });
-    expect(getActiveThemeId()).toBe(customId);
+      () => {
+        expect(getActiveThemeId()).toBe(customId);
+      }
+    );
   });
 
   it("falls back to the module-level active theme id when no context is set", () => {

@@ -22,6 +22,17 @@ const ROOT = process.cwd();
 const BOOT_TIMEOUT_MS = 150_000;
 const TEST_TIMEOUT_MS = 180_000;
 
+
+function isDockerPostgresAvailable(): boolean {
+  try {
+    const out = execFileSync("docker", ["ps", "--filter", "name=mosaix-db-1", "--format", "{{.Names}}"], { encoding: "utf8" });
+    return out.trim().includes("mosaix-db-1");
+  } catch {
+    return false;
+  }
+}
+const describeOrSkip = isDockerPostgresAvailable() ? describe : describe.skip;
+
 interface BootedServer {
   baseUrl: string;
   kill: () => Promise<void>;
@@ -238,7 +249,7 @@ async function getRaw(baseUrl: string, p: string, cookie?: string) {
   });
 }
 
-describe(
+describeOrSkip(
   "HTTP BAC access — anonymous (demo off)",
   () => {
     let server: BootedServer;
@@ -392,7 +403,7 @@ describe(
   TEST_TIMEOUT_MS,
 );
 
-describe(
+describeOrSkip(
   "HTTP BAC access — demo personas (demo on)",
   () => {
     let server: BootedServer;

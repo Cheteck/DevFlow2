@@ -5,12 +5,10 @@
 
 import type * as http from "node:http";
 import type { URL } from "node:url";
-import { ThemeDiscovery } from "@mosaix/theme";
 import type { DatabasePort } from "@mosaix/ports-database";
 import type { UserProfile } from "../../shell/profiles.js";
 import { readLimitedJson } from "../utils/safe-body-parser.js";
-import { SpaceService } from "../../../apps/spaces/src/domain/space.model.js";
-import { PostgresSpaceRepository } from "../../../apps/spaces/src/infrastructure/postgres-space-repository.js";
+import { SpaceService, PostgresSpaceRepository } from "../../../apps/spaces/src/index.js";
 import { themeCatalogueCache } from "../../themes/theme-catalogue-cache.js";
 
 export async function handleSpaceThemeRoutes(
