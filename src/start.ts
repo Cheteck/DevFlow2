@@ -13,7 +13,7 @@ import type { ThemeMode, BacExecutionContext } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
 import { platformSettingsService, ConsoleLogger } from "@mosaix/core";
 import { createApplication } from "../bootstrap/index.js";
-import { AuthManager } from "@mosaix/auth";
+
 import { LocalPasswordProvider } from "@mosaix/adapter-auth-local";
 import { EnvSecretsAdapter } from "@mosaix/adapter-secrets-env";
 import type { IdentityStore } from "@mosaix/ports-identity-store";
@@ -58,9 +58,10 @@ import {
   generateUnifiedThemeCssVariables,
   getResolvedTheme,
   ShellThemeProvider,
+  applyThemeMode,
+  runWithThemeContext,
 } from "./shell/theme/theme-bridge.js";
 import { renderContext } from "./server/context/render-context.js";
-import { runWithThemeContext } from "./shell/theme/theme-bridge.js";
 import { resolveTheme } from "./server/services/theme-resolution.service.js";
 import { renderBacAdminSafely } from "./shell/renderer.js";
 import { PRIMARY_RAIL_SHARED_CSS } from "./shell/renderer.js";
@@ -307,6 +308,11 @@ async function handleRequest(
     // Store in AsyncLocalStorage so downstream rendering can access it without globals
     renderContext.enterWith({ space: activeSpaceProfile, theme: resolvedTheme });
 
+    // Declare theme variables at outer scope so they remain accessible after the closure
+    // Initialize with defaults; they will be assigned inside runWithThemeContext
+    let currentThemeMode: ThemeMode = "dark" as ThemeMode;
+    let sharedStyles: string = "";
+
     await runWithThemeContext(async () => {
       // Tell the theme bridge the active theme id
       ShellThemeProvider.setActiveThemeId(resolvedTheme.themeId);
@@ -314,15 +320,15 @@ async function handleRequest(
         /mosaix_theme_mode=([a-z-]+)/,
       );
       const requestedTheme = themeCookie ? themeCookie[1] : "";
-      const currentThemeMode: ThemeMode =
+      currentThemeMode =
         requestedTheme === "light" ||
         requestedTheme === "system"
           ? requestedTheme
           : "dark";
-      
+
       await applyThemeMode(currentThemeMode);
-      
-      const sharedStyles = getSharedStyles(currentThemeMode);
+
+      sharedStyles = getSharedStyles(currentThemeMode);
 
       // 3. Platform Maintenance Gate Middleware (FEAT-01)
       if (
