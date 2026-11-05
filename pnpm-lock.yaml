@@ -320,6 +320,9 @@ importers:
       '@mosaix/orchestration':
         specifier: workspace:*
         version: link:../../packages/orchestration
+      '@mosaix/plugin-engine':
+        specifier: workspace:*
+        version: link:../../packages/plugin-engine
       '@mosaix/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk

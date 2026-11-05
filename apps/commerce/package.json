@@ -22,7 +22,8 @@
     "@mosaix-plugin/commerce-wishlist": "workspace:*",
     "@mosaix/orchestration": "workspace:*",
     "@mosaix/sdk": "workspace:*",
-    "@mosaix/types": "workspace:*"
+    "@mosaix/types": "workspace:*",
+    "@mosaix/plugin-engine": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

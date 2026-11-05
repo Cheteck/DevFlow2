@@ -230,3 +230,16 @@ export class PluginEngine {
     return definition;
   }
 }
+
+let defaultGlobalPluginEngine: PluginEngine | null = null;
+
+export function getGlobalPluginEngine(): PluginEngine {
+  if (!defaultGlobalPluginEngine) {
+    defaultGlobalPluginEngine = new PluginEngine();
+  }
+  return defaultGlobalPluginEngine;
+}
+
+export function resetGlobalPluginEngine(): void {
+  defaultGlobalPluginEngine = null;
+}

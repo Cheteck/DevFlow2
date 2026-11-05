@@ -14,6 +14,113 @@ import type { PayloadValidator } from "@mosaix/core";
 import type { FeatureFlagsPort, FeatureFlagUserContext } from "@mosaix/ports-feature-flags";
 import { uuidV7 } from "@mosaix/types";
 
+// ============================================================================
+// 1. RUNTIME CLIENT & TRANSPORT PORTS (Decoupling SDK from RuntimeKernel)
+// ============================================================================
+
+export interface CapabilityInvokerPort {
+  executeCapability(
+    capabilityId: string,
+    callerApp: string,
+    tenant: TenantIdentity,
+    input: unknown,
+  ): Promise<unknown>;
+}
+
+export interface CapabilityProviderPort {
+  registerCapabilityExecutor(
+    capabilityId: string,
+    executor: (input: unknown) => Promise<unknown> | unknown,
+  ): void;
+  bindCapabilityContract?(
+    capabilityId: string,
+    ownerApp: string,
+    contract: { inputValidator?: PayloadValidator; outputValidator?: PayloadValidator },
+  ): void;
+}
+
+export interface EventPublisherPort {
+  publishEvent(envelope: MosaixEventEnvelope, senderApp: string): Promise<void>;
+  registerEventSchema?(entry: {
+    type: string;
+    version: string;
+    ownerApp: string;
+    schema?: PayloadValidator | Record<string, unknown>;
+    payloadSchema?: PayloadValidator;
+  }): void;
+}
+
+/**
+ * RuntimeClient: Minimal transport abstraction required by MosaixApp.
+ * Enables Shared Runtime (KernelRuntimeClient), Isolated Runtime (IPC/Process),
+ * and External Runtime (HTTP/Remote).
+ */
+export interface RuntimeClient
+  extends CapabilityInvokerPort,
+    CapabilityProviderPort,
+    EventPublisherPort {
+  register?(manifest: ApplicationManifest): void;
+}
+
+/**
+ * Default In-Process Kernel Adapter for Shared Runtime mode.
+ */
+export class KernelRuntimeClient implements RuntimeClient {
+  constructor(public readonly kernel: RuntimeKernel) {}
+
+  register(manifest: ApplicationManifest): void {
+    this.kernel.register(manifest);
+  }
+
+  async executeCapability(
+    capabilityId: string,
+    callerApp: string,
+    tenant: TenantIdentity,
+    input: unknown,
+  ): Promise<unknown> {
+    return this.kernel.executeCapability(capabilityId, callerApp, tenant, input);
+  }
+
+  registerCapabilityExecutor(
+    capabilityId: string,
+    executor: (input: unknown) => Promise<unknown> | unknown,
+  ): void {
+    this.kernel.registerCapabilityExecutor(capabilityId, executor);
+  }
+
+  bindCapabilityContract(
+    capabilityId: string,
+    ownerApp: string,
+    contract: { inputValidator?: PayloadValidator; outputValidator?: PayloadValidator },
+  ): void {
+    this.kernel.bindCapabilityContract(capabilityId, ownerApp, contract);
+  }
+
+  async publishEvent(envelope: MosaixEventEnvelope, senderApp: string): Promise<void> {
+    await this.kernel.context.events.publish(envelope, senderApp);
+  }
+
+  registerEventSchema(entry: {
+    type: string;
+    version: string;
+    ownerApp: string;
+    schema?: PayloadValidator | Record<string, unknown>;
+    payloadSchema?: PayloadValidator;
+  }): void {
+    this.kernel.registerEventSchema({
+      type: entry.type,
+      version: entry.version,
+      ownerApp: entry.ownerApp,
+      ...(entry.schema !== undefined ? { schema: entry.schema } : {}),
+      ...(entry.payloadSchema !== undefined ? { payloadSchema: entry.payloadSchema } : {}),
+    });
+  }
+}
+
+// ============================================================================
+// 2. MOSAIX APPLICATION REGISTRATION & INTERFACES
+// ============================================================================
+
 export interface MosaixAppRegistration {
   manifest: ApplicationManifest;
   tenant: TenantIdentity;
@@ -26,24 +133,124 @@ export interface PublishEventOptions {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * MosaixApp — The canonical Application Developer API.
+ */
 export class MosaixApp {
   readonly manifest: ApplicationManifest;
   readonly tenant: TenantIdentity;
-  readonly kernel: RuntimeKernel;
+  readonly client: RuntimeClient;
 
-  constructor(registration: MosaixAppRegistration, kernel: RuntimeKernel) {
+  /**
+   * Backward compatibility getter: returns the underlying RuntimeKernel
+   * if running with KernelRuntimeClient, or throws an explicit error in remote modes.
+   */
+  get kernel(): RuntimeKernel {
+    if ("kernel" in this.client && (this.client as { kernel: RuntimeKernel }).kernel instanceof RuntimeKernel) {
+      return (this.client as { kernel: RuntimeKernel }).kernel;
+    }
+    throw new Error(
+      `[MosaixApp] The current RuntimeClient does not expose an in-process RuntimeKernel. Avoid direct kernel coupling.`,
+    );
+  }
+
+  constructor(
+    registration: MosaixAppRegistration,
+    runtime: RuntimeClient | RuntimeKernel,
+  ) {
     this.manifest = registration.manifest;
     this.tenant = registration.tenant;
-    this.kernel = kernel;
+    this.client =
+      runtime instanceof RuntimeKernel
+        ? new KernelRuntimeClient(runtime)
+        : runtime;
   }
 
   static register(
     registration: MosaixAppRegistration,
-    kernel: RuntimeKernel,
+    runtime: RuntimeClient | RuntimeKernel,
   ): MosaixApp {
-    kernel.register(registration.manifest);
-    return new MosaixApp(registration, kernel);
+    const client =
+      runtime instanceof RuntimeKernel
+        ? new KernelRuntimeClient(runtime)
+        : runtime;
+    client.register?.(registration.manifest);
+    return new MosaixApp(registration, client);
   }
+
+  /**
+   * Namespaced Capabilities API
+   */
+  readonly capabilities = {
+    invoke: async <TInput = unknown, TOutput = unknown>(
+      capabilityId: string,
+      input: TInput,
+    ): Promise<TOutput> => {
+      return this.client.executeCapability(
+        capabilityId,
+        this.manifest.id,
+        this.tenant,
+        input,
+      ) as Promise<TOutput>;
+    },
+    provide: (
+      capabilityId: string,
+      executor: (input: unknown) => Promise<unknown> | unknown,
+    ): void => {
+      this.client.registerCapabilityExecutor(capabilityId, executor);
+    },
+    bindContract: (
+      capabilityId: string,
+      contract: { inputValidator?: PayloadValidator; outputValidator?: PayloadValidator },
+    ): void => {
+      this.client.bindCapabilityContract?.(capabilityId, this.manifest.id, contract);
+    },
+  };
+
+  /**
+   * Namespaced Events API
+   */
+  readonly events = {
+    publish: async <TPayload = unknown>(
+      type: string,
+      version: string,
+      payload: TPayload,
+      options: PublishEventOptions = {},
+    ): Promise<MosaixEventEnvelope> => {
+      const envelope: MosaixEventEnvelope = {
+        id: uuidV7(),
+        type,
+        version,
+        source: { application: this.manifest.id },
+        timestamp: new Date().toISOString(),
+        payload,
+        tenant: this.tenant,
+        correlationId: options.correlationId,
+        causationId: options.causationId,
+        metadata: options.metadata,
+        security: options.security,
+      };
+
+      await this.client.publishEvent(envelope, this.manifest.id);
+      return envelope;
+    },
+    registerSchema: (entry: {
+      type: string;
+      version: string;
+      schema?: PayloadValidator | Record<string, unknown>;
+      payloadSchema?: PayloadValidator;
+    }): void => {
+      this.client.registerEventSchema?.({
+        type: entry.type,
+        version: entry.version,
+        ownerApp: this.manifest.id,
+        ...(entry.schema !== undefined ? { schema: entry.schema } : {}),
+        ...(entry.payloadSchema !== undefined ? { payloadSchema: entry.payloadSchema } : {}),
+      });
+    },
+  };
+
+  // ── Backward-compatible Direct Methods ─────────────────────────────────────
 
   registerEventSchema(entry: {
     type: string;
@@ -51,13 +258,7 @@ export class MosaixApp {
     schema?: PayloadValidator | Record<string, unknown>;
     payloadSchema?: PayloadValidator;
   }): void {
-    this.kernel.registerEventSchema({
-      type: entry.type,
-      version: entry.version,
-      ownerApp: this.manifest.id,
-      ...(entry.schema !== undefined ? { schema: entry.schema } : {}),
-      ...(entry.payloadSchema !== undefined ? { payloadSchema: entry.payloadSchema } : {}),
-    });
+    this.events.registerSchema(entry);
   }
 
   async publish(
@@ -66,47 +267,30 @@ export class MosaixApp {
     payload: unknown,
     options: PublishEventOptions = {},
   ): Promise<MosaixEventEnvelope> {
-    const envelope: MosaixEventEnvelope = {
-      id: uuidV7(),
-      type,
-      version,
-      source: { application: this.manifest.id },
-      timestamp: new Date().toISOString(),
-      payload,
-      tenant: this.tenant,
-      correlationId: options.correlationId,
-      causationId: options.causationId,
-      metadata: options.metadata,
-      security: options.security,
-    };
-
-    await this.kernel.context.events.publish(envelope, this.manifest.id);
-    return envelope;
+    return this.events.publish(type, version, payload, options);
   }
 
-  provideCapability(capabilityId: string, executor: (input: unknown) => Promise<unknown> | unknown): void {
-    this.kernel.registerCapabilityExecutor(capabilityId, executor as (input: unknown) => Promise<unknown> | unknown);
+  provideCapability(
+    capabilityId: string,
+    executor: (input: unknown) => Promise<unknown> | unknown,
+  ): void {
+    this.capabilities.provide(capabilityId, executor);
   }
 
   async executeCapability(capabilityId: string, input: unknown): Promise<unknown> {
-    return this.kernel.executeCapability(
-      capabilityId,
-      this.manifest.id,
-      this.tenant,
-      input,
-    );
+    return this.capabilities.invoke(capabilityId, input);
   }
 
   registerCapabilityContract(
     capabilityId: string,
     contract: { inputValidator?: PayloadValidator; outputValidator?: PayloadValidator },
   ): void {
-    this.kernel.bindCapabilityContract(capabilityId, this.manifest.id, contract);
+    this.capabilities.bindContract(capabilityId, contract);
   }
 }
 
 export { RuntimeKernel };
-export const SDK = { MosaixApp, RuntimeKernel };
+export const SDK = { MosaixApp, RuntimeKernel, KernelRuntimeClient };
 
 // Re-export Core Context, Types and Contracts
 export type { TenantIdentity, ApplicationManifest, MosaixEventEnvelope };
@@ -280,5 +464,3 @@ export async function createBoundedAppBootstrap(options: BoundedAppBootstrapOpti
 
   return { container, router, app };
 }
-
-

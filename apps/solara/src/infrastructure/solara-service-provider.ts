@@ -7,7 +7,7 @@ import { SolaraController } from "./solara-controller.js";
 import { PostgresSocialRepository } from "../domain/postgres-social-repository.js";
 import { SolaraContentModeratorPlugin } from "@mosaix-plugin/solara-content-moderator";
 import { CreatePostHandler, CreatePostCommand } from "../commands/create-post.command.js";
-import { getGlobalPluginEngine } from "../../../../src/shell/plugin-engine-bootstrap.js";
+import { getGlobalPluginEngine } from "@mosaix/plugin-engine";
 
 export interface SolaraAppServiceProviderOptions {
   databasePort?: DatabasePort;

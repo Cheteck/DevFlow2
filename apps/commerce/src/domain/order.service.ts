@@ -7,7 +7,7 @@ import {
   type PaymentPort,
   type InventoryPort,
 } from "../workflows/checkout-order.workflow.js";
-import { getGlobalPluginEngine } from "../../../../src/shell/plugin-engine-bootstrap.js";
+import { getGlobalPluginEngine } from "@mosaix/plugin-engine";
 
 export interface OrderRepositoryPort {
   save(order: OrderModel): Promise<OrderModel>;

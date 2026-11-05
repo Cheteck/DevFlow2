@@ -1,5 +1,5 @@
 import { createTypedRegistry } from "@mosaix/support";
-import { getGlobalPluginEngine } from "../../../../src/shell/plugin-engine-bootstrap.js";
+import { getGlobalPluginEngine } from "@mosaix/plugin-engine";
 
 export type PrestaPluginCategory =
   | "commerce"

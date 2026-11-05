@@ -1,7 +1,7 @@
 import type { Command, CommandHandler } from "@mosaix/commands";
 import type { Post, SocialActorType, DefaultPublicationType } from "../domain/social.model.js";
 import { SolaraSocialService } from "../domain/social.model.js";
-import { getGlobalPluginEngine } from "../../../../src/shell/plugin-engine-bootstrap.js";
+import { getGlobalPluginEngine } from "@mosaix/plugin-engine";
 
 export interface CreatePostPayload {
   actorType: SocialActorType;
