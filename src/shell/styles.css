@@ -2,6 +2,7 @@
 
 :root {
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Material 3 & Tailwind Surface Mapping Default (Light Mode) */
   --color-primary: var(--mx-color-primary, #4f46e5);
@@ -43,9 +44,10 @@
   /* Shared component classes */
   .glass-card {
     background-color: color-mix(in srgb, var(--color-surface) 85%, transparent);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--color-outline-variant);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid color-mix(in srgb, var(--color-outline-variant) 60%, transparent);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.06);
   }
 
   /* Standard page header */
@@ -358,9 +360,15 @@
   .auth-success-card {
     padding: 1.5rem;
     border-radius: 1rem;
-    background-color: color-mix(in srgb, var(--color-success-container) 60%, var(--color-surface-container));
-    border: 1px solid color-mix(in srgb, var(--color-success) 24%, transparent);
+    background-color: color-mix(in srgb, var(--color-success-container) 30%, var(--color-surface));
+    border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
     text-align: center;
+  }
+
+  /* Success icon container (child of .auth-success-card) */
+  .auth-success-card .auth-success-icon-wrap {
+    background-color: color-mix(in srgb, var(--color-success) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-success) 35%, transparent);
   }
 
   /* Split editorial layout */
@@ -697,6 +705,13 @@
   --color-surface-container-high: #334155;
   --color-surface-container-highest: #475569;
   --color-outline-variant: var(--mx-color-border, #334155);
+
+  /* Dark mode: .glass-card uses a deeper, less opaque background */
+  .glass-card {
+    background-color: color-mix(in srgb, var(--color-surface) 70%, transparent);
+    border-color: color-mix(in srgb, var(--color-outline-variant) 40%, transparent);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+  }
 }
 
 body {

@@ -43,10 +43,13 @@ describe("renderHeadBlock cache key (P1)", () => {
     expect(second).toBe(first);
   });
 
-  it("maps unknown modes to the light bridge variant", () => {
+  it("maps unknown modes to the light bridge variant and uses token-based glass styles", () => {
     ssrFragmentCache.invalidate("head:");
     const out = renderHeadBlock("M", "system", THEME_A, SHARED_A);
-    expect(out).toContain("rgba(255, 255, 255, 0.7)");
+    // glass-card is now defined in styles.css via --color-* tokens (no hardcoded RGBA).
+    // The head block should contain the sharedStyles and NOT override .glass-card inline.
+    expect(out).not.toContain("rgba(255, 255, 255, 0.7)");
+    expect(out).toContain("--mx-a:1");
   });
 });
 

@@ -224,12 +224,12 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
                 </div>
               </a>
 
-              <button onclick="const c = document.getElementById('composer-text'); if(c){ c.focus(); window.scrollTo({top: 250, behavior: 'smooth'}); }" class="p-3.5 rounded-2xl bg-surface-container/50 hover:bg-surface-container border border-outline-variant/15 hover:border-indigo-500/40 transition group cursor-pointer flex items-center gap-3 text-left">
-                <div class="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition-transform">
+              <button onclick="const c = document.getElementById('composer-text'); if(c){ c.focus(); window.scrollTo({top: 250, behavior: 'smooth'}); }" class="p-3.5 rounded-2xl bg-surface-container/50 hover:bg-surface-container border border-outline-variant/15 hover:border-primary/40 transition group cursor-pointer flex items-center gap-3 text-left">
+                <div class="w-10 h-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center text-primary-hover group-hover:scale-105 transition-transform">
                   <span class="material-symbols-outlined text-xl">edit_square</span>
                 </div>
                 <div class="min-w-0">
-                  <h4 class="text-xs font-bold text-on-surface group-hover:text-indigo-400 transition-colors">Publier un message</h4>
+                  <h4 class="text-xs font-bold text-on-surface group-hover:text-primary-hover transition-colors">Publier un message</h4>
                   <p class="text-[10px] text-on-surface-variant/80 truncate">Échanger avec le réseau</p>
                 </div>
               </button>
@@ -261,7 +261,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
                   <span class="text-[11px] hidden sm:inline">Média</span>
                 </button>
                 <button class="p-2 rounded-lg hover:bg-surface-variant/40 transition flex items-center gap-1.5 cursor-pointer" title="Créer un sondage">
-                  <span class="material-symbols-outlined text-base text-indigo-400">how_to_vote</span>
+                  <span class="material-symbols-outlined text-base text-primary-hover">how_to_vote</span>
                   <span class="text-[11px] hidden sm:inline">Sondage</span>
                 </button>
                 <button class="p-2 rounded-lg hover:bg-surface-variant/40 transition flex items-center gap-1.5 cursor-pointer" title="Rédiger un article">
@@ -396,7 +396,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
               <div class="flex items-start justify-between group cursor-pointer hover:bg-surface-variant/20 p-2 -mx-2 rounded-lg transition-colors">
                 <div class="flex flex-col gap-0.5">
                   <span class="text-[10px] font-bold text-on-surface-variant/70 uppercase tracking-wider flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span> Gouvernance
+                    <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span> Gouvernance
                   </span>
                   <span class="font-semibold text-xs text-on-surface group-hover:text-primary transition-colors">#ImperiaVote</span>
                   <span class="text-[10px] text-on-surface-variant/70">12.5k pulses</span>

@@ -126,7 +126,7 @@ export function renderPrimarySidebar(
   return `
     <div class="hidden md:flex flex-col items-center w-[76px] shrink-0 bg-surface-container-lowest/90 backdrop-blur-2xl border-r border-outline-variant/15 py-5 z-[60] fixed left-0 top-0 h-full shadow-2xl select-none">
       <!-- App Brand Logo & Quick Command Trigger -->
-      <a href="/" data-rail-tip="MosaiX Platform" data-rail-sub="Système Décentralisé" aria-label="MosaiX Platform — Système Décentralisé" class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-primary via-indigo-500 to-secondary flex items-center justify-center mb-4 shadow-lg shadow-primary/25 hover:scale-105 active:scale-95 transition-all duration-300 relative group/brand border border-primary/20">
+      <a href="/" data-rail-tip="MosaiX Platform" data-rail-sub="Système Décentralisé" aria-label="MosaiX Platform — Système Décentralisé" class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-primary via-primary-hover to-secondary flex items-center justify-center mb-4 shadow-lg shadow-primary/25 hover:scale-105 active:scale-95 transition-all duration-300 relative group/brand border border-primary/20">
         <span class="material-symbols-outlined text-surface-container-lowest font-extrabold text-2xl group-hover:rotate-12 transition-transform">auto_awesome</span>
       </a>
 
@@ -183,7 +183,7 @@ export function renderPrimarySidebar(
         </button>
 
         <!-- Synchronized Bottom Profile Avatar (guests go to login, never /identity) -->
-        <a href="${isGuestProfile(user) ? `/login?next=${encodeURIComponent(activeRoute)}` : "/identity"}" data-rail-tip="${escapeHtml(displayLabel)}" data-rail-sub="${escapeHtml(displayRole)}" aria-label="${escapeHtml(displayLabel)} — ${escapeHtml(displayRole)}" class="w-11 h-11 ${activeSpace ? "rounded-2xl" : "rounded-full"} border-2 ${activeSpace ? "border-emerald-500/60 hover:border-emerald-400 shadow-lg shadow-emerald-500/20" : "border-outline-variant/30 hover:border-primary shadow-lg shadow-indigo-500/10"} transition-all duration-300 cursor-pointer flex items-center justify-center ${activeSpace ? "bg-emerald-600/20 text-emerald-400" : "bg-indigo-600/25 text-primary"} font-bold text-base relative group/avatar">
+        <a href="${isGuestProfile(user) ? `/login?next=${encodeURIComponent(activeRoute)}` : "/identity"}" data-rail-tip="${escapeHtml(displayLabel)}" data-rail-sub="${escapeHtml(displayRole)}" aria-label="${escapeHtml(displayLabel)} — ${escapeHtml(displayRole)}" class="w-11 h-11 ${activeSpace ? "rounded-2xl" : "rounded-full"} border-2 ${activeSpace ? "border-emerald-500/60 hover:border-emerald-400 shadow-lg shadow-emerald-500/20" : "border-outline-variant/30 hover:border-primary shadow-lg shadow-primary/10"} transition-all duration-300 cursor-pointer flex items-center justify-center ${activeSpace ? "bg-emerald-600/20 text-emerald-400" : "bg-primary/25 text-primary"} font-bold text-base relative group/avatar">
           <span>${displayAvatar}</span>
           <span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full ${activeSpace ? "bg-emerald-400" : "bg-emerald-500"} border-2 border-surface flex items-center justify-center text-[7px] font-bold text-surface-container-lowest">✓</span>
         </a>
@@ -731,8 +731,8 @@ export function renderUserSwitcherWidget(
             <span>Espaces & Équipes</span>
           </a>
 
-          <a href="/imperia" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-on-surface hover:bg-surface-variant/30 hover:text-indigo-400 transition">
-            <span class="material-symbols-outlined text-base text-indigo-400/80">account_balance</span>
+          <a href="/imperia" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-on-surface hover:bg-surface-variant/30 hover:text-primary transition">
+            <span class="material-symbols-outlined text-base text-primary/80">account_balance</span>
             <span>Sénat & Gouvernance Imperia</span>
           </a>
 
@@ -1000,7 +1000,7 @@ export function renderMobileCreateSheet(user?: UserProfile): string {
 
             <!-- Action 3: New Creation Portfolio -->
             <a href="/portfolio?admin=new" onclick="toggleMobileCreateSheet()" class="flex items-center gap-3 p-3 rounded-2xl bg-surface-container hover:bg-surface-variant/40 border border-outline-variant/15 transition text-left group">
-              <div class="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center text-lg shrink-0 group-hover:scale-105 transition-transform">
+              <div class="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center text-lg shrink-0 group-hover:scale-105 transition-transform">
                 🎨
               </div>
               <div class="min-w-0 flex-1">
@@ -1116,7 +1116,7 @@ export function renderMobileNotificationsSheet(user?: UserProfile): string {
 
             <!-- Notification 2 -->
             <a href="/imperia" onclick="toggleMobileNotificationsSheet()" class="flex items-start gap-3 p-3 rounded-2xl bg-surface-container/90 hover:bg-surface-variant/50 border border-outline-variant/20 transition group">
-              <div class="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-base shrink-0 mt-0.5">
+              <div class="w-9 h-9 rounded-xl bg-primary/20 text-primary flex items-center justify-center text-base shrink-0 mt-0.5">
                 🏛️
               </div>
               <div class="min-w-0 flex-1">
@@ -1218,7 +1218,7 @@ export function renderMobileBottomNav(
         <div class="flex flex-col items-center justify-center -translate-y-4">
           <button
             onclick="toggleMobileCreateSheet()"
-            class="w-13 h-13 rounded-2xl bg-gradient-to-tr from-primary via-indigo-500 to-secondary text-surface-container-lowest flex items-center justify-center shadow-xl shadow-primary/30 border-2 border-surface active:scale-90 hover:scale-105 transition-all duration-200 cursor-pointer group"
+            class="w-13 h-13 rounded-2xl bg-gradient-to-tr from-primary via-primary-hover to-secondary text-surface-container-lowest flex items-center justify-center shadow-xl shadow-primary/30 border-2 border-surface active:scale-90 hover:scale-105 transition-all duration-200 cursor-pointer group"
             title="Créer une publication ou ressource"
           >
             <span class="material-symbols-outlined text-2xl font-black group-hover:rotate-90 transition-transform">add</span>
@@ -1666,7 +1666,7 @@ export function renderBacAdminSafely(
         </div>
 
         <div class="p-5 rounded-2xl bg-surface-container/40 border border-outline-variant/15 space-y-2">
-          <div class="flex items-center gap-2 text-indigo-400 text-xs font-bold">
+          <div class="flex items-center gap-2 text-primary text-xs font-bold">
             <span class="material-symbols-outlined text-base">widgets</span>
             <span>Outils Intégrés</span>
           </div>

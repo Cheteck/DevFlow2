@@ -111,12 +111,16 @@ export function renderHeadBlock(
            scripts avec nonce). Mesurer FCP/LCP avant/après sur pages réelles. -->
       <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
       <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
       <script id="tailwind-config">
         tailwind.config = {
           darkMode: "class",
           theme: {
             extend: {
+              fontFamily: {
+                'sans': ['var(--font-sans)', 'system-ui', '-apple-system', 'sans-serif'],
+                'mono': ['var(--font-mono)', 'JetBrains Mono', 'ui-monospace', 'monospace'],
+              },
               colors: {
                 'primary': 'var(--color-primary)',
                 'primary-hover': 'var(--color-primary-hover)',
@@ -156,17 +160,12 @@ export function renderHeadBlock(
       </script>
       <style>
         ${sharedStylesHtml}
-        .glass-card {
-          background-color: ${bridgeMode === "light" ? "rgba(255, 255, 255, 0.7)" : "rgba(30, 41, 59, 0.4)"};
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          border: 1px solid ${bridgeMode === "light" ? "rgba(15, 23, 42, 0.08)" : "rgba(71, 85, 105, 0.2)"};
-          box-shadow: 0 4px 30px rgba(0, 0, 0, ${bridgeMode === "light" ? "0.05" : "0.1"});
-        }
+        /* NOTE: .glass-card canonical definition is in styles.css via --color-* tokens.
+           No RGBA overrides here — the Theme Manager controls all visual properties. */
         .glass-hover-glow:hover {
-          box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
-          border-color: rgba(139, 92, 246, 0.3);
-          transition: all 0.3s ease;
+          box-shadow: 0 0 20px color-mix(in srgb, var(--color-primary) 15%, transparent);
+          border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+          transition: all var(--mx-motion-durationNormal, 300ms) var(--mx-motion-easing, cubic-bezier(0.4, 0, 0.2, 1));
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

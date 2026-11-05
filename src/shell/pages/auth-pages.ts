@@ -317,20 +317,41 @@ const AUTH_CLIENT_RUNTIME = `<script>
     });
   }
 
-  // Gestion unifiée du thème sur les pages auth (zéro inline onclick)
+  // Gestion unifiée du thème sur les pages auth via le Theme Manager
+  var nativeSetTheme = window.setTheme;
+
   function applyTheme(mode) {
-    var html = document.documentElement;
-    html.setAttribute('data-theme-mode', mode);
-    html.classList.remove('dark');
-    if (mode === 'dark') html.classList.add('dark');
-    try { localStorage.setItem('mosaix_theme_mode', mode); } catch (e) {}
-    try { fetch('/api/theme?mode=' + mode, { method: 'POST' }); } catch (e) {}
-    updateThemeBtns(mode);
+    var valid = (mode === 'light' || mode === 'dark' || mode === 'system') ? mode : 'system';
+    if (typeof nativeSetTheme === 'function') {
+      nativeSetTheme(valid);
+    } else {
+      var html = document.documentElement;
+      var effective = valid;
+      if (valid === 'system') {
+        effective = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      }
+      html.setAttribute('data-theme-mode', valid);
+      html.setAttribute('data-resolved-mode', effective);
+      if (effective === 'dark') {
+        html.classList.add('dark');
+        html.classList.remove('light');
+      } else {
+        html.classList.remove('dark');
+        html.classList.add('light');
+      }
+      try { localStorage.setItem('mosaix_theme_mode', valid); } catch (e) {}
+      try { fetch('/api/theme?mode=' + valid, { method: 'POST' }); } catch (e) {}
+      window.dispatchEvent(new CustomEvent('mosaix:theme-changed', {
+        detail: { mode: valid, effectiveMode: effective }
+      }));
+    }
+    updateThemeBtns(valid);
   }
 
   function updateThemeBtns(mode) {
+    var activeMode = mode || document.documentElement.getAttribute('data-theme-mode') || 'system';
     document.querySelectorAll('[data-theme-btn]').forEach(function(b) {
-      var active = b.getAttribute('data-theme-btn') === mode;
+      var active = b.getAttribute('data-theme-btn') === activeMode;
       b.classList.toggle('bg-primary', active);
       b.classList.toggle('text-on-primary', active);
       b.classList.toggle('shadow-sm', active);
@@ -339,13 +360,19 @@ const AUTH_CLIENT_RUNTIME = `<script>
   }
 
   document.addEventListener('DOMContentLoaded', function() {
-    var mode = document.documentElement.getAttribute('data-theme-mode') || 'light';
+    var mode = document.documentElement.getAttribute('data-theme-mode') || 'system';
     updateThemeBtns(mode);
     document.querySelectorAll('[data-theme-btn]').forEach(function(btn) {
       btn.addEventListener('click', function() {
         applyTheme(this.getAttribute('data-theme-btn'));
       });
     });
+  });
+
+  window.addEventListener('mosaix:theme-changed', function(e) {
+    if (e && e.detail && e.detail.mode) {
+      updateThemeBtns(e.detail.mode);
+    }
   });
 
   window.setTheme = applyTheme;
@@ -383,6 +410,10 @@ function authTopHeader(): string {
           <button type="button" data-theme-btn="dark" aria-label="Mode Sombre" title="Mode Sombre" class="px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-on-surface-variant hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]">
             <span class="material-symbols-outlined text-base leading-none">dark_mode</span>
             <span class="text-[11px] font-medium hidden md:inline">Sombre</span>
+          </button>
+          <button type="button" data-theme-btn="system" aria-label="Mode Automatique" title="Mode Automatique" class="px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-on-surface-variant hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]">
+            <span class="material-symbols-outlined text-base leading-none">settings_brightness</span>
+            <span class="text-[11px] font-medium hidden md:inline">Auto</span>
           </button>
 
         </div>
@@ -886,8 +917,8 @@ export function renderRegisterPage(opts: AuthPageOptions): string {
       </div>
     </form>
 
-    <div id="register-success-view" class="hidden space-y-5 p-6 sm:p-8 rounded-3xl border text-center auth-banner-in glass-card" style="background:color-mix(in srgb, var(--color-success-container) 30%, var(--color-surface));border-color:color-mix(in srgb, var(--color-success) 30%, transparent);">
-      <div aria-hidden="true" class="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center text-success shadow-lg" style="background:color-mix(in srgb, var(--color-success) 16%, transparent);border:1px solid color-mix(in srgb, var(--color-success) 35%, transparent)">
+    <div id="register-success-view" class="hidden space-y-5 p-6 sm:p-8 rounded-3xl border border-success/30 bg-success-container/30 text-center auth-banner-in glass-card">
+      <div aria-hidden="true" class="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center text-success bg-success-container/50 border border-success/35 shadow-lg auth-success-icon">
         ${icon(ICON.check, "w-7 h-7", 2.5)}
       </div>
       <div class="space-y-2">
@@ -937,7 +968,7 @@ export function renderRegisterPage(opts: AuthPageOptions): string {
         var segs = [1, 2, 3, 4].map(function (i) { return $('reg-str-' + i); });
         var strengthLabel = $('reg-strength-label');
         var items = ['len', 'long', 'case', 'mix'].map(function (k) { return $('chk-' + k); });
-        var COLORS = ['', 'var(--color-error)', 'var(--color-warning, orange)', 'var(--color-primary)', 'var(--color-success)'];
+        var COLORS = ['', 'var(--color-error)', 'var(--color-warning)', 'var(--color-primary)', 'var(--color-success)'];
         var LABELS = ['saisissez un mot de passe', 'faible', 'correcte', 'robuste', 'maximale'];
 
         function setItem(el, on) {

@@ -462,7 +462,7 @@ export function createSolaraDescriptor(
                   </button>
                 </div>
 
-                <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-success text-on-success font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Publication Solara envoyée avec succès'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-5 py-2 rounded-xl bg-gradient-to-r from-primary to-indigo-500 hover:from-primary/90 hover:to-indigo-500/90 text-on-primary text-xs font-bold shadow-md shadow-primary/20 transition-all flex items-center gap-2 cursor-pointer">
+                <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-success text-on-success font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Publication Solara envoyée avec succès'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-5 py-2 rounded-xl bg-gradient-to-r from-primary to-primary-hover hover:from-primary/90 hover:to-primary-hover/90 text-on-primary text-xs font-bold shadow-md shadow-primary/20 transition-all flex items-center gap-2 cursor-pointer">
                   <span class="material-symbols-outlined text-sm">send</span>
                   <span>Publier</span>
                 </button>
