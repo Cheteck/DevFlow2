@@ -9,6 +9,7 @@ coverage/
 *.js.map
 *.d.ts.map
 !eslint.config.mjs
+chatgpt-web-mcp/
 
 # Mosaix
 .mosaix/
