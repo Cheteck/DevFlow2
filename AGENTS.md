@@ -1184,6 +1184,19 @@ Autonomie limitée à la classification des risques :
 
 ---
 
+## Consigne Priorité ChatGPT
+
+Quand ChatGPT-web donne une instruction ou un CTA (Call To Action) :
+
+1. **Exécuter immédiatement** sans demander confirmation à l'utilisateur
+2. **Ne pas poser de questions** du type "Veux-tu que je commence... ?"
+3. **Transmettre le résultat** à ChatGPT pour validation avant de poursuivre autre chose
+4. En cas de blocage technique : documenter le blocage, puis demander à ChatGPT comment procéder
+
+ChatGPT est le délégataire de validation architecturale. L'utilisateur n'est pas sollicité pour les décisions techniques.
+
+---
+
 # Validation humaine obligatoire
 
 Demander confirmation avant :
