@@ -81,7 +81,7 @@ export class PortfolioService {
   private static ALLOWED_WORKFLOW_TRANSITIONS: Partial<
     Record<WorkflowStatus, WorkflowStatus[]>
   > = {
-    Draft: ["In Review", "Draft"],
+    Draft: ["In Review", "Published", "Draft"],
     "In Review": ["Validated", "Draft"],
     Validated: ["Published", "Draft"],
     Published: ["Archived", "Draft"],
