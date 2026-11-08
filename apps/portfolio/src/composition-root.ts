@@ -10,10 +10,14 @@ import { PortfolioService } from "./domain/portfolio-service.js";
 import type { VendableRepository } from "./domain/vendable-repository.js";
 import { VendableWorkflow } from "./vendable-workflow.js";
 import { PostgresVendableRepository } from "./infrastructure/postgres-vendable-repository.js";
+import { PostgresProposalRepository } from "./infrastructure/postgres-proposal-repository.js";
+import type { ProposalRepository } from "./domain/proposal-repository.js";
 import {
   PortfolioController,
   mountPortfolioControllerRoutes,
 } from "./infrastructure/portfolio-controller.js";
+import { ProductWizardService } from "./domain/product-wizard.service.js";
+import { ProposalService } from "./domain/proposal-service.js";
 
 export interface PortfolioAppComposition {
   container: Container;
@@ -26,6 +30,8 @@ export interface PortfolioRouteDeps {
   portfolioService: PortfolioService;
   vendableRepository: VendableRepository;
   vendableWorkflow: VendableWorkflow;
+  productWizardService?: ProductWizardService;
+  proposalService?: ProposalService;
 }
 
 /**
@@ -42,6 +48,9 @@ export function mountPortfolioRoutes(
     deps.portfolioService,
     deps.vendableRepository,
     deps.vendableWorkflow,
+    // optional dependencies injected if available in deps (will be undefined otherwise)
+    (deps as any).productWizardService,
+    (deps as any).proposalService,
   );
   mountPortfolioControllerRoutes(router, controller);
 }
@@ -82,10 +91,35 @@ export function createPortfolioComposition(
   }
 
   const router = new Router();
+  const productWizardService = new ProductWizardService();
+  
+  let proposalRepository: ProposalRepository;
+  if (adapters.vendableRepository && (adapters.vendableRepository() as any).proposalRepository) {
+    // If a test double provides proposalRepository, use it
+    proposalRepository = (adapters.vendableRepository() as any).proposalRepository;
+  } else if (adapters.databasePort) {
+    proposalRepository = new PostgresProposalRepository(adapters.databasePort);
+  } else {
+    // In-memory fallback for tests
+    proposalRepository = {
+      findById: async () => null,
+      save: async () => {},
+      update: async () => {},
+      updateWithVersionCheck: async () => false,
+      findBySpace: async () => [],
+      findByStatus: async () => [],
+      listAll: async () => [],
+    };
+  }
+  
+  const proposalService = new ProposalService(proposalRepository, new PortfolioService(vendableRepository));
+
   mountPortfolioRoutes(router, {
     portfolioService: new PortfolioService(vendableRepository),
     vendableRepository,
     vendableWorkflow,
+    productWizardService,
+    proposalService,
   });
 
   return {

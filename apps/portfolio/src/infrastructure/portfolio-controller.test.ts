@@ -47,7 +47,8 @@ describe("PortfolioController HTTP Routes", () => {
       media: [],
       variants: [],
       relations: [],
-    });
+    }, "tenant_test");
+
 
     const res = await router.handle({
       method: "GET",
@@ -94,7 +95,7 @@ describe("PortfolioController HTTP Routes", () => {
       media: [],
       variants: [],
       relations: [],
-    });
+    }, "tenant_test");
 
     const res = await router.handle({
       method: "GET",
@@ -137,7 +138,7 @@ describe("PortfolioController HTTP Routes", () => {
       media: [],
       variants: [],
       relations: [],
-    });
+    }, "tenant_test");
 
     const res = await router.handle({
       method: "PUT",
@@ -165,7 +166,7 @@ describe("PortfolioController HTTP Routes", () => {
       media: [],
       variants: [],
       relations: [],
-    });
+    }, "tenant_test");
 
     const delRes = await router.handle({
       method: "DELETE",
@@ -201,7 +202,7 @@ describe("PortfolioController HTTP Routes", () => {
       media: [],
       variants: [],
       relations: [],
-    });
+    }, "tenant_test");
 
     const res = await router.handle({
       method: "POST",
@@ -235,7 +236,7 @@ describe("PortfolioController HTTP Routes", () => {
       media: [{ id: "m1", type: "image", url: "https://example.com/img.jpg" }],
       variants: [],
       relations: [],
-    });
+    }, "tenant_test");
 
     const res = await router.handle({
       method: "POST",

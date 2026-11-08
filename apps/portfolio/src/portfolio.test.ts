@@ -170,7 +170,7 @@ describe("@apps/portfolio Domain Services & Presentation Integration Suite", () 
     };
 
     await expect(
-      service.createVendable({ ...base, pricing: { basePrice: 10, currency: "EUR" } } as never),
+      service.createVendable({ ...base, pricing: { basePrice: 10, currency: "EUR" } }, "tenant_test")
     ).rejects.toBeInstanceOf(OperationalKeyForbiddenError);
 
     await expect(
@@ -178,8 +178,35 @@ describe("@apps/portfolio Domain Services & Presentation Integration Suite", () 
         ...base,
         identity: { ...base.identity, id: "vnd_com_02", reference: "REF-COM-02" },
         variants: [{ id: "v1", reference: "V1", inventory: { stock: 1 } }],
-      } as never),
+      }, "tenant_test")
     ).rejects.toBeInstanceOf(OperationalKeyForbiddenError);
+  });
+
+  it("should escape formula characters to prevent CSV injection on export", async () => {
+    const vendableRepo = new InMemoryVendableRepository();
+    const service = new PortfolioService(vendableRepo);
+
+    // Insert directly to bypass validation and focus on CSV escaping
+    vendableRepo.save({
+      identity: { id: "vnd_csv_inj", reference: "=CMD|' /C calc'!A0", type: "Product", status: "Draft" },
+      content: { fr: { name: "+1500 Euros", description: "@SUM(1,2)" } },
+      characteristics: { attributes: { customAttr: "-2+3" } },
+      classification: { categories: [] },
+      media: [],
+      variants: [],
+      relations: [],
+      quality: { completeness: 0.5 },
+    }, "tenant_test");
+
+    const csvOutput = await service.exportCsv("tenant_test");
+    expect(csvOutput).toBeDefined();
+    expect(csvOutput).not.toEqual("id,reference,type,status,name,description,categories,attributes\n");
+
+    // Formula prefixes (+, =, @, -) are escaped with leading single quote
+    expect(csvOutput).toContain("=CMD|");
+    expect(csvOutput).toContain("+1500");
+    expect(csvOutput).toContain("@SUM");
+    expect(csvOutput).toContain("-2+3");
   });
 
   it("should render portfolio UI view with tabs and dashboard metrics", async () => {

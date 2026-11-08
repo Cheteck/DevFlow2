@@ -16,6 +16,7 @@ import type { ProposalRepository } from "./domain/proposal-repository.js";
 import { PostgresProposalRepository } from "./infrastructure/postgres-proposal-repository.js";
 import { VendableWorkflow } from "./vendable-workflow.js";
 import { mountPortfolioRoutes } from "./composition-root.js";
+import { ProductWizardService } from "./domain/product-wizard.service.js";
 import {
   registerPortfolioApplication,
   type VendableCreatedPayload,
@@ -103,6 +104,7 @@ export class PortfolioServiceProvider {
       ProposalService,
       new ProposalService(proposalRepository, container.resolve(PortfolioService)),
     );
+    container.instance(ProductWizardService, new ProductWizardService());
   }
 
   async boot(container: Container, router: Router): Promise<MosaixApp> {
@@ -121,6 +123,8 @@ export class PortfolioServiceProvider {
     const portfolioService = container.resolve(PortfolioService);
     const vendableWorkflow = container.resolve(VendableWorkflow);
     const vendableRepository = container.resolve<VendableRepository>("vendableRepository");
+    const productWizardService = container.resolve(ProductWizardService);
+    const proposalService = container.resolve(ProposalService);
 
     registerPortfolioApplication(app);
 
@@ -168,7 +172,7 @@ export class PortfolioServiceProvider {
     });
 
     // Single route source: legacy composition-root mounts here (no string dup).
-    mountPortfolioRoutes(router, { portfolioService, vendableRepository, vendableWorkflow });
+    mountPortfolioRoutes(router, { portfolioService, vendableRepository, vendableWorkflow, productWizardService, proposalService });
 
     return app;
   }

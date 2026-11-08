@@ -214,43 +214,45 @@ function canonicalizeVendable(vendable: Vendable): Vendable {
 export class PostgresVendableRepository implements VendableRepository {
   constructor(private readonly db: DatabasePort) {}
 
-  async save(vendable: Vendable): Promise<void> {
+  async save(vendable: Vendable, tenantId: string): Promise<void> {
     const canonical = canonicalizeVendable(vendable);
     await this.db.transaction(async (tx) => {
-      await this.upsertHead(tx, canonical);
+      await this.upsertHead(tx, canonical, tenantId);
       await this.deleteChildren(tx, canonical.identity.id);
       await this.insertChildren(tx, canonical);
     });
   }
 
-  async findById(id: string): Promise<Vendable | undefined> {
-    const found = await this.loadMany([id]);
+  async findById(id: string, tenantId: string): Promise<Vendable | undefined> {
+    const found = await this.loadMany([id], tenantId);
     return found[0];
   }
 
   async findByReference(
     reference: string,
+    tenantId: string,
   ): Promise<Vendable | undefined> {
     const rows = await this.db.query<{ id: string }>(
-      `SELECT id FROM ${VENDABLES_TABLE} WHERE reference = $1`,
-      [reference],
+      `SELECT id FROM ${VENDABLES_TABLE} WHERE reference = $1 AND tenant_id = $2`,
+      [reference, tenantId],
     );
     const id = rows[0]?.id;
     if (!id) return undefined;
-    return this.findById(id);
+    return this.findById(id, tenantId);
   }
 
-  async findAll(): Promise<Vendable[]> {
+  async findAll(tenantId: string): Promise<Vendable[]> {
     const rows = await this.db.query<{ id: string }>(
-      `SELECT id FROM ${VENDABLES_TABLE}`,
+      `SELECT id FROM ${VENDABLES_TABLE} WHERE tenant_id = $1`,
+      [tenantId],
     );
-    return this.loadMany(rows.map((r) => r.id));
+    return this.loadMany(rows.map((r) => r.id), tenantId);
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, tenantId: string): Promise<void> {
     await this.db.transaction(async (tx) => {
       await this.deleteChildren(tx, id);
-      await tx.execute(`DELETE FROM ${VENDABLES_TABLE} WHERE id = $1`, [id]);
+      await tx.execute(`DELETE FROM ${VENDABLES_TABLE} WHERE id = $1 AND tenant_id = $2`, [id, tenantId]);
     });
   }
 
@@ -259,14 +261,15 @@ export class PostgresVendableRepository implements VendableRepository {
   private async upsertHead(
     tx: DatabaseConnection,
     vendable: Vendable,
+    tenantId: string,
   ): Promise<void> {
     const now = new Date().toISOString();
     await tx.execute(
-      `INSERT INTO ${VENDABLES_TABLE} (id, reference, type, status, slug, "metaTitle", "metaDesc", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO ${VENDABLES_TABLE} (id, reference, type, status, slug, "metaTitle", "metaDesc", tenant_id, "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (id) DO UPDATE SET
          reference = $2, type = $3, status = $4, slug = $5,
-         "metaTitle" = $6, "metaDesc" = $7, "updatedAt" = $9`,
+         "metaTitle" = $6, "metaDesc" = $7, tenant_id = $8, "updatedAt" = $10`,
       [
         vendable.identity.id,
         vendable.identity.reference,
@@ -275,6 +278,7 @@ export class PostgresVendableRepository implements VendableRepository {
         vendable.seo?.slug ?? null,
         vendable.seo?.metaTitle ?? null,
         vendable.seo?.metaDesc ?? null,
+        tenantId,
         now,
         now,
       ],
@@ -685,12 +689,12 @@ export class PostgresVendableRepository implements VendableRepository {
 
   // ---------- read path ----------
 
-  private async loadMany(ids: string[]): Promise<Vendable[]> {
+  private async loadMany(ids: string[], tenantId: string): Promise<Vendable[]> {
     const out: Vendable[] = [];
     for (const id of ids) {
       const head = await this.db.query<Record<string, unknown>>(
-        `SELECT id, reference, type, status, slug, "metaTitle", "metaDesc" FROM ${VENDABLES_TABLE} WHERE id = $1`,
-        [id],
+        `SELECT id, reference, type, status, slug, "metaTitle", "metaDesc" FROM ${VENDABLES_TABLE} WHERE id = $1 AND tenant_id = $2`,
+        [id, tenantId],
       );
       const row = head[0];
       if (!row) continue;

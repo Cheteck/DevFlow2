@@ -14,6 +14,7 @@ const PROPOSALS_TABLE = `"portfolio"."proposals"`;
 const COLUMNS = [
   '"id"',
   '"spaceId"',
+  '"tenant_id"',
   '"proposerUserId"',
   '"suggestedReference"',
   '"type"',
@@ -63,67 +64,92 @@ function asJson<T>(value: unknown, fallback: T): T {
 export class PostgresProposalRepository implements ProposalRepository {
   constructor(private readonly db: DatabasePort) {}
 
-  async save(proposal: Proposal): Promise<void> {
-    const placeholders = Array.from({ length: 26 }, (_, i) => `$${i + 1}`).join(", ");
+  async save(proposal: Proposal, tenantId: string): Promise<void> {
+    const placeholders = Array.from({ length: 27 }, (_, i) => `$${i + 1}`).join(", ");
     await this.db.execute(
       `INSERT INTO ${PROPOSALS_TABLE} (${COLUMNS}) VALUES (${placeholders})`,
-      this.toRow(proposal),
+      this.toRow(proposal, tenantId),
     );
   }
 
-  async update(proposal: Proposal): Promise<void> {
-    const values = this.toRow(proposal);
+  async update(proposal: Proposal, tenantId: string): Promise<void> {
+    const values = this.toRow(proposal, tenantId);
     await this.db.execute(
       `UPDATE ${PROPOSALS_TABLE} SET
-        "spaceId" = $2, "proposerUserId" = $3, "suggestedReference" = $4, "type" = $5,
-        "status" = $6, "content" = $7, "classification" = $8, "characteristics" = $9,
-        "features" = $10, "variants" = $11, "media" = $12, "translations" = $13,
-        "platformFeedback" = $14, "rejectionReason" = $15, "reviewedBy" = $16,
-        "reviewStartedAt" = $17, "vendableId" = $18, "submittedAt" = $19,
-        "reviewedAt" = $20, "createdAt" = $21, "updatedAt" = $22,
-        "approvedTerms" = $23, "approvedOfferId" = $24, "idempotencyKey" = $25,
-        "auditTrail" = $26
-       WHERE "id" = $1`,
+        "spaceId" = $2, "tenant_id" = $3, "proposerUserId" = $4, "suggestedReference" = $5, "type" = $6,
+        "status" = $7, "content" = $8, "classification" = $9, "characteristics" = $10,
+        "features" = $11, "variants" = $12, "media" = $13, "translations" = $14,
+        "platformFeedback" = $15, "rejectionReason" = $16, "reviewedBy" = $17,
+        "reviewStartedAt" = $18, "vendableId" = $19, "submittedAt" = $20,
+        "reviewedAt" = $21, "createdAt" = $22, "updatedAt" = $23,
+        "approvedTerms" = $24, "approvedOfferId" = $25, "idempotencyKey" = $26,
+        "auditTrail" = $27
+       WHERE "id" = $1 AND "tenant_id" = $3`,
       values,
     );
   }
 
-  async findById(id: string): Promise<Proposal | null> {
+  async updateWithVersionCheck(
+    proposal: Proposal,
+    versionField: { name: string; expectedValue: string },
+    tenantId: string,
+  ): Promise<boolean> {
+    const values = this.toRow(proposal, tenantId);
+    const versionCol = `"${versionField.name}"`;
+    const res = await this.db.execute(
+      `UPDATE ${PROPOSALS_TABLE} SET
+        "spaceId" = $2, "tenant_id" = $3, "proposerUserId" = $4, "suggestedReference" = $5, "type" = $6,
+        "status" = $7, "content" = $8, "classification" = $9, "characteristics" = $10,
+        "features" = $11, "variants" = $12, "media" = $13, "translations" = $14,
+        "platformFeedback" = $15, "rejectionReason" = $16, "reviewedBy" = $17,
+        "reviewStartedAt" = $18, "vendableId" = $19, "submittedAt" = $20,
+        "reviewedAt" = $21, "createdAt" = $22, "updatedAt" = $23,
+        "approvedTerms" = $24, "approvedOfferId" = $25, "idempotencyKey" = $26,
+        "auditTrail" = $27
+       WHERE "id" = $1 AND "tenant_id" = $3 AND ${versionCol} = $28 RETURNING "id"`,
+      [...values, versionField.expectedValue],
+    );
+    return res > 0;
+  }
+
+  async findById(id: string, tenantId: string): Promise<Proposal | null> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT ${COLUMNS} FROM ${PROPOSALS_TABLE} WHERE "id" = $1`,
-      [id],
+      `SELECT ${COLUMNS} FROM ${PROPOSALS_TABLE} WHERE "id" = $1 AND "tenant_id" = $2`,
+      [id, tenantId],
     );
     const row = rows[0];
     return row ? this.hydrate(row) : null;
   }
 
-  async findBySpace(spaceId: string): Promise<Proposal[]> {
+  async findBySpace(spaceId: string, tenantId: string): Promise<Proposal[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT ${COLUMNS} FROM ${PROPOSALS_TABLE} WHERE "spaceId" = $1`,
-      [spaceId],
+      `SELECT ${COLUMNS} FROM ${PROPOSALS_TABLE} WHERE "spaceId" = $1 AND "tenant_id" = $2`,
+      [spaceId, tenantId],
     );
     return rows.map((row) => this.hydrate(row));
   }
 
-  async findByStatus(status: ProposalStatus): Promise<Proposal[]> {
+  async findByStatus(status: ProposalStatus, tenantId: string): Promise<Proposal[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT ${COLUMNS} FROM ${PROPOSALS_TABLE} WHERE "status" = $1`,
-      [status],
+      `SELECT ${COLUMNS} FROM ${PROPOSALS_TABLE} WHERE "status" = $1 AND "tenant_id" = $2`,
+      [status, tenantId],
     );
     return rows.map((row) => this.hydrate(row));
   }
 
-  async listAll(): Promise<Proposal[]> {
+  async listAll(tenantId: string): Promise<Proposal[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT ${COLUMNS} FROM ${PROPOSALS_TABLE}`,
+      `SELECT ${COLUMNS} FROM ${PROPOSALS_TABLE} WHERE "tenant_id" = $1`,
+      [tenantId],
     );
     return rows.map((row) => this.hydrate(row));
   }
 
-  private toRow(proposal: Proposal): unknown[] {
+  private toRow(proposal: Proposal, tenantId: string): unknown[] {
     return [
       proposal.id,
       proposal.spaceId,
+      tenantId,
       proposal.proposerUserId,
       proposal.suggestedReference,
       proposal.type,
