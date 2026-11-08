@@ -302,6 +302,10 @@ export class PortfolioController extends Controller {
   async searchVendables(req: HttpRequest): Promise<HttpResponse> {
     try {
       await this.guard.authorize(toUserContext(req), SEARCH);
+      const principal = req.principal;
+      if (!principal) {
+        return this.badRequest("Unauthorized");
+      }
       const body = (req.body ?? {}) as Partial<SearchCriteria>;
       const MAX_LIMIT = 100;
       const rawLimit = typeof body.limit === "number" ? body.limit : 50;
@@ -321,7 +325,7 @@ export class PortfolioController extends Controller {
         criteria.attribute = body.attribute as { key: string; value?: unknown };
       }
 
-      const results = await this.portfolioService.search(criteria);
+      const results = await this.portfolioService.search(criteria, principal.tenantId);
       return this.json({ results, total: results.length });
     } catch (err) {
       return this.denialOrError(err);
@@ -388,7 +392,8 @@ export class PortfolioController extends Controller {
       if (!body.csv || typeof body.csv !== "string") {
         return this.badRequest("Missing csv content");
       }
-      const report = await this.portfolioService.importCsv(body.csv);
+      const tenantId = req.principal?.tenantId ?? "tenant_default";
+      const report = await this.portfolioService.importCsv(body.csv, tenantId);
       return this.json({
         imported: report.imported,
         failed: report.failed,

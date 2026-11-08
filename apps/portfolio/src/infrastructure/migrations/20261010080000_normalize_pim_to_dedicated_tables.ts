@@ -322,21 +322,16 @@ export const migration: Migration = {
   down: sqlDown,
   checksum: computeChecksum(sqlContent),
   resources: [
+    // v1.005_normalize_pim CREER des tables dediees (tags, vendable_tags,
+    // translation_keywords, vendable_categories, variation_groups,
+    // variation_group_features) et MODIFIE des tables existantes
+    // (vendables, translations, categories, media_assets, variants, features,
+    // feature_groups, feature_variants, vendable_features, variant_features).
+    // Seul v1.003_move_to_schema CREATE table:portfolio.vendables et les autres
+    // tables portefeuille. Declarer les tables modifiees ici provoquerait des
+    // collisions (R9) avec v1.003. On garde seulement les tables CREEES.
     "table:portfolio.tags",
     "table:portfolio.vendable_tags",
     "table:portfolio.translation_keywords",
-    "table:portfolio.vendables",
-    "table:portfolio.translations",
-    "table:portfolio.categories",
-    "table:portfolio.vendable_categories",
-    "table:portfolio.media_assets",
-    "table:portfolio.variants",
-    "table:portfolio.features",
-    "table:portfolio.feature_groups",
-    "table:portfolio.feature_variants",
-    "table:portfolio.vendable_features",
-    "table:portfolio.variant_features",
-    "table:portfolio.variation_groups",
-    "table:portfolio.variation_group_features",
   ],
 };

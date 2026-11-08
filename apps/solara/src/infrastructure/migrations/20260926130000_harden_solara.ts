@@ -127,11 +127,9 @@ export const migration: Migration = {
   down: sqlDown,
   checksum: computeChecksum(sqlContent),
   resources: [
-    "table:solara.reactions",
-    "table:solara.followers",
-    "table:solara.translations",
-    "table:solara.posts",
-    "table:solara.comments",
-    "table:solara.categories",
+    // v1.003_harden_social AJOUTE des contraintes/index a des tables existantes
+    // (reactions, followers, translations, posts, comments, categories),
+    // elle n'en CREATE aucune. Seul v1.002_move_to_schema CREATE ces tables.
+    // ressources vides = aucune table creee par cette migration.
   ],
 };

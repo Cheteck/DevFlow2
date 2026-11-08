@@ -49,8 +49,8 @@ export const migration: Migration = {
   down: sqlDown,
   checksum: computeChecksum(sqlContent),
   resources: [
-    "table:portfolio.features",
-    "table:portfolio.vendable_features",
-    "table:portfolio.vendable_tags",
+    // v1.006_normalize_pim_fixes MODIFIE des tables existantes (UPDATE features,
+    // UPDATE vendable_features, INSERT vendable_tags), elle n'en CREATE aucune.
+    // ressources vides = aucune table creee par cette migration.
   ],
 };

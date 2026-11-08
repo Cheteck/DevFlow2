@@ -1,0 +1,10 @@
+{
+  "name": "@mosaix/adapter-otp-rate-limiter",
+  "version": "0.1.0",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "dependencies": {
+    "@mosaix/otp": "*",
+    "@mosaix/ports-cache": "*"
+  }
+}

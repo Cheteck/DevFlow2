@@ -10,4 +10,10 @@ export interface CryptoPort {
   verify(data: string | Buffer, signature: Buffer, publicKey: string): Promise<boolean>;
   randomBytes(length: number): Buffer;
   verifyPassword(password: string, expectedHash: string, salt?: string): Promise<boolean>;
+  /**
+   * Constant-time comparison to prevent timing attacks.
+   * Returns false if lengths differ (without throwing).
+   * Safe for comparing HMAC digests, password hashes, or OTP codes.
+   */
+  timingSafeEqual(a: string | Buffer, b: string | Buffer): boolean;
 }

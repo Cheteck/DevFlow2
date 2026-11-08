@@ -46,5 +46,10 @@ export const migration: Migration = {
   content: sqlContent,
   down: sqlDown,
   checksum: computeChecksum(sqlContent),
-  resources: ["table:commerce.orders"],
+  resources: [
+    // v1.004_order_pending_payment MODIFIE commerce.orders (ajoute une contrainte CHECK),
+    // elle n'en CREATE pas la table. Seul v1.002_move_to_schema CREATE table:commerce.orders.
+    // Declarer table:commerce.orders ici provoquerait une collision (R9) avec v1.002.
+    // Ressources vides = aucune table creee par cette migration.
+  ],
 };

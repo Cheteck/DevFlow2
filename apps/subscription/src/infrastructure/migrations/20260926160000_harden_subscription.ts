@@ -72,8 +72,8 @@ export const migration: Migration = {
   down: sqlDown,
   checksum: computeChecksum(sqlContent),
   resources: [
-    "table:subscription.coupons",
-    "table:subscription.invoices",
-    "table:subscription.metering_buckets",
+    // v1.003_harden_billing MODIFIE des tables existantes (coupons, invoices,
+    // metering_buckets), elle n'en CREATE aucune. Seul v1.002_move_to_schema
+    // CREATE ces tables. ressources vides = aucune table creee.
   ],
 };

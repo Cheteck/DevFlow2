@@ -32,5 +32,10 @@ export const migration: Migration = {
   content: sqlContent,
   down: sqlDown,
   checksum: computeChecksum(sqlContent),
-  resources: ["table:portfolio.proposals"],
+  resources: [
+    // v1.007_approval_fields AJOUTE des colonnes a portfolio.proposals
+    // (ALTER TABLE ADD COLUMN), elle n'en CREATE pas la table.
+    // Seul v1.002_create_proposals CREATE table:portfolio.proposals.
+    // ressources vides = aucune table creee par cette migration.
+  ],
 };

@@ -88,6 +88,11 @@ export class Router {
     return this;
   }
 
+  patch(path: string, handler: RouteHandler): this {
+    this.routes.push({ method: "PATCH", path, handler });
+    return this;
+  }
+
   getRoutes(): ReadonlyArray<RouteDefinition> {
     return this.routes;
   }

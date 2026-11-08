@@ -168,18 +168,11 @@ export const migration: Migration = {
   down: sqlDown,
   checksum: computeChecksum(sqlContent),
   resources: [
-    "table:portfolio.categories",
-    "table:portfolio.relations",
-    "table:portfolio.feature_variants",
-    "table:portfolio.vendable_features",
-    "table:portfolio.variant_features",
-    "table:portfolio.variation_groups",
-    "table:portfolio.variation_group_features",
-    "table:portfolio.proposals",
-    "table:portfolio.media_assets",
-    "table:portfolio.features",
-    "table:portfolio.translations",
-    "table:portfolio.variants",
-    "table:portfolio.vendables",
+    // v1.004_harden_data_integrity MODIFIE des tables existantes (ajout contraintes,
+    // indexes, colonnes, drop defaults, alter types), elle n'en CREATE aucune.
+    // Toutes ces tables sont creees par v1.001_create_portfolio_tables,
+    // v1.002_create_proposals ou v1.003_move_to_schema.
+    // Declarer ces ressources ici provoquerait des collisions (R9) avec les
+    // migrations de creation. Ressources vides = aucune table creee par cette migration.
   ],
 };

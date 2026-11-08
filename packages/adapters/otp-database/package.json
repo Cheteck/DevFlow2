@@ -1,0 +1,12 @@
+{
+  "name": "@mosaix/adapter-otp-database",
+  "version": "0.1.0",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "@mosaix/otp": "*",
+    "@mosaix/ports-database": "*"
+  }
+}

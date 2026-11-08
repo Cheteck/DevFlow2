@@ -412,8 +412,8 @@ export class PortfolioService {
   /**
    * Search vendables by criteria.
    */
-  async search(criteria: SearchCriteria): Promise<Vendable[]> {
-    const all = await this.repository.findAll();
+  async search(criteria: SearchCriteria, tenantId: string): Promise<Vendable[]> {
+    const all = await this.repository.findAll(tenantId);
     const filtered = all.filter((v) => {
       if (criteria.id !== undefined && v.identity.id !== criteria.id)
         return false;
@@ -636,7 +636,7 @@ export class PortfolioService {
    * Returns a report with imported count and per-line failures.
    * Partial import: successful rows are committed, failures are reported.
    */
-  async importCsv(csvContent: string): Promise<CsvImportReport> {
+  async importCsv(csvContent: string, tenantId: string): Promise<CsvImportReport> {
     const lines = csvContent.trim().split("\n");
     const report: CsvImportReport = { imported: 0, failed: [] };
 
@@ -677,8 +677,8 @@ export class PortfolioService {
           ? (statusStr as WorkflowStatus)
           : "Draft";
 
-        // Check for duplicate reference before import
-        const existingByRef = await this.repository.findByReference(reference);
+        // Check for duplicate reference before import (tenant-scoped)
+        const existingByRef = await this.repository.findByReference(reference, tenantId);
         if (existingByRef) {
           report.failed.push({ line: lineNum, reference, reason: `Référence dupliquée : ${reference}` });
           continue;
@@ -724,11 +724,12 @@ export class PortfolioService {
           relations: [],
         };
 
-        await this.createVendable(vendable);
+        await this.createVendable(vendable, tenantId);
         report.imported++;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        report.failed.push({ line: lineNum, reference: reference || undefined, reason: message });
+        const reference = parts?.[1] || undefined;
+        report.failed.push({ line: lineNum, reference, reason: message });
       }
     }
 

@@ -1714,6 +1714,49 @@ importers:
         specifier: ^3.0.0
         version: 3.2.7(@types/node@25.9.7)(tsx@4.23.13)
 
+  packages/otp:
+    dependencies:
+      '@mosaix/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@mosaix/ports-cache':
+        specifier: workspace:*
+        version: link:../ports/cache
+      '@mosaix/ports-clock':
+        specifier: workspace:*
+        version: link:../ports/clock
+      '@mosaix/ports-config':
+        specifier: workspace:*
+        version: link:../ports/config
+      '@mosaix/ports-crypto':
+        specifier: workspace:*
+        version: link:../ports/crypto
+      '@mosaix/ports-database':
+        specifier: workspace:*
+        version: link:../ports/database
+      '@mosaix/ports-email':
+        specifier: workspace:*
+        version: link:../ports/email
+      '@mosaix/ports-id':
+        specifier: workspace:*
+        version: link:../ports/id
+      '@mosaix/ports-logging':
+        specifier: workspace:*
+        version: link:../ports/logging
+      '@mosaix/ports-secrets':
+        specifier: workspace:*
+        version: link:../ports/secrets
+      '@mosaix/ports-sms':
+        specifier: workspace:*
+        version: link:../ports/sms
+      '@mosaix/ports-whatsapp':
+        specifier: workspace:*
+        version: link:../ports/whatsapp
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   packages/pipeline:
     devDependencies:
       '@types/node':
@@ -1879,11 +1922,23 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  packages/ports/sms:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   packages/ports/storage: {}
 
   packages/ports/token-store: {}
 
   packages/ports/tracing: {}
+
+  packages/ports/whatsapp:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
 
   packages/schemas:
     dependencies:

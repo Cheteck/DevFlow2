@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "../../.mosaix/build/packages/otp",
+    "rootDir": "../..",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "tsBuildInfoFile": "../../.mosaix/build/packages/otp/.tsbuildinfo",
+    "paths": {
+      "@mosaix/ports-crypto": ["../../packages/ports/crypto/src"],
+      "@mosaix/ports-clock": ["../../packages/ports/clock/src"],
+      "@mosaix/ports-id": ["../../packages/ports/id/src"],
+      "@mosaix/ports-secrets": ["../../packages/ports/secrets/src"],
+      "@mosaix/ports-logging": ["../../packages/ports/logging/src"],
+      "@mosaix/ports-config": ["../../packages/ports/config/src"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"],
+
+}

@@ -95,11 +95,10 @@ export const migration: Migration = {
   down: sqlDown,
   checksum: computeChecksum(sqlContent),
   resources: [
-    "table:spaces.roles",
-    "table:spaces.permission_overrides",
-    "table:spaces.spaces",
-    "table:spaces.acting_as_audit_events",
-    "table:spaces.role_audit_events",
-    "table:spaces.space_members",
+    // v1.003_harden_spaces AJOUTE des contraintes/index a des tables existantes
+    // (roles, permission_overrides, spaces, acting_as_audit_events,
+    // role_audit_events, space_members), elle n'en CREATE aucune.
+    // Seul v1.002_move_to_spaces_schema CREATE ces tables.
+    // ressources vides = aucune table creee par cette migration.
   ],
 };

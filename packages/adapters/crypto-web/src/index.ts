@@ -160,6 +160,21 @@ export class WebCryptoAdapter implements CryptoPort {
     return hash === expectedHash;
   }
 
+  timingSafeEqual(a: string | Buffer, b: string | Buffer): boolean {
+    const bufA = typeof a === "string" ? new TextEncoder().encode(a) : new Uint8Array(a);
+    const bufB = typeof b === "string" ? new TextEncoder().encode(b) : new Uint8Array(b);
+    if (bufA.length !== bufB.length) {
+      return false;
+    }
+    // Web Crypto n'a pas de timingSafeEqual native, on implémente une comparaison constante
+    // en accumulant les différences via XOR sans early return
+    let diff = 0;
+    for (let i = 0; i < bufA.length; i++) {
+      diff |= bufA[i] ^ bufB[i];
+    }
+    return diff === 0;
+  }
+
   private async importPrivateKey(pem: string): Promise<CryptoKey> {
     const binaryDer = new Uint8Array(this.pemToBinary(pem, "PRIVATE KEY"));
     return await this.subtle.importKey(
