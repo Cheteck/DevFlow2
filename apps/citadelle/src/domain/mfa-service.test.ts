@@ -303,7 +303,7 @@ describe("MfaService", () => {
     ).rejects.toThrow(MfaError);
   });
 
-  it("verifies a recovery code", async () => {
+  it("verifies and consumes a recovery code", async () => {
     const user = new User("user-1", "alice@example.com", "Alice");
     userRepository.addUser(user);
 
