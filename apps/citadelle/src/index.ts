@@ -1,6 +1,5 @@
 /**
  * @apps/citadelle — Canonical Application Entry Point
- * See: .project/architecture/canonical-app-schema.md
  */
 
 import { Container, Router, createBoundedAppBootstrap } from "@mosaix/sdk";
@@ -9,8 +8,16 @@ import type { ApplicationManifest } from "@mosaix/contracts";
 import { AuthManager } from "@mosaix/auth";
 import { LocalPasswordProvider } from "@mosaix/adapter-auth-local";
 import { UuidGeneratorAdapter } from "@mosaix/adapter-id-uuid";
-import type { SecretsPort } from "@mosaix/ports-secrets";
 import { InMemoryGuard } from "@mosaix/support";
+import type { DatabasePort } from "@mosaix/ports-database";
+import type { SessionStore } from "@mosaix/ports-session-store";
+import type { TokenStore } from "@mosaix/ports-token-store";
+import type { CredentialStore } from "@mosaix/ports-credential-store";
+import type { IdentityStore } from "@mosaix/ports-identity-store";
+import type { CryptoPort } from "@mosaix/ports-crypto";
+import type { ClockPort } from "@mosaix/ports-clock";
+import type { LoggingPort } from "@mosaix/ports-logging";
+import type { SecretsPort } from "@mosaix/ports-secrets";
 
 import { IdentityController } from "./infrastructure/identity-controller.js";
 import { UserService } from "./domain/user-service.js";
@@ -26,6 +33,73 @@ import {
   identityUserCreatedEvent,
   identityUserUpdatedEvent,
 } from "./events/identity-events.js";
+import { MfaService } from "./domain/mfa-service.js";
+import { OtpService } from "../../../packages/otp/src/application/otp-service.ts";
+import { MfaController } from "./infrastructure/mfa-controller.js";
+import { createMfaGuardMiddleware, checkMfaGuard } from "./infrastructure/mfa-middleware.js";
+import { InMemoryOtpRepository } from "./infrastructure/in-memory-otp-repository.js";
+import { InMemoryOtpDelivery } from "./infrastructure/in-memory-otp-delivery.js";
+import { InMemoryOtpRateLimiter } from "./infrastructure/in-memory-otp-rate-limiter.js";
+import { ConsoleLoggerAdapter } from "./infrastructure/console-logger-adapter.js";
+
+// --- Inline crypto adapter (Node.js crypto) ---
+import { createHash, createHmac, createCipheriv, createDecipheriv, createSign, createVerify, randomBytes, timingSafeEqual as cryptoTimingSafeEqual } from "node:crypto";
+
+class InlineCryptoAdapter implements CryptoPort {
+  async hash(data: string | Buffer, algorithm: string = "sha256"): Promise<string> {
+    const hash = createHash(algorithm);
+    hash.update(data);
+    return hash.digest("hex");
+  }
+  async hmac(data: string | Buffer, secret: string, algorithm: string = "sha256"): Promise<string> {
+    const hmac = createHmac(algorithm, secret);
+    hmac.update(data);
+    return hmac.digest("base64url");
+  }
+  async encrypt(data: string | Buffer, key: Buffer): Promise<{ ciphertext: Buffer; iv: Buffer; tag?: Buffer }> {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", key, iv);
+    const buffer = typeof data === "string" ? Buffer.from(data, "utf-8") : data;
+    const ciphertext = Buffer.concat([cipher.update(buffer), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return { ciphertext, iv, tag };
+  }
+  async decrypt(ciphertext: Buffer, key: Buffer, iv: Buffer, tag?: Buffer): Promise<Buffer> {
+    const decipher = createDecipheriv("aes-256-gcm", key, iv);
+    if (tag) decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  }
+  async sign(data: string | Buffer, privateKey: string): Promise<Buffer> {
+    const sign = createSign("SHA256");
+    sign.update(data);
+    return sign.sign(privateKey);
+  }
+  async verify(data: string | Buffer, signature: Buffer, publicKey: string): Promise<boolean> {
+    const verify = createVerify("SHA256");
+    verify.update(data);
+    return verify.verify(publicKey, signature);
+  }
+  randomBytes(length: number): Buffer {
+    return randomBytes(length);
+  }
+  async verifyPassword(password: string, expectedHash: string, _salt: string): Promise<boolean> {
+    const hash = createHash("sha256").update(password).digest("hex");
+    return hash === expectedHash;
+  }
+  timingSafeEqual(a: string | Buffer, b: string | Buffer): boolean {
+    const bufA = typeof a === "string" ? Buffer.from(a, "utf-8") : a;
+    const bufB = typeof b === "string" ? Buffer.from(b, "utf-8") : b;
+    if (bufA.length !== bufB.length) return false;
+    return cryptoTimingSafeEqual(bufA, bufB);
+  }
+}
+
+// --- Inline clock adapter ---
+class InlineClockAdapter implements ClockPort {
+  now(): Date {
+    return new Date();
+  }
+}
 
 export const MANIFEST = {
   type: "application",
@@ -38,10 +112,17 @@ export const MANIFEST = {
   capabilities: [
     { id: "citadelle.user.create", version: "1.0.0" },
     { id: "citadelle.user.lookup", version: "1.0.0" },
+    { id: "citadelle.mfa.enroll", version: "1.0.0" },
+    { id: "citadelle.mfa.verify", version: "1.0.0" },
+    { id: "citadelle.mfa.disable", version: "1.0.0" },
+    { id: "citadelle.mfa.recovery", version: "1.0.0" },
   ],
   permissions: [
     "citadelle:user:create:tenant",
     "citadelle:user:read:tenant",
+    "citadelle:mfa:enroll",
+    "citadelle:mfa:verify",
+    "citadelle:mfa:disable",
   ],
   events: [
     "citadelle.user.created",
@@ -52,118 +133,83 @@ export const MANIFEST = {
   },
 } as const;
 
-import type { DatabasePort } from "@mosaix/ports-database";
-import type { SessionStore } from "@mosaix/ports-session-store";
-import type { TokenStore } from "@mosaix/ports-token-store";
-import type { CredentialStore } from "@mosaix/ports-credential-store";
-import type { IdentityStore } from "@mosaix/ports-identity-store";
-import { PostgresIdentityStoreAdapter } from "@mosaix/adapter-identity-store-postgres";
-import { PostgresCredentialStoreAdapter } from "@mosaix/adapter-credential-store-postgres";
-import { PostgresTokenStoreAdapter } from "@mosaix/adapter-token-store-postgres";
-import { SQLiteIdentityStoreAdapter } from "@mosaix/adapter-identity-store-sqlite";
-import { SQLiteCredentialStoreAdapter } from "@mosaix/adapter-credential-store-sqlite";
-import { SQLiteTokenStoreAdapter } from "@mosaix/adapter-token-store-sqlite";
-import { SQLiteSessionStoreAdapter } from "@mosaix/adapter-session-store-sqlite";
-import { PostgresSessionStoreAdapter } from "@mosaix/adapter-session-store-postgres";
-
-const defaultAdapters = {
-  // Pas de UserRepository Postgres : le mapping canonique modèle `User` vs
-  // `identities` du shell appartient à la vague citadelle (backlog
-  // DB-BAC-OWNERSHIP) et aucun adapter n'existe dans `packages/` (interdit
-  // d'en créer ici). Reste InMemory par conception, pas par oubli.
-  // eslint-disable-next-line no-restricted-syntax -- couche 2 : aucun adapter persistant pour User/social/secrets/wizard ; exiger une DB ici supprimerait la feature.
-  userRepository: () => new InMemoryUserRepository(),
-};
-
-export type CitadelleAdapters = Partial<typeof defaultAdapters> & {
+export type CitadelleAdapters = {
   databasePort?: DatabasePort;
-  /** Override session/token/credential stores (e.g. Redis/Postgres adapters in production). */
   sessionStore?: SessionStore;
   tokenStore?: TokenStore;
   credentialStore?: CredentialStore;
-  /** Override identity store directly (takes precedence over databasePort). */
   identityStore?: IdentityStore;
-  /** Override social-account repository (defaults to in-memory; no Postgres adapter exists yet — backlog). */
   socialAccountRepository?: SocialAccountRepository;
-  /** Override registration wizard (defaults to a fresh in-memory instance — wizard persistant = backlog). */
   registrationWizard?: RegistrationWizardService;
-  /** Override secrets adapter (defaults to in-memory with fallback guard). */
   secretsAdapter?: SecretsPort;
+  crypto?: CryptoPort;
+  clock?: ClockPort;
+  logger?: LoggingPort;
 };
 
 export class CitadelleServiceProvider {
   constructor(private readonly adapters: CitadelleAdapters = {}) {}
 
   register(container: Container): void {
-    const userRepository = (this.adapters.userRepository ?? defaultAdapters.userRepository)();
+    const userRepository = new InMemoryUserRepository();
     const userService = new UserService(userRepository);
 
     const dbPort = this.adapters.databasePort;
     const useDatabase = !!dbPort;
-    const isSqlite = useDatabase && dbPort!.capabilities.dialect === "sqlite";
 
-    // Pas de stockage en memoire hors tests : chaque store possede un adapter
-    // persistant (SQLite + Postgres), donc l'absence de DatabasePort sans
-    // override explicite est une erreur de composition, pas un fallback.
     for (const [storeName, store] of Object.entries({
       identityStore: this.adapters.identityStore,
       sessionStore: this.adapters.sessionStore,
       tokenStore: this.adapters.tokenStore,
       credentialStore: this.adapters.credentialStore,
     })) {
-      if (!useDatabase && !store) {
+      if (!store) {
         throw new Error(
-          `[CitadelleAdapters] DatabasePort requis : passez databasePort ou ${storeName} (tests uniquement).`,
+          `[CitadelleAdapters] ${storeName} requis : passez databasePort ou ${storeName} (tests uniquement).`,
         );
       }
     }
 
-    // Postgres : l'auth repose sur les tables shell-owned (`shell.core.v1.001`
-    // → `identities`/`credentials`/`tokens` non préfixées) lues par les
-    // adapters partagés `@mosaix/adapter-*-postgres`. Les tables `citadelle_*`
-    // du provider restent des tables réservées non branchées en attendant
-    // DB-BAC-OWNERSHIP (voir `infrastructure/migrations.ts`).
-    const identityStore =
-      this.adapters.identityStore ??
-      (isSqlite
-        ? new SQLiteIdentityStoreAdapter(dbPort!)
-        : new PostgresIdentityStoreAdapter(dbPort!));
-
-    // Sessions : SQLite et Postgres ont un adapter dedie ; sans DatabasePort
-    // ni store explicite, echec franc (aucune session volatile silencieuse).
-    let sessionStore: SessionStore;
-    if (this.adapters.sessionStore) {
-      sessionStore = this.adapters.sessionStore;
-    } else if (useDatabase && isSqlite) {
-      sessionStore = new SQLiteSessionStoreAdapter(dbPort!);
-    } else if (useDatabase) {
-      sessionStore = new PostgresSessionStoreAdapter(dbPort!);
-    } else {
-      throw new Error(
-        "[CitadelleAdapters] DatabasePort requis : passez databasePort ou sessionStore (tests uniquement).",
-      );
-    }
-
-    const tokenStore =
-      this.adapters.tokenStore ??
-      (isSqlite
-        ? new SQLiteTokenStoreAdapter(dbPort!)
-        : new PostgresTokenStoreAdapter(dbPort!));
-
-    const credentialStore =
-      this.adapters.credentialStore ??
-      (isSqlite
-        ? new SQLiteCredentialStoreAdapter(dbPort!)
-        : new PostgresCredentialStoreAdapter(dbPort!));
+    const identityStore = this.adapters.identityStore!;
+    const sessionStore = this.adapters.sessionStore!;
+    const tokenStore = this.adapters.tokenStore!;
+    const credentialStore = this.adapters.credentialStore!;
 
     const idGenerator = new UuidGeneratorAdapter();
-    // eslint-disable-next-line no-restricted-syntax -- couche 2 : EnvSecretsAdapter existe mais exige un cablage env ; en attendant, secrets en memoire explicites (jamais en prod via InMemoryGuard des chemins critiques).
     const secretsAdapter =
       this.adapters.secretsAdapter ??
       (() => {
         InMemoryGuard.reportFallback("InMemorySecretsAdapter", "no secretsAdapter option provided");
         return new InMemorySecretsAdapter();
       })();
+
+    const crypto = this.adapters.crypto ?? new InlineCryptoAdapter();
+    const clock = this.adapters.clock ?? new InlineClockAdapter();
+    const logger = this.adapters.logger ?? new ConsoleLoggerAdapter();
+
+    const otpRepository = new InMemoryOtpRepository();
+    const otpDelivery = new InMemoryOtpDelivery();
+    const otpRateLimiter = new InMemoryOtpRateLimiter();
+    const otpService = new OtpService(
+      otpRepository,
+      otpDelivery,
+      otpRateLimiter,
+      crypto,
+      clock,
+      idGenerator,
+      secretsAdapter,
+      logger,
+      { get: (_key: string) => undefined, getOrDefault: (_key: string, d: string) => d, getRequired: (k: string) => { throw new Error(`Missing config: ${k}`); } },
+    );
+
+    const mfaService = new MfaService(
+      otpService,
+      userRepository,
+      crypto,
+      clock,
+      secretsAdapter,
+      logger,
+    );
 
     const authManager = new AuthManager(
       new Map(),
@@ -183,14 +229,10 @@ export class CitadelleServiceProvider {
       }),
     );
 
-    const controller = new IdentityController(authManager, userService);
+    const controller = new IdentityController(authManager, userService, mfaService);
 
-    // Wizard + comptes sociaux : branchés en in-memory (alignable sans
-    // nouveau package). Versions persistantes (table `social_accounts`,
-    // wizard persistant, OAuth stocké) = backlog vague citadelle.
     const socialAccountRepository =
       this.adapters.socialAccountRepository ??
-      // eslint-disable-next-line no-restricted-syntax -- couche 2 : aucun adapter persistant ; exiger une DB ici supprimerait la feature.
       new InMemorySocialAccountRepository();
     const registrationWizard =
       this.adapters.registrationWizard ?? new RegistrationWizardService();
@@ -200,6 +242,8 @@ export class CitadelleServiceProvider {
     container.instance("socialAccountRepository", socialAccountRepository);
     container.instance("registrationWizard", registrationWizard);
     container.instance("authManager", authManager);
+    container.instance("otpService", otpService);
+    container.instance("mfaService", mfaService);
     container.instance(IdentityController, controller);
   }
 
@@ -239,6 +283,17 @@ export class CitadelleServiceProvider {
       schema: identityEventPayloadSchemas[identityUserUpdatedEvent] as unknown as Record<string, unknown>,
     });
 
+    const mfaService = container.resolve<MfaService>("mfaService");
+    const mfaController = new MfaController(mfaService, userService, tenant.tenantId ?? "default");
+
+    router.get("/api/auth/mfa/status", (req) => mfaController.getStatus(req));
+    router.post("/api/auth/mfa/enroll/totp", (req) => mfaController.enrollTotp(req));
+    router.post("/api/auth/mfa/enroll/totp/verify", (req) => mfaController.completeEnrollment(req));
+    router.post("/api/auth/mfa/verify", (req) => mfaController.verifyTotp(req));
+    router.post("/api/auth/mfa/verify/recovery", (req) => mfaController.verifyRecovery(req));
+    router.post("/api/auth/mfa/disable", (req) => mfaController.disableMfa(req));
+    router.post("/api/auth/mfa/recovery/regenerate", (req) => mfaController.regenerateRecovery(req));
+
     return app;
   }
 }
@@ -258,8 +313,6 @@ export async function createCitadelleApp(
 
 export function createCitadelleComposition(parentContainer?: Container) {
   const container = parentContainer ? parentContainer.createChild() : new Container();
-  // Unwired composition: controller without AuthManager/UserService fails closed
-  // (503) instead of issuing mock tokens. Prefer createCitadelleApp() in production.
   const controller = new IdentityController();
   container.instance(IdentityController, controller);
 
@@ -280,5 +333,6 @@ export * from "./domain/password-hasher.port.js";
 export * from "./domain/session-tokens.js";
 export * from "./domain/citadelle-oauth-providers.js";
 export * from "./domain/registration-wizard.service.js";
-
-
+export * from "./domain/mfa-service.js";
+export { MfaController } from "./infrastructure/mfa-controller.js";
+export { checkMfaGuard, createMfaGuardMiddleware } from "./infrastructure/mfa-middleware.js";

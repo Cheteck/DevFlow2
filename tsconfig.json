@@ -9,7 +9,23 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "baseUrl": ".",
+    "paths": {
+      "@mosaix/otp": ["./packages/otp/src/index.ts"],
+      "@mosaix/otp/*": ["./packages/otp/src/*"],
+      "@mosaix/ports-crypto": ["./packages/ports/crypto/src/index.ts"],
+      "@mosaix/ports-clock": ["./packages/ports/clock/src/index.ts"],
+      "@mosaix/ports-logging": ["./packages/ports/logging/src/index.ts"],
+      "@mosaix/ports-secrets": ["./packages/ports/secrets/src/index.ts"],
+      "@mosaix/ports-id": ["./packages/ports/id/src/index.ts"],
+      "@mosaix/ports-config": ["./packages/ports/config/src/index.ts"],
+      "@mosaix/ports-cache": ["./packages/ports/cache/src/index.ts"],
+      "@mosaix/adapter-crypto-node": ["./packages/adapters/crypto-node/src/index.ts"],
+      "@mosaix/adapter-clock-system": ["./packages/adapters/clock-system/src/index.ts"],
+      "@mosaix/adapter-id-uuid": ["./packages/adapters/id-uuid/src/index.ts"]
+    }
   },
   "include": [
     "src/**/*.ts",

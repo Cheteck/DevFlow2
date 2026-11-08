@@ -18,6 +18,9 @@ export type { OtpChannel } from "./domain/otp-channel.js";
 export type { OtpRecord } from "./domain/otp-record.js";
 export type { OtpPolicy } from "./domain/otp-policy.js";
 export { DEFAULT_OTP_POLICY } from "./domain/otp-policy.js";
+// TOTP (RFC 6238)
+export type { TotpConfig, TotpCodeResult, TotpProvisioningUri, TotpVerifyResult } from "./domain/totp.js";
+export { DEFAULT_TOTP_CONFIG, generateTotpSecret, base32Encode, base32Decode, generateTotpCode, verifyTotpCode, generateProvisioningUri } from "./domain/totp.js";
 
 // Ports
 export type {
@@ -32,3 +35,6 @@ export type {
   OtpDeliveryResult,
 } from "./ports/otp-delivery-port.js";
 export type { OtpRateLimiterPort } from "./ports/otp-rate-limiter-port.js";
+
+// Application
+export { OtpService } from "./application/otp-service";

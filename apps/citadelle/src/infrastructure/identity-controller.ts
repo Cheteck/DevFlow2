@@ -1,5 +1,6 @@
 import type { AuthManager } from "@mosaix/auth";
 import type { UserService } from "../domain/user-service.js";
+import type { MfaService } from "../domain/mfa-service.js";
 
 export interface HttpRequest {
   method?: string;
@@ -18,6 +19,7 @@ export class IdentityController {
   constructor(
     private readonly authManager?: AuthManager,
     private readonly userService?: UserService,
+    private readonly mfaService?: MfaService,
   ) {}
 
   async handleLogin(req: HttpRequest): Promise<HttpResponse> {
@@ -37,6 +39,29 @@ export class IdentityController {
       if (!result || result.status !== "authenticated") {
         return { statusCode: 401, body: { error: "Invalid credentials" } };
       }
+
+      // Get the authenticated user ID from the principal/session
+      const userId = result.principal?.identityId || result.session?.identityId;
+      const tenantId = result.session?.tenantId || "default";
+
+      // If MFA is enabled for this user, require MFA verification before granting full session
+      if (this.mfaService && userId) {
+        const isMfaEnabled = await this.mfaService.isMfaEnabled(userId);
+        if (isMfaEnabled) {
+          // Return 2FA_REQUIRED - client must verify TOTP before getting full session
+          return {
+            statusCode: 200,
+            body: {
+              mfaRequired: true,
+              mfaChallengeId: result.session?.id,
+              message: "Authentification multifactorielle requise",
+              userId,
+              tenantId,
+            },
+          };
+        }
+      }
+
       return {
         statusCode: 200,
         body: {
