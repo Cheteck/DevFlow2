@@ -200,6 +200,26 @@ export function renderCommandCenter(
   const enabled = options?.forceColor ?? colorsEnabled();
   const width = Math.max(60, Math.min(options?.width ?? 100, 220));
   const height = Math.max(15, Math.min(options?.height ?? 40, 90));
+
+  // Mode vue orientée : early-return avant le calcul de layout (8 passes d'ajustement évitées)
+  const activeView = viewManager.getActiveView();
+  if (activeView) {
+    const lines: string[] = [];
+    lines.push(...headerBar(snapshot, width, enabled, activeView));
+    lines.push("");
+    const viewLines = renderViewByName(
+      activeView,
+      snapshot,
+      width,
+      enabled,
+      height,
+    );
+    lines.push(...viewLines);
+    lines.push("");
+    lines.push(...statusBar(filters, width, enabled));
+    return lines.join("\n");
+  }
+
   const layout = computeLayout(width, height);
   const widths = columnWidths(
     width,
@@ -244,26 +264,9 @@ export function renderCommandCenter(
 
   // Mode vue orientée : afficher une vue plein écran avec header + statusbar
   // (contexte système conservé, raccourcis toujours visibles)
-  const activeView = viewManager.getActiveView();
-  if (activeView) {
-    const lines: string[] = [];
-    lines.push(...headerBar(snapshot, width, enabled, activeView));
-    lines.push("");
-    const viewLines = renderViewByName(
-      activeView,
-      snapshot,
-      width,
-      enabled,
-    );
-    lines.push(...viewLines);
-    lines.push("");
-    lines.push(...statusBar(filters, width, enabled));
-    return lines.join("\n");
-  }
-
+const tallest = Math.max(...columns.map((c) => c.length));
   const lines: string[] = [];
   lines.push(...headerBar(snapshot, width, enabled, activeView));
-  const tallest = Math.max(...columns.map((c) => c.length));
   const gutter = paint("│", ANSI.grey, enabled);
   for (let i = 0; i < tallest; i++) {
     lines.push(
@@ -291,6 +294,7 @@ export function renderViewByName(
   snapshot: CommandCenterSnapshot,
   width: number,
   enabled: boolean,
+  height?: number,
 ): string[] {
   switch (viewName) {
     case "dashboard":
@@ -298,7 +302,7 @@ export function renderViewByName(
     case "processes":
       return renderProcessesPanel(snapshot, width, enabled);
     case "logs":
-      return renderLogsPanel(snapshot, width, enabled);
+      return renderLogsPanel(snapshot, width, enabled, height);
     case "diagnostics":
       return renderDiagnosticsPanel(snapshot, width, enabled);
     case "environment":

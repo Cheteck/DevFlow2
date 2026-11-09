@@ -8,7 +8,6 @@ import type { CommandCenterSnapshot } from "../supervisor-types.js";
 import { formatClock, formatDuration } from "../format.js";
 import { ANSI, paint } from "../theme.js";
 import { panel } from "../cockpit.js";
-import { ViewRenderer } from "./view-types.js";
 
 export function renderSessionsPanel(
   snapshot: CommandCenterSnapshot,

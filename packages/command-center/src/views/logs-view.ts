@@ -8,12 +8,12 @@ import type { CommandCenterSnapshot } from "../supervisor-types.js";
 import { formatClock } from "../format.js";
 import { ANSI, paint } from "../theme.js";
 import { panel } from "../cockpit.js";
-import { ViewRenderer } from "./view-types.js";
 
 export function renderLogsPanel(
   snapshot: CommandCenterSnapshot,
   width: number,
-  enabled: boolean
+  enabled: boolean,
+  height?: number,
 ): string[] {
   const body: string[] = [];
 
@@ -26,8 +26,9 @@ export function renderLogsPanel(
     return panel("LOG EXPLORER", ANSI.blue, body, width, enabled);
   }
 
-  // Afficher les 10 derniers logs
-  const recent = logs.slice(-10);
+  // Nombre de lignes adaptatif à la hauteur du terminal
+  const maxLines = Math.max(5, (height ?? 40) - 8);
+  const recent = logs.slice(-maxLines);
   for (const l of recent) {
     const levelColor =
       l.level === "error"

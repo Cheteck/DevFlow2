@@ -1191,6 +1191,9 @@ export class DevSupervisor {
     this.mcp.markDisposed();
     this.bus.emit("SYSTEM", "Shutdown complete — no orphan processes");
     if (!process.env.VITEST && !process.env.MOSAIX_DEV_NO_EXIT) {
+      // Délai de 100 ms pour permettre au terminal d'afficher le dernier frame
+      // avant la sortie. unref() pour ne pas bloquer une fin naturelle du
+      // processus si tous les handles sont déjà fermés.
       setTimeout(() => process.exit(0), 100).unref();
     }
   }
