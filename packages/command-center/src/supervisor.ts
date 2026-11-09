@@ -13,6 +13,8 @@
  * - non-TTY / CI / NO_COLOR falls back to plain prefixed text output.
  */
 import * as readline from "node:readline";
+import * as path from "node:path";
+import { FileLogger } from "@mosaix/core";
 import type {
   CommandCenterSnapshot,
   EventCategory,
@@ -98,6 +100,8 @@ export class DevSupervisor {
   private mcpDrainedBytes = 0;
   private lastCpu: NodeJS.CpuUsage | null = null;
   private lastCpuAt: number | null = null;
+  /** File logger persistant les logs du dev server sur disque. */
+  private readonly fileLogger: FileLogger;
   private keypressHandler:
     | ((
         _chunk: Buffer,
@@ -112,6 +116,10 @@ export class DevSupervisor {
     );
     this.bus = new EventBus(this.history_);
     this.tracker = new RestartTracker(opts.cycleBufferSize ?? 20);
+    this.fileLogger = new FileLogger("info", { component: "DevSupervisor" }, {
+      logDir: path.join(opts.root, ".mosaix", "logs"),
+      fileName: "dev-server.log",
+    });
 
     const readinessTimeoutMs = opts.readinessTimeoutMs ?? 25_000;
     const shutdownTimeoutMs = opts.shutdownTimeoutMs ?? 5000;
@@ -128,8 +136,10 @@ export class DevSupervisor {
       shutdownTimeoutMs,
       onEvent: (category, message, level, payload) =>
         this.emit(category, message, level, payload),
-      onLog: (service, stream, text, level) =>
-        this.history_.pushLog(service, stream, text, level),
+      onLog: (service, stream, text, level) => {
+        this.history_.pushLog(service, stream, text, level);
+        this.fileLogger.info(text, { service, stream, level });
+      },
     });
     this.mcp = new ManagedProcess({
       name: "mcp",
@@ -143,8 +153,10 @@ export class DevSupervisor {
       isolateStdout: true,
       onEvent: (category, message, level, payload) =>
         this.emit(category, message, level, payload),
-      onLog: (service, stream, text, level) =>
-        this.history_.pushLog(service, stream, text, level),
+      onLog: (service, stream, text, level) => {
+        this.history_.pushLog(service, stream, text, level);
+        this.fileLogger.info(text, { service, stream, level });
+      },
       onStdoutDrained: (bytes) => {
         this.mcpDrainedBytes += bytes;
       },
