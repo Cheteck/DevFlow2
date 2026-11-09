@@ -1148,13 +1148,11 @@ export class DevSupervisor {
       width,
       height,
     });
-    // Effacer l'écran et repositionner le curseur en haut à gauche
-    // (guardé par vtSupported() pour ne pas polluer PowerShell avec des séquences VT brutes)
-    if (vtSupported()) {
-      process.stdout.write("\x1b[2J\x1b[H" + lines + "\n");
-    } else {
-      process.stdout.write("\n--- MOSAIX // COMMAND CENTER ---\n" + lines + "\n");
-    }
+    // Toujours effacer l'écran avant de réafficher, sinon les frames
+    // s'empilent (problème visible sous Windows PowerShell).
+    // \x1b[2J = effacer l'écran, \x1b[H = curseur en haut à gauche.
+    // Supporté par PowerShell 5.1+ et tous les terminaux modernes.
+    process.stdout.write("\x1b[2J\x1b[H" + lines + "\n");
   }
 
   private installSignals(): void {
