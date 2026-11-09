@@ -112,7 +112,14 @@ export class DevSupervisor {
         key?: { name?: string; ctrl?: boolean; sequence?: string },
       ) => void)
     | null = null;
-
+  /** Gestion du clavier : mode "raw" (TTY interactif) ou "line" (non-TTY). */
+  private keyboardMode: "raw" | "line" | "disabled" = "disabled";
+  /** Initialisation du clavier déja effectuée ? */
+  private keyboardInitialized = false;
+  /** Interface readline pour le mode non-TTY (commandes suivies d'Entrée). */
+  private keyboardInterface: readline.Interface | null = null;
+  /** Ancien état de rawMode pour restauration. */
+  private previousRawMode = false;
   constructor(private readonly opts: SupervisorOptions) {
     this.history_ = new EventHistory(
       opts.eventBufferSize ?? 300,
@@ -655,30 +662,117 @@ export class DevSupervisor {
     * terminaux, y compris Windows PowerShell où stdout n'est pas un TTY.
    */
   private setupKeyboard(): void {
-    readline.emitKeypressEvents(process.stdin);
-    if (process.stdin.isTTY) {
-      try {
-        process.stdin.setRawMode(true);
-      } catch {
-        /* non-raw fallback */
+    if (this.keyboardInitialized) {
+      return;
+    }
+
+    const stdin = process.stdin;
+    this.keyboardInitialized = true;
+
+    // Mode interactif : réception immédiate des touches (stdin est un TTY)
+    if (stdin.isTTY === true && typeof stdin.setRawMode === "function") {
+      this.keyboardMode = "raw";
+      this.previousRawMode = stdin.isRaw;
+
+      // Initialiser le handler une seule fois (défensif contre les appels multiples)
+      if (!this.keypressHandler) {
+        this.keypressHandler = (
+          _chunk: Buffer,
+          key?: { name?: string; ctrl?: boolean; sequence?: string },
+        ) => {
+          void _chunk;
+          if (!key) return;
+          if (key.ctrl && key.name === "c") {
+            void this.shutdown("SIGINT");
+            return;
+          }
+          this.handleKey(key.name ?? key.sequence ?? "", Boolean(key.ctrl));
+        };
+      }
+
+      readline.emitKeypressEvents(stdin);
+      stdin.setRawMode(true);
+      stdin.on("keypress", this.keypressHandler);
+      stdin.resume();
+      return;
+    }
+
+    // Mode non interactif : commandes suivies d'Entrée
+    if (!stdin.isTTY) {
+      this.keyboardMode = "line";
+      this.keyboardInterface = readline.createInterface({
+        input: stdin,
+        terminal: false,
+      });
+      this.keyboardInterface.on("line", (line: string) => {
+        this.handleCommand(line.trim());
+      });
+      return;
+    }
+
+    this.keyboardMode = "disabled";
+  }
+
+  /**
+   * Gestion d'une commande textuelle saisie au clavier (mode non-TTY).
+   * Les commandes doivent être suivies d'Entrée.
+   */
+  private handleCommand(command: string): void {
+    const normalized = command.toLowerCase();
+
+    if (/^[1-6]$/.test(normalized)) {
+      this.handleKey(normalized, false);
+      return;
+    }
+
+    if (normalized === "ctrl+k") {
+      this.handleKey("k", true);
+      return;
+    }
+
+    if (normalized === "tab") {
+      this.handleKey("tab", false);
+      return;
+    }
+
+    if (["r", "s", "a", "q"].includes(normalized)) {
+      this.handleKey(normalized, false);
+      return;
+    }
+
+    if (normalized.length > 0) {
+      this.emit("SYSTEM", "Commande inconnue: " + command);
+    }
+  }
+
+  /**
+   * Nettoie le clavier et restaure le terminal à son état initial.
+   */
+  private cleanupKeyboard(): void {
+    if (!this.keyboardInitialized) {
+      return;
+    }
+
+    const stdin = process.stdin;
+
+    if (this.keyboardMode === "raw") {
+      if (this.keypressHandler) {
+        stdin.removeListener("keypress", this.keypressHandler);
+      }
+
+      if (stdin.isTTY && typeof stdin.setRawMode === "function") {
+        stdin.setRawMode(this.previousRawMode);
       }
     }
-    process.stdin.resume();
-    if (!this.keypressHandler) {
-      this.keypressHandler = (
-        _chunk: Buffer,
-        key?: { name?: string; ctrl?: boolean; sequence?: string },
-      ) => {
-        void _chunk;
-        if (!key) return;
-        if (key.ctrl && key.name === "c") {
-          void this.shutdown("SIGINT");
-          return;
-        }
-        this.handleKey(key.name ?? key.sequence ?? "", Boolean(key.ctrl));
-      };
-      process.stdin.on("keypress", this.keypressHandler);
+
+    if (this.keyboardMode === "line") {
+      this.keyboardInterface?.close();
+      this.keyboardInterface = null;
     }
+
+    this.keypressHandler = null;
+    this.keyboardMode = "disabled";
+    this.keyboardInitialized = false;
   }
 
   /**
@@ -997,18 +1091,12 @@ export class DevSupervisor {
     this.shuttingDown = true;
     this.restartToken += 1;
     this.bus.emit("SYSTEM", `Shutting down (${signal}) — stopping services`);
+    // Nettoyage du clavier (raw + line) avant de fermer les services.
+    this.cleanupKeyboard();
     // Full renderer + listener teardown: one heartbeat, one keypress
     // subscription, one resize subscription (renderer-owned), cursor shown.
     if (this.heartbeat) clearInterval(this.heartbeat);
     this.heartbeat = null;
-    if (this.keypressHandler) {
-      try {
-        process.stdin.off("keypress", this.keypressHandler);
-      } catch {
-        /* already removed */
-      }
-      this.keypressHandler = null;
-    }
     this.screen?.dispose();
     this.screen = null;
     try {
