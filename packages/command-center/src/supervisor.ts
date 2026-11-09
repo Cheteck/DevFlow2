@@ -120,6 +120,8 @@ export class DevSupervisor {
   private keyboardInterface: readline.Interface | null = null;
   /** Ancien état de rawMode pour restauration. */
   private previousRawMode = false;
+  /** Dernière frame rendue en mode non-TTY (déduplication heartbeat). */
+  private lastRenderedFrame = "";
   constructor(private readonly opts: SupervisorOptions) {
     this.history_ = new EventHistory(
       opts.eventBufferSize ?? 300,
@@ -1148,11 +1150,25 @@ export class DevSupervisor {
       width,
       height,
     });
-    // Toujours effacer l'écran avant de réafficher, sinon les frames
-    // s'empilent (problème visible sous Windows PowerShell).
-    // \x1b[2J = effacer l'écran, \x1b[H = curseur en haut à gauche.
-    // Supporté par PowerShell 5.1+ et tous les terminaux modernes.
-    process.stdout.write("\x1b[2J\x1b[H" + lines + "\n");
+
+    // Déduplication : ne réécrire que si le contenu a changé.
+    // Évite le re-rendu incessant du heartbeat quand l'état est stable.
+    const frame = lines;
+    if (frame === this.lastRenderedFrame) {
+      return;
+    }
+    this.lastRenderedFrame = frame;
+
+    // Effacer l'écran avant de réafficher, sinon les frames s'empilent.
+    // Utilise les API Node.js natives (plus robustes que les séquences VT brutes
+    // sur certains terminaux Windows PowerShell) avec fallback VT.
+    try {
+      process.stdout.cursorTo(0, 0);
+      process.stdout.clearScreenDown();
+    } catch {
+      /* ignore, fallback VT ci-dessous */
+    }
+    process.stdout.write("\x1b[2J\x1b[H" + frame + "\n");
   }
 
   private installSignals(): void {
