@@ -23,6 +23,9 @@ export type ServiceState =
   | "CRASHED"
   | "FAILED";
 
+/** Disponibilité réelle du service (découplée de l'état du processus OS). */
+export type ReadinessState = "PENDING" | "READY" | "TIMEOUT" | "UNKNOWN";
+
 export type EventCategory =
   "SYSTEM" | "WATCH" | "API" | "MCP" | "RESTART" | "DIAG";
 
@@ -61,6 +64,8 @@ export interface ServiceSnapshot {
   lastError: string | null;
   lastBootMs: number | null;
   readiness: string;
+  /** État de disponibilité réel (découplé de l'état du processus OS). */
+  readinessState: ReadinessState;
   /** Concise startup-failure summary (e.g. "port 3000 in use (EADDRINUSE)"). Null when none observed. */
   startupFailure: string | null;
 }

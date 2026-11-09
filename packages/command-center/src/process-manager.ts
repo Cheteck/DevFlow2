@@ -15,10 +15,10 @@ import { spawn, type ChildProcess } from "node:child_process";
 import type {
   EventLevel,
   LogStream,
+  ReadinessState,
   ServiceName,
   ServiceState,
-} from "./supervisor-types.js";
-import { redactSecrets } from "./secret-guard.js";
+} from "./supervisor-types.js";import { redactSecrets } from "./secret-guard.js";
 
 export interface ReadinessSpec {
   /** Log line proving the service accepts work (e.g. /listening on/i). */
@@ -91,6 +91,7 @@ export class ManagedProcess {
   private readonly backoffMax: number;
   private readonly backoffInitial: number;
   private restartMarks: number[] = [];
+  private readinessState: ReadinessState = "PENDING";
   private disposed = false;
   private readyResolve: (() => void) | null = null;
   private readyTimer: NodeJS.Timeout | null = null;
@@ -148,10 +149,18 @@ export class ManagedProcess {
 
   /** Honest readiness label: READY only when a real signal confirmed it. */
   readinessLabel(): string {
-    if (this.state === "READY") return "confirmed";
-    if (this.state === "FAILED") return "startup failed";
-    if (this.opts.readiness?.pattern) return "awaiting log signal";
-    return "readiness unknown (no probe)";
+    switch (this.readinessState) {
+      case "READY":
+        return "confirmed";
+      case "TIMEOUT":
+        return "timeout (not ready)";
+      case "UNKNOWN":
+        return "unknown (no probe)";
+      case "PENDING":
+        return this.opts.readiness?.pattern
+          ? "awaiting log signal"
+          : "unknown (no probe)";
+    }
   }
 
   /** Concise startup-failure summary, if a boot failure was observed. */
@@ -170,6 +179,7 @@ export class ManagedProcess {
     this.spawnFailed = false;
     this.failureSummary = null;
     this.state = "STARTING";
+    this.readinessState = "PENDING";
     this.startTime = Date.now();
     this.readyAt = null;
     const tag = this.name === "api" ? "API" : "MCP";
@@ -253,9 +263,12 @@ export class ManagedProcess {
     });
     child.on("exit", (code, signal) => this.handleExit(code, signal));
 
-    // No readiness pattern (MCP stdio) => RUNNING as soon as spawned.
+    // No readiness pattern (MCP stdio) => RUNNING, readiness UNKNOWN.
     if (!this.opts.readiness?.pattern) {
-      if (this.state === "STARTING") this.state = "RUNNING";
+      if (this.state === "STARTING") {
+        this.state = "RUNNING";
+        this.readinessState = "UNKNOWN";
+      }
     } else {
       const timeout =
         this.opts.readinessTimeoutMs ??
@@ -264,9 +277,10 @@ export class ManagedProcess {
       this.readyTimer = setTimeout(() => {
         if (this.state === "STARTING") {
           this.state = "RUNNING";
+          this.readinessState = "TIMEOUT";
           this.opts.onEvent(
             tag,
-            "Readiness not confirmed within budget — marked RUNNING (not READY)",
+            "Readiness not confirmed within budget — process alive but NOT ready",
             "warn",
           );
         }
@@ -313,6 +327,7 @@ export class ManagedProcess {
     if (pattern.test(text)) {
       this.readyAt = Date.now();
       this.state = "READY";
+      this.readinessState = "READY";
       this.clearReadyWait();
       const ms = this.startTime ? this.readyAt - this.startTime : 0;
       const tag = this.name === "api" ? "API" : "MCP";
