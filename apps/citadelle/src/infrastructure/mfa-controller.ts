@@ -9,12 +9,14 @@
 import type { HttpRequest, HttpResponse } from "./identity-controller.js";
 import type { MfaService } from "../domain/mfa-service.js";
 import type { UserService } from "../domain/user-service.js";
+import type { AuthManager } from "@mosaix/auth";
 import { MfaError } from "../domain/mfa-service.js";
 
 export class MfaController {
   constructor(
     private readonly mfaService: MfaService,
     private readonly userService: UserService,
+    private readonly authManager: AuthManager,
     private readonly tenantId: string,
   ) {}
 
@@ -27,8 +29,8 @@ export class MfaController {
       return { statusCode: 401, body: { success: false, error: "UNAUTHENTICATED", message: "Authentification requise" } };
     }
 
-    const isEnabled = await this.mfaService.isMfaEnabled(userId);
-    const state = await this.mfaService.getMfaState(userId);
+    const isEnabled = await this.mfaService.isMfaEnabled(userId, this.tenantId);
+    const state = await this.mfaService.getMfaState(userId, this.tenantId);
 
     return {
       statusCode: 200,
@@ -123,7 +125,7 @@ export class MfaController {
   // POST /api/auth/mfa/verify — Verify TOTP during login challenge
   // -----------------------------------------------------------------------
   async verifyTotp(req: HttpRequest): Promise<HttpResponse> {
-    const body = req.body as { userId?: string; code?: string } | undefined;
+    const body = req.body as { userId?: string; code?: string; tenantId?: string } | undefined;
     if (!body?.userId || !body?.code) {
       return { statusCode: 400, body: { success: false, error: "MISSING_PARAMETERS", message: "userId et code requis" } };
     }
@@ -131,13 +133,24 @@ export class MfaController {
     try {
       await this.mfaService.verifyTotpLogin({
         userId: body.userId,
-        tenantId: this.tenantId,
+        tenantId: body.tenantId ?? this.tenantId,
         code: body.code,
+      });
+
+      // Create a session after successful MFA verification
+      const session = await this.authManager.createSession(body.userId, body.tenantId ?? this.tenantId, {
+        mfaVerified: true,
       });
 
       return {
         statusCode: 200,
-        body: { success: true, message: "Vérification MFA réussie", mfaVerified: true },
+        body: {
+          success: true,
+          message: "Vérification MFA réussie",
+          mfaVerified: true,
+          token: session.id,
+          session,
+        },
       };
     } catch (err) {
       if (err instanceof MfaError) {

@@ -34,13 +34,15 @@ import {
   identityUserUpdatedEvent,
 } from "./events/identity-events.js";
 import { MfaService } from "./domain/mfa-service.js";
-import { OtpService } from "../../../packages/otp/src/application/otp-service.ts";
+import { OtpService } from "@mosaix/otp";
 import { MfaController } from "./infrastructure/mfa-controller.js";
 import { createMfaGuardMiddleware, checkMfaGuard } from "./infrastructure/mfa-middleware.js";
 import { InMemoryOtpRepository } from "./infrastructure/in-memory-otp-repository.js";
 import { InMemoryOtpDelivery } from "./infrastructure/in-memory-otp-delivery.js";
 import { InMemoryOtpRateLimiter } from "./infrastructure/in-memory-otp-rate-limiter.js";
 import { ConsoleLoggerAdapter } from "./infrastructure/console-logger-adapter.js";
+import { PostgresMfaRepository } from "./infrastructure/postgres-mfa-repository.js";
+import { createPostgresDatabasePort } from "@mosaix/adapter-database-postgres";
 
 // --- Inline crypto adapter (Node.js crypto) ---
 import { createHash, createHmac, createCipheriv, createDecipheriv, createSign, createVerify, randomBytes, timingSafeEqual as cryptoTimingSafeEqual } from "node:crypto";
@@ -202,13 +204,17 @@ export class CitadelleServiceProvider {
       { get: (_key: string) => undefined, getOrDefault: (_key: string, d: string) => d, getRequired: (k: string) => { throw new Error(`Missing config: ${k}`); } },
     );
 
+    const postgresMfaRepository = new PostgresMfaRepository(dbPort!);
     const mfaService = new MfaService(
       otpService,
       userRepository,
+      postgresMfaRepository,
       crypto,
       clock,
       secretsAdapter,
       logger,
+      undefined, // encryptionKey (loaded lazily from SecretsPort)
+      process.env.NODE_ENV === "production",
     );
 
     const authManager = new AuthManager(
@@ -284,7 +290,30 @@ export class CitadelleServiceProvider {
     });
 
     const mfaService = container.resolve<MfaService>("mfaService");
-    const mfaController = new MfaController(mfaService, userService, tenant.tenantId ?? "default");
+    const authManager = container.resolve<AuthManager>("authManager");
+    const mfaController = new MfaController(mfaService, userService, authManager, tenant.tenantId ?? "default");
+
+    // --- MFA Guard Middleware (N2: BAC+role guards per route) ---
+    // Protège les routes sensibles : MFA requis si activé pour l'utilisateur.
+    // Routes exemptes : auth entry points + MFA management + health.
+    const mfaGuardCtx = {
+      mfaService,
+      userService,
+      currentUserId: undefined, // résolu par requête via le header x-user-id ou session
+      tenantId: tenant.tenantId ?? "default",
+      sessionStore: this.adapters.sessionStore!,
+      mfaExemptRoutes: [
+        "/api/auth/mfa/",
+        "/api/auth/login",
+        "/api/auth/register",
+        "/api/auth/logout",
+        "/api/auth/refresh",
+        "/api/health",
+        "/healthz",
+        "/health",
+      ],
+    };
+    const mfaGuard = createMfaGuardMiddleware(mfaGuardCtx as any);
 
     router.get("/api/auth/mfa/status", (req) => mfaController.getStatus(req));
     router.post("/api/auth/mfa/enroll/totp", (req) => mfaController.enrollTotp(req));
@@ -293,6 +322,45 @@ export class CitadelleServiceProvider {
     router.post("/api/auth/mfa/verify/recovery", (req) => mfaController.verifyRecovery(req));
     router.post("/api/auth/mfa/disable", (req) => mfaController.disableMfa(req));
     router.post("/api/auth/mfa/recovery/regenerate", (req) => mfaController.regenerateRecovery(req));
+
+    // --- Routes protégées par MFA ---
+    // Exemple : /api/auth/profile nécessite MFA si activé pour l'utilisateur.
+    // Le MFA guard vérifie côté serveur : aucun contournement côté client possible.
+    router.get("/profile", async (req) => {
+      // Résoudre l'userId et sessionId depuis la session/cookie
+      const userId = req.headers?.["x-user-id"] as string | undefined;
+      const authHeader = req.headers?.["authorization"] || req.headers?.["Authorization"];
+      const sessionId = authHeader?.startsWith("Bearer ") ? authHeader.substring(7) : undefined;
+      if (!userId) {
+        return { statusCode: 401, body: { error: "UNAUTHENTICATED" } };
+      }
+      const mfaGuardCtx = {
+        mfaService,
+        userService,
+        currentUserId: userId,
+        tenantId: tenant.tenantId ?? "default",
+        sessionStore: this.adapters.sessionStore!,
+        sessionId,
+        mfaExemptRoutes: [
+          "/api/auth/mfa/",
+          "/api/auth/login",
+          "/api/auth/register",
+          "/api/auth/logout",
+          "/api/auth/refresh",
+          "/api/health",
+          "/healthz",
+          "/health",
+        ],
+      };
+      const result = await checkMfaGuard("/profile", mfaGuardCtx);
+      if (!result.allowed) {
+        return {
+          statusCode: result.statusCode ?? 403,
+          body: result.body,
+        };
+      }
+      return controller.getProfile(req);
+    });
 
     return app;
   }

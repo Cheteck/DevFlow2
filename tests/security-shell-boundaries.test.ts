@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SecurityGuard } from "../src/shell/security-guard.js";
+import { SecurityGuard } from "../src/shell/security-guard.ts";
 import { resolveBacAccess } from "../src/shell/bac-access.js";
 import { CANONICAL_BAC_IDS, validateUserPermissions, USER_PROFILES } from "../src/shell/profiles.js";
 import type { SsrAuthContext } from "../src/shell/ssr-auth-context.js";
@@ -42,7 +42,8 @@ describe("SHELL-SEC-01 — Shell Production Security Boundaries", () => {
         process.env.NODE_ENV = "production";
         process.env.MOSAIX_AUTH_JWT_SECRET = "short-secret123";
 
-        const val = SecurityGuard.validateEnvironment();
+        const guard = new SecurityGuard();
+        const val = guard.validateEnvironment();
         expect(val.valid).toBe(false);
         expect(val.errors.some(e => e.includes("Production JWT secret"))).toBe(true);
       } finally {
@@ -59,8 +60,73 @@ describe("SHELL-SEC-01 — Shell Production Security Boundaries", () => {
         process.env.NODE_ENV = "production";
         process.env.MOSAIX_AUTH_JWT_SECRET = "super-secure-production-jwt-secret-with-high-entropy-256bits-or-more";
 
-        const val = SecurityGuard.validateEnvironment();
+        const guard = new SecurityGuard();
+        const val = guard.validateEnvironment();
         expect(val.errors).toHaveLength(0);
+      } finally {
+        process.env.NODE_ENV = origEnv;
+        process.env.MOSAIX_AUTH_JWT_SECRET = origJwt;
+      }
+    });
+
+    it("utilise la configuration injectée quand fournie (priorité sur process.env)", () => {
+      const origEnv = process.env.NODE_ENV;
+      const origJwt = process.env.MOSAIX_AUTH_JWT_SECRET;
+
+      try {
+        // process.env dit "production" avec un secret invalide
+        process.env.NODE_ENV = "production";
+        process.env.MOSAIX_AUTH_JWT_SECRET = "short";
+
+        // Mais la config injectée dit "development" avec un secret valide
+        const guard = new SecurityGuard({
+          env: { nodeEnv: "development", isProduction: false },
+          security: { jwtSecret: "super-secure-production-jwt-secret-with-high-entropy-256bits-or-more" },
+        } as any);
+        const val = guard.validateEnvironment();
+        expect(val.valid).toBe(true);
+        expect(val.errors).toHaveLength(0);
+      } finally {
+        process.env.NODE_ENV = origEnv;
+        process.env.MOSAIX_AUTH_JWT_SECRET = origJwt;
+      }
+    });
+
+    it("rejet secret manquant en production avec config injectée", () => {
+      const origEnv = process.env.NODE_ENV;
+      const origJwt = process.env.MOSAIX_AUTH_JWT_SECRET;
+
+      try {
+        process.env.NODE_ENV = "development";
+        process.env.MOSAIX_AUTH_JWT_SECRET = undefined;
+
+        // Config injectée dit production avec secret manquant
+        const guard = new SecurityGuard({
+          env: { nodeEnv: "production", isProduction: true },
+          security: { jwtSecret: undefined },
+        } as any);
+        const val = guard.validateEnvironment();
+        expect(val.valid).toBe(false);
+        expect(val.errors.some(e => e.includes("FATAL_SECURITY"))).toBe(true);
+      } finally {
+        process.env.NODE_ENV = origEnv;
+        process.env.MOSAIX_AUTH_JWT_SECRET = origJwt;
+      }
+    });
+
+    it("fallback process.env quand aucune config n'est injectée", () => {
+      const origEnv = process.env.NODE_ENV;
+      const origJwt = process.env.MOSAIX_AUTH_JWT_SECRET;
+
+      try {
+        process.env.NODE_ENV = "production";
+        process.env.MOSAIX_AUTH_JWT_SECRET = "short-secret123";
+
+        // Aucune config injectée → fallback process.env
+        const guard = new SecurityGuard();
+        const val = guard.validateEnvironment();
+        expect(val.valid).toBe(false);
+        expect(val.errors.some(e => e.includes("Production JWT secret"))).toBe(true);
       } finally {
         process.env.NODE_ENV = origEnv;
         process.env.MOSAIX_AUTH_JWT_SECRET = origJwt;

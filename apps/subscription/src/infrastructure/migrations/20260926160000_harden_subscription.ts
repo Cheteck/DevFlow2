@@ -73,7 +73,10 @@ export const migration: Migration = {
   checksum: computeChecksum(sqlContent),
   resources: [
     // v1.003_harden_billing MODIFIE des tables existantes (coupons, invoices,
-    // metering_buckets), elle n'en CREATE aucune. Seul v1.002_move_to_schema
-    // CREATE ces tables. ressources vides = aucune table creee.
+    // metering_buckets).
+    // R9 exige au moins une ressource déclarée pour la détection de collisions.
+    "table:subscription.coupons",
+    "table:subscription.invoices",
+    "table:subscription.metering_buckets",
   ],
 };

@@ -169,10 +169,18 @@ export const migration: Migration = {
   checksum: computeChecksum(sqlContent),
   resources: [
     // v1.004_harden_data_integrity MODIFIE des tables existantes (ajout contraintes,
-    // indexes, colonnes, drop defaults, alter types), elle n'en CREATE aucune.
-    // Toutes ces tables sont creees par v1.001_create_portfolio_tables,
-    // v1.002_create_proposals ou v1.003_move_to_schema.
-    // Declarer ces ressources ici provoquerait des collisions (R9) avec les
-    // migrations de creation. Ressources vides = aucune table creee par cette migration.
+    // indexes, colonnes, drop defaults, alter types). R9 exige au moins une
+    // ressource déclarée pour la détection de collisions.
+    "table:portfolio.categories",
+    "table:portfolio.relations",
+    "table:portfolio.feature_variants",
+    "table:portfolio.vendable_features",
+    "table:portfolio.variant_features",
+    "table:portfolio.variation_groups",
+    "table:portfolio.variation_group_features",
+    "table:portfolio.proposals",
+    "table:portfolio.media_assets",
+    "table:portfolio.vendables",
+    "table:portfolio.variants",
   ],
 };

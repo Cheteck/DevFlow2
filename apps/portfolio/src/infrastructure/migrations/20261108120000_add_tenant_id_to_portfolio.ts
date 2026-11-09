@@ -68,10 +68,9 @@ export const migration: Migration = {
   checksum: computeChecksum(upStatements),
   resources: [
     // v1.008_tenant_id MODIFIE portfolio.vendables et portfolio.proposals
-    // (ADD COLUMN tenant_id, ALTER COLUMN, ADD CONSTRAINT, CREATE INDEX),
-    // elle n'en CREATE aucune. Seul v1.001_create_portfolio_tables CREATE
-    // table:portfolio.vendables et v1.002_create_proposals CREATE
-    // table:portfolio.proposals.
-    // ressources vides = aucune table creee par cette migration.
+    // (ADD COLUMN tenant_id, ALTER COLUMN, ADD CONSTRAINT, CREATE INDEX).
+    // R9 exige au moins une ressource déclarée pour la détection de collisions.
+    "table:portfolio.vendables",
+    "table:portfolio.proposals",
   ],
 };

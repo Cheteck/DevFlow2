@@ -36,6 +36,21 @@ export class IdentityController {
         credentials: { email, password },
         tenantId: "default",
       });
+
+      // MFA challenge: MFA is enabled but no valid TOTP code has been verified yet.
+      // Return the challenge to the client so it can submit the TOTP code via
+      // POST /api/auth/mfa/verify. No session is created yet.
+      if (result.status === "challenge") {
+        return {
+          statusCode: 200,
+          body: {
+            mfaRequired: true,
+            mfaChallenge: result.challenge,
+            message: "Authentification multifactorielle requise",
+          },
+        };
+      }
+
       if (!result || result.status !== "authenticated") {
         return { statusCode: 401, body: { error: "Invalid credentials" } };
       }
@@ -44,11 +59,13 @@ export class IdentityController {
       const userId = result.principal?.identityId || result.session?.identityId;
       const tenantId = result.session?.tenantId || "default";
 
-      // If MFA is enabled for this user, require MFA verification before granting full session
+      // MFA is not enabled → grant full session
       if (this.mfaService && userId) {
-        const isMfaEnabled = await this.mfaService.isMfaEnabled(userId);
+        const isMfaEnabled = await this.mfaService.isMfaEnabled(userId, tenantId);
         if (isMfaEnabled) {
-          // Return 2FA_REQUIRED - client must verify TOTP before getting full session
+          // MFA enabled but AuthManager returned "authenticated" without MFA check.
+          // This should not happen with the new flow (AuthManager returns "challenge"
+          // when MFA is enabled). Defensively require MFA verification.
           return {
             statusCode: 200,
             body: {

@@ -21,6 +21,7 @@ import type * as http from "node:http";
 import type { URL } from "node:url";
 import type { MfaService } from "../domain/mfa-service.js";
 import type { UserService } from "../domain/user-service.js";
+import type { SessionStore } from "@mosaix/ports-session-store";
 import { MfaError } from "../domain/mfa-service.js";
 
 export interface MfaGuardContext {
@@ -32,6 +33,10 @@ export interface MfaGuardContext {
   tenantId: string;
   /** Routes that bypass MFA enforcement */
   mfaExemptRoutes?: string[];
+  /** Session store for checking MFA-verified flag (required in production) */
+  sessionStore: SessionStore;
+  /** Session ID for the current request (used to look up MFA-verified flag) */
+  sessionId?: string;
 }
 
 /**
@@ -79,43 +84,107 @@ export async function checkMfaGuard(
     return { allowed: true };
   }
 
-  // 3. Check if MFA is enabled for this user
-  const isEnabled = await ctx.mfaService.isMfaEnabled(ctx.currentUserId);
+  // 3. Check if MFA is enabled for this user (scoped by tenant)
+  const isEnabled = await ctx.mfaService.isMfaEnabled(ctx.currentUserId, ctx.tenantId);
   if (!isEnabled) {
     return { allowed: true };
   }
 
   // 4. MFA is enabled but we need to check if verified in this session
-  // The MFA-verified status is tracked in the session/auth context.
-  // For now, we check if there's a temporary MFA session or if the user
-  // has recently verified via the /api/auth/mfa/verify endpoint.
-  //
-  // In a production implementation, this would check the session store
-  // for an MFA-verified flag. Here we check the mfaService's lastVerifiedAt
-  // as a proxy (recent verification = within the current session).
-  const state = await ctx.mfaService.getMfaState(ctx.currentUserId);
-  if (!state || !state.enabled) {
-    return { allowed: true };
-  }
-
-  // If MFA is enabled and there's no recent verification, require MFA
-  // The lastVerifiedAt check ensures the user verified in this session
-  // (within the last 30 minutes = session window)
-  const now = Date.now();
-  const sessionWindowMs = 30 * 60 * 1000; // 30 minutes
-  const recentlyVerified =
-    state.lastVerifiedAt &&
-    now - state.lastVerifiedAt < sessionWindowMs;
-
-  if (!recentlyVerified) {
+  // Session store verification only (no lastVerifiedAt fallback - security requirement).
+  // Verify: session exists, identityId matches, session not expired/revoked,
+  // and mfaVerified flag is true.
+  if (!ctx.sessionStore || !ctx.sessionId || !ctx.currentUserId) {
     return {
       allowed: false,
       statusCode: 403,
       mfaRequired: true,
       body: {
         success: false,
-        error: "MFA_REQUIRED",
-        message: "L'authentification multifactorielle est requise pour accéder à cette ressource",
+        error: "MFA_SESSION_REQUIRED",
+        message: "Session requise pour la verification MFA",
+        mfaEnrollmentUrl: "/api/auth/mfa/enroll/totp",
+        mfaVerifyUrl: "/api/auth/mfa/verify",
+      },
+    };
+  }
+
+  try {
+    const session = await ctx.sessionStore.get(ctx.sessionId);
+    if (!session) {
+      return {
+        allowed: false,
+        statusCode: 403,
+        mfaRequired: true,
+        body: {
+          success: false,
+          error: "MFA_SESSION_INVALID",
+          message: "Session invalide ou expirée",
+          mfaEnrollmentUrl: "/api/auth/mfa/enroll/totp",
+          mfaVerifyUrl: "/api/auth/mfa/verify",
+        },
+      };
+    }
+
+    // Verify session belongs to the authenticated user
+    if (session.identityId !== ctx.currentUserId) {
+      return {
+        allowed: false,
+        statusCode: 403,
+        mfaRequired: true,
+        body: {
+          success: false,
+          error: "MFA_SESSION_MISMATCH",
+          message: "La session ne correspond pas à l'utilisateur authentifie",
+          mfaEnrollmentUrl: "/api/auth/mfa/enroll/totp",
+          mfaVerifyUrl: "/api/auth/mfa/verify",
+        },
+      };
+    }
+
+    // Verify session has not expired
+    const now = new Date();
+    const expiresAt = session.expiresAt ? new Date(session.expiresAt) : null;
+    if (expiresAt && expiresAt <= now) {
+      return {
+        allowed: false,
+        statusCode: 403,
+        mfaRequired: true,
+        body: {
+          success: false,
+          error: "MFA_SESSION_EXPIRED",
+          message: "La session a expire",
+          mfaEnrollmentUrl: "/api/auth/mfa/enroll/totp",
+          mfaVerifyUrl: "/api/auth/mfa/verify",
+        },
+      };
+    }
+
+    // Verify MFA was completed in this session
+    if (!session.attributes?.mfaVerified) {
+      return {
+        allowed: false,
+        statusCode: 403,
+        mfaRequired: true,
+        body: {
+          success: false,
+          error: "MFA_REQUIRED",
+          message: "L'authentification multifactorielle est requise pour accéder à cette ressource",
+          mfaEnrollmentUrl: "/api/auth/mfa/enroll/totp",
+          mfaVerifyUrl: "/api/auth/mfa/verify",
+        },
+      };
+    }
+  } catch {
+    // Session store error: fail securely, do not allow access
+    return {
+      allowed: false,
+      statusCode: 403,
+      mfaRequired: true,
+      body: {
+        success: false,
+        error: "MFA_SESSION_ERROR",
+        message: "Erreur de verification de session. Veuillez reauthentifier.",
         mfaEnrollmentUrl: "/api/auth/mfa/enroll/totp",
         mfaVerifyUrl: "/api/auth/mfa/verify",
       },

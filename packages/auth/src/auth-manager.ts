@@ -104,13 +104,20 @@ export class AuthManager implements SessionCreationPort {
       };
     }
 
-    // Intercept login when MFA/2FA is enabled on user identity
+    // Intercept login when MFA/2FA is enabled on user identity.
+    // MFA code verification is delegated to the BAC-level MfaService via OtpService.
+    // AuthManager only creates the challenge; it never verifies static codes itself.
     const isMfaEnabled = Boolean(identity.attributes?.mfa_enabled || identity.attributes?.mfaRequired);
     if (isMfaEnabled) {
       const credentials = request.credentials as { mfaCode?: string; mfaToken?: string; challengeId?: string } | undefined;
       const mfaCode = credentials?.mfaCode || credentials?.mfaToken;
+
       if (!mfaCode) {
-        const challenge = this.challengeManager.create("otp", { identityId: identity.id });
+        const challenge = this.challengeManager.create("otp", {
+          identityId: identity.id,
+          tenantId,
+          provider: request.provider,
+        });
         return {
           status: "challenge",
           challenge: {
@@ -119,36 +126,66 @@ export class AuthManager implements SessionCreationPort {
             fields: [
               { name: "mfaCode", type: "text", required: true }
             ],
-            data: { challengeId: challenge.id, identityId: identity.id, provider: request.provider }
-          }
-        };
-      }
-
-      // Cryptographically verify MFA TOTP/OTP code strictly
-      const expectedCode = String(identity.attributes?.mfaSecret || identity.attributes?.totpCode || identity.attributes?.mfaCode || "");
-      if (!expectedCode) {
-        return {
-          status: "failed",
-          error: {
-            code: "mfa_unconfigured",
-            message: "MFA est activé mais aucune clé TOTP/MFA n'est configurée sur le compte.",
+            data: { challengeId: challenge.id, identityId: identity.id, tenantId, provider: request.provider },
+            expiresAt: challenge.expiresAt,
           },
         };
       }
 
-      if (mfaCode !== expectedCode) {
+      // MFA code verification must be performed by the BAC-level MfaService (via OtpService),
+      // not by AuthManager. AuthManager has no access to encrypted TOTP secrets or the
+      // crypto clock required for TOTP verification. Return "challenge" so the caller
+      // (Citadelle controller) can delegate to MfaService.verifyTotpLogin.
+      const challenge = this.challengeManager.get(credentials.challengeId ?? "");
+      if (!challenge) {
         return {
           status: "failed",
           error: {
-            code: "mfa_verification_failed",
-            message: "Le code de vérification MFA/TOTP fourni est invalide.",
+            code: "mfa_challenge_expired",
+            message: "Le défi MFA a expiré. Veuillez recommencer l'authentification.",
           },
         };
       }
 
-      if (credentials?.challengeId) {
+      // Validate challenge belongs to this identity
+      if (challenge.data.identityId !== identity.id) {
+        return {
+          status: "failed",
+          error: {
+            code: "mfa_challenge_mismatch",
+            message: "Le défi MFA ne correspond pas à cette identité.",
+          },
+        };
+      }
+
+      // Mark challenge as consumed (single-use, replay protection)
+      if (credentials.challengeId) {
         this.challengeManager.consume(credentials.challengeId);
       }
+
+      // Delegate actual TOTP verification to BAC-level MfaService.
+      // AuthManager returns "challenge" again with a flag indicating the code
+      // needs verification by the MfaService. The caller must call
+      // MfaService.verifyTotpLogin before creating a session.
+      return {
+        status: "challenge",
+        challenge: {
+          type: "otp",
+          message: "Code MFA fourni — vérification requise via le service MFA du BAC.",
+          fields: [
+            { name: "mfaCode", type: "text", required: true }
+          ],
+          data: {
+            challengeId: challenge.id,
+            identityId: identity.id,
+            tenantId,
+            provider: request.provider,
+            mfaCodeProvided: true,
+            requiresMfaServiceVerification: true,
+          },
+          expiresAt: challenge.expiresAt,
+        },
+      };
     }
 
     const session = await this.createSession(

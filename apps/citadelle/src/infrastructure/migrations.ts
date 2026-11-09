@@ -23,6 +23,7 @@ import {
   type Migration,
   type MigrationProvider,
 } from "@mosaix/migrations";
+import { migration as mfaSecretsMigration } from "./migrations/20261108130000_create_mfa_secrets.ts";
 
 export class CitadellePostgresMigrationProvider implements MigrationProvider {
   ownerId(): string {
@@ -56,6 +57,7 @@ export class CitadellePostgresMigrationProvider implements MigrationProvider {
         checksum: computeChecksum(sqlContent),
         resources: ["table:__citadelle_noop"],
       },
+      mfaSecretsMigration,
     ];
   }
 }

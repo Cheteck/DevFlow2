@@ -50,7 +50,11 @@ export const migration: Migration = {
   checksum: computeChecksum(sqlContent),
   resources: [
     // v1.006_normalize_pim_fixes MODIFIE des tables existantes (UPDATE features,
-    // UPDATE vendable_features, INSERT vendable_tags), elle n'en CREATE aucune.
-    // ressources vides = aucune table creee par cette migration.
+    // UPDATE vendable_features, INSERT vendable_tags). R9 exige au moins une
+    // ressource déclarée pour la détection de collisions.
+    "table:portfolio.features",
+    "table:portfolio.vendable_features",
+    "table:portfolio.vendable_tags",
+    "table:portfolio.vendables",
   ],
 };

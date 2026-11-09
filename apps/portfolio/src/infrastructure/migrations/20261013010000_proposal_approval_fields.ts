@@ -34,8 +34,7 @@ export const migration: Migration = {
   checksum: computeChecksum(sqlContent),
   resources: [
     // v1.007_approval_fields AJOUTE des colonnes a portfolio.proposals
-    // (ALTER TABLE ADD COLUMN), elle n'en CREATE pas la table.
-    // Seul v1.002_create_proposals CREATE table:portfolio.proposals.
-    // ressources vides = aucune table creee par cette migration.
+    // (ALTER TABLE ADD COLUMN). R9 exige au moins une ressource déclarée.
+    "table:portfolio.proposals",
   ],
 };
