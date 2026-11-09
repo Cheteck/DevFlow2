@@ -236,10 +236,13 @@ class SubscriptionPhase0Provider implements MigrationProvider {
       {
         ...migration,
         id: BAC_CANONICAL_IDS.subscription,
-        content: withoutStatements(
-          migration.content,
-          isShellOwnedUserSubscriptionsStatement,
-        ),
+        content:
+          migration.content === undefined
+            ? undefined
+            : withoutStatements(
+                migration.content,
+                isShellOwnedUserSubscriptionsStatement,
+              ),
         down:
           migration.down === undefined
             ? undefined

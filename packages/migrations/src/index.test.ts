@@ -25,7 +25,7 @@ import type {
 function rawMigration(
   id: string,
   content: string,
-  resources: readonly string[] = [],
+  resources: readonly string[] = ["table:default"],
   down?: string,
 ) {
   return { id, content, resources, ...(down !== undefined ? { down } : {}) };
@@ -61,13 +61,13 @@ function twoMigrationRegistry() {
       rawMigration(
         "mosaix.core.v1.001_base",
         "CREATE TABLE core;",
-        [],
+        ["table:core"],
         "DROP TABLE core;",
       ),
       rawMigration(
         "mosaix.core.v1.002_seed",
         "INSERT INTO core VALUES (1);",
-        [],
+        ["table:core"],
         "DELETE FROM core WHERE id = 1;",
       ),
     ]).provider,
@@ -390,7 +390,7 @@ describe("runner — executes the plan only (R13)", () => {
         rawMigration(
           "mosaix.core.v1.001_base",
           "CREATE TABLE core;",
-          [],
+          ["table:core"],
           "DROP TABLE core;",
         ),
       ]).provider,
@@ -558,6 +558,79 @@ describe("runner — transactions and batches (T-MIG-1)", () => {
     const plan = await new MigrationPlanner(registry, store).plan();
 
     await expect(runner.run(plan)).rejects.toThrow(MigrationLockError);
+  });
+});
+
+// ─── Intégration : validation bloque avant exécution ───
+
+describe("integration — validation blocks execution", () => {
+  it("une migration invalide est rejetée par le Registry avant d'atteindre le Planner", async () => {
+    const registry = new MigrationRegistry();
+    const store = new InMemoryMigrationStore();
+    const db = new FakeDatabasePort();
+    const runner = new MigrationRunner(db, store);
+
+    // Migration invalide : kind "sql" sans content
+    const invalidMigration = {
+      id: "mosaix.core.v1.999_invalid",
+      kind: "sql",
+      resources: ["table:invalid"],
+    };
+
+    // Le register doit rejeter le lot (atomicité)
+    expect(() =>
+      registry.register(
+        {
+          ownerId: () => "mosaix",
+          migrations: () => [invalidMigration],
+        },
+        0,
+      ),
+    ).toThrow();
+
+    // La migration invalide ne doit PAS être enregistrée
+    expect(registry.get("mosaix.core.v1.999_invalid")).toBeUndefined();
+
+    // Le Planner ne peut pas planifier une migration qui n'est pas enregistrée
+    const plan = await new MigrationPlanner(registry, store).plan();
+    expect(plan.operations).toHaveLength(0);
+
+    // Le Runner ne peut pas exécuter quoi que ce soit
+    const result = await runner.run(plan);
+    expect(result.applied).toHaveLength(0);
+    expect(result.rolledBack).toHaveLength(0);
+  });
+
+  it("une migration valide est enregistrée et peut atteindre le Planner", async () => {
+    const registry = new MigrationRegistry();
+    const store = new InMemoryMigrationStore();
+
+    // Migration valide : kind "sql" avec content et resources
+    const validMigration = {
+      id: "mosaix.core.v1.001_valid",
+      kind: "sql",
+      content: "CREATE TABLE valid_table (id TEXT PRIMARY KEY);",
+      resources: ["table:valid_table"],
+    };
+
+    // Le register doit accepter
+    expect(() =>
+      registry.register(
+        {
+          ownerId: () => "mosaix",
+          migrations: () => [validMigration],
+        },
+        0,
+      ),
+    ).not.toThrow();
+
+    // La migration doit être enregistrée
+    expect(registry.get("mosaix.core.v1.001_valid")).toBeDefined();
+
+    // Le Planner peut planifier
+    const plan = await new MigrationPlanner(registry, store).plan();
+    expect(plan.operations).toHaveLength(1);
+    expect(plan.operations[0]!.operation).toBe("up");
   });
 });
 

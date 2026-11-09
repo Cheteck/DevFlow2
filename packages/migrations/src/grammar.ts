@@ -10,10 +10,13 @@ export interface SqlStatement {
 }
 
 export interface Grammar {
+  readonly dialect: "sqlite" | "postgres";
   compile(blueprint: Blueprint): readonly SqlStatement[];
 }
 
 export class SQLiteGrammar implements Grammar {
+  readonly dialect: "sqlite" | "postgres" = "sqlite";
+
   compile(blueprint: Blueprint): readonly SqlStatement[] {
     switch (blueprint.type) {
       case "createTable":
@@ -171,6 +174,8 @@ export class SQLiteGrammar implements Grammar {
 }
 
 export class PostgresGrammar implements Grammar {
+  readonly dialect: "sqlite" | "postgres" = "postgres";
+
   compile(blueprint: Blueprint): readonly SqlStatement[] {
     switch (blueprint.type) {
       case "createTable":

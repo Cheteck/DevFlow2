@@ -316,7 +316,7 @@ describe("MigrationCLI (Phase 5 CLI command handlers)", () => {
         {
           id: "mosaix.core.v1.001_base",
           content: "CREATE TABLE mosaix_core;",
-          resources: [],
+          resources: ["table:mosaix_core"],
         },
       ],
     });
@@ -355,7 +355,7 @@ describe("MigrationRunner (Phase 7 Production Hardening - dry-run & preview)", (
           id: "mosaix.core.v1.001_base",
           content: "CREATE TABLE t1;",
           down: "DROP TABLE t1;",
-          resources: [],
+          resources: ["table:t1"],
         },
       ],
     });
@@ -380,7 +380,7 @@ describe("MigrationRunner (Phase 7 Production Hardening - dry-run & preview)", (
           id: "mosaix.core.v1.001_base",
           content: "CREATE TABLE t1;",
           down: "DROP TABLE t1;",
-          resources: [],
+          resources: ["table:t1"],
         },
       ],
     });

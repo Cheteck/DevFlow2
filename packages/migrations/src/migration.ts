@@ -11,6 +11,11 @@
  * names.
  */
 
+import type {
+  MigrationContext,
+  RawSqlStatement,
+} from "./migration-context.js";
+
 /** Canonical identity parts of a migration id. */
 export interface MigrationIdParts {
   readonly owner: string;
@@ -20,23 +25,64 @@ export interface MigrationIdParts {
   readonly name: string;
 }
 
-/** A single schema migration (up body, optional rollback, content checksum). */
+/** Mode d'exécution d'une migration. */
+export type MigrationKind = "sql" | "typescript";
+
+/**
+ * A single schema migration (up body, optional rollback, content checksum).
+ *
+ * Two execution modes are supported:
+ *
+ * 1. SQL legacy mode (`kind === "sql"`): `content` / `down` are raw SQL
+ *    strings executed directly by the Runner. This is the historical format,
+ *    preserved for backward compatibility.
+ * 2. TypeScript native mode (`kind === "typescript"`): `up` / `downMigration`
+ *    are functions receiving a `MigrationContext`. The Runner compiles the
+ *    resulting blueprints via the Grammar before execution.
+ *
+ * The two modes are mutually exclusive: a migration must not declare both
+ * `content` and `up`. This invariant is enforced by the MigrationValidator
+ * (Phase 04), not by the type system alone.
+ */
 export interface Migration {
   readonly id: string;
-  /** SQL executed on upgrade. */
-  readonly content: string;
-  /** Optional SQL executed on rollback (dev-only, ADR-0006 §12). */
-  readonly down?: string;
   /** Content checksum computed at load time (R2). */
   readonly checksum: string;
   /**
    * Blueprint of the SQL resources created by this migration (e.g.
-   * `["table:users", "index:users.email"]`). Declared by the provider;
+   * `["table:users", "index:users.email]`). Declared by the provider;
    * validated by the Planner for resource collisions (R9).
    */
   readonly resources: readonly string[];
   /** Optional list of named migrations or module versions this migration depends on. */
   readonly dependencies?: readonly string[];
+  /**
+   * Execution mode discriminant. Defaults to `"sql"` for backward
+   * compatibility with historical migrations.
+   */
+  readonly kind?: MigrationKind;
+  // ── SQL legacy mode (kind === "sql") ──────────────────────────────
+  /** SQL executed on upgrade. Required when kind === "sql". */
+  readonly content?: string;
+  /** Optional SQL executed on rollback (dev-only, ADR-0006 §12). */
+  readonly down?: string;
+  // ── TypeScript native mode (kind === "typescript") ────────────────
+  /**
+   * Upgrade function receiving a MigrationContext. Required when
+   * kind === "typescript".
+   */
+  readonly up?: (context: MigrationContext) => Promise<void> | void;
+  /**
+   * Optional rollback function receiving a MigrationContext. When absent,
+   * the migration is considered irreversible.
+   */
+  readonly downMigration?: (context: MigrationContext) => Promise<void> | void;
+  /**
+   * Optional raw SQL statement declared explicitly. Used when the DSL
+   * SchemaBuilder is insufficient (dialect-specific DDL, extensions, …).
+   * Declaring rawSql makes the migration dialect-dependent.
+   */
+  readonly rawSql?: RawSqlStatement;
 }
 
 /**
@@ -55,18 +101,39 @@ export function parseMigrationId(id: string): MigrationIdParts {
   if (parts.length < 4) {
     throw new Error(`Invalid migration id: ${id}`);
   }
-  const [owner, module, version, ...rest] = parts;
-  if (owner === undefined || module === undefined || version === undefined) {
-    throw new Error(`Invalid migration id: ${id}`);
+  const owner = parts[0];
+  const module = parts[1];
+  // Le version peut contenir des points (ex. "schema.v1") : tous les segments
+  // entre le module et le dernier segment (sequence_name) constituent la version.
+  const version = parts.slice(2, -1).join(".");
+  const lastSegment = parts[parts.length - 1]!;
+
+  // Rejeter les segments vides (ex. "bac..identity.v1.001_name")
+  if (owner.length === 0 || module.length === 0 || version.length === 0) {
+    throw new Error(
+      `Invalid migration id: segments vides non autorisés dans "${id}".`,
+    );
   }
-  const tail = rest.join(".");
-  const seqIdx = tail.indexOf("_");
+
+  const seqIdx = lastSegment.indexOf("_");
   if (seqIdx < 0) {
     throw new Error(`Invalid migration id (missing sequence_name): ${id}`);
   }
-  const sequence = Number.parseInt(tail.slice(0, seqIdx), 10);
-  const name = tail.slice(seqIdx + 1);
-  if (!Number.isFinite(sequence) || name.length === 0) {
+  const sequenceStr = lastSegment.slice(0, seqIdx);
+  const name = lastSegment.slice(seqIdx + 1);
+  if (name.length === 0) {
+    throw new Error(
+      `Invalid migration id: le nom de migration ne peut pas être vide dans "${id}".`,
+    );
+  }
+
+  // Validation stricte : la séquence doit être entièrement numérique
+  if (!/^\d+$/.test(sequenceStr)) {
+    throw new Error(`Invalid migration id (bad sequence_name): ${id}`);
+  }
+
+  const sequence = Number.parseInt(sequenceStr, 10);
+  if (!Number.isSafeInteger(sequence)) {
     throw new Error(`Invalid migration id (bad sequence_name): ${id}`);
   }
   return { owner, module, version, sequence, name };

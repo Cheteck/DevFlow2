@@ -22,8 +22,15 @@ export type {
   Migration,
   MigrationIdParts,
   MigrationProvider,
+  MigrationKind,
 } from "./migration.js";
 export { compareMigrationIds, parseMigrationId } from "./migration.js";
+export type {
+  MigrationContext,
+  MigrationLogger,
+  MigrationRuntime,
+  RawSqlStatement,
+} from "./migration-context.js";
 export type {
   MigrationPlan,
   PlannedMigration,
@@ -36,6 +43,8 @@ export { InMemoryMigrationStore } from "./store.js";
 export { SqlMigrationStore } from "./sql-store.js";
 export type { RawMigration } from "./registry.js";
 export { MigrationRegistry, loadMigration } from "./registry.js";
+export { MigrationValidator, MigrationValidationError, type ValidationResult } from "./validator.js";
+export { MigrationCompiler, type CompilationResult } from "./compiler.js";
 export { FileMigrationProvider } from "./file-provider.js";
 export { MigrationRunner, newBatchId } from "./runner.js";
 export type { RunResult } from "./runner.js";

@@ -162,17 +162,20 @@ export class MigrationPlanner {
   private assertNoResourceCollisions(
     operations: readonly PlannedMigration[],
   ): void {
-    const resourceOwners = new Map<string, string>();
+    const resourceOwners = new Map<string, string>(); // resource -> ownerId
     for (const op of operations) {
+      const ownerId = this.registry.ownerOf(op.migration.id) ?? op.migration.id;
       for (const resource of op.migration.resources) {
         const existing = resourceOwners.get(resource);
-        if (existing !== undefined && existing !== op.migration.id) {
+        // Même owner : évolution autorisée (même ressource sur plusieurs
+        // migrations d'un même owner). Collision uniquement entre owners différents.
+        if (existing !== undefined && existing !== ownerId) {
           throw new MigrationResourceConflictError(resource, [
             existing,
-            op.migration.id,
+            ownerId,
           ]);
         }
-        resourceOwners.set(resource, op.migration.id);
+        resourceOwners.set(resource, ownerId);
       }
     }
   }
