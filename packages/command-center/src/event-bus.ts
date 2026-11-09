@@ -8,6 +8,7 @@ import type {
   LogStream,
   ServiceName,
   SupervisorEvent,
+  SupervisorServiceEvent,
 } from "./supervisor-types.js";
 import { redactSecrets } from "./secret-guard.js";
 
@@ -28,6 +29,7 @@ export class EventHistory {
     category: EventCategory,
     message: string,
     level: EventLevel = "info",
+    payload?: SupervisorServiceEvent,
   ): SupervisorEvent {
     const event: SupervisorEvent = {
       seq: ++this.seq,
@@ -35,6 +37,7 @@ export class EventHistory {
       category,
       level,
       message: redactSecrets(message),
+      ...(payload ? { payload } : {}),
     };
     this.events.push(event);
     if (this.events.length > this.eventCap) {
@@ -114,8 +117,9 @@ export class EventBus {
     category: EventCategory,
     message: string,
     level: EventLevel = "info",
+    payload?: SupervisorServiceEvent,
   ): SupervisorEvent {
-    const event = this.history.pushEvent(category, message, level);
+    const event = this.history.pushEvent(category, message, level, payload);
     for (const listener of [...this.listeners]) {
       try {
         listener(event);

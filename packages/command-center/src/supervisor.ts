@@ -23,6 +23,7 @@ import type {
   ServiceName,
   ServiceSnapshot,
   SupervisorOptions,
+  SupervisorServiceEvent,
   ViewFilters,
 } from "./supervisor-types.js";
 import { EventBus, EventHistory } from "./event-bus.js";
@@ -126,8 +127,8 @@ export class DevSupervisor {
       readiness: { pattern: /listening on/i, timeoutMs: readinessTimeoutMs },
       readinessTimeoutMs,
       shutdownTimeoutMs,
-      onEvent: (category, message, level) =>
-        this.emit(category, message, level),
+      onEvent: (category, message, level, payload) =>
+        this.emit(category, message, level, payload),
       onLog: (service, stream, text, level) =>
         this.history.pushLog(service, stream, text, level),
     });
@@ -141,8 +142,8 @@ export class DevSupervisor {
       readinessTimeoutMs,
       shutdownTimeoutMs,
       isolateStdout: true,
-      onEvent: (category, message, level) =>
-        this.emit(category, message, level),
+      onEvent: (category, message, level, payload) =>
+        this.emit(category, message, level, payload),
       onLog: (service, stream, text, level) =>
         this.history.pushLog(service, stream, text, level),
       onStdoutDrained: (bytes) => {
@@ -178,8 +179,9 @@ export class DevSupervisor {
     category: EventCategory,
     message: string,
     level: EventLevel = "info",
+    payload?: SupervisorServiceEvent,
   ): void {
-    this.bus.emit(category, message, level);
+    this.bus.emit(category, message, level, payload);
     if (!this.useTui) {
       const line = `[${category.toLowerCase()}] ${message}`;
       if (level === "error") console.error(line);
@@ -187,6 +189,25 @@ export class DevSupervisor {
     } else {
       this.render();
     }
+  }
+
+  /**
+   * Émet un événement structuré de cycle de vie de service depuis le Supervisor
+   * (ex: redémarrage manuel), avec son payload typé.
+   */
+  private emitServiceEvent(event: SupervisorServiceEvent): void {
+    const tag = event.service === "api" ? "API" : "MCP";
+    let message: string;
+    let level: EventLevel = "info";
+    switch (event.type) {
+      case "service.restarted":
+        message = `Service ${event.service} restarted (new pid ${event.newPid ?? "?"})`;
+        break;
+      default:
+        message = `Service ${event.service} ${event.type}`;
+        break;
+    }
+    this.bus.emit(tag, message, level, event);
   }
 
   private pushAppLog(
@@ -376,6 +397,14 @@ export class DevSupervisor {
       target.noteManualRestart();
       await target.start();
       this.emit(target.name === "api" ? "API" : "MCP", "New process spawned");
+      const stoppedInfo = stopped.find((s) => s.service === target.name);
+      this.emitServiceEvent({
+        type: "service.restarted",
+        service: target.name,
+        timestamp: Date.now(),
+        oldCode: stoppedInfo?.code ?? null,
+        newPid: target.snapshotBoot().pid ?? null,
+      });
     }
 
     // Await readiness per configured criteria before declaring completion.
@@ -417,6 +446,7 @@ export class DevSupervisor {
         lastError: proc.error,
         lastBootMs: boot.lastBootMs,
         readiness: proc.readinessLabel(),
+        readinessState: proc.readinessState,
         startupFailure: proc.startupFailure,
       };
     });

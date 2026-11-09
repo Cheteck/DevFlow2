@@ -18,6 +18,7 @@ import type {
   ReadinessState,
   ServiceName,
   ServiceState,
+  SupervisorServiceEvent,
 } from "./supervisor-types.js";import { redactSecrets } from "./secret-guard.js";
 
 export interface ReadinessSpec {
@@ -50,6 +51,7 @@ export interface ManagedProcessOptions {
     category: "API" | "MCP" | "SYSTEM",
     message: string,
     level?: EventLevel,
+    payload?: SupervisorServiceEvent,
   ) => void;
   onLog: (
     service: ServiceName,
@@ -91,7 +93,7 @@ export class ManagedProcess {
   private readonly backoffMax: number;
   private readonly backoffInitial: number;
   private restartMarks: number[] = [];
-  private readinessState: ReadinessState = "PENDING";
+  private _readinessState: ReadinessState = "PENDING";
   private disposed = false;
   private readyResolve: (() => void) | null = null;
   private readyTimer: NodeJS.Timeout | null = null;
@@ -149,7 +151,7 @@ export class ManagedProcess {
 
   /** Honest readiness label: READY only when a real signal confirmed it. */
   readinessLabel(): string {
-    switch (this.readinessState) {
+    switch (this._readinessState) {
       case "READY":
         return "confirmed";
       case "TIMEOUT":
@@ -163,9 +165,42 @@ export class ManagedProcess {
     }
   }
 
+  get readinessState(): ReadinessState {
+    return this._readinessState;
+  }
+
   /** Concise startup-failure summary, if a boot failure was observed. */
   get startupFailure(): string | null {
     return this.failureSummary;
+  }
+
+  /**
+   * Émet un événement structuré de cycle de vie de service avec son payload
+   * typé, tout en conservant le message texte pour la rétrocompatibilité.
+   */
+  private emitServiceEvent(event: SupervisorServiceEvent): void {
+    const tag = this.name === "api" ? "API" : "MCP";
+    let message: string;
+    let level: EventLevel = "info";
+    switch (event.type) {
+      case "service.started":
+        message = `Service ${event.service} started (pid ${event.pid ?? "?"})`;
+        break;
+      case "service.ready":
+        message = `Service ${event.service} ready (${event.readinessState})`;
+        break;
+      case "service.stopped":
+        message = `Service ${event.service} stopped (code=${event.code ?? "?"} signal=${event.signal ?? "?"})`;
+        break;
+      case "service.crashed":
+        message = `Service ${event.service} crashed (code=${event.code ?? "?"} signal=${event.signal ?? "?"})`;
+        level = "error";
+        break;
+      case "service.restarted":
+        message = `Service ${event.service} restarted (new pid ${event.newPid ?? "?"})`;
+        break;
+    }
+    this.opts.onEvent(tag, message, level, event);
   }
 
   async start(): Promise<void> {
@@ -179,7 +214,7 @@ export class ManagedProcess {
     this.spawnFailed = false;
     this.failureSummary = null;
     this.state = "STARTING";
-    this.readinessState = "PENDING";
+    this._readinessState = "PENDING";
     this.startTime = Date.now();
     this.readyAt = null;
     const tag = this.name === "api" ? "API" : "MCP";
@@ -226,6 +261,12 @@ export class ManagedProcess {
       tag,
       `New process spawned${this.pid ? ` (pid ${this.pid})` : ""}`,
     );
+    this.emitServiceEvent({
+      type: "service.started",
+      service: this.name,
+      timestamp: Date.now(),
+      pid: this.pid,
+    });
 
     // Spawn errors (ENOENT, EACCES…) arrive as 'error' — must be observed
     // or Node throws unhandled. This also covers failures before 'exit'.
@@ -267,7 +308,7 @@ export class ManagedProcess {
     if (!this.opts.readiness?.pattern) {
       if (this.state === "STARTING") {
         this.state = "RUNNING";
-        this.readinessState = "UNKNOWN";
+        this._readinessState = "UNKNOWN";
       }
     } else {
       const timeout =
@@ -277,7 +318,7 @@ export class ManagedProcess {
       this.readyTimer = setTimeout(() => {
         if (this.state === "STARTING") {
           this.state = "RUNNING";
-          this.readinessState = "TIMEOUT";
+          this._readinessState = "TIMEOUT";
           this.opts.onEvent(
             tag,
             "Readiness not confirmed within budget — process alive but NOT ready",
@@ -327,8 +368,14 @@ export class ManagedProcess {
     if (pattern.test(text)) {
       this.readyAt = Date.now();
       this.state = "READY";
-      this.readinessState = "READY";
+      this._readinessState = "READY";
       this.clearReadyWait();
+      this.emitServiceEvent({
+        type: "service.ready",
+        service: this.name,
+        timestamp: Date.now(),
+        readinessState: this._readinessState,
+      });
       const ms = this.startTime ? this.readyAt - this.startTime : 0;
       const tag = this.name === "api" ? "API" : "MCP";
       this.opts.onEvent(tag, `Ready in ${ms} ms (readiness signal observed)`);
@@ -354,6 +401,13 @@ export class ManagedProcess {
     if (wasExpected) {
       this.state = "STOPPED";
       this.backoffMs = this.backoffInitial;
+      this.emitServiceEvent({
+        type: "service.stopped",
+        service: this.name,
+        timestamp: Date.now(),
+        code,
+        signal,
+      });
       this.opts.onEvent(
         tag,
         `Process terminated (code=${code ?? "?"} signal=${signal ?? "?"})`,
@@ -366,6 +420,13 @@ export class ManagedProcess {
     } else if (signal) {
       this.lastError = `terminated by signal ${signal}`;
     }
+    this.emitServiceEvent({
+      type: "service.crashed",
+      service: this.name,
+      timestamp: Date.now(),
+      code,
+      signal,
+    });
     this.opts.onEvent(
       tag,
       `Unexpected exit (code=${code ?? "?"} signal=${signal ?? "?"}) — backoff ${this.backoffMs} ms`,

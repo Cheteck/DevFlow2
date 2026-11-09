@@ -31,12 +31,50 @@ export type EventCategory =
 
 export type EventLevel = "info" | "warn" | "error";
 
+/** Événement de cycle de vie de service, émis par ManagedProcess/DevSupervisor. */
+export type SupervisorServiceEvent =
+  | {
+      type: "service.started";
+      service: ServiceName;
+      pid: number | null;
+      timestamp: number;
+    }
+  | {
+      type: "service.ready";
+      service: ServiceName;
+      readinessState: ReadinessState;
+      timestamp: number;
+    }
+  | {
+      type: "service.stopped";
+      service: ServiceName;
+      code: number | null;
+      signal: string | null;
+      timestamp: number;
+    }
+  | {
+      type: "service.crashed";
+      service: ServiceName;
+      code: number | null;
+      signal: string | null;
+      timestamp: number;
+    }
+  | {
+      type: "service.restarted";
+      service: ServiceName;
+      oldCode: number | null;
+      newPid: number | null;
+      timestamp: number;
+    };
+
 export interface SupervisorEvent {
   seq: number;
   at: number;
   category: EventCategory;
   level: EventLevel;
   message: string;
+  /** Payload structuré pour les événements de cycle de vie de service. */
+  payload?: SupervisorServiceEvent;
 }
 
 export type LogStream = "stdout" | "stderr" | "supervisor";
