@@ -156,7 +156,8 @@ function helpOverlay(width: number, enabled: boolean): string[] {
   const rows: Array<Array<[string, string]>> = [
     [
       ["R", "restart all"],
-      ["r", "stop svc"],
+      ["r", "restart svc"],
+      ["s", "stop svc"],
       ["a", "start svc"],
     ],
     [
@@ -241,16 +242,23 @@ export function renderCommandCenter(
     columns = buildColumns();
   }
 
-  // Mode vue orientée : afficher une vue plein écran au lieu de la grille
+  // Mode vue orientée : afficher une vue plein écran avec header + statusbar
+  // (contexte système conservé, raccourcis toujours visibles)
   const activeView = viewManager.getActiveView();
   if (activeView) {
+    const lines: string[] = [];
+    lines.push(...headerBar(snapshot, width, enabled));
+    lines.push("");
     const viewLines = renderViewByName(
       activeView,
       snapshot,
       width,
       enabled,
     );
-    return viewLines.join("\n");
+    lines.push(...viewLines);
+    lines.push("");
+    lines.push(...statusBar(filters, width, enabled));
+    return lines.join("\n");
   }
 
   const lines: string[] = [];

@@ -669,37 +669,53 @@ export class DevSupervisor {
     const stdin = process.stdin;
     this.keyboardInitialized = true;
 
-    // Mode interactif : réception immédiate des touches (stdin est un TTY)
-    if (stdin.isTTY === true && typeof stdin.setRawMode === "function") {
-      this.keyboardMode = "raw";
-      this.previousRawMode = stdin.isRaw;
-
-      // Initialiser le handler une seule fois (défensif contre les appels multiples)
-      if (!this.keypressHandler) {
-        this.keypressHandler = (
-          _chunk: Buffer,
-          key?: { name?: string; ctrl?: boolean; sequence?: string },
-        ) => {
-          void _chunk;
-          if (!key) return;
-          if (key.ctrl && key.name === "c") {
-            void this.shutdown("SIGINT");
-            return;
-          }
-          this.handleKey(key.name ?? key.sequence ?? "", Boolean(key.ctrl));
-        };
+    // Mode interactif : réception immédiate des touches (stdin est un TTY,
+    // ou terminal Windows qui supporte raw mode même si isTTY est false)
+    if (typeof stdin.setRawMode === "function") {
+      try {
+        stdin.setRawMode(true);
+      } catch {
+        /* raw mode non supporté, on passe au mode line ci-dessous */
       }
 
-      readline.emitKeypressEvents(stdin);
-      stdin.setRawMode(true);
-      stdin.on("keypress", this.keypressHandler);
-      stdin.resume();
-      return;
+      if (stdin.isRaw === true) {
+        this.keyboardMode = "raw";
+        this.previousRawMode = false;
+
+        // Initialiser le handler une seule fois (défensif contre les appels multiples)
+        if (!this.keypressHandler) {
+          this.keypressHandler = (
+            _chunk: Buffer,
+            key?: { name?: string; ctrl?: boolean; sequence?: string },
+          ) => {
+            void _chunk;
+            if (!key) return;
+            if (key.ctrl && key.name === "c") {
+              void this.shutdown("SIGINT");
+              return;
+            }
+            this.handleKey(key.name ?? key.sequence ?? "", Boolean(key.ctrl));
+          };
+        }
+
+        readline.emitKeypressEvents(stdin);
+        stdin.on("keypress", this.keypressHandler);
+        stdin.resume();
+        return;
+      }
+
+      // Restaurer si raw mode n'a pas pris
+      try {
+        stdin.setRawMode(false);
+      } catch {
+        /* ignore */
+      }
     }
 
-    // Mode non interactif : commandes suivies d'Entrée
-    if (!stdin.isTTY) {
+    // Mode non interactif : commandes suivies d'Entrée (PowerShell, CI, etc.)
+    if (!stdin.isTTY || this.keyboardMode !== "raw") {
       this.keyboardMode = "line";
+      stdin.resume();
       this.keyboardInterface = readline.createInterface({
         input: stdin,
         terminal: false,
@@ -845,15 +861,43 @@ export class DevSupervisor {
         this.toggleWatchPause();
         break;
       case "1":
-        this.filters.serviceFilter =
-          this.filters.serviceFilter === "api" ? "all" : "api";
+        viewManager.setActiveView("dashboard");
         this.filters.logScroll = 0;
         this.render();
         break;
       case "2":
-        this.filters.serviceFilter =
-          this.filters.serviceFilter === "mcp" ? "all" : "mcp";
+        viewManager.setActiveView("processes");
         this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "3":
+        viewManager.setActiveView("logs");
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "4":
+        viewManager.setActiveView("diagnostics");
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "5":
+        viewManager.setActiveView("environment");
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "6":
+        viewManager.setActiveView("sessions");
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "f":
+      case "F":
+        // Toggle service filter (déplacé des touches 1/2 qui servent
+        // désormais à la navigation entre les vues).
+        this.filters.serviceFilter =
+          this.filters.serviceFilter === "api" ? "all" : "api";
+        this.filters.logScroll = 0;
+        this.emit("SYSTEM", `Service filter: ${this.filters.serviceFilter}`);
         this.render();
         break;
       case "up":
@@ -1073,7 +1117,12 @@ export class DevSupervisor {
       height,
     });
     // Effacer l'écran et repositionner le curseur en haut à gauche
-    process.stdout.write("\x1b[2J\x1b[H" + lines + "\n");
+    // (guardé par vtSupported() pour ne pas polluer PowerShell avec des séquences VT brutes)
+    if (vtSupported()) {
+      process.stdout.write("\x1b[2J\x1b[H" + lines + "\n");
+    } else {
+      process.stdout.write("\n--- MOSAIX // COMMAND CENTER ---\n" + lines + "\n");
+    }
   }
 
   private installSignals(): void {
