@@ -14,6 +14,7 @@
 import type { DatabasePort } from "@mosaix/ports-database";
 import { MigrationExecutionError, MigrationLockError } from "./errors.js";
 import type { MigrationPlan } from "./planner.js";
+import type { Migration } from "./migration.js";
 import { parseMigrationId } from "./migration.js";
 import type { MigrationStore } from "./store.js";
 
@@ -112,7 +113,9 @@ export class MigrationRunner {
     const previews: { id: string; sql: string }[] = [];
     for (const op of plan.operations) {
       if (op.operation === "up") {
-        previews.push({ id: op.migration.id, sql: op.migration.content });
+        if (op.migration.content !== undefined) {
+          previews.push({ id: op.migration.id, sql: op.migration.content });
+        }
       } else {
         if (op.migration.down) {
           previews.push({ id: op.migration.id, sql: op.migration.down });
@@ -134,12 +137,19 @@ export class MigrationRunner {
   }
 
   private async applyUp(
-    migration: { id: string; content: string; checksum: string },
+    migration: Migration,
     batchId: string,
   ): Promise<void> {
+    const content = migration.content;
+    if (content === undefined) {
+      throw new MigrationExecutionError(
+        `Migration "${migration.id}" has no content to apply`,
+        migration.id,
+      );
+    }
     try {
       await this.db.transaction(async (tx) => {
-        await tx.execute(migration.content);
+        await tx.execute(content);
         await this.store.save({
           id: migration.id,
           owner: parseMigrationId(migration.id).owner,
