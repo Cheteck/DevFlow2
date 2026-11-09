@@ -158,9 +158,15 @@ export const migration: Migration = {
   down: sqlDown,
   checksum: computeChecksum(sqlContent),
   resources: [
-    // v1.003_harden_commerce MODIFIE des tables existantes (ajout contraintes, indexes, colonnes),
-    // elle n'en CREATE aucune. Seul v1.002_move_to_schema CREATE les tables commerce.*.
-    // Declarer ces tables ici provoquerait une collision de ressources (R9)
-    // avec v1.002. Ressources vides = aucune table creee par cette migration.
+    // v1.003_harden_commerce MODIFIE ces tables existantes et CREATE payment_refunds.
+    // R9 exige au moins une ressource déclarée pour la détection de collisions.
+    "table:commerce.offers",
+    "table:commerce.auctions",
+    "table:commerce.auction_bids",
+    "table:commerce.carts",
+    "table:commerce.cart_items",
+    "table:commerce.payment_intents",
+    "table:commerce.payment_refunds",
+    "table:commerce.orders",
   ],
 };
