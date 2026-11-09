@@ -672,6 +672,9 @@ export class DevSupervisor {
     // Mode interactif : réception immédiate des touches (stdin est un TTY,
     // ou terminal Windows qui supporte raw mode même si isTTY est false)
     if (typeof stdin.setRawMode === "function") {
+      // Sauvegarder l'état AVANT toute modification (critique pour la restauration).
+      this.previousRawMode = stdin.isRaw ?? false;
+
       try {
         stdin.setRawMode(true);
       } catch {
@@ -680,7 +683,6 @@ export class DevSupervisor {
 
       if (stdin.isRaw === true) {
         this.keyboardMode = "raw";
-        this.previousRawMode = false;
 
         // Initialiser le handler une seule fois (défensif contre les appels multiples)
         if (!this.keypressHandler) {
@@ -776,7 +778,7 @@ export class DevSupervisor {
         stdin.removeListener("keypress", this.keypressHandler);
       }
 
-      if (stdin.isTTY && typeof stdin.setRawMode === "function") {
+      if (typeof stdin.setRawMode === "function") {
         stdin.setRawMode(this.previousRawMode);
       }
     }
@@ -1023,6 +1025,30 @@ export class DevSupervisor {
         this.filters.logScroll = 0;
         this.render();
         break;
+      case "goto-dashboard":
+        viewManager.setActiveView("dashboard");
+        this.render();
+        break;
+      case "goto-processes":
+        viewManager.setActiveView("processes");
+        this.render();
+        break;
+      case "goto-logs":
+        viewManager.setActiveView("logs");
+        this.render();
+        break;
+      case "goto-diagnostics":
+        viewManager.setActiveView("diagnostics");
+        this.render();
+        break;
+      case "goto-environment":
+        viewManager.setActiveView("environment");
+        this.render();
+        break;
+      case "goto-sessions":
+        viewManager.setActiveView("sessions");
+        this.render();
+        break;
       case "1":
         viewManager.setActiveView("dashboard");
         this.render();
@@ -1148,24 +1174,13 @@ export class DevSupervisor {
     this.heartbeat = null;
     this.screen?.dispose();
     this.screen = null;
-    try {
-      if (process.stdin.isTTY) process.stdin.setRawMode(false);
-    } catch {
-      /* ignore */
-    }
     process.stdin.pause();
     this.watcher.dispose();
     await Promise.all([this.api.stop("shutdown"), this.mcp.stop("shutdown")]);
-    // Belt and braces: no orphans even if graceful stop raced a spawn.
-    await Promise.all([this.api.forceKill(), this.mcp.forceKill()]).catch(
-      (error) => {
-        this.bus.emit(
-          "SYSTEM",
-          `forceKill a échoué pour un service : ${error}`,
-          "warn",
-        );
-      },
-    );
+    // Belt and braces: no orphans — forceKill seulement si le processus
+    // est encore vivant après le stop gracieux (évite le double-kill sur Windows).
+    if (this.api.isAlive) await this.api.forceKill().catch(() => {});
+    if (this.mcp.isAlive) await this.mcp.forceKill().catch(() => {});
     this.api.markDisposed();
     this.mcp.markDisposed();
     this.bus.emit("SYSTEM", "Shutdown complete — no orphan processes");

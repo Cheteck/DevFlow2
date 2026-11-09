@@ -512,8 +512,6 @@ export class ManagedProcess {
     // 2. Attendre la fermeture gracieuse.
     const timeoutMs = this.opts.shutdownTimeoutMs ?? DEFAULT_SHUTDOWN_MS;
     const exited = this.waitForExit();
-    const timer = setTimeout(() => "timeout", timeoutMs);
-    timer.unref?.();
     const winner = await Promise.race([
       exited.then(() => "exited" as const),
       new Promise<"timeout">((resolve) => {
@@ -521,7 +519,6 @@ export class ManagedProcess {
         t.unref?.();
       }),
     ]);
-    clearTimeout(timer);
 
     if (winner === "exited") {
       this.child = null;

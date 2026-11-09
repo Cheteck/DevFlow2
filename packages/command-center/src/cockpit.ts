@@ -602,7 +602,7 @@ export function statusBar(
   if (filters.paused) ctx.push("watch-paused");
   ctx.push(`view:${viewManager.getActiveView()}`);
   const keys =
-    "R restart-all | r stop | a start | Tab select | 1 dash 2 proc 3 logs 4 diag 5 env 6 sess | L logs | E errors | C clear | P watch | Ctrl+K Cmd | ? Help | Q Quit";
+    "R restart-all | r restart | s stop | a start | Tab select | 1 dash 2 proc 3 logs 4 diag 5 env 6 sess | L logs | E errors | C clear | P watch | Ctrl+K Cmd | ? Help | Q Quit";
   const line = `${paint(keys, ANSI.grey, enabled)}${ctx.length > 0 ? paint(`   [${ctx.join(" · ")}]`, ANSI.amber, enabled) : ""}`;
   return [fitLine(line, width, enabled)];
 }
