@@ -16,7 +16,6 @@ import type {
   SupervisorEvent,
   ViewFilters,
 } from "./supervisor-types.js";
-import { viewManager } from "./views/view-manager.js";
 
 /** A service counts as up only when serving is confirmed (MCP: no probe). */
 export function isUp(service: ServiceSnapshot): boolean {
@@ -97,6 +96,7 @@ export function headerBar(
   snapshot: CommandCenterSnapshot,
   width: number,
   enabled: boolean,
+  activeView?: string,
 ): string[] {
   const up = snapshot.services.filter(isUp).length;
   const incidents = snapshot.diagnostics.filter(
@@ -114,6 +114,7 @@ export function headerBar(
     `${paint(`${SYMBOLS.brand} MOSAIX // COMMAND CENTER`, ANSI.bold + ANSI.cyan, enabled)}  ` +
     `${paint("DEV", ANSI.amber, enabled)}  ` +
     `${paint(SYMBOLS.dot, overallColor, enabled)} ${paint(snapshot.overall, overallColor + ANSI.bold, enabled)}  ` +
+    `${paint("VIEW", ANSI.grey, enabled)} ${paint(activeView?.toUpperCase() ?? "DASHBOARD", ANSI.bold, enabled)}  ` +
     `${paint("SERVICES", ANSI.grey, enabled)} ${up}/${snapshot.services.length}  ` +
     `${incidents > 0 ? paint(`INCIDENTS ${incidents}`, ANSI.red + ANSI.bold, enabled) : paint("INCIDENTS 0", ANSI.grey, enabled)}  ` +
     `${paint("RESTARTS", ANSI.grey, enabled)} ${snapshot.restarts}  ` +
@@ -600,7 +601,7 @@ export function statusBar(
     ctx.push(`filter:${filters.serviceFilter}`);
   if (filters.errorOnly) ctx.push("errors-only");
   if (filters.paused) ctx.push("watch-paused");
-  ctx.push(`view:${viewManager.getActiveView()}`);
+  ctx.push(`view:${filters.activeView}`);
   const keys =
     "R restart-all | r restart | s stop | a start | Tab select | 1 dash 2 proc 3 logs 4 diag 5 env 6 sess | L logs | E errors | C clear | P watch | Ctrl+K Cmd | ? Help | Q Quit";
   const line = `${paint(keys, ANSI.grey, enabled)}${ctx.length > 0 ? paint(`   [${ctx.join(" · ")}]`, ANSI.amber, enabled) : ""}`;

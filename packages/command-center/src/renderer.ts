@@ -247,7 +247,7 @@ export function renderCommandCenter(
   const activeView = viewManager.getActiveView();
   if (activeView) {
     const lines: string[] = [];
-    lines.push(...headerBar(snapshot, width, enabled));
+    lines.push(...headerBar(snapshot, width, enabled, activeView));
     lines.push("");
     const viewLines = renderViewByName(
       activeView,
@@ -262,7 +262,7 @@ export function renderCommandCenter(
   }
 
   const lines: string[] = [];
-  lines.push(...headerBar(snapshot, width, enabled));
+  lines.push(...headerBar(snapshot, width, enabled, activeView));
   const tallest = Math.max(...columns.map((c) => c.length));
   const gutter = paint("│", ANSI.grey, enabled);
   for (let i = 0; i < tallest; i++) {

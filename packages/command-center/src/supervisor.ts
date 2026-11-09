@@ -864,31 +864,37 @@ export class DevSupervisor {
         break;
       case "1":
         viewManager.setActiveView("dashboard");
+        this.filters.activeView = "dashboard";
         this.filters.logScroll = 0;
         this.render();
         break;
       case "2":
         viewManager.setActiveView("processes");
+        this.filters.activeView = "processes";
         this.filters.logScroll = 0;
         this.render();
         break;
       case "3":
         viewManager.setActiveView("logs");
+        this.filters.activeView = "logs";
         this.filters.logScroll = 0;
         this.render();
         break;
       case "4":
         viewManager.setActiveView("diagnostics");
+        this.filters.activeView = "diagnostics";
         this.filters.logScroll = 0;
         this.render();
         break;
       case "5":
         viewManager.setActiveView("environment");
+        this.filters.activeView = "environment";
         this.filters.logScroll = 0;
         this.render();
         break;
       case "6":
         viewManager.setActiveView("sessions");
+        this.filters.activeView = "sessions";
         this.filters.logScroll = 0;
         this.render();
         break;
