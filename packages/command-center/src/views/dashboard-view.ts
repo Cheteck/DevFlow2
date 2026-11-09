@@ -85,6 +85,19 @@ export function renderDashboard(
     }
   }
 
+  // Ligne 5 : navigation et raccourcis clavier
+  body.push("");
+  body.push(`  ${paint("NAVIGATION", ANSI.bold, enabled)}`);
+  body.push(
+    `  ${paint("1", ANSI.amber, enabled)}=dashboard  ${paint("2", ANSI.amber, enabled)}=processes  ${paint("3", ANSI.amber, enabled)}=logs  ${paint("4", ANSI.amber, enabled)}=diagnostics  ${paint("5", ANSI.amber, enabled)}=environment  ${paint("6", ANSI.amber, enabled)}=sessions`
+  );
+  body.push(
+    `  ${paint("s", ANSI.amber, enabled)}=stop  ${paint("a", ANSI.amber, enabled)}=start  ${paint("r", ANSI.amber, enabled)}=restart  ${paint("Tab", ANSI.amber, enabled)}=select svc  ${paint("Ctrl+K", ANSI.amber, enabled)}=palette`
+  );
+  body.push(
+    `  ${paint("L", ANSI.amber, enabled)}=logs  ${paint("E", ANSI.amber, enabled)}=errors  ${paint("P", ANSI.amber, enabled)}=watch  ${paint("C", ANSI.amber, enabled)}=clear  ${paint("Q", ANSI.amber, enabled)}=quit`
+  );
+
   return body;
 }
 
