@@ -173,6 +173,7 @@ function helpOverlay(width: number, enabled: boolean): string[] {
       ["L", "toggle logs"],
       ["E", "error-only"],
       ["P", "pause watch"],
+      ["Z", "freeze display"],
       ["Ctrl+K", "command palette"],
       ["Q · Ctrl+C", "graceful quit"],
     ],

@@ -122,6 +122,8 @@ export class DevSupervisor {
   private previousRawMode = false;
   /** Dernière frame rendue en mode non-TTY (déduplication heartbeat). */
   private lastRenderedFrame = "";
+  /** Affichage gelé : le heartbeat ne re-rend plus (permet sélection texte). */
+  private displayFrozen = false;
   constructor(private readonly opts: SupervisorOptions) {
     this.history_ = new EventHistory(
       opts.eventBufferSize ?? 300,
@@ -864,6 +866,17 @@ export class DevSupervisor {
       case "P":
         this.toggleWatchPause();
         break;
+      case "z":
+      case "Z":
+        // Gel/dégel de l'affichage : permet de sélectionner/copier du texte
+        // dans les logs sans que le heartbeat n'efface l'écran.
+        this.displayFrozen = !this.displayFrozen;
+        this.emit(
+          "SYSTEM",
+          this.displayFrozen ? "Affichage gelé (Appuyez sur Z pour dégeler)" : "Affichage dégelé",
+        );
+        this.render();
+        break;
       case "1":
         viewManager.setActiveView("dashboard");
         this.filters.activeView = "dashboard";
@@ -1142,6 +1155,11 @@ export class DevSupervisor {
       this.screen.requestPaint(() =>
         renderCommandCenter(snapshot, this.filters, { width, height }),
       );
+      return;
+    }
+
+    // Affichage gelé : on ne re-rend pas (permet sélection/copie de texte)
+    if (this.displayFrozen) {
       return;
     }
 

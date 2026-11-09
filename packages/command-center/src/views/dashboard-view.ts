@@ -95,7 +95,7 @@ export function renderDashboard(
     `  ${paint("s", ANSI.amber, enabled)}=stop  ${paint("a", ANSI.amber, enabled)}=start  ${paint("r", ANSI.amber, enabled)}=restart  ${paint("Tab", ANSI.amber, enabled)}=select svc  ${paint("Ctrl+K", ANSI.amber, enabled)}=palette`
   );
   body.push(
-    `  ${paint("L", ANSI.amber, enabled)}=logs  ${paint("E", ANSI.amber, enabled)}=errors  ${paint("P", ANSI.amber, enabled)}=watch  ${paint("C", ANSI.amber, enabled)}=clear  ${paint("Q", ANSI.amber, enabled)}=quit`
+    `  ${paint("L", ANSI.amber, enabled)}=logs  ${paint("E", ANSI.amber, enabled)}=errors  ${paint("P", ANSI.amber, enabled)}=watch  ${paint("Z", ANSI.amber, enabled)}=freeze  ${paint("C", ANSI.amber, enabled)}=clear  ${paint("Q", ANSI.amber, enabled)}=quit`
   );
 
   return body;

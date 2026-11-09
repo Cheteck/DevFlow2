@@ -605,7 +605,7 @@ export function statusBar(
   const ctxPart = ctx.length > 0 ? paint(`   [${ctx.join(" · ")}]`, ANSI.amber, enabled) : "";
 
   const line1 = `R restart-all | r restart | s stop | a start | Tab select`;
-  const line2 = `1-6 views | L logs | E errors | C clear | P watch | Ctrl+K | ? Help | Q Quit`;
+  const line2 = `1-6 views | L logs | E errors | P watch | Z freeze | C clear | Ctrl+K | ? Help | Q Quit`;
 
   // Sous 110 colonnes : deux lignes pour ne pas tronquer les raccourcis clés.
   if (width < 110) {

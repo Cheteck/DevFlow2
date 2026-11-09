@@ -99,10 +99,11 @@ export const migration: Migration = {
   down: sqlDown,
   checksum: computeChecksum(sqlContent),
   resources: [
-    // v1.003_harden_booking MODIFIE des tables existantes (ajout colonnes, contraintes, index),
-    // elle n'en CREATE aucune. Seul v1.002_move_to_booking_schema CREATE table:booking.slots.
-    // Déclarer table:booking.slots ici provoquerait une collision de ressources (R9)
-    // avec v1.002. Les tables reservations/waitlists/reminders sont aussi modifiees, pas crees.
-    // Ressources vides = aucune table creee par cette migration.
+    // v1.003_harden_booking MODIFIE (ne CREATE pas) ces tables existantes.
+    // R9 exige au moins une ressource déclarée pour la détection de collisions.
+    "table:booking.slots",
+    "table:booking.reservations",
+    "table:booking.waitlists",
+    "table:booking.reminders",
   ],
 };
