@@ -1225,6 +1225,15 @@ Ne jamais :
 - supprimer une connaissance utile
 - **dupliquer un nom de fichier** : chaque fichier doit avoir un basename unique dans le repository (ex. pas de `domain/user-repository.ts` ET `infrastructure/user-repository.ts`). Un port et son adaptateur portent des noms distincts — ex. `domain/user-repository.ts` (port) et `infrastructure/in-memory-user-repository.ts` (adaptateur).
 - **Imports** : privilégier les aliases de module (ex. `@mosaix/core`, `@mosaix/ports-database`, `@mosaix/migrations`) définis dans `tsconfig.json` plutôt que les chemins relatifs en dur (`../../...`). Un import doit utiliser un alias quand le cible est exposée par un alias, pour la lisibilité et la stabilité des déplacements de fichiers.
+- **Dogfooding & Réutilisation de l'écosystème Mosaix** : avant d'ajouter une dépendance externe, de créer une abstraction ou d'implémenter une fonctionnalité, examiner systématiquement les capacités déjà disponibles dans le monorepo (`@mosaix/core`, `@mosaix/database`, `@mosaix/support` et les autres packages internes). **Réutiliser et étendre l'existant plutôt que dupliquer ou réimplémenter.**
+  - Privilégier les contrats, interfaces, ports, services et utilitaires déjà définis par le projet (ex. `Logger`, `DatabasePort`) plutôt que les bibliothèques tierces ou les implémentations ad hoc.
+  - Vérifier les fonctionnalités existantes, leur documentation, leurs tests et leurs points d'extension avant toute nouvelle implémentation.
+  - Ne pas créer de seconde implémentation lorsqu'une solution équivalente existe déjà dans le monorepo. Si elle est insuffisante, privilégier son extension ou son amélioration.
+  - Respecter les frontières architecturales et les dépendances autorisées entre packages. Ne pas introduire de dépendance circulaire ni contourner les abstractions existantes.
+  - Toute nouvelle dépendance externe doit être justifiée par un besoin non couvert, après vérification des alternatives internes. Évaluer sa maintenance, sa sécurité, sa compatibilité, son poids et son coût à long terme.
+  - Si une nouvelle abstraction ou dépendance est nécessaire, la concevoir de manière cohérente avec les conventions et contrats architecturaux de Mosaix.
+  - **Principe directeur : Mosaix doit d'abord utiliser ses propres capacités. Toute nouvelle brique doit apporter une valeur réelle et ne pas fragmenter inutilement l'écosystème existant.**
+
 
 ---
 

@@ -11,7 +11,13 @@ import * as crypto from "node:crypto";
 
 import type { ThemeMode, BacExecutionContext } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
-import { platformSettingsService, ConsoleLogger } from "@mosaix/core";
+import {
+  platformSettingsService,
+  loadConfig,
+  ConsoleLogger,
+  FileLogger,
+  type Logger,
+} from "@mosaix/core";
 import { createApplication } from "../bootstrap/index.js";
 
 import { LocalPasswordProvider } from "@mosaix/adapter-auth-local";
@@ -67,6 +73,59 @@ import { renderBacAdminSafely } from "./shell/renderer.js";
 import { PRIMARY_RAIL_SHARED_CSS } from "./shell/renderer.js";
 import { getPlatformFeatureFlags } from "./shell/feature-flags.js";
 
+// ─── Configuration centralisée (Lot 1 — socle) ─────────────────────
+// Chargement et validation de l'environnement au point de composition.
+// Aucun consommateur métier ne lit process.env directement : la configuration
+// est injectée explicitement ici, puis distribuée aux composants concernés.
+// ─── Fichier de log du dev server (dogfooding: FileLogger réutilise
+// l'interface Logger existante, zéro dépendance externe) ──────────────────
+const logDir = path.join(process.cwd(), ".mosaix", "logs");
+const fileLogger = new FileLogger("info", { component: "ShellServer" }, { logDir, fileName: "server.log" });
+const consoleLogger = new ConsoleLogger("info", { component: "ShellServer" });
+
+// Logger combiné : écrit sur la console ET dans le fichier de log.
+// Permet de garder les diagnostics visibles tout en les persistant sur disque.
+const logger: Logger = {
+  debug(message: string, fields?: Record<string, unknown>): void {
+    consoleLogger.debug(message, fields);
+    fileLogger.debug(message, fields);
+  },
+  info(message: string, fields?: Record<string, unknown>): void {
+    consoleLogger.info(message, fields);
+    fileLogger.info(message, fields);
+  },
+  warn(message: string, fields?: Record<string, unknown>): void {
+    consoleLogger.warn(message, fields);
+    fileLogger.warn(message, fields);
+  },
+  error(message: string, fields?: Record<string, unknown>): void {
+    consoleLogger.error(message, fields);
+    fileLogger.error(message, fields);
+  },
+  child(fields: Record<string, unknown>): Logger {
+    return {
+      debug: (m, f) => { consoleLogger.debug(m, { ...fields, ...f }); fileLogger.debug(m, { ...fields, ...f }); },
+      info: (m, f) => { consoleLogger.info(m, { ...fields, ...f }); fileLogger.info(m, { ...fields, ...f }); },
+      warn: (m, f) => { consoleLogger.warn(m, { ...fields, ...f }); fileLogger.warn(m, { ...fields, ...f }); },
+      error: (m, f) => { consoleLogger.error(m, { ...fields, ...f }); fileLogger.error(m, { ...fields, ...f }); },
+      child: (f2) => logger.child({ ...fields, ...f2 }),
+    };
+  },
+};
+
+// Configuration chargée et validée au démarrage (fail-fast explicite).
+// Immuable après validation : pas de reload, pas de cache, pas de résolution DB dans ce lot.
+const appConfig = loadConfig(undefined, { isProduction: appEnvIsProduction() });
+
+// Détection de l'environnement de production pour le fail-fast conditionnel.
+// MOSAIX_ENV est canonique, NODE_ENV est l'alias legacy (convention S-05).
+function appEnvIsProduction(): boolean {
+  return (
+    (process.env.MOSAIX_ENV ?? process.env.NODE_ENV ?? "development") ===
+    "production"
+  );
+}
+
 // Server decoupling modules
 import { handleMaintenanceGate } from "./server/middleware/maintenance-gate.js";
 import { dispatchApiRequest } from "./server/api-dispatcher.js";
@@ -78,19 +137,11 @@ import { wireBacDescriptors } from "./server/bac-wiring.js";
 import { renderBacPage } from "./shell/pages/bac-page.js";
 import { renderHomePage } from "./shell/pages/home-page.js";
 
-const logger = new ConsoleLogger("info", { component: "ShellServer" });
-/* AUDIT-RESET a055b8e (2026-10-13) — AUCUNE PERTE DÉTECTÉE.
- * Alignement d'API ConsoleLogger + mise en forme logger.error, conforme au "build 0 erreur" de la session.
- * Fait partie du batch "and 14 more". Vérifier la signature ConsoleLogger et le boot (build + démarrage)
- * après toute restauration. */
-
 // Request hard ceiling: a hung upstream (descriptor.render, DB, cluster relay) can
 // never pin a worker indefinitely. 30s is generous for SSR + MCP round-trips;
 // anything slower is almost certainly stuck, not slow (S-09).
-const REQUEST_TIMEOUT_MS = Number.parseInt(
-  process.env.MOSAIX_REQUEST_TIMEOUT_MS || "30000",
-  10,
-);
+// Valeur lue depuis la configuration centralisée validée au démarrage.
+const REQUEST_TIMEOUT_MS = appConfig.platform.requestTimeoutMs;
 
 // Stable per-request id: links logs, traces, and the response header so a
 // slow request is traceable without server-side correlation tables (OBS-TRC-01).
@@ -104,7 +155,9 @@ function generateRequestId(): string {
 // migrations applied via the CLI — the boot path never runs DDL or seeds.
 // Fresh checkout or pending migrations? Run: pnpm mosaix migrate
 // (add --seed for baseline demo data).
+logger.info("Boot: createApplication starting");
 const app = await createApplication();
+logger.info("Boot: createApplication done");
 const { compositionOverrideManager } = app;
 const PORT = app.env.resolvedPort;
 

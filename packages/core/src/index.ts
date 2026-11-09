@@ -30,6 +30,7 @@ export {
   InMemoryMetrics,
   InMemoryTracer,
 } from "./observability.js";
+export { FileLogger } from "./file-logger.js";
 export type {
   Logger,
   LogRecord,
@@ -138,6 +139,23 @@ export {
   loadEnvFile,
 } from "./env/env.schema.js";
 export type { BaseEnv, NormalizedEnv } from "./env/env.schema.js";
+
+// ─── Configuration centralisée (Lot 1 — socle) ─────────────────────
+// Charge et valide la configuration depuis process.env au démarrage.
+// Aucun consommateur métier ne lit process.env directement : la config est
+// injectée via le point de composition (src/start.ts).
+export {
+  loadConfig,
+  type EnvConfig,
+  type ReadonlyAppConfig,
+} from "./config/config-loader.js";
+export {
+  EnvSchema,
+  type InfrastructureConfig,
+  type SecurityConfig,
+  type PlatformConfig,
+  type EnvRuntimeConfig,
+} from "./config/config-schema.js";
 
 // Service Providers (AdonisJS-inspired) & IoC Container
 export { BaseServiceProvider } from "./providers/base-service-provider.js";
