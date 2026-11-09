@@ -29,6 +29,13 @@ import {
   fitLine,
   type Panel,
 } from "./cockpit.js";
+import { renderDashboardPanel } from "./views/dashboard-view.js";
+import { renderProcessesPanel } from "./views/processes-view.js";
+import { renderLogsPanel } from "./views/logs-view.js";
+import { renderDiagnosticsPanel } from "./views/diagnostics-view.js";
+import { renderEnvironmentPanel } from "./views/environment-view.js";
+import { renderSessionsPanel } from "./views/sessions-view.js";
+import { viewManager } from "./views/view-manager.js";
 import { ANSI, paint, colorsEnabled } from "./theme.js";
 import { filterPalette, clampIndex } from "./palette.js";
 import type { ViewFilters, CommandCenterSnapshot } from "./supervisor-types.js";
@@ -48,6 +55,7 @@ export const DEFAULT_FILTERS: ViewFilters = {
   paletteQuery: "",
   paletteIndex: 0,
   selectedService: null,
+  activeView: "dashboard",
 };
 
 export interface RenderOptions {
@@ -148,19 +156,22 @@ function helpOverlay(width: number, enabled: boolean): string[] {
   const rows: Array<Array<[string, string]>> = [
     [
       ["R", "restart all"],
-      ["r", "restart svc"],
-      ["s", "stop svc"],
+      ["r", "stop svc"],
       ["a", "start svc"],
+    ],
+    [
+      ["1", "dashboard"],
+      ["2", "processes"],
+      ["3", "logs"],
+      ["4", "diagnostics"],
+      ["5", "environment"],
+      ["6", "sessions"],
     ],
     [
       ["Tab", "select svc"],
       ["L", "toggle logs"],
       ["E", "error-only"],
       ["P", "pause watch"],
-    ],
-    [
-      ["1 / 2", "filter svc"],
-      ["↑ / ↓", "scroll logs"],
       ["Ctrl+K", "command palette"],
       ["Q · Ctrl+C", "graceful quit"],
     ],
@@ -230,6 +241,18 @@ export function renderCommandCenter(
     columns = buildColumns();
   }
 
+  // Mode vue orientée : afficher une vue plein écran au lieu de la grille
+  const activeView = viewManager.getActiveView();
+  if (activeView) {
+    const viewLines = renderViewByName(
+      activeView,
+      snapshot,
+      width,
+      enabled,
+    );
+    return viewLines.join("\n");
+  }
+
   const lines: string[] = [];
   lines.push(...headerBar(snapshot, width, enabled));
   const tallest = Math.max(...columns.map((c) => c.length));
@@ -249,4 +272,34 @@ export function renderCommandCenter(
   }
   lines.push(...statusBar(filters, width, enabled));
   return lines.join("\n");
+}
+
+/**
+ * Rend une vue nommée en plein écran (mode orienté vues).
+ * Chaque vue est un module autonome qui consomme le snapshot existant.
+ */
+export function renderViewByName(
+  viewName: string,
+  snapshot: CommandCenterSnapshot,
+  width: number,
+  enabled: boolean,
+): string[] {
+  switch (viewName) {
+    case "dashboard":
+      return renderDashboardPanel(snapshot, width, enabled);
+    case "processes":
+      return renderProcessesPanel(snapshot, width, enabled);
+    case "logs":
+      return renderLogsPanel(snapshot, width, enabled);
+    case "diagnostics":
+      return renderDiagnosticsPanel(snapshot, width, enabled);
+    case "environment":
+      return renderEnvironmentPanel(snapshot, width, enabled);
+    case "sessions":
+      return renderSessionsPanel(snapshot, width, enabled);
+    default:
+      return [
+        paint(`Vue inconnue : ${viewName}`, ANSI.red + ANSI.bold, enabled),
+      ];
+  }
 }

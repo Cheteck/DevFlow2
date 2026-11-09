@@ -217,4 +217,9 @@ export interface ViewFilters {
   paletteIndex: number;
   /** Service sélectionné pour les actions individuelles (start/stop/restart). */
   selectedService: ServiceName | null;
+  /** Vue active du Developer Console. */
+  activeView: ViewName;
 }
+
+/** Vue active du Developer Console (architecture orientée vues). */
+export type ViewName = "dashboard" | "processes" | "logs" | "diagnostics" | "environment" | "sessions";

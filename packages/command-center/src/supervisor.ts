@@ -37,6 +37,7 @@ import { analyzeSnapshot } from "./diagnostics.js";
 import { TerminalRenderer, vtSupported } from "./terminal-renderer.js";
 import { DEFAULT_FILTERS, renderCommandCenter } from "./renderer.js";
 import { filterPalette, clampIndex } from "./palette.js";
+import { viewManager, type ViewName } from "./views/view-manager.js";
 
 /**
  * API port ONLY when genuinely known: the child inherits our env, so an
@@ -871,6 +872,30 @@ export class DevSupervisor {
         this.filters.logScroll = 0;
         this.render();
         break;
+      case "1":
+        viewManager.setActiveView("dashboard");
+        this.render();
+        break;
+      case "2":
+        viewManager.setActiveView("processes");
+        this.render();
+        break;
+      case "3":
+        viewManager.setActiveView("logs");
+        this.render();
+        break;
+      case "4":
+        viewManager.setActiveView("diagnostics");
+        this.render();
+        break;
+      case "5":
+        viewManager.setActiveView("environment");
+        this.render();
+        break;
+      case "6":
+        viewManager.setActiveView("sessions");
+        this.render();
+        break;
       case "toggle-help":
         this.filters.showHelp = !this.filters.showHelp;
         this.render();
@@ -922,6 +947,8 @@ export class DevSupervisor {
     if (!this.useTui || !screen) return;
     const width = process.stdout.columns ?? 100;
     const height = process.stdout.rows ?? 40;
+    // Synchroniser le ViewManager avec le snapshot courant
+    viewManager.updateSnapshot(this.snapshot());
     screen.requestPaint(() =>
       renderCommandCenter(this.snapshot(), this.filters, { width, height }),
     );

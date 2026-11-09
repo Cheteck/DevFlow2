@@ -16,6 +16,7 @@ import type {
   SupervisorEvent,
   ViewFilters,
 } from "./supervisor-types.js";
+import { viewManager } from "./views/view-manager.js";
 
 /** A service counts as up only when serving is confirmed (MCP: no probe). */
 export function isUp(service: ServiceSnapshot): boolean {
@@ -599,8 +600,9 @@ export function statusBar(
     ctx.push(`filter:${filters.serviceFilter}`);
   if (filters.errorOnly) ctx.push("errors-only");
   if (filters.paused) ctx.push("watch-paused");
+  ctx.push(`view:${viewManager.getActiveView()}`);
   const keys =
-    "R restart-all | r stop/start svc | s stop | a start | Tab select | L logs | E errors | C clear | P watch | 1 API | 2 MCP | Ctrl+K Cmd | ? Help | Q Quit";
+    "R restart-all | r stop | a start | Tab select | 1 dash 2 proc 3 logs 4 diag 5 env 6 sess | L logs | E errors | C clear | P watch | Ctrl+K Cmd | ? Help | Q Quit";
   const line = `${paint(keys, ANSI.grey, enabled)}${ctx.length > 0 ? paint(`   [${ctx.join(" · ")}]`, ANSI.amber, enabled) : ""}`;
   return [fitLine(line, width, enabled)];
 }
