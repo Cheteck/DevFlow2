@@ -12,8 +12,8 @@ import type {
 } from "./supervisor-types.js";
 import { redactSecrets } from "./secret-guard.js";
 
-export const DEFAULT_EVENT_CAP = 300;
-export const DEFAULT_LOG_CAP = 800;
+export const DEFAULT_EVENT_CAP = 5000;
+export const DEFAULT_LOG_CAP = 5000;
 
 export class EventHistory {
   private events: SupervisorEvent[] = [];
@@ -90,6 +90,38 @@ export class EventHistory {
 
   getLogs(): LogEntry[] {
     return [...this.logs];
+  }
+
+  /** Recherche textuelle (insensible à la casse) dans les événements. */
+  searchEvents(query: string): SupervisorEvent[] {
+    const q = query.toLowerCase();
+    return this.events.filter((e) => e.message.toLowerCase().includes(q));
+  }
+
+  /** Recherche textuelle (insensible à la casse) dans les logs. */
+  searchLogs(query: string): LogEntry[] {
+    const q = query.toLowerCase();
+    return this.logs.filter((l) => l.text.toLowerCase().includes(q));
+  }
+
+  /** Filtre les événements par niveau de sévérité. */
+  filterEventsByLevel(level: EventLevel): SupervisorEvent[] {
+    return this.events.filter((e) => e.level === level);
+  }
+
+  /** Filtre les logs par niveau de sévérité. */
+  filterLogsByLevel(level: EventLevel): LogEntry[] {
+    return this.logs.filter((l) => l.level === level);
+  }
+
+  /** Vide les événements (complément de clearLogs). */
+  clearEvents(): void {
+    this.events = [];
+  }
+
+  /** Exporte tout l'historique en JSON (logs + événements). */
+  toJSON(): { events: SupervisorEvent[]; logs: LogEntry[] } {
+    return { events: [...this.events], logs: [...this.logs] };
   }
 
   clearLogs(): void {

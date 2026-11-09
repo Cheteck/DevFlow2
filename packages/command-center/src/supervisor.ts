@@ -79,7 +79,6 @@ export function computeOverall(
 }
 
 export class DevSupervisor {
-  private readonly history: EventHistory;
   private readonly bus: EventBus;
   private readonly tracker: RestartTracker;
   private readonly api: ManagedProcess;
@@ -107,11 +106,11 @@ export class DevSupervisor {
     | null = null;
 
   constructor(private readonly opts: SupervisorOptions) {
-    this.history = new EventHistory(
+    this.history_ = new EventHistory(
       opts.eventBufferSize ?? 300,
       opts.logBufferSize ?? 800,
     );
-    this.bus = new EventBus(this.history);
+    this.bus = new EventBus(this.history_);
     this.tracker = new RestartTracker(opts.cycleBufferSize ?? 20);
 
     const readinessTimeoutMs = opts.readinessTimeoutMs ?? 25_000;
@@ -130,7 +129,7 @@ export class DevSupervisor {
       onEvent: (category, message, level, payload) =>
         this.emit(category, message, level, payload),
       onLog: (service, stream, text, level) =>
-        this.history.pushLog(service, stream, text, level),
+        this.history_.pushLog(service, stream, text, level),
     });
     this.mcp = new ManagedProcess({
       name: "mcp",
@@ -145,7 +144,7 @@ export class DevSupervisor {
       onEvent: (category, message, level, payload) =>
         this.emit(category, message, level, payload),
       onLog: (service, stream, text, level) =>
-        this.history.pushLog(service, stream, text, level),
+        this.history_.pushLog(service, stream, text, level),
       onStdoutDrained: (bytes) => {
         this.mcpDrainedBytes += bytes;
       },
@@ -215,7 +214,7 @@ export class DevSupervisor {
     stream: LogStream,
     text: string,
   ): void {
-    this.history.pushLog(service, stream, text);
+    this.history_.pushLog(service, stream, text);
     if (!this.useTui) {
       const prefix = service === "api" ? "[api]" : "[mcp]";
       const out = stream === "stderr" ? console.error : console.log;
@@ -466,8 +465,8 @@ export class DevSupervisor {
           : null,
         lastReason: null,
       },
-      events: this.history.getEvents(),
-      logs: this.history.getLogs(),
+      events: this.history_.getEvents(),
+      logs: this.history_.getLogs(),
       cycles: this.tracker.getCycles(),
       diagnostics: [],
       restarts: this.sessionRestarts,
@@ -603,7 +602,7 @@ export class DevSupervisor {
       case "C":
         // Clears the log VIEW; bounded diagnostic history (events/cycles)
         // is preserved.
-        this.history.clearLogs();
+        this.history_.clearLogs();
         this.filters.logScroll = 0;
         this.emit("SYSTEM", "Log view cleared (diagnostic history preserved)");
         break;
@@ -713,7 +712,7 @@ export class DevSupervisor {
         this.render();
         break;
       case "clear-logs":
-        this.history.clearLogs();
+        this.history_.clearLogs();
         this.filters.logScroll = 0;
         this.emit("SYSTEM", "Log view cleared (diagnostic history preserved)");
         break;
@@ -842,4 +841,11 @@ export class DevSupervisor {
   get mcpIsolatedBytes(): number {
     return this.mcpDrainedBytes;
   }
+
+  /** Accès en lecture seule à l'historique des événements et logs. */
+  get history(): EventHistory {
+    return this.history_;
+  }
+
+  private readonly history_: EventHistory;
 }
