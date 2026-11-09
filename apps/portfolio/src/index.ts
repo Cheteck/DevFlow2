@@ -128,8 +128,10 @@ export class PortfolioServiceProvider {
 
     registerPortfolioApplication(app);
 
+    const tenantId = tenant.organizationId;
+
     app.provideCapability("portfolio.vendable.create", async (input) => {
-      const created = await portfolioService.createVendable(input as never);
+      const created = await portfolioService.createVendable(input as never, tenantId);
       const payload: VendableCreatedPayload = {
         vendableId: created.identity.id,
         reference: created.identity.reference,
@@ -142,8 +144,8 @@ export class PortfolioServiceProvider {
 
     app.provideCapability("portfolio.vendable.read", async (input) => {
       const inp = input as { id?: string };
-      if (inp.id) return portfolioService.findVendable(inp.id);
-      return portfolioService.listVendables();
+      if (inp.id) return portfolioService.findVendable(inp.id, tenantId);
+      return portfolioService.listVendables(tenantId);
     });
 
     app.provideCapability("portfolio.vendable.publish", async (input) => {
@@ -168,7 +170,7 @@ export class PortfolioServiceProvider {
 
     app.provideCapability("portfolio.vendable.search", async (input) => {
       const inp = input as { criteria?: Record<string, unknown> };
-      return portfolioService.search(inp.criteria ?? {});
+      return portfolioService.search(inp.criteria ?? {}, tenantId);
     });
 
     // Single route source: legacy composition-root mounts here (no string dup).

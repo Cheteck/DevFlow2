@@ -340,7 +340,7 @@ export class PortfolioController extends Controller {
         return this.badRequest("Unauthorized");
       }
       // Tenant isolation: filter vendables by tenantId
-      const all = await this.vendableRepository.findAll();
+      const all = await this.vendableRepository.findAll("default");
       const tenantVendables = all.filter((v) => {
         const vendorId = v.characteristics.attributes?.vendorId as string | undefined;
         const spaceId = v.characteristics.attributes?.spaceId as string | undefined;
@@ -466,7 +466,7 @@ export class PortfolioController extends Controller {
       if (!match) {
         return this.badRequest("Invalid wizard session path");
       }
-      const vendable = await this.productWizardService.finalizeAndPublish(match.id, this.portfolioService);
+      const vendable = await this.productWizardService.finalizeAndPublish(match.id, this.portfolioService, "default");
       return this.json({ vendable });
     } catch (err) {
       return this.denialOrError(err);
@@ -501,7 +501,18 @@ export class PortfolioController extends Controller {
       if (!principal) {
         return this.badRequest("Unauthorized");
       }
-      const body = (req.body ?? {}) as { spaceId?: string; suggestedReference?: string; type?: string };
+      const body = (req.body ?? {}) as {
+        spaceId?: string;
+        suggestedReference?: string;
+        type?: string;
+        content?: Record<string, unknown>;
+        classification?: Record<string, unknown>;
+        characteristics?: Record<string, unknown>;
+        features?: Record<string, unknown>;
+        variants?: Record<string, unknown>;
+        media?: Record<string, unknown>;
+        translations?: Record<string, unknown>;
+      };
       if (!body.spaceId || !body.suggestedReference || !body.type) {
         return this.badRequest("Missing spaceId, suggestedReference, or type");
       }
@@ -518,7 +529,8 @@ export class PortfolioController extends Controller {
           variants: body.variants,
           media: body.media,
           translations: body.translations,
-        }
+        },
+        "default"
       );
       return this.created(proposal);
     } catch (err) {
@@ -536,7 +548,7 @@ export class PortfolioController extends Controller {
       if (!match) {
         return this.badRequest("Invalid proposal path");
       }
-      const proposal = await this.proposalService.findById(match.id);
+      const proposal = await this.proposalService.findById(match.id, "default");
       if (!proposal) {
         return this.notFound(`Proposal [${match.id}] not found`);
       }
@@ -564,7 +576,8 @@ export class PortfolioController extends Controller {
       const updated = await this.proposalService.updateDraft(
         match.id,
         body.spaceId as string || "default",
-        body as any
+        body as any,
+        "default"
       );
       return this.json({ proposal: updated });
     } catch (err) {
@@ -583,7 +596,7 @@ export class PortfolioController extends Controller {
         return this.badRequest("Invalid proposal path");
       }
       const body = (req.body ?? {}) as { spaceId?: string };
-      const submitted = await this.proposalService.submit(match.id, body.spaceId || "default");
+      const submitted = await this.proposalService.submit(match.id, body.spaceId || "default", "default");
       return this.json({ proposal: submitted });
     } catch (err) {
       return this.denialOrError(err);
@@ -601,10 +614,15 @@ export class PortfolioController extends Controller {
         return this.badRequest("Invalid proposal path");
       }
       const body = (req.body ?? {}) as { reviewerUserId?: string; approvedTerms?: Record<string, unknown>; idempotencyKey?: string };
-      const result = await this.proposalService.approve(match.id, body.reviewerUserId || "system", {
-        approvedTerms: body.approvedTerms,
-        idempotencyKey: body.idempotencyKey,
-      });
+      const result = await this.proposalService.approve(
+        match.id,
+        body.reviewerUserId || "system",
+        "default",
+        {
+          approvedTerms: body.approvedTerms,
+          idempotencyKey: body.idempotencyKey,
+        }
+      );
       return this.json({ proposal: result.proposal, vendableId: result.vendableId, offerId: result.offerId });
     } catch (err) {
       return this.denialOrError(err);
@@ -622,7 +640,7 @@ export class PortfolioController extends Controller {
         return this.badRequest("Invalid proposal path");
       }
       const body = (req.body ?? {}) as { reviewerUserId?: string; reason?: string };
-      const rejected = await this.proposalService.reject(match.id, body.reviewerUserId || "system", body.reason || "No reason provided");
+      const rejected = await this.proposalService.reject(match.id, body.reviewerUserId || "system", body.reason || "No reason provided", "default");
       return this.json({ proposal: rejected });
     } catch (err) {
       return this.denialOrError(err);
@@ -640,7 +658,7 @@ export class PortfolioController extends Controller {
         return this.badRequest("Invalid proposal path");
       }
       const body = (req.body ?? {}) as { spaceId?: string };
-      const withdrawn = await this.proposalService.withdraw(match.id, body.spaceId || "default");
+      const withdrawn = await this.proposalService.withdraw(match.id, body.spaceId || "default", "default");
       return this.json({ proposal: withdrawn });
     } catch (err) {
       return this.denialOrError(err);

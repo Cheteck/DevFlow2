@@ -34,6 +34,7 @@ export interface ProposalDraftService {
       media?: Record<string, unknown>;
       translations?: Record<string, unknown>;
     },
+    tenantId: string,
   ): Promise<ProposalDraftResult>;
 }
 
@@ -198,7 +199,7 @@ export async function handleSpacesProposalRoutes(
       variants: recordOf(body.variants),
       media: recordOf(body.media),
       translations: recordOf(body.translations),
-    });
+    }, spaceId);
     if (wantsHtml(req)) {
       redirect(res, `/spaces?view=sell&space=${encodeURIComponent(spaceId)}&submitted=${encodeURIComponent(draft.id)}`);
       return true;

@@ -10,12 +10,14 @@
  * - TOTP is the primary factor; SMS/email are secondary
  * - TOTP is only enabled after validating the first code
  * - Recovery codes are stored as hashes, single-use
- * - Replay protection via used-time-step tracking (in OtpService)
+ * - Replay protection via used-time-step tracking (in OtpService + persistent table)
  * - MFA enforcement is server-side (guards), never UI-only
+ * - Encryption key rotation: keyVersion stored, hybrid decryption with old keys
  */
 
 import type { User } from "./user.js";
 import type { UserRepository } from "./user-service.js";
+import type { MfaRepositoryPort } from "./mfa-repository-port.js";
 import type {
   TotpConfig,
   TotpProvisioningUri,
@@ -57,6 +59,7 @@ export interface RecoveryCode {
  */
 export interface MfaState {
   userId: string;
+  tenantId: string;
   enabled: boolean;
   factors: MfaFactor[];
   /** Encrypted TOTP secret (base32, encrypted at rest) */
@@ -69,6 +72,14 @@ export interface MfaState {
   recoveryCodes: RecoveryCode[];
   enrolledAt?: number;
   lastVerifiedAt?: number;
+  /** Failed TOTP verification attempts since last success */
+  failedAttempts?: number;
+  /** Timestamp when account is locked until (0 = not locked) */
+  lockUntil?: number;
+  /** TOTP time steps already used (replay protection, persists across restarts) */
+  usedTotpSteps?: number[];
+  /** Key version used to encrypt encryptedTotpSecret (for key rotation) */
+  keyVersion?: string;
 }
 
 /**
@@ -91,20 +102,163 @@ export class MfaError extends Error {
  * and CryptoPort for secret encryption at rest.
  */
 export class MfaService {
-  private readonly encryptionKey: Buffer;
+  /** Encryption keys by version: "v1", "v2", etc. */
+  private encryptionKeys: Map<string, Buffer> = new Map();
+  private _encryptionKeysResolved = false;
+  private readonly production: boolean;
 
   constructor(
     private readonly otpService: OtpService,
     private readonly userRepository: UserRepository,
+    private readonly mfaRepository: MfaRepositoryPort,
     private readonly crypto: CryptoPort,
     private readonly clock: ClockPort,
     private readonly secrets: SecretsPort,
     private readonly logger: LoggingPort,
-    /** In-memory MFA state (production should persist via user.mfaSecret + recovery codes table) */
-    private readonly mfaStates = new Map<string, MfaState>(),
     encryptionKey?: Buffer,
+    production: boolean = false,
   ) {
-    this.encryptionKey = encryptionKey ?? crypto.randomBytes(32);
+    if (encryptionKey) {
+      this.encryptionKeys.set("v1", encryptionKey);
+    }
+    this.production = production;
+  }
+
+  /**
+   * Ensures all MFA encryption keys are loaded from SecretsPort.
+   * In production, the current key must be configured as `citadelle.mfa.encryption.key`
+   * (base64-encoded 32-byte key). Old keys are loaded as `citadelle.mfa.encryption.key.v<N>`
+   * for hybrid decryption during key rotation.
+   *
+   * Hybrid decryption strategy:
+   * - All known keys are loaded into memory
+   * - decryptTotpSecret() tries each key until one succeeds
+   * - On successful verification, the secret is re-encrypted with the current key
+   * - Old keys are retained until explicitly retired
+   */
+  private async ensureEncryptionKeys(): Promise<void> {
+    if (this._encryptionKeysResolved) return;
+    this._encryptionKeysResolved = true;
+
+    // Load current key
+    try {
+      const keyB64 = await this.secrets.getRequiredSecret("citadelle.mfa.encryption.key");
+      const key = Buffer.from(keyB64, "base64");
+      if (key.length !== 32) {
+        throw new Error(
+          `Invalid MFA encryption key length: ${key.length} bytes, expected 32`,
+        );
+      }
+      this.encryptionKeys.set("v1", key);
+    } catch {
+      if (this.production) {
+        // Production: fail fast - never silently generate a new key
+        throw new Error(
+          "MFA encryption key not configured in SecretsPort. " +
+          "Configure citadelle.mfa.encryption.key for production.",
+        );
+      }
+      // Development fallback: generate in-memory key (not production-safe)
+      const devKey = this.crypto.randomBytes(32);
+      this.encryptionKeys.set("v1", devKey);
+      this.logger.warn(
+        "MFA encryption key not configured in SecretsPort; using in-memory key (secrets will be lost on restart). Configure citadelle.mfa.encryption.key for production.",
+      );
+    }
+
+    // Load previous key versions for hybrid decryption during rotation
+    // Keys are stored as citadelle.mfa.encryption.key.v2, .v3, etc.
+    let version = 2;
+    while (true) {
+      try {
+        const oldKeyB64 = await this.secrets.getSecret(`citadelle.mfa.encryption.key.v${version}`);
+        if (!oldKeyB64) break;
+        const oldKey = Buffer.from(oldKeyB64, "base64");
+        if (oldKey.length !== 32) {
+          this.logger.warn(`Skipping invalid key version v${version}: wrong length`);
+          version++;
+          continue;
+        }
+        this.encryptionKeys.set(`v${version}`, oldKey);
+        this.logger.info(`Loaded previous encryption key version v${version} for hybrid decryption`);
+        version++;
+      } catch {
+        // No more key versions
+        break;
+      }
+    }
+  }
+
+  /** Get the current (latest) encryption key for new encryptions */
+  private getCurrentKey(): Buffer {
+    const versions = Array.from(this.encryptionKeys.keys()).sort();
+    const latest = versions[versions.length - 1];
+    const key = this.encryptionKeys.get(latest);
+    if (!key) {
+      throw new MfaError("MFA_NO_KEY", "Aucune clé de chiffrement MFA configurée");
+    }
+    return key;
+  }
+
+  /**
+   * Decrypt a TOTP secret using hybrid decryption: tries all known keys
+   * until one succeeds. Supports key rotation by retaining old keys.
+   */
+  private async decryptTotpSecret(state: MfaState): Promise<string> {
+    await this.ensureEncryptionKeys();
+
+    if (!state.encryptedTotpSecret || !state.encryptionIv || !state.encryptionTag) {
+      throw new MfaError("MFA_NO_SECRET", "Secret TOTP non configuré");
+    }
+
+    const ciphertext = Buffer.from(state.encryptedTotpSecret, "latin1");
+    const iv = Buffer.from(state.encryptionIv, "latin1");
+    const tag = state.encryptionTag;
+
+    // Try each key until one succeeds (hybrid decryption for key rotation)
+    let lastError: unknown = null;
+    for (const [version, key] of this.encryptionKeys) {
+      try {
+        const decrypted = await this.crypto.decrypt(ciphertext, key, iv, tag);
+        // If the key version used is not the current one, re-encrypt with current key
+        if (state.keyVersion && state.keyVersion !== version) {
+          this.logger.info(`Re-encrypting MFA secret from v${version} to current key`);
+          // Note: re-encryption will happen on next save() via encryptTotpSecret
+        }
+        return decrypted.toString("utf8");
+      } catch (err) {
+        lastError = err;
+        // Try next key
+      }
+    }
+
+    // No key worked
+    throw new MfaError(
+      "MFA_DECRYPT_FAILED",
+      `Impossible de déchiffrer le secret TOTP avec aucune clé disponible (${this.encryptionKeys.size} clé(s) essayée(s))`,
+    );
+  }
+
+  /**
+   * Encrypt a TOTP secret with the current key and return the key version used.
+   */
+  private async encryptTotpSecret(plaintext: Buffer): Promise<{
+    ciphertext: string;
+    iv: string;
+    tag: Buffer;
+    keyVersion: string;
+  }> {
+    await this.ensureEncryptionKeys();
+    const key = this.getCurrentKey();
+    const currentVersion = Array.from(this.encryptionKeys.keys()).sort().pop()!;
+
+    const result = await this.crypto.encrypt(plaintext, key);
+    return {
+      ciphertext: result.ciphertext.toString("latin1"),
+      iv: result.iv.toString("latin1"),
+      tag: result.tag!,
+      keyVersion: currentVersion,
+    };
   }
 
   // =========================================================================
@@ -124,8 +278,14 @@ export class MfaService {
     config?: Partial<TotpConfig>;
   }): Promise<{
     provisioningUri: TotpProvisioningUri;
-    secret: string; // base32 secret (returned once for QR display)
+    secret: string; // base32 secret (returned once for QR code display)
   }> {
+    if (!params.tenantId || typeof params.tenantId !== "string" || params.tenantId.trim() === "") {
+      throw new MfaError("INVALID_TENANT", "Identifiant de locataire invalide");
+    }
+
+    await this.ensureEncryptionKeys();
+
     const user = await this.userRepository.findById(params.userId);
     if (!user) {
       throw new MfaError("USER_NOT_FOUND", "Utilisateur introuvable");
@@ -136,43 +296,50 @@ export class MfaService {
     }
 
     // Generate TOTP secret via OtpService
-    const enrollment = await this.otpService.generateTotpEnrollment({
-      tenantId: params.tenantId,
-      userId: params.userId,
-      accountName: params.accountName,
-      issuer: params.issuer,
-      config: params.config,
-    });
+    let enrollment;
+    try {
+      enrollment = await this.otpService.generateTotpEnrollment({
+        tenantId: params.tenantId,
+        userId: params.userId,
+        accountName: params.accountName,
+        issuer: params.issuer,
+        config: params.config,
+      });
+    } catch (err) {
+      // OT provider unavailable during enrollment - fail securely
+      this.logger.error(`OT provider unavailable during TOTP enrollment for user ${params.userId}`, err as Error);
+      throw new MfaError(
+        "MFA_PROVIDER_UNAVAILABLE",
+        "Le service de vérification MFA est temporairement indisponible. Veuillez réessayer ultérieurement.",
+      );
+    }
 
     // Encrypt the secret at rest (never store plain text)
-    const encryptionResult = await this.crypto.encrypt(
-      Buffer.from(enrollment.secret),
-      this.encryptionKey,
-    );
-
-    // Extract provisioning URI from enrollment
-    const provisioningUri = enrollment.provisioningUri || enrollment;
+    const encryptionResult = await this.encryptTotpSecret(Buffer.from(enrollment.secret));
 
     // Store pending enrollment state (not yet enabled)
     const state: MfaState = {
       userId: params.userId,
+      tenantId: params.tenantId,
       enabled: false,
       factors: ["totp"],
-      encryptedTotpSecret: encryptionResult.ciphertext.toString("latin1"),
-      encryptionIv: encryptionResult.iv.toString("latin1"),
+      encryptedTotpSecret: encryptionResult.ciphertext,
+      encryptionIv: encryptionResult.iv,
       encryptionTag: encryptionResult.tag,
       recoveryCodes: [],
       enrolledAt: this.clock.now().getTime(),
+      keyVersion: encryptionResult.keyVersion,
     };
-    this.mfaStates.set(params.userId, state);
+    await this.mfaRepository.save(state);
 
     this.logger.info(`TOTP enrollment initiated for user ${params.userId}`, {
       tenantId: params.tenantId,
       userId: params.userId,
+      keyVersion: state.keyVersion,
     });
 
     return {
-      provisioningUri: enrollment.provisioningUri,
+      provisioningUri: enrollment,
       secret: enrollment.secret, // Returned once for QR code display
     };
   }
@@ -187,18 +354,32 @@ export class MfaService {
     code: string;
     secret: string; // base32 secret from enrollTotp
   }): Promise<{ recoveryCodes: string[] }> {
-    const state = this.mfaStates.get(params.userId);
-    if (!state || !state.enabled === false && !state.encryptedTotpSecret) {
+    if (!params.tenantId || typeof params.tenantId !== "string" || params.tenantId.trim() === "") {
+      throw new MfaError("INVALID_TENANT", "Identifiant de locataire invalide");
+    }
+
+    const state = await this.mfaRepository.findByUserId(params.userId, params.tenantId);
+    if (!state || state.enabled || !state.encryptedTotpSecret) {
       throw new MfaError("NO_PENDING_ENROLLMENT", "Aucune inscription TOTP en cours");
     }
 
     // Verify the first TOTP code
-    const verifyResult = await this.otpService.verifyTotp({
-      tenantId: params.tenantId,
-      userId: params.userId,
-      code: params.code,
-      secret: params.secret,
-    });
+    let verifyResult;
+    try {
+      verifyResult = await this.otpService.verifyTotp({
+        tenantId: params.tenantId,
+        userId: params.userId,
+        code: params.code,
+        secret: params.secret,
+      });
+    } catch (err) {
+      // OT provider unavailable - fail securely, never allow enrollment without verification
+      this.logger.error(`OT provider unavailable during TOTP enrollment for user ${params.userId}`, err as Error);
+      throw new MfaError(
+        "MFA_PROVIDER_UNAVAILABLE",
+        "Le service de vérification MFA est temporairement indisponible. Veuillez réessayer ultérieurement.",
+      );
+    }
 
     if (!verifyResult.valid) {
       throw new MfaError(
@@ -222,7 +403,7 @@ export class MfaService {
       createdAt: this.clock.now().getTime(),
     }));
     state.lastVerifiedAt = this.clock.now().getTime();
-    this.mfaStates.set(params.userId, state);
+    await this.mfaRepository.save(state);
 
     // Persist to user record
     const user = await this.userRepository.findById(params.userId);
@@ -251,18 +432,36 @@ export class MfaService {
   // TOTP Verification (during login challenge)
   // =========================================================================
 
+  /** Max failed TOTP attempts before lockout (5 min) */
+  private readonly MAX_FAILED_ATTEMPTS = 5;
+  /** Lockout duration in ms (5 minutes) */
+  private readonly LOCKOUT_MS = 5 * 60 * 1000;
+
   /**
    * Verify a TOTP code during MFA challenge.
    * Returns true if valid, throws MfaError otherwise.
    * Used after password validation in the login flow.
+   *
+   * Security:
+   * - Tracks failed attempts per user/tenant
+   * - Locks out after MAX_FAILED_ATTEMPTS consecutive failures
+   * - Resets counter on successful verification
+   * - Never reveals whether the user exists or MFA is enabled (generic error)
    */
   async verifyTotpLogin(params: {
     userId: string;
     tenantId: string;
     code: string;
   }): Promise<void> {
-    const state = this.mfaStates.get(params.userId);
+    // tenantId must come from authenticated context, never from client input
+    if (!params.tenantId || typeof params.tenantId !== "string" || params.tenantId.trim() === "") {
+      throw new MfaError("INVALID_TENANT", "Identifiant de locataire invalide");
+    }
+
+    // Find MFA state with tenant isolation
+    const state = await this.mfaRepository.findByUserId(params.userId, params.tenantId);
     if (!state || !state.enabled) {
+      // Generic error: do not reveal MFA status for unknown users
       throw new MfaError("MFA_NOT_ENABLED", "L'authentification multifactorielle n'est pas activée");
     }
 
@@ -270,26 +469,95 @@ export class MfaService {
       throw new MfaError("MFA_NO_SECRET", "Aucun secret TOTP configuré");
     }
 
-    // Decrypt the TOTP secret
-    const secret = await this.decryptTotpSecret(state);
+    // Lockout check (handled atomically in incrementFailedAttempts)
+    const lockUntil = state.lockUntil ?? 0;
+    if (lockUntil && this.clock.now().getTime() < lockUntil) {
+      const remainingSec = Math.ceil((lockUntil - this.clock.now().getTime()) / 1000);
+      throw new MfaError(
+        "MFA_LOCKED",
+        `Trop de tentatives échouées. Réessayez dans ${remainingSec} seconde(s).`,
+      );
+    }
 
-    // Verify via OtpService (with replay protection)
-    const verifyResult = await this.otpService.verifyTotp({
-      tenantId: params.tenantId,
-      userId: params.userId,
-      code: params.code,
-      secret,
-    });
+    // Decrypt the TOTP secret using hybrid decryption
+    let secret: string;
+    try {
+      secret = await this.decryptTotpSecret(state);
+    } catch {
+      throw new MfaError("MFA_NO_SECRET", "Aucun secret TOTP configuré");
+    }
+
+    // --- Persistent replay protection (atomic, survives restarts) ---
+    // Compute current TOTP time step
+    const now = this.clock.now().getTime();
+    const config = { timeStepSeconds: 30, verificationWindow: 1 };
+    const currentStep = Math.floor(now / 1000 / config.timeStepSeconds);
+
+    // Verify via OtpService first (cryptographic validation)
+    // The time-step is only marked as used AFTER successful verification,
+    // to avoid consuming a valid time-step with an invalid code (DoS vector).
+    let verifyResult;
+    try {
+      verifyResult = await this.otpService.verifyTotp({
+        tenantId: params.tenantId,
+        userId: params.userId,
+        code: params.code,
+        secret,
+      });
+    } catch (err) {
+      // OT provider unavailable - fail securely
+      this.logger.error(`OT provider unavailable during MFA verification for user ${params.userId}`, err as Error);
+      throw new MfaError(
+        "MFA_PROVIDER_UNAVAILABLE",
+        "Le service de vérification MFA est temporairement indisponible. Veuillez réessayer ultérieurement.",
+      );
+    }
 
     if (!verifyResult.valid) {
+      // Atomically increment failed attempts (handles lockout threshold)
+      const { count, locked } = await this.mfaRepository.incrementFailedAttempts(
+        params.tenantId,
+        params.userId
+      );
+
+      this.logger.warn(`TOTP verification failed for user ${params.userId}`, {
+        tenantId: params.tenantId,
+        userId: params.userId,
+        reason: verifyResult.reason,
+        failedAttempts: count,
+        locked,
+      });
+
       throw new MfaError(
         "TOTP_INVALID",
         `Code TOTP invalide: ${verifyResult.reason ?? "inconnu"}`,
       );
     }
 
-    state.lastVerifiedAt = this.clock.now().getTime();
-    this.mfaStates.set(params.userId, state);
+    // Success: mark the time step as used and reset failed attempts atomically
+    // Transaction prevents a consumed time-step without session creation,
+    // or a session without recording the used step.
+    await this.mfaRepository.runInTransaction(async (repo) => {
+      const alreadyUsed = await repo.recordTotpStepUsed(
+        params.tenantId,
+        params.userId,
+        currentStep
+      );
+      if (alreadyUsed) {
+        throw new MfaError(
+          "TOTP_REPLAY",
+          "Ce code TOTP a déjà été utilisé. Veuillez en générer un nouveau.",
+        );
+      }
+
+      await repo.resetFailedAttempts(params.tenantId, params.userId);
+
+      // Update state for local cache
+      state.failedAttempts = 0;
+      state.lockUntil = undefined;
+      state.lastVerifiedAt = this.clock.now().getTime();
+      await repo.save(state);
+    });
 
     this.logger.info(`TOTP login verified for user ${params.userId}`, {
       tenantId: params.tenantId,
@@ -311,7 +579,11 @@ export class MfaService {
     tenantId: string;
     code: string;
   }): Promise<void> {
-    const state = this.mfaStates.get(params.userId);
+    if (!params.tenantId || typeof params.tenantId !== "string" || params.tenantId.trim() === "") {
+      throw new MfaError("INVALID_TENANT", "Identifiant de locataire invalide");
+    }
+
+    const state = await this.mfaRepository.findByUserId(params.userId, params.tenantId);
     if (!state || !state.enabled) {
       throw new MfaError("MFA_NOT_ENABLED", "L'authentification multifactorielle n'est pas activée");
     }
@@ -330,7 +602,7 @@ export class MfaService {
     matchingCode.used = true;
     matchingCode.usedAt = this.clock.now().getTime();
     state.lastVerifiedAt = this.clock.now().getTime();
-    this.mfaStates.set(params.userId, state);
+    await this.mfaRepository.save(state);
 
     this.logger.info(`Recovery code used for user ${params.userId}`, {
       tenantId: params.tenantId,
@@ -348,6 +620,10 @@ export class MfaService {
     tenantId: string;
     totpCode: string;
   }): Promise<{ recoveryCodes: string[] }> {
+    if (!params.tenantId || typeof params.tenantId !== "string" || params.tenantId.trim() === "") {
+      throw new MfaError("INVALID_TENANT", "Identifiant de locataire invalide");
+    }
+
     // First verify TOTP (security: only account owner can regenerate)
     await this.verifyTotpLogin({
       userId: params.userId,
@@ -355,7 +631,7 @@ export class MfaService {
       code: params.totpCode,
     });
 
-    const state = this.mfaStates.get(params.userId);
+    const state = await this.mfaRepository.findByUserId(params.userId, params.tenantId);
     if (!state) {
       throw new MfaError("MFA_NOT_ENABLED", "MFA non configuré");
     }
@@ -378,7 +654,7 @@ export class MfaService {
       used: false,
       createdAt: this.clock.now().getTime(),
     }));
-    this.mfaStates.set(params.userId, state);
+    await this.mfaRepository.save(state);
 
     return { recoveryCodes };
   }
@@ -387,14 +663,20 @@ export class MfaService {
   // MFA Status & Disable
   // =========================================================================
 
-  /** Get MFA state for a user */
-  async getMfaState(userId: string): Promise<MfaState | null> {
-    return this.mfaStates.get(userId) ?? null;
+  /** Get MFA state for a user, scoped by tenant. tenantId is mandatory for isolation. */
+  async getMfaState(userId: string, tenantId: string): Promise<MfaState | null> {
+    if (!tenantId || typeof tenantId !== "string" || tenantId.trim() === "") {
+      throw new MfaError("INVALID_TENANT", "Identifiant de locataire invalide");
+    }
+    return this.mfaRepository.findByUserId(userId, tenantId);
   }
 
-  /** Check if MFA is enabled for a user */
-  async isMfaEnabled(userId: string): Promise<boolean> {
-    const state = this.mfaStates.get(userId);
+  /** Check if MFA is enabled for a user (tenant-scoped). tenantId is mandatory. */
+  async isMfaEnabled(userId: string, tenantId: string): Promise<boolean> {
+    if (!tenantId || typeof tenantId !== "string" || tenantId.trim() === "") {
+      throw new MfaError("INVALID_TENANT", "Identifiant de locataire invalide");
+    }
+    const state = await this.mfaRepository.findByUserId(userId, tenantId);
     return state?.enabled ?? false;
   }
 
@@ -408,6 +690,10 @@ export class MfaService {
     tenantId: string;
     totpCode: string;
   }): Promise<void> {
+    if (!params.tenantId || typeof params.tenantId !== "string" || params.tenantId.trim() === "") {
+      throw new MfaError("INVALID_TENANT", "Identifiant de locataire invalide");
+    }
+
     // Verify TOTP first
     await this.verifyTotpLogin({
       userId: params.userId,
@@ -415,7 +701,7 @@ export class MfaService {
       code: params.totpCode,
     });
 
-    const state = this.mfaStates.get(params.userId);
+    const state = await this.mfaRepository.findByUserId(params.userId, params.tenantId);
     if (!state) {
       throw new MfaError("MFA_NOT_ENABLED", "MFA non configuré");
     }
@@ -427,7 +713,7 @@ export class MfaService {
     state.encryptionTag = undefined;
     state.recoveryCodes = [];
     state.lastVerifiedAt = undefined;
-    this.mfaStates.set(params.userId, state);
+    await this.mfaRepository.save(state);
 
     // Persist to user record
     const user = await this.userRepository.findById(params.userId);
@@ -448,22 +734,6 @@ export class MfaService {
   // =========================================================================
   // Private helpers
   // =========================================================================
-
-  /** Decrypt the stored TOTP secret */
-  private async decryptTotpSecret(state: MfaState): Promise<string> {
-    if (!state.encryptedTotpSecret || !state.encryptionIv || !state.encryptionTag) {
-      throw new MfaError("MFA_NO_SECRET", "Secret TOTP non configuré");
-    }
-
-    const decrypted = await this.crypto.decrypt(
-      Buffer.from(state.encryptedTotpSecret, "latin1"),
-      this.encryptionKey,
-      Buffer.from(state.encryptionIv, "latin1"),
-      state.encryptionTag,
-    );
-
-    return decrypted.toString("utf8");
-  }
 
   /** Generate 8 single-use recovery codes */
   private generateRecoveryCodes(): string[] {

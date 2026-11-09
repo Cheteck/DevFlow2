@@ -225,7 +225,8 @@ export class ProductWizardService {
 
   async finalizeAndPublish(
     draftId: string,
-    portfolioService: PortfolioService
+    portfolioService: PortfolioService,
+    tenantId: string = "default"
   ): Promise<Vendable> {
     const draft = this.activeDrafts.get(draftId);
     if (!draft || !draft.step1 || !draft.step2 || !draft.step3 || !draft.step4) {
@@ -289,7 +290,7 @@ export class ProductWizardService {
       relations: [],
     };
 
-    const saved = await portfolioService.createVendable(vendable);
+    const saved = await portfolioService.createVendable(vendable, tenantId);
 
     // Delete draft after publication
     this.activeDrafts.delete(draftId);

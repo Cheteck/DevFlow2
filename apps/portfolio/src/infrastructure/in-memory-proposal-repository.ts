@@ -32,7 +32,7 @@ export class InMemoryProposalRepository implements ProposalRepository {
     const existing = this.proposals.get(proposal.id);
     if (!existing || existing.tenantId !== tenantId) return false;
 
-    const currentValue = (existing.proposal as Record<string, unknown>)[versionField.name] as string | undefined;
+    const currentValue = (existing.proposal as unknown as Record<string, unknown>)[versionField.name] as string | undefined;
     if (currentValue !== versionField.expectedValue) {
       return false; // Concurrent modification detected
     }

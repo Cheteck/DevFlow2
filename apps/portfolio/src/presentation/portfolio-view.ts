@@ -48,7 +48,10 @@ export function overridePortfolioSubView(
   portfolioSubViewRegistry.override(viewKey, renderer);
 }
 
-export function createPortfolioView(service?: PortfolioService) {
+export function createPortfolioView(
+  service?: PortfolioService,
+  tenantId: string = "default"
+) {
   const activeService =
     // eslint-disable-next-line no-restricted-syntax
     service || (() => {
@@ -67,11 +70,14 @@ export function createPortfolioView(service?: PortfolioService) {
       // Fetch real catalog vendables from PortfolioService
       let vendables: Vendable[] = [];
       try {
-        vendables = await activeService.search({
-          name: searchQuery || undefined,
-          limit: 48,
-          offset: 0,
-        });
+        vendables = await activeService.search(
+          {
+            name: searchQuery || undefined,
+            limit: 48,
+            offset: 0,
+          },
+          tenantId
+        );
       } catch {
         /* empty catalog fallback on search error */
       }
@@ -116,7 +122,7 @@ export function createPortfolioView(service?: PortfolioService) {
         );
         if (!vendable) {
           try {
-            vendable = await activeService.findVendable(selectedRef);
+            vendable = await activeService.findVendable(selectedRef, tenantId);
           } catch {
             vendable = undefined;
           }
@@ -413,7 +419,7 @@ export function createPortfolioView(service?: PortfolioService) {
 export function createPortfolioDescriptor(
   service?: PortfolioService,
 ): BacDescriptor {
-  const view = createPortfolioView(service);
+  const view = createPortfolioView(service, "default");
   return {
     id: "@apps/portfolio",
     name: "Portfolio & Product Information",
