@@ -23,6 +23,7 @@ import {
   logsPanel,
   logsCollapsedPanel,
   restartsPanel,
+  recentErrorsPanel,
   statusBar,
   panel,
   fitLine,
@@ -104,6 +105,8 @@ function buildPanel(
         budget.showCycleBars,
         enabled,
       );
+    case "recent-errors":
+      return recentErrorsPanel(snapshot, width, budget.timelineRows, enabled);
     default:
       return { id, lines: [] };
   }

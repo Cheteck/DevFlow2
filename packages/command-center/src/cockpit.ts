@@ -527,6 +527,68 @@ export function restartsPanel(
   };
 }
 
+/**
+ * Panneau RECENT ERRORS : affiche les erreurs récentes des diagnostics
+ * et des services (dernière erreur par service en échec).
+ */
+export function recentErrorsPanel(
+  snapshot: CommandCenterSnapshot,
+  width: number,
+  rows: number,
+  enabled: boolean,
+): Panel {
+  const errors: Array<{
+    time: number;
+    service: string;
+    code: string;
+    message: string;
+  }> = [];
+
+  // Diagnostics de niveau error
+  for (const d of snapshot.diagnostics) {
+    if (d.level !== "error") continue;
+    errors.push({
+      time: d.at,
+      service: d.code.split("_")[0] ?? "sys",
+      code: d.code,
+      message: d.message,
+    });
+  }
+
+  // Dernière erreur par service en échec
+  for (const s of snapshot.services) {
+    if (s.state === "FAILED" || s.state === "CRASHED") {
+      const msg = s.startupFailure ?? s.lastError ?? "startup failed";
+      errors.push({
+        time: s.lastBootMs ?? Date.now(),
+        service: s.name,
+        code: `${s.state.toUpperCase()}`,
+        message: msg,
+      });
+    }
+  }
+
+  // Trier par temps décroissant, prendre les `rows` plus récentes
+  errors.sort((a, b) => b.time - a.time);
+  const recent = errors.slice(0, Math.max(1, rows));
+
+  const body: string[] = [];
+  if (recent.length === 0) {
+    body.push(paint("  aucune erreur récente", ANSI.green, enabled));
+  } else {
+    for (const e of recent) {
+      body.push(
+        `  ${paint(formatClock(e.time), ANSI.grey, enabled)} ${paint(e.service, ANSI.cyan, enabled)} ${paint(e.code, ANSI.red + ANSI.bold, enabled)}  ${e.message}`,
+      );
+    }
+  }
+
+  return {
+    id: "recent-errors",
+    lines: panel("RECENT ERRORS", ANSI.red, body, width, enabled),
+  };
+}
+
 export function statusBar(
   filters: ViewFilters,
   width: number,

@@ -44,12 +44,12 @@ export function computeLayout(width: number, height: number): CockpitLayout {
     grid = [
       ["infrastructure", "fleet"],
       ["sessions", "logs", "vitals"],
-      ["diagnostics", "restarts"],
+      ["diagnostics", "restarts", "recent-errors"],
     ];
   } else if (columns === 2) {
     grid = [
       ["infrastructure", "fleet", "vitals"],
-      ["sessions", "diagnostics", "logs", "restarts"],
+      ["sessions", "diagnostics", "logs", "restarts", "recent-errors"],
     ];
   } else {
     grid = [
@@ -60,6 +60,7 @@ export function computeLayout(width: number, height: number): CockpitLayout {
         "logs",
         "fleet",
         "restarts",
+        "recent-errors",
         "vitals",
       ],
     ];
