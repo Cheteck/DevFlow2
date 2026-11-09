@@ -954,17 +954,32 @@ export class DevSupervisor {
    * events/keys/timer ticks collapse into one in-place paint. Child log
    * output never reaches here directly — it only feeds the bounded history
    * buffer and surfaces inside the frame's log zone.
+   *
+   * Même en mode non-TTY (Windows PowerShell sans TTY), render() écrit
+   * directement sur process.stdout pour que les raccourcis clavier
+   * produisent un rendu visible.
    */
   private render(): void {
-    const screen = this.screen;
-    if (!this.useTui || !screen) return;
+    const snapshot = this.snapshot();
+    viewManager.updateSnapshot(snapshot);
     const width = process.stdout.columns ?? 100;
     const height = process.stdout.rows ?? 40;
-    // Synchroniser le ViewManager avec le snapshot courant
-    viewManager.updateSnapshot(this.snapshot());
-    screen.requestPaint(() =>
-      renderCommandCenter(this.snapshot(), this.filters, { width, height }),
-    );
+
+    if (this.useTui && this.screen) {
+      // Mode TUI : rendu via le TerminalRenderer avec coalescing des frames
+      this.screen.requestPaint(() =>
+        renderCommandCenter(snapshot, this.filters, { width, height }),
+      );
+      return;
+    }
+
+    // Mode non-TTY (PowerShell, CI, etc.) : écrire directement sur stdout
+    const lines = renderCommandCenter(snapshot, this.filters, {
+      width,
+      height,
+    });
+    // Effacer l'écran et repositionner le curseur en haut à gauche
+    process.stdout.write("\x1b[2J\x1b[H" + lines + "\n");
   }
 
   private installSignals(): void {
