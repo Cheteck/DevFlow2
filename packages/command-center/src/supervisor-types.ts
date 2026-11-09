@@ -162,6 +162,15 @@ export interface HostStats {
   cpuPct: number | null;
 }
 
+/** Commande exécutable dans la palette de commandes. */
+export interface Command {
+  id: string;
+  label: string;
+  hint: string;
+  category: "service" | "system" | "logs";
+  execute: () => Promise<void> | void;
+}
+
 export interface CommandCenterSnapshot {
   startedAt: number;
   now: number;

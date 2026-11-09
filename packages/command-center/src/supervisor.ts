@@ -27,6 +27,7 @@ import type {
   SupervisorOptions,
   SupervisorServiceEvent,
   ViewFilters,
+  Command,
 } from "./supervisor-types.js";
 import { EventBus, EventHistory } from "./event-bus.js";
 import { ManagedProcess } from "./process-manager.js";
@@ -102,6 +103,8 @@ export class DevSupervisor {
   private lastCpuAt: number | null = null;
   /** File logger persistant les logs du dev server sur disque. */
   private readonly fileLogger: FileLogger;
+  /** Commandes disponibles dans la palette (id -> commande). */
+  private readonly commands: Map<string, Command> = new Map();
   private keypressHandler:
     | ((
         _chunk: Buffer,
@@ -119,6 +122,105 @@ export class DevSupervisor {
     this.fileLogger = new FileLogger("info", { component: "DevSupervisor" }, {
       logDir: path.join(opts.root, ".mosaix", "logs"),
       fileName: "dev-server.log",
+    });
+
+    // Enregistre les commandes de la palette (command center).
+    this.registerCommand({
+      id: "restart-api",
+      label: "Restart API",
+      hint: "api",
+      category: "service",
+      execute: () => this.restartService("api"),
+    });
+    this.registerCommand({
+      id: "restart-mcp",
+      label: "Restart MCP",
+      hint: "mcp",
+      category: "service",
+      execute: () => this.restartService("mcp"),
+    });
+    this.registerCommand({
+      id: "restart-all",
+      label: "Restart All",
+      hint: "all",
+      category: "service",
+      execute: () => this.scheduleRestart("manual restart (all)", "all"),
+    });
+    this.registerCommand({
+      id: "stop-api",
+      label: "Stop API",
+      hint: "api",
+      category: "service",
+      execute: () => this.stopService("api"),
+    });
+    this.registerCommand({
+      id: "stop-mcp",
+      label: "Stop MCP",
+      hint: "mcp",
+      category: "service",
+      execute: () => this.stopService("mcp"),
+    });
+    this.registerCommand({
+      id: "start-api",
+      label: "Start API",
+      hint: "api",
+      category: "service",
+      execute: () => this.startService("api"),
+    });
+    this.registerCommand({
+      id: "start-mcp",
+      label: "Start MCP",
+      hint: "mcp",
+      category: "service",
+      execute: () => this.startService("mcp"),
+    });
+    this.registerCommand({
+      id: "toggle-logs",
+      label: "Toggle Logs",
+      hint: "L",
+      category: "logs",
+      execute: () => {
+        this.filters.showLogs = !this.filters.showLogs;
+        this.filters.logScroll = 0;
+        this.render();
+      },
+    });
+    this.registerCommand({
+      id: "toggle-errors",
+      label: "Toggle Errors Only",
+      hint: "E",
+      category: "logs",
+      execute: () => {
+        this.filters.errorOnly = !this.filters.errorOnly;
+        this.filters.logScroll = 0;
+        this.render();
+      },
+    });
+    this.registerCommand({
+      id: "toggle-watch",
+      label: "Toggle Watch",
+      hint: "P",
+      category: "system",
+      execute: () => this.toggleWatchPause(),
+    });
+    this.registerCommand({
+      id: "clear-logs",
+      label: "Clear Logs",
+      hint: "C",
+      category: "logs",
+      execute: () => {
+        this.history_.clearLogs();
+        this.filters.logScroll = 0;
+        this.emit("SYSTEM", "Log view cleared (diagnostic history preserved)");
+        this.render();
+      },
+    });
+    this.registerCommand({
+      id: "quit",
+      label: "Quit",
+      hint: "Q",
+      category: "system",
+      execute: () => void this.shutdown("SIGINT"),
     });
 
     const readinessTimeoutMs = opts.readinessTimeoutMs ?? 25_000;
@@ -200,6 +302,18 @@ export class DevSupervisor {
     } else {
       this.render();
     }
+  }
+
+  /**
+   * Enregistre une commande exécutable dans la palette.
+   */
+  registerCommand(cmd: Command): void {
+    this.commands.set(cmd.id, cmd);
+  }
+
+  /** Retourne toutes les commandes disponibles (pour la palette). */
+  get commandsList(): readonly Command[] {
+    return [...this.commands.values()];
   }
 
   /**
@@ -703,6 +817,17 @@ export class DevSupervisor {
 
   /** Executes a palette command — same real actions as the shortcuts. */
   runPaletteCommand(id: string): void {
+    // 1. Exécute via le registre de commandes (enregistrées dynamiquement).
+    const cmd = this.commands.get(id);
+    if (cmd) {
+      void cmd.execute();
+      this.filters.paletteOpen = false;
+      this.filters.paletteQuery = "";
+      this.filters.paletteIndex = 0;
+      this.render();
+      return;
+    }
+    // 2. Fallback vers les commandes intégrées (switch).
     switch (id) {
       case "restart-all":
         void this.scheduleRestart("palette: restart all", "all");
