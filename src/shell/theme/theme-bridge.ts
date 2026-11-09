@@ -147,14 +147,21 @@ export async function applyThemeMode(mode: ThemeMode): Promise<CompiledTheme> {
   
   const outcome = await runtime.apply(ctx);
   
-  if (!outcome.compiled) {
-    throw new Error(
-      `Failed to compile theme "${themeId}" in mode "${resolvedMode}"`
-    );
+  let compiledTheme: CompiledTheme;
+  if (outcome.compiled) {
+    compiledTheme = outcome.compiled;
+  } else {
+    // Aucun thème assigné pour cette cible : utiliser le thème par défaut
+    // du catalogue (mosaix-default) comme fallback, pour que le mode
+    // demandé puisse toujours être compilé (même en mode "dark").
+    const manifest = runtime.getTheme(themeId);
+    if (!manifest) {
+      throw new Error(
+        `Failed to compile theme "${themeId}" in mode "${resolvedMode}"`
+      );
+    }
+    compiledTheme = compile(manifest, resolvedMode);
   }
-
-  // Defensive narrowing: store in a const so TS knows it's guaranteed
-  const compiledTheme: CompiledTheme = outcome.compiled;
 
   const state: ThemeRequestState = {
     themeId,
