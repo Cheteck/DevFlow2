@@ -224,29 +224,47 @@ export function fleetPanel(
   for (const s of snapshot.services) {
     if (serviceFilter !== "all" && serviceFilter !== s.name) continue;
     if (compact) {
+      const readiness =
+        s.readinessState === "READY"
+          ? paint("ready", ANSI.green, enabled)
+          : s.readinessState === "TIMEOUT"
+            ? paint("timeout", ANSI.amber, enabled)
+            : s.readinessState === "UNKNOWN"
+              ? paint("unknown", ANSI.grey, enabled)
+              : paint("pending", ANSI.grey, enabled);
       body.push(
-        `${paint(s.name, ANSI.violet + ANSI.bold, enabled)} ${stateWord(s, enabled)} ${k("pid", enabled)} ${s.pid ?? "—"} ${k("rst", enabled)} ${s.restarts} ${k("exit", enabled)} ${s.lastExitCode ?? "—"}`,
+        `${paint(s.name, ANSI.violet + ANSI.bold, enabled)} ${stateWord(s, enabled)} ${readiness} ${k("pid", enabled)} ${s.pid ?? "—"} ${k("rst", enabled)} ${s.restarts} ${k("exit", enabled)} ${s.lastExitCode ?? "—"}`,
       );
       continue;
     }
+    const readinessLabel =
+      s.readinessState === "READY"
+        ? paint("ready", ANSI.green, enabled)
+        : s.readinessState === "TIMEOUT"
+          ? paint("timeout", ANSI.amber, enabled)
+          : s.readinessState === "UNKNOWN"
+            ? paint("unknown (no probe)", ANSI.grey, enabled)
+            : paint("pending", ANSI.grey, enabled);
+    const port =
+      s.name === "api"
+        ? snapshot.apiPort
+          ? paint(`:${snapshot.apiPort}`, ANSI.blue, enabled)
+          : paint("port —", ANSI.grey, enabled)
+        : paint("stdio", ANSI.grey, enabled);
     body.push(
-      `${paint(s.name, ANSI.violet + ANSI.bold, enabled)}  ${k("pid", enabled)} ${s.pid ?? "—"}  ${stateWord(s, enabled)}`,
+      `${paint(s.name, ANSI.violet + ANSI.bold, enabled)}  ${k("pid", enabled)} ${s.pid ?? "—"}  ${stateWord(s, enabled)}  ${readinessLabel}`,
     );
     body.push(
-      `  ${k("last boot", enabled)} ${formatDuration(s.lastBootMs)}  ${k("up", enabled)} ${formatDuration(s.uptimeMs)}  ${k("restarts", enabled)} ${s.restarts}  ${k("exit", enabled)} ${s.lastExitCode ?? "—"}/${s.lastSignal ?? "—"}`,
+      `  ${k("last boot", enabled)} ${formatDuration(s.lastBootMs)}  ${k("up", enabled)} ${formatDuration(s.uptimeMs)}  ${k("restarts", enabled)} ${s.restarts}  ${k("exit", enabled)} ${s.lastExitCode ?? "—"}/${s.lastSignal ?? "—"}  ${port}`,
     );
+    if (s.state === "FAILED" || s.state === "CRASHED" || s.lastError) {
+      body.push(
+        `  ${paint(`${SYMBOLS.incident} ${incidentHeadline(s)}`, ANSI.red, enabled)}`,
+      );
+    }
   }
   if (body.length === 0)
-    body.push(paint("  no history (filter)", ANSI.grey, enabled));
-  if (!compact) {
-    body.push(
-      paint(
-        "  last stop: tracked via exit code/signal above",
-        ANSI.grey,
-        enabled,
-      ),
-    );
-  }
+    body.push(paint("  no services match filter", ANSI.grey, enabled));
   return {
     id: "fleet",
     lines: panel("PROCESS FLEET", ANSI.violet, body, width, enabled),
@@ -520,7 +538,7 @@ export function statusBar(
   if (filters.errorOnly) ctx.push("errors-only");
   if (filters.paused) ctx.push("watch-paused");
   const keys =
-    "R Restart | L Logs | E Errors | C Clear | P Watch | 1 API | 2 MCP | Ctrl+K Cmd | ? Help | Q Quit";
+    "R restart-all | r stop/start svc | s stop | a start | Tab select | L logs | E errors | C clear | P watch | 1 API | 2 MCP | Ctrl+K Cmd | ? Help | Q Quit";
   const line = `${paint(keys, ANSI.grey, enabled)}${ctx.length > 0 ? paint(`   [${ctx.join(" · ")}]`, ANSI.amber, enabled) : ""}`;
   return [fitLine(line, width, enabled)];
 }
