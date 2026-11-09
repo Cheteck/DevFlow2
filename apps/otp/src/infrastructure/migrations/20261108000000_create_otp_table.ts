@@ -1,35 +1,49 @@
-import { computeChecksum, type Migration, SchemaBuilder, PostgresGrammar, SqliteGrammar } from "@mosaix/migrations";
+import {
+  computeChecksum,
+  type Migration,
+  SchemaBuilder,
+  PostgresGrammar,
+  SQLiteGrammar,
+} from "@mosaix/migrations";
 
+/**
+ * @apps/otp — Create otp table (SchemaBuilder DSL, TypeScript).
+ *
+ * Builds the schema programmatically via `@mosaix/migrations` SchemaBuilder
+ * instead of hand-written SQL strings, so the same blueprint compiles for
+ * both Postgres and SQLite grammars.
+ */
 const builder = new SchemaBuilder();
 
 builder.createTable("otp", (table) => {
-  table.column("id", "text", { primary: true });
-  table.column("tenant_id", "text", { nullable: false });
-  table.column("destination", "text", { nullable: false });
-  table.column("channel", "text", { nullable: false });
-  table.column("purpose", "text", { nullable: false });
-  table.column("user_id", "text");
-  table.column("code_hash", "text", { nullable: false });
-  table.column("created_at", "integer", { nullable: false });
-  table.column("expires_at", "integer", { nullable: false });
-  table.column("consumed_at", "integer");
-  table.column("attempts", "integer", { nullable: false, default: 0 });
-  table.column("max_attempts", "integer", { nullable: false, default: 5 });
+  table.string("id").primary();
+  table.string("tenant_id");
+  table.string("destination");
+  table.string("channel");
+  table.string("purpose");
+  table.string("user_id").nullable();
+  table.string("code_hash");
+  table.integer("created_at");
+  table.integer("expires_at");
+  table.integer("consumed_at").nullable();
+  table.integer("attempts").default(0);
+  table.integer("max_attempts").default(5);
 
-  table.index(["tenant_id", "destination", "purpose", "user_id"]);
+  table.index("idx_otp_tenant_destination_purpose_user", [
+    "tenant_id",
+    "destination",
+    "purpose",
+    "user_id",
+  ]);
 });
 
 const statementsPg = builder
-  .compile(
-    builder.tableStatements("otp"),
-    new PostgresGrammar()
-  ).map((s) => s.sql);
+  .compile(new PostgresGrammar())
+  .map((s) => s.sql);
 
 const statementsSqlite = builder
-  .compile(
-    builder.tableStatements("otp"),
-    new SqliteGrammar()
-  ).map((s) => s.sql);
+  .compile(new SQLiteGrammar())
+  .map((s) => s.sql);
 
 const migration: Migration = {
   id: "20261108000000_create_otp_table",

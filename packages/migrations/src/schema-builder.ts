@@ -3,6 +3,8 @@
  * Aligned with PRD-0006 §Phase 2 requirements.
  */
 
+import type { Grammar, SqlStatement } from "./grammar.js";
+
 export interface ColumnDefinition {
   readonly name: string;
   readonly type:
@@ -330,5 +332,35 @@ export class SchemaBuilder {
       bp.unique = unique;
     }
     this.blueprints.push(bp as unknown as CreateIndexBlueprint);
+  }
+
+  /** Filtre les blueprints qui concernent la table donnée. */
+  tableStatements(tableName: string): Blueprint[] {
+    return this.blueprints.filter((bp) => {
+      if (bp.type === "createTable") return bp.table === tableName;
+      if (bp.type === "addColumn" || bp.type === "dropColumn") {
+        return bp.table === tableName;
+      }
+      if (bp.type === "renameColumn" || bp.type === "renameTable") {
+        return bp.table === tableName || (bp as { to?: string }).to === tableName;
+      }
+      if (bp.type === "createIndex") return bp.table === tableName;
+      if (bp.type === "dropTable") return bp.table === tableName;
+      return false;
+    });
+  }
+
+  /**
+   * Compile tous les blueprints enregistrés avec la `Grammar` fournie et
+   * retourne la liste aplatie des `SqlStatement`.
+   */
+  compile(grammar: Grammar): readonly SqlStatement[] {
+    const statements: SqlStatement[] = [];
+    for (const bp of this.blueprints) {
+      for (const stmt of grammar.compile(bp)) {
+        statements.push(stmt);
+      }
+    }
+    return statements;
   }
 }
