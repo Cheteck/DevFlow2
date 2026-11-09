@@ -46,6 +46,7 @@ export const DEFAULT_FILTERS: ViewFilters = {
   paletteOpen: false,
   paletteQuery: "",
   paletteIndex: 0,
+  selectedService: null,
 };
 
 export interface RenderOptions {
@@ -143,16 +144,19 @@ function paletteOverlay(
 function helpOverlay(width: number, enabled: boolean): string[] {
   const rows: Array<Array<[string, string]>> = [
     [
-      ["R", "safe restart"],
-      ["L", "expand/collapse logs"],
-      ["E", "error-only filter"],
+      ["R", "restart all"],
+      ["r", "restart svc"],
+      ["s", "stop svc"],
+      ["a", "start svc"],
     ],
     [
-      ["C", "clear log view"],
-      ["P", "pause/resume watch"],
-      ["1 / 2", "filter api / mcp"],
+      ["Tab", "select svc"],
+      ["L", "toggle logs"],
+      ["E", "error-only"],
+      ["P", "pause watch"],
     ],
     [
+      ["1 / 2", "filter svc"],
       ["↑ / ↓", "scroll logs"],
       ["Ctrl+K", "command palette"],
       ["Q · Ctrl+C", "graceful quit"],

@@ -163,4 +163,6 @@ export interface ViewFilters {
   paletteOpen: boolean;
   paletteQuery: string;
   paletteIndex: number;
+  /** Service sélectionné pour les actions individuelles (start/stop/restart). */
+  selectedService: ServiceName | null;
 }

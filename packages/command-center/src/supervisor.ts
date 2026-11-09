@@ -259,6 +259,77 @@ export class DevSupervisor {
     return this.restartChain;
   }
 
+  /**
+   * Arrête un service spécifique (ou tous) de façon sérialisée.
+   * Réutilise le mécanisme restartChain + génération pour éviter les courses.
+   */
+  scheduleStop(reason: string, scope: ServiceName | "all" = "all"): Promise<void> {
+    const token = ++this.restartToken;
+    this.restartChain = this.restartChain
+      .then(() => this.runStop(reason, scope, token))
+      .catch(() => undefined);
+    return this.restartChain;
+  }
+
+  /**
+   * Démarre un service spécifique (ou tous) de façon sérialisée.
+   */
+  scheduleStart(reason: string, scope: ServiceName | "all" = "all"): Promise<void> {
+    const token = ++this.restartToken;
+    this.restartChain = this.restartChain
+      .then(() => this.runStart(reason, scope, token))
+      .catch(() => undefined);
+    return this.restartChain;
+  }
+
+  /** Arrêt individuel d'un service (opération sérialisée). */
+  async stopService(id: ServiceName): Promise<void> {
+    await this.scheduleStop(`manual stop ${id}`, id);
+  }
+
+  /** Démarrage individuel d'un service (opération sérialisée). */
+  async startService(id: ServiceName): Promise<void> {
+    await this.scheduleStart(`manual start ${id}`, id);
+  }
+
+  /** Redémarrage individuel d'un service (opération sérialisée). */
+  async restartService(id: ServiceName): Promise<void> {
+    await this.scheduleRestart(`manual restart ${id}`, id);
+  }
+
+  private async runStop(
+    reason: string,
+    scope: ServiceName | "all",
+    token: number,
+  ): Promise<void> {
+    if (this.shuttingDown || token !== this.restartToken) return;
+    const targets =
+      scope === "all"
+        ? [this.api, this.mcp]
+        : [scope === "api" ? this.api : this.mcp];
+    for (const target of targets) {
+      if (token !== this.restartToken || this.shuttingDown) return;
+      await target.stop(reason);
+    }
+  }
+
+  private async runStart(
+    reason: string,
+    scope: ServiceName | "all",
+    token: number,
+  ): Promise<void> {
+    if (this.shuttingDown || token !== this.restartToken) return;
+    const targets =
+      scope === "all"
+        ? [this.api, this.mcp]
+        : [scope === "api" ? this.api : this.mcp];
+    for (const target of targets) {
+      if (token !== this.restartToken || this.shuttingDown) return;
+      target.noteManualRestart();
+      await target.start();
+    }
+  }
+
   private async runRestart(
     reason: string,
     scope: ServiceName | "all",
@@ -468,8 +539,23 @@ export class DevSupervisor {
         this.render();
         break;
       case "r":
+        // Redémarre le service sélectionné (ou l'API par défaut).
+        void this.restartService(this.filters.selectedService ?? "api");
+        break;
       case "R":
+        // Redémarre tous les services.
         void this.scheduleRestart("manual restart (R)", "all");
+        break;
+      case "s":
+        // Arrête le service sélectionné (ou l'API par défaut).
+        void this.stopService(this.filters.selectedService ?? "api");
+        break;
+      case "a":
+        // Démarre le service sélectionné (ou l'API par défaut).
+        void this.startService(this.filters.selectedService ?? "api");
+        break;
+      case "tab":
+        this.cycleSelectedService();
         break;
       case "l":
       case "L":
@@ -643,6 +729,20 @@ export class DevSupervisor {
         : "Watch resumed",
       this.watchPaused ? "warn" : "info",
     );
+  }
+
+  /** Fait défiler le service sélectionné : null → api → mcp → null. */
+  private cycleSelectedService(): void {
+    const order: (ServiceName | null)[] = [null, "api", "mcp"];
+    const idx = order.indexOf(this.filters.selectedService);
+    const next = order[(idx + 1) % order.length];
+    this.filters.selectedService = next;
+    const label = next === null ? "aucun" : next;
+    this.emit(
+      "SYSTEM",
+      `Service sélectionné : ${label}`,
+    );
+    this.render();
   }
 
   /**
