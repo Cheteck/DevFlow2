@@ -364,6 +364,10 @@ export class DevSupervisor {
     await this.api.start();
     await this.mcp.start();
     this.installSignals();
+    // Toujours configurer le clavier, même en mode non-TTY (PowerShell,
+    // CI, etc.) pour que les raccourcis (1-6, r, s, a, Tab, Ctrl+K, Q)
+    // fonctionnent sur tous les terminaux.
+    this.setupKeyboard();
     if (this.useTui) {
       this.startTui();
     } else {
@@ -642,6 +646,15 @@ export class DevSupervisor {
       this.heartbeat = setInterval(() => this.render(), 1000);
       this.heartbeat.unref?.();
     }
+  }
+
+  /**
+   * Configure la lecture du clavier pour les raccourcis du CLI.
+   * Toujours appelée, même en mode non-TTY, afin que les raccourcis
+            * (1-6, r, s, a, Tab, Ctrl+K, Q, etc.) fonctionnent sur tous les
+    * terminaux, y compris Windows PowerShell où stdout n'est pas un TTY.
+   */
+  private setupKeyboard(): void {
     readline.emitKeypressEvents(process.stdin);
     if (process.stdin.isTTY) {
       try {
