@@ -531,7 +531,7 @@ export class ManagedProcess {
       // taskkill /T /F DOIT s'exécuter AVANT que le processus racine ne meure,
       // sinon l'arbre n'est plus identifiable et les descendants orphelins
       // survivent (dont celui qui occupe le port 3000).
-      await this.killTreeWindows(child.pid);
+      await this.killTreeWindows(child.pid, this.opts.shutdownTimeoutMs);
     } else {
       const pid = child.pid;
       if (pid) {
@@ -572,11 +572,12 @@ export class ManagedProcess {
    * puisse identifier et tuer tous les descendants (dont le serveur
    * HTTP qui occupe le port 3000).
    */
-  private async killTreeWindows(pid: number): Promise<void> {
+  private async killTreeWindows(pid: number, timeoutMs?: number): Promise<void> {
+    const budget = timeoutMs ?? this.opts.shutdownTimeoutMs ?? DEFAULT_SHUTDOWN_MS;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         reject(new Error(`Timeout taskkill sur PID ${pid}`));
-      }, 5000);
+      }, budget);
       timer.unref?.();
 
       const killer = spawn("taskkill", ["/PID", String(pid), "/T", "/F"], {
@@ -638,7 +639,7 @@ export class ManagedProcess {
     if (!child) return;
     if (process.platform === "win32" && child.pid !== undefined) {
       try {
-        await this.killTreeWindows(child.pid);
+        await this.killTreeWindows(child.pid, this.opts.shutdownTimeoutMs);
       } catch {
         try {
           child.kill("SIGKILL");

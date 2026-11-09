@@ -602,8 +602,19 @@ export function statusBar(
   if (filters.errorOnly) ctx.push("errors-only");
   if (filters.paused) ctx.push("watch-paused");
   ctx.push(`view:${filters.activeView}`);
-  const keys =
-    "R restart-all | r restart | s stop | a start | Tab select | 1 dash 2 proc 3 logs 4 diag 5 env 6 sess | L logs | E errors | C clear | P watch | Ctrl+K Cmd | ? Help | Q Quit";
-  const line = `${paint(keys, ANSI.grey, enabled)}${ctx.length > 0 ? paint(`   [${ctx.join(" · ")}]`, ANSI.amber, enabled) : ""}`;
+  const ctxPart = ctx.length > 0 ? paint(`   [${ctx.join(" · ")}]`, ANSI.amber, enabled) : "";
+
+  const line1 = `R restart-all | r restart | s stop | a start | Tab select`;
+  const line2 = `1-6 views | L logs | E errors | C clear | P watch | Ctrl+K | ? Help | Q Quit`;
+
+  // Sous 110 colonnes : deux lignes pour ne pas tronquer les raccourcis clés.
+  if (width < 110) {
+    return [
+      fitLine(paint(line1, ANSI.grey, enabled) + ctxPart, width, enabled),
+      fitLine(paint(line2, ANSI.grey, enabled), width, enabled),
+    ];
+  }
+  const keys = `${line1} | ${line2}`;
+  const line = `${paint(keys, ANSI.grey, enabled)}${ctxPart}`;
   return [fitLine(line, width, enabled)];
 }
