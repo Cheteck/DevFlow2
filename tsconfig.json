@@ -22,6 +22,9 @@
       "@mosaix/ports-id": ["./packages/ports/id/src/index.ts"],
       "@mosaix/ports-config": ["./packages/ports/config/src/index.ts"],
       "@mosaix/ports-cache": ["./packages/ports/cache/src/index.ts"],
+      "@mosaix/ports-email": ["./packages/ports/email/src/index.ts"],
+      "@mosaix/ports-sms": ["./packages/ports/sms/src/index.ts"],
+      "@mosaix/ports-whatsapp": ["./packages/ports/whatsapp/src/index.ts"],
       "@mosaix/adapter-crypto-node": ["./packages/adapters/crypto-node/src/index.ts"],
       "@mosaix/adapter-clock-system": ["./packages/adapters/clock-system/src/index.ts"],
       "@mosaix/adapter-id-uuid": ["./packages/adapters/id-uuid/src/index.ts"]

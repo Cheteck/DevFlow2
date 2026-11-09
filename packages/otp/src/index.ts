@@ -37,4 +37,4 @@ export type {
 export type { OtpRateLimiterPort } from "./ports/otp-rate-limiter-port.js";
 
 // Application
-export { OtpService } from "./application/otp-service";
+export { OtpService } from "./application/otp-service.js";

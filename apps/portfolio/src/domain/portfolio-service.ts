@@ -647,10 +647,11 @@ export class PortfolioService {
       const line = lines[i]!.trim();
       if (!line) continue;
 
-      try {
-        const parts = parseCsvRecord(line);
+        let parts: string[] = [];
+        try {
+          parts = parseCsvRecord(line);
 
-        if (parts.length < 5) {
+          if (parts.length < 5) {
           report.failed.push({ line: lineNum, reason: "Champs insuffisants (minimum 5 requis)" });
           continue;
         }

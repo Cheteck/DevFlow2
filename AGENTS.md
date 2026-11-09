@@ -1224,7 +1224,7 @@ Ne jamais :
 - casser une interface sans migration
 - supprimer une connaissance utile
 - **dupliquer un nom de fichier** : chaque fichier doit avoir un basename unique dans le repository (ex. pas de `domain/user-repository.ts` ET `infrastructure/user-repository.ts`). Un port et son adaptateur portent des noms distincts — ex. `domain/user-repository.ts` (port) et `infrastructure/in-memory-user-repository.ts` (adaptateur).
-- previlegier l'usage d'aliases dans les imports
+- **Imports** : privilégier les aliases de module (ex. `@mosaix/core`, `@mosaix/ports-database`, `@mosaix/migrations`) définis dans `tsconfig.json` plutôt que les chemins relatifs en dur (`../../...`). Un import doit utiliser un alias quand le cible est exposée par un alias, pour la lisibilité et la stabilité des déplacements de fichiers.
 
 ---
 

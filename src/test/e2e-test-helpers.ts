@@ -23,7 +23,7 @@
  */
 
 import { createPostgresDatabasePort } from "@mosaix/adapter-database-postgres";
-import type { DatabasePort } from "@mosaix/ports-database";
+import type { DatabaseConnection, DatabasePort } from "@mosaix/ports-database";
 
 const TEST_CONNECTION_STRING = process.env.MOSAIX_TEST_DATABASE_URL ?? "postgresql://mosaix:mosaix@localhost:5432/mosaix_test";
 
@@ -187,7 +187,6 @@ export async function createTestDatabase(): Promise<DatabasePort> {
 
     return db;
   } catch (error) {
-    await db.close();
     throw error;
   }
 }
@@ -201,9 +200,8 @@ export async function dropTestDatabase(db: DatabasePort): Promise<void> {
       await db.execute(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
     }
   } finally {
-    if (db) {
-      await db.close();
-    }
+    // DatabasePort n'expose pas de méthode close() : le cycle de vie
+    // de la connexion est géré par l'adapter appelant.
   }
 }
 
@@ -343,7 +341,7 @@ export async function countQuery<T = Record<string, unknown>>(
  */
 export async function testTransactionCommit<T>(
   db: DatabasePort,
-  fn: (tx: DatabasePort) => Promise<T>,
+  fn: (tx: DatabaseConnection) => Promise<T>,
 ): Promise<T> {
   return db.transaction(async (tx) => {
     const result = await fn(tx);
@@ -356,7 +354,7 @@ export async function testTransactionCommit<T>(
  */
 export async function testTransactionRollback(
   db: DatabasePort,
-  fn: (tx: DatabasePort) => Promise<void>,
+  fn: (tx: DatabaseConnection) => Promise<void>,
   shouldFail: boolean = true,
 ): Promise<boolean> {
   let failed = false;

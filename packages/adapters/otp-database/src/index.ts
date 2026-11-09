@@ -70,7 +70,10 @@ export class OtpDatabaseAdapter implements OtpRepositoryPort {
 
   async runInTransaction<T>(fn: (repo: OtpRepositoryPort) => Promise<T>): Promise<T> {
     return this.db.transaction(async (tx) => {
-      const adapter = new OtpDatabaseAdapter(tx);
+      // tx est un DatabaseConnection (execute/query) mais l'adapter a besoin du
+      // DatabasePort complet (transaction, capabilities, acquireMigrationLock).
+      // Au runtime, l'adapter postgres implémente DatabasePort en entier.
+      const adapter = new OtpDatabaseAdapter(tx as unknown as DatabasePort);
       return fn(adapter);
     });
   }
