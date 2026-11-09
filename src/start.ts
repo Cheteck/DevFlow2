@@ -746,3 +746,60 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, "0.0.0.0", () => {
   logger.info(`MosaiX platform host listening on http://0.0.0.0:${PORT}`);
 });
+
+// ─── Arrêt applicatif du serveur HTTP (détournement du port 3000) ─────
+// Permet au DevSupervisor de demander une fermeture propre via IPC,
+// et de réagir aux signaux SIGINT/SIGTERM sans laisser le port occupé.
+let shutdownPromise: Promise<void> | undefined;
+
+async function shutdown(reason: string): Promise<void> {
+  if (shutdownPromise) {
+    return shutdownPromise;
+  }
+
+  shutdownPromise = (async () => {
+    logger.info(`[API] Arrêt demandé : ${reason}`);
+
+    if (!server.listening) {
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+      server.closeAllConnections();
+    });
+
+    logger.info("[API] Serveur HTTP arrêté.");
+  })();
+
+  return shutdownPromise;
+}
+
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.once(signal, () => {
+    void shutdown(signal).catch((error) => {
+      logger.error("[API] Erreur shutdown:", error);
+      process.exitCode = 1;
+    });
+  });
+}
+
+process.on("message", (message: unknown) => {
+  if (
+    typeof message === "object" &&
+    message !== null &&
+    "type" in message &&
+    (message as { type?: string }).type === "shutdown"
+  ) {
+    void shutdown("supervisor").catch((error) => {
+      logger.error("[API] Erreur shutdown:", error);
+      process.exitCode = 1;
+    });
+  }
+});

@@ -965,8 +965,15 @@ export class DevSupervisor {
     this.watcher.dispose();
     await Promise.all([this.api.stop("shutdown"), this.mcp.stop("shutdown")]);
     // Belt and braces: no orphans even if graceful stop raced a spawn.
-    this.api.forceKill();
-    this.mcp.forceKill();
+    await Promise.all([this.api.forceKill(), this.mcp.forceKill()]).catch(
+      (error) => {
+        this.bus.emit(
+          "SYSTEM",
+          `forceKill a échoué pour un service : ${error}`,
+          "warn",
+        );
+      },
+    );
     this.api.markDisposed();
     this.mcp.markDisposed();
     this.bus.emit("SYSTEM", "Shutdown complete — no orphan processes");

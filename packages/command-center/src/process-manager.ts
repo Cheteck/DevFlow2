@@ -484,55 +484,127 @@ export class ManagedProcess {
     });
   }
 
-  /** Graceful stop: SIGTERM, capped wait, then SIGKILL. Always resolves. */
+  /** Graceful stop: IPC shutdown, await graceful exit, then destroy the
+   * process tree (Windows: taskkill /T /F BEFORE the parent dies; POSIX:
+   * kill the process group). Always resolves. */
   async stop(
     _reason = "stop",
   ): Promise<{ code: number | null; signal: string | null }> {
     const child = this.child;
-    if (!child || !this.isAlive) {
+    if (!child || child.exitCode !== null || child.signalCode !== null) {
       this.state = this.state === "CRASHED" ? "CRASHED" : "STOPPED";
       return { code: this.lastExitCode, signal: this.lastSignal };
     }
+
     this.expectedStop = true;
     this.state = "STOPPING";
+
+    // 1. Demande d'arrêt applicative via IPC (le service peut fermer
+    // proprement son serveur HTTP, ses connexions, etc.).
+    if (child.connected) {
+      try {
+        child.send({ type: "shutdown", reason: _reason });
+      } catch {
+        // Le canal IPC peut être fermé : ce n'est pas bloquant.
+      }
+    }
+
+    // 2. Attendre la fermeture gracieuse.
     const timeoutMs = this.opts.shutdownTimeoutMs ?? DEFAULT_SHUTDOWN_MS;
     const exited = this.waitForExit();
-    try {
-      child.kill("SIGTERM");
-    } catch {
-      /* already gone */
-    }
-    // Windows: SIGTERM only terminates the wrapper (cmd/npx) — the real
-    // servers underneath would be orphaned. Give them a short grace
-    // period, then terminate the whole tree instead of waiting out the
-    // full shutdown budget.
-    const graceMs =
-      process.platform === "win32" ? Math.min(1000, timeoutMs) : timeoutMs;
+    const timer = setTimeout(() => "timeout", timeoutMs);
+    timer.unref?.();
     const winner = await Promise.race([
       exited.then(() => "exited" as const),
       new Promise<"timeout">((resolve) => {
-        const t = setTimeout(() => resolve("timeout"), graceMs);
+        const t = setTimeout(() => resolve("timeout"), timeoutMs);
         t.unref?.();
       }),
     ]);
-    if (winner === "timeout" && this.isAlive) {
-      this.killTree();
-      await Promise.race([
-        exited,
-        new Promise<void>((resolve) => {
-          const t = setTimeout(
-            () => resolve(),
-            Math.max(0, timeoutMs - graceMs),
-          );
-          t.unref?.();
-        }),
-      ]);
-    } else {
-      await exited;
+    clearTimeout(timer);
+
+    if (winner === "exited") {
+      this.child = null;
+      this.state = "STOPPED";
+      return { code: this.lastExitCode, signal: this.lastSignal };
     }
+
+    // 3. Fermeture forcée : détruire l'arbre de processus.
+    if (process.platform === "win32" && child.pid !== undefined) {
+      // taskkill /T /F DOIT s'exécuter AVANT que le processus racine ne meure,
+      // sinon l'arbre n'est plus identifiable et les descendants orphelins
+      // survivent (dont celui qui occupe le port 3000).
+      await this.killTreeWindows(child.pid);
+    } else {
+      const pid = child.pid;
+      if (pid) {
+        try {
+          process.kill(-pid, "SIGTERM");
+        } catch (error) {
+          const e = error as NodeJS.ErrnoException;
+          if (e.code !== "ESRCH") throw e;
+        }
+        // Attendre la disparition du groupe, puis SIGKILL si nécessaire.
+        await Promise.race([
+          exited,
+          new Promise<void>((resolve) => {
+            const t = setTimeout(() => resolve(), 2000);
+            t.unref?.();
+          }),
+        ]);
+        if (this.isAlive && child.pid) {
+          try {
+            process.kill(-child.pid, "SIGKILL");
+          } catch (error) {
+            const e = error as NodeJS.ErrnoException;
+            if (e.code !== "ESRCH") throw e;
+          }
+        }
+      }
+    }
+
+    await exited;
     this.child = null;
     this.state = "STOPPED";
     return { code: this.lastExitCode, signal: this.lastSignal };
+  }
+
+  /**
+   * Détruit l'arbre de processus Windows avec taskkill /T /F.
+   * Appelé AVANT que le processus racine ne meure, afin que taskkill
+   * puisse identifier et tuer tous les descendants (dont le serveur
+   * HTTP qui occupe le port 3000).
+   */
+  private async killTreeWindows(pid: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error(`Timeout taskkill sur PID ${pid}`));
+      }, 5000);
+      timer.unref?.();
+
+      const killer = spawn("taskkill", ["/PID", String(pid), "/T", "/F"], {
+        stdio: "ignore",
+        windowsHide: true,
+      });
+
+      killer.once("error", (err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+
+      killer.once("close", (code) => {
+        clearTimeout(timer);
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(
+            new Error(
+              `taskkill a échoué pour PID ${pid}, code=${code}`,
+            ),
+          );
+        }
+      });
+    });
   }
 
   /**
@@ -562,39 +634,22 @@ export class ManagedProcess {
     this.clearReadyWait();
   }
 
-  forceKill(): void {
-    this.killTree();
-  }
-
-  /**
-   * On Windows a graceful signal only reaches the direct child (cmd/npx
-   * wrapper) — grandchildren (tsx, node) would be orphaned. taskkill /T
-   * terminates the whole tree. POSIX falls back to SIGKILL.
-   */
-  private killTree(): void {
+  /** Force-kill de dernier recours. Asynchrone car il peut invoquer
+   * taskkill (Windows) qui est lui-même asynchrone. */
+  async forceKill(): Promise<void> {
     const child = this.child;
     if (!child) return;
     if (process.platform === "win32" && child.pid !== undefined) {
       try {
-        const killer = spawn(
-          "taskkill",
-          ["/pid", String(child.pid), "/T", "/F"],
-          {
-            stdio: "ignore",
-            windowsHide: true,
-          },
-        );
-        killer.on("error", () => {
-          try {
-            child.kill("SIGKILL");
-          } catch {
-            /* ignore */
-          }
-        });
-        return;
+        await this.killTreeWindows(child.pid);
       } catch {
-        /* fall through to SIGKILL */
+        try {
+          child.kill("SIGKILL");
+        } catch {
+          /* ignore */
+        }
       }
+      return;
     }
     try {
       child.kill("SIGKILL");
