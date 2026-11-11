@@ -12,7 +12,12 @@ import {
   MigrationRegistry,
   MigrationRunner,
 } from "@mosaix/migrations";
-import type { DatabaseCapabilities, DatabasePort, MigrationLock } from "@mosaix/migrations";
+import type {
+  DatabaseCapabilities,
+  DatabasePort,
+  MigrationContext,
+  MigrationLock,
+} from "@mosaix/migrations";
 
 class ConcurrentMockDatabasePort implements DatabasePort {
   readonly capabilities: DatabaseCapabilities = {
@@ -33,7 +38,9 @@ class ConcurrentMockDatabasePort implements DatabasePort {
   }
   async acquireMigrationLock(): Promise<MigrationLock> {
     if (ConcurrentMockDatabasePort.globalLock) {
-      throw new MigrationLockError("Migration lock is held by another process/instance");
+      throw new MigrationLockError(
+        "Migration lock is held by another process/instance",
+      );
     }
     ConcurrentMockDatabasePort.globalLock = true;
     return {
@@ -49,6 +56,25 @@ class ConcurrentMockDatabasePort implements DatabasePort {
 }
 
 describe("Migration Engine Safeguards (P0-3 / R02)", () => {
+  /** TypeScript native migration: the DDL is declared with the DSL. */
+  function nativeMigration(
+    id: string,
+    sql: string,
+    resources: readonly string[],
+  ) {
+    const table = resources[0]?.replace(/^table:/, "") ?? "test_lock";
+    return {
+      id,
+      checksum: computeChecksum(sql),
+      resources,
+      up: (context: MigrationContext) => {
+        context.schema.createTable(table, (t) => {
+          t.string("id").primary();
+        });
+      },
+    };
+  }
+
   it("prevents concurrent migration execution (double instance lock collision)", async () => {
     ConcurrentMockDatabasePort.resetLock();
     const store = new InMemoryMigrationStore();
@@ -58,7 +84,11 @@ describe("Migration Engine Safeguards (P0-3 / R02)", () => {
       {
         ownerId: () => "mosaix",
         migrations: () => [
-          { id: "mosaix.core.v1.001_test", content: "CREATE TABLE test_lock (id INT);" },
+          nativeMigration(
+            "mosaix.core.v1.001_test",
+            "CREATE TABLE test_lock (id INT);",
+            ["table:test_lock"],
+          ),
         ],
       },
       0,
@@ -90,13 +120,17 @@ describe("Migration Engine Safeguards (P0-3 / R02)", () => {
     ConcurrentMockDatabasePort.resetLock();
     const store = new InMemoryMigrationStore();
 
-    const originalMigration = {
-      id: "mosaix.core.v1.001_schema",
-      content: "CREATE TABLE schema_v1 (id INT);",
-    };
+    const originalMigration = nativeMigration(
+      "mosaix.core.v1.001_schema",
+      "CREATE TABLE schema_v1 (id INT);",
+      ["table:schema_v1"],
+    );
 
     const registry1 = new MigrationRegistry();
-    registry1.register({ ownerId: () => "mosaix", migrations: () => [originalMigration] }, 0);
+    registry1.register(
+      { ownerId: () => "mosaix", migrations: () => [originalMigration] },
+      0,
+    );
 
     const db = new ConcurrentMockDatabasePort();
     const runner = new MigrationRunner(db, store);
@@ -105,18 +139,24 @@ describe("Migration Engine Safeguards (P0-3 / R02)", () => {
 
     // Verify migration is stored with expected checksum
     const recorded = await store.get("mosaix.core.v1.001_schema");
-    expect(recorded?.checksum).toBe(computeChecksum(originalMigration.content));
+    expect(recorded?.checksum).toBe(originalMigration.checksum);
 
     // Tamper with migration content (simulating file modification after deploy)
-    const tamperedMigration = {
-      id: "mosaix.core.v1.001_schema",
-      content: "CREATE TABLE schema_v1 (id INT, tampered_column TEXT);",
-    };
+    const tamperedMigration = nativeMigration(
+      "mosaix.core.v1.001_schema",
+      "CREATE TABLE schema_v1 (id INT, tampered_column TEXT);",
+      ["table:schema_v1"],
+    );
 
     const registry2 = new MigrationRegistry();
-    registry2.register({ ownerId: () => "mosaix", migrations: () => [tamperedMigration] }, 0);
+    registry2.register(
+      { ownerId: () => "mosaix", migrations: () => [tamperedMigration] },
+      0,
+    );
 
     // Planning should fail fast due to checksum mismatch
-    await expect(new MigrationPlanner(registry2, store).plan()).rejects.toThrow(MigrationChecksumError);
+    await expect(new MigrationPlanner(registry2, store).plan()).rejects.toThrow(
+      MigrationChecksumError,
+    );
   });
 });
