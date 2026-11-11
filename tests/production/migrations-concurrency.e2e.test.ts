@@ -97,7 +97,6 @@ describe("Migration Engine Safeguards (P0-3 / R02)", () => {
     const instance1Db = new ConcurrentMockDatabasePort();
     const instance2Db = new ConcurrentMockDatabasePort();
 
-    const runner1 = new MigrationRunner(instance1Db, store);
     const runner2 = new MigrationRunner(instance2Db, store);
 
     const plan = await new MigrationPlanner(registry, store).plan();
