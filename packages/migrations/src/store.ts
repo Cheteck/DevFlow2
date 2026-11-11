@@ -1,4 +1,7 @@
-import { MigrationAlreadyAppliedError, MigrationMissingError } from "./errors.js";
+import {
+  MigrationAlreadyAppliedError,
+  MigrationMissingError,
+} from "./errors.js";
 
 /**
  * MigrationStore — persistence of applied migrations, keeping the origin

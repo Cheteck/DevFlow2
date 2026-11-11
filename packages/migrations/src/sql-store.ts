@@ -11,7 +11,10 @@
  */
 
 import type { DatabasePort } from "@mosaix/ports-database";
-import { MigrationAlreadyAppliedError, MigrationMissingError } from "./errors.js";
+import {
+  MigrationAlreadyAppliedError,
+  MigrationMissingError,
+} from "./errors.js";
 import type { ExecutedMigration, MigrationStore } from "./store.js";
 
 export class SqlMigrationStore implements MigrationStore {

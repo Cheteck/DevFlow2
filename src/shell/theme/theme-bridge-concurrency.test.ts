@@ -21,7 +21,10 @@ import {
   getResolvedTheme,
   runWithThemeContext,
 } from "./theme-bridge.js";
-import { renderContext, type RenderContext } from "../../server/context/render-context.js";
+import {
+  renderContext,
+  type RenderContext,
+} from "../../server/context/render-context.js";
 import { ThemeDiscovery } from "@mosaix/theme";
 import type { ThemeManifest, CompiledTheme } from "@mosaix/contracts";
 import * as path from "node:path";
@@ -38,10 +41,10 @@ describe("SSR Concurrency — Theme Contamination", () => {
 
   beforeEach(() => {
     runtime = initThemeBridge({ defaultMode: "light" });
-    
+
     const themesDir = path.resolve(process.cwd(), "themes");
     const discovered = ThemeDiscovery.discoverThemes(themesDir);
-    
+
     for (const theme of discovered) {
       runtime.registerTheme(theme.manifest);
       if (theme.id === themeA) manifestA = theme.manifest;
@@ -60,7 +63,7 @@ describe("SSR Concurrency — Theme Contamination", () => {
   it("DEMONSTRATES BUG: global currentMode is contaminated across concurrent requests", async () => {
     /**
      * This test proves the race condition:
-     * 
+     *
      * Timeline:
      * 1. Request A calls applyThemeMode("dark") → writes currentMode = "dark"
      * 2. Request A awaits runtime.apply() [ASYNC - yields control]
@@ -68,7 +71,7 @@ describe("SSR Concurrency — Theme Contamination", () => {
      * 4. Request B awaits runtime.apply() [ASYNC - yields control]
      * 5. Request A resumes → currentMode is now "light" (contaminated!)
      * 6. Request A returns compiled theme for aurora/dark BUT getThemeMode() = "light"
-     * 
+     *
      * Result: Request A's response claims mode="light" when it should be "dark"
      */
 
@@ -96,7 +99,7 @@ describe("SSR Concurrency — Theme Contamination", () => {
           const compiled = await applyThemeMode(modeA);
 
           // Step 2: Capture isolated state AFTER await
-          const capturedMode = getThemeMode(); 
+          const capturedMode = getThemeMode();
           const capturedThemeId = getActiveThemeId();
           const capturedCompiled = getCompiledTheme();
 
@@ -144,7 +147,9 @@ describe("SSR Concurrency — Theme Contamination", () => {
     await Promise.all([promiseA, promiseB]);
 
     // Sort by request ID for predictable assertions
-    capturedDuringRequest.sort((a, b) => a.requestId.localeCompare(b.requestId));
+    capturedDuringRequest.sort((a, b) =>
+      a.requestId.localeCompare(b.requestId),
+    );
 
     const resultA = capturedDuringRequest.find((r) => r.requestId === "A");
     const resultB = capturedDuringRequest.find((r) => r.requestId === "B");
@@ -152,16 +157,16 @@ describe("SSR Concurrency — Theme Contamination", () => {
     // Request A: requested "dark", but global currentMode may be "light" (contaminated by B)
     expect(resultA).toBeDefined();
     expect(resultA!.requestedMode).toBe(modeA);
-    
+
     // THIS IS THE BUG: capturedMode will often be "light" instead of "dark"
     // because Request B overwrote currentMode during Request A's await
     if (resultA!.capturedMode !== resultA!.requestedMode) {
       console.error(
         `CONTAMINATION DETECTED: Request A requested mode="${resultA!.requestedMode}" ` +
-        `but captured mode="${resultA!.capturedMode}"`
+          `but captured mode="${resultA!.capturedMode}"`,
       );
     }
-    
+
     // In a correct implementation, these would always pass:
     expect(resultA!.capturedMode).toBe(resultA!.requestedMode);
     expect(resultA!.capturedThemeId).toBe(themeA);
@@ -176,7 +181,7 @@ describe("SSR Concurrency — Theme Contamination", () => {
   it("DEMONSTRATES BUG: getResolvedTheme TOCTOU with concurrent access", async () => {
     /**
      * getResolvedTheme() has a Time-Of-Check-Time-Of-Use bug:
-     * 
+     *
      * Line 209-219 (theme-bridge.ts):
      *   if (currentCompiledTheme && currentMode === mode && compiledForThemeId === getEffectiveThemeId()) {
      *     return currentCompiledTheme;  // CHECK
@@ -185,15 +190,21 @@ describe("SSR Concurrency — Theme Contamination", () => {
      *   currentCompiledTheme = compiled;  // USE (write)
      *   currentMode = mode;
      *   compiledForThemeId = getEffectiveThemeId();
-     * 
+     *
      * Between the CHECK and the USE, another request can overwrite the globals.
      */
 
     setActiveThemeId(themeA);
 
-    const compileCalls: Array<{ mode: string; themeId: string; timestamp: number }> = [];
-    const originalCompile = await import("@mosaix/theme").then((m) => m.compile);
-    
+    const compileCalls: Array<{
+      mode: string;
+      themeId: string;
+      timestamp: number;
+    }> = [];
+    const originalCompile = await import("@mosaix/theme").then(
+      (m) => m.compile,
+    );
+
     // Spy on compile calls to track how many times each mode is compiled
     const results: Array<{
       requestedMode: string;
@@ -204,27 +215,30 @@ describe("SSR Concurrency — Theme Contamination", () => {
     // Spawn 20 concurrent requests alternating between light/dark
     const promises = Array.from({ length: 20 }).map((_, i) => {
       const mode: "light" | "dark" = i % 2 === 0 ? "light" : "dark";
-      
-      return renderContext.run({
-        theme: {
-          themeId: themeA,
-          source: "test",
-          manifest: manifestA!,
+
+      return renderContext.run(
+        {
+          theme: {
+            themeId: themeA,
+            source: "test",
+            manifest: manifestA!,
+          },
         },
-      }, async () => {
-        // Add random delay to maximize interleaving
-        await new Promise((r) => setTimeout(r, Math.random() * 10));
-        
-        const compiled = getResolvedTheme(mode);
-        
-        results.push({
-          requestedMode: mode,
-          returnedMode: getThemeMode(), // Reads global
-          compiledForTheme: getActiveThemeId(),
-        });
-        
-        return compiled;
-      });
+        async () => {
+          // Add random delay to maximize interleaving
+          await new Promise((r) => setTimeout(r, Math.random() * 10));
+
+          const compiled = getResolvedTheme(mode);
+
+          results.push({
+            requestedMode: mode,
+            returnedMode: getThemeMode(), // Reads global
+            compiledForTheme: getActiveThemeId(),
+          });
+
+          return compiled;
+        },
+      );
     });
 
     await Promise.all(promises);
@@ -232,24 +246,32 @@ describe("SSR Concurrency — Theme Contamination", () => {
     // In a correct implementation:
     // - Each request should see its own mode
     // - compile() should be called exactly twice (once for light, once for dark)
-    
-    const lightResults = results.filter((r) => r.requestedMode === "light" && r.returnedMode === "light");
-    const darkResults = results.filter((r) => r.requestedMode === "dark" && r.returnedMode === "dark");
-    
+
+    const lightResults = results.filter(
+      (r) => r.requestedMode === "light" && r.returnedMode === "light",
+    );
+    const darkResults = results.filter(
+      (r) => r.requestedMode === "dark" && r.returnedMode === "dark",
+    );
+
     // Contaminated results (requested light but got dark, or vice versa)
-    const contaminatedLight = results.filter((r) => r.requestedMode === "light" && r.returnedMode === "dark");
-    const contaminatedDark = results.filter((r) => r.requestedMode === "dark" && r.returnedMode === "light");
+    const contaminatedLight = results.filter(
+      (r) => r.requestedMode === "light" && r.returnedMode === "dark",
+    );
+    const contaminatedDark = results.filter(
+      (r) => r.requestedMode === "dark" && r.returnedMode === "light",
+    );
 
     if (contaminatedLight.length > 0 || contaminatedDark.length > 0) {
       console.error(
         `TOCTOU CONTAMINATION: ` +
-        `${contaminatedLight.length} light requests got dark, ` +
-        `${contaminatedDark.length} dark requests got light`
+          `${contaminatedLight.length} light requests got dark, ` +
+          `${contaminatedDark.length} dark requests got light`,
       );
     }
 
     // This assertion will FAIL if globals are contaminated
     expect(lightResults.length).toBe(10); // All 10 light requests should see "light"
-    expect(darkResults.length).toBe(10);  // All 10 dark requests should see "dark"
+    expect(darkResults.length).toBe(10); // All 10 dark requests should see "dark"
   });
 });

@@ -19,7 +19,9 @@ function action(overrides: Partial<OfflineSyncAction> = {}): OfflineSyncAction {
 describe("SolidaritySyncReconciler (§2.9, §8)", () => {
   it("accepts locally permitted actions only after server re-authorisation", () => {
     const reconciler = new SolidaritySyncReconciler();
-    const [outcome] = reconciler.reconcile([action()], () => ({ decision: "accept" }));
+    const [outcome] = reconciler.reconcile([action()], () => ({
+      decision: "accept",
+    }));
     expect(outcome.status).toBe("SYNCED");
   });
 
@@ -35,10 +37,13 @@ describe("SolidaritySyncReconciler (§2.9, §8)", () => {
 
   it("rejects actions no longer authorised at sync time", () => {
     const reconciler = new SolidaritySyncReconciler();
-    const [outcome] = reconciler.reconcile([action({ id: "act-2", idempotencyKey: "key-2" })], () => ({
-      decision: "reject",
-      reason: "Need closed before sync; allocation no longer valid.",
-    }));
+    const [outcome] = reconciler.reconcile(
+      [action({ id: "act-2", idempotencyKey: "key-2" })],
+      () => ({
+        decision: "reject",
+        reason: "Need closed before sync; allocation no longer valid.",
+      }),
+    );
     expect(outcome.status).toBe("REJECTED");
   });
 
@@ -56,16 +61,32 @@ describe("SolidaritySyncReconciler (§2.9, §8)", () => {
   it("resolves conflicts explicitly: retry re-queues, discard documents", () => {
     const reconciler = new SolidaritySyncReconciler();
     const conflicted = action({ id: "act-3", idempotencyKey: "key-3" });
-    reconciler.reconcile([conflicted], () => ({ decision: "conflict", reason: "Concurrent reservation." }));
+    reconciler.reconcile([conflicted], () => ({
+      decision: "conflict",
+      reason: "Concurrent reservation.",
+    }));
     expect(conflicted.status).toBe("CONFLICT");
 
-    const retried = reconciler.resolveConflict(conflicted, "retry", "op-7", "Stock replenished since.");
+    const retried = reconciler.resolveConflict(
+      conflicted,
+      "retry",
+      "op-7",
+      "Stock replenished since.",
+    );
     expect(retried.status).toBe("PENDING");
     expect(conflicted.statusReason).toMatch(/op-7/);
 
     const conflicted2 = action({ id: "act-4", idempotencyKey: "key-4" });
-    reconciler.reconcile([conflicted2], () => ({ decision: "conflict", reason: "Need cancelled." }));
-    const discarded = reconciler.resolveConflict(conflicted2, "discard", "op-7", "Need cancelled by coordinator.");
+    reconciler.reconcile([conflicted2], () => ({
+      decision: "conflict",
+      reason: "Need cancelled.",
+    }));
+    const discarded = reconciler.resolveConflict(
+      conflicted2,
+      "discard",
+      "op-7",
+      "Need cancelled by coordinator.",
+    );
     expect(discarded.status).toBe("REJECTED");
     expect(conflicted2.statusReason).toMatch(/cancelled by coordinator/);
   });

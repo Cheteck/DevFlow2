@@ -31,7 +31,10 @@ import {
   ThemeRuntime,
   ThemeTargetRegistry,
 } from "@mosaix/theme";
-import { tryGetRenderContext, type RenderContext } from "../../server/context/render-context.js";
+import {
+  tryGetRenderContext,
+  type RenderContext,
+} from "../../server/context/render-context.js";
 import { InMemoryGuard } from "@mosaix/support";
 
 // ── Single source of truth: themes/ on disk ─────────────────────────
@@ -74,9 +77,11 @@ function getRuntime(): ThemeRuntime {
       typeof container !== "undefined" &&
       container &&
       typeof container.has === "function";
-    
-    type StoreDb = ConstructorParameters<typeof PostgresThemeAssignmentsStore>[0];
-    
+
+    type StoreDb = ConstructorParameters<
+      typeof PostgresThemeAssignmentsStore
+    >[0];
+
     if (hasContainer && container.has("database")) {
       const db = container.resolve<StoreDb>("database");
       store = new PostgresThemeAssignmentsStore(db);
@@ -89,12 +94,12 @@ function getRuntime(): ThemeRuntime {
     }
 
     sharedRuntime = createThemeRuntime({ registry, store });
-    
+
     sharedRuntime.registerTarget({
       type: "shell",
       capabilities: { userSelectable: false, adminConfigurable: true },
     });
-    
+
     const catalog = getThemeCatalog();
     for (const manifest of catalog.values()) {
       sharedRuntime.registerTheme(manifest);
@@ -119,7 +124,9 @@ export function initThemeBridge(): ThemeRuntime {
   return getRuntime();
 }
 
-export function runWithThemeContext<T>(fn: () => Promise<T> | T): Promise<T> | T {
+export function runWithThemeContext<T>(
+  fn: () => Promise<T> | T,
+): Promise<T> | T {
   return themeStateStorage.run(
     {
       themeId: getEffectiveThemeId(),
@@ -135,7 +142,7 @@ export async function applyThemeMode(mode: ThemeMode): Promise<CompiledTheme> {
   const runtime = getRuntime();
   const themeId = getEffectiveThemeId();
   const resolvedMode = mode === "system" ? "dark" : mode;
-  
+
   const target: ThemeTarget = { type: "shell", id: "shell" };
   const ctx: ThemeResolutionContext = {
     target,
@@ -144,9 +151,9 @@ export async function applyThemeMode(mode: ThemeMode): Promise<CompiledTheme> {
       preferredMode: resolvedMode,
     },
   };
-  
+
   const outcome = await runtime.apply(ctx);
-  
+
   let compiledTheme: CompiledTheme;
   if (outcome.compiled) {
     compiledTheme = outcome.compiled;
@@ -157,7 +164,7 @@ export async function applyThemeMode(mode: ThemeMode): Promise<CompiledTheme> {
     const manifest = runtime.getTheme(themeId);
     if (!manifest) {
       throw new Error(
-        `Failed to compile theme "${themeId}" in mode "${resolvedMode}"`
+        `Failed to compile theme "${themeId}" in mode "${resolvedMode}"`,
       );
     }
     compiledTheme = compile(manifest, resolvedMode);
@@ -193,19 +200,21 @@ export function getResolvedTheme(mode: ThemeMode = "light"): CompiledTheme {
   if (state?.compiled) {
     return state.compiled;
   }
-  
+
   const runtime = getRuntime();
   const themeId = getEffectiveThemeId();
   const manifest = runtime.getTheme(themeId);
-  
+
   if (!manifest) {
     throw new Error(`Theme "${themeId}" not found`);
   }
-  
+
   return compile(manifest, mode);
 }
 
-export function generateUnifiedThemeCssVariables(compiledTheme: CompiledTheme): string {
+export function generateUnifiedThemeCssVariables(
+  compiledTheme: CompiledTheme,
+): string {
   const lines: string[] = [];
   for (const [key, val] of Object.entries(compiledTheme || {})) {
     lines.push(`  ${key}: ${val};`);
@@ -213,7 +222,9 @@ export function generateUnifiedThemeCssVariables(compiledTheme: CompiledTheme): 
   return lines.join("\n");
 }
 
-function renderStatusColorDeclarations(tailwind: Record<string, string>): string[] {
+function renderStatusColorDeclarations(
+  tailwind: Record<string, string>,
+): string[] {
   const declare = (css: string, mx: string, fallback: string): string =>
     `  --color-${css}: var(--mx-color-${mx}, ${tailwind[css] ?? fallback});`;
   return [
@@ -241,12 +252,12 @@ export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
   const runtime = state?.runtime ?? getRuntime();
   const themeId = state?.themeId ?? getEffectiveThemeId();
   const mode = state?.mode ?? "dark";
-  
+
   const manifest = runtime.getTheme(themeId);
   if (!manifest) {
     return "<!-- No theme available -->";
   }
-  
+
   const lightVars = compile(manifest, "light");
   const darkVars = compile(manifest, "dark");
   const lightTw = tailwindForMode(manifest, "light");
@@ -255,57 +266,111 @@ export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
     v[key] ?? dead;
 
   const lines: string[] = [];
-  lines.push("/* MosaiX Compiled Theme — Source of Truth: --mx-* (hot-switching enabled) */");
+  lines.push(
+    "/* MosaiX Compiled Theme — Source of Truth: --mx-* (hot-switching enabled) */",
+  );
 
-  lines.push(':root, [data-theme-mode="light"], [data-resolved-mode="light"] {');
+  lines.push(
+    ':root, [data-theme-mode="light"], [data-resolved-mode="light"] {',
+  );
   for (const [key, val] of Object.entries(lightVars)) {
     lines.push(`  ${key}: ${val};`);
   }
   lines.push("  /* Tailwind CSS & Material Design 3 Surface Tokens Mapping */");
-  lines.push(`  --color-primary: var(--mx-color-primary, ${fb(lightVars, "--mx-color-primary", "#4f46e5")});`);
-  lines.push(`  --color-primary-hover: var(--mx-color-primaryHover, ${fb(lightVars, "--mx-color-primaryHover", "#4338ca")});`);
+  lines.push(
+    `  --color-primary: var(--mx-color-primary, ${fb(lightVars, "--mx-color-primary", "#4f46e5")});`,
+  );
+  lines.push(
+    `  --color-primary-hover: var(--mx-color-primaryHover, ${fb(lightVars, "--mx-color-primaryHover", "#4338ca")});`,
+  );
   lines.push("  --color-on-primary: #ffffff;");
-  lines.push(`  --color-secondary: var(--mx-color-secondary, ${fb(lightVars, "--mx-color-secondary", "#06b6d4")});`);
-  lines.push(`  --color-surface: var(--mx-color-surface, ${fb(lightVars, "--mx-color-surface", "#ffffff")});`);
-  lines.push(`  --color-on-surface: var(--mx-color-text, ${fb(lightVars, "--mx-color-text", "#0f172a")});`);
-  lines.push(`  --color-on-surface-variant: var(--mx-color-textMuted, ${fb(lightVars, "--mx-color-textMuted", "#64748b")});`);
+  lines.push(
+    `  --color-secondary: var(--mx-color-secondary, ${fb(lightVars, "--mx-color-secondary", "#06b6d4")});`,
+  );
+  lines.push(
+    `  --color-surface: var(--mx-color-surface, ${fb(lightVars, "--mx-color-surface", "#ffffff")});`,
+  );
+  lines.push(
+    `  --color-on-surface: var(--mx-color-text, ${fb(lightVars, "--mx-color-text", "#0f172a")});`,
+  );
+  lines.push(
+    `  --color-on-surface-variant: var(--mx-color-textMuted, ${fb(lightVars, "--mx-color-textMuted", "#64748b")});`,
+  );
   lines.push(`  --color-surface-variant: ${lightTw["surface-variant"]};`);
-  lines.push(`  --color-surface-container-lowest: ${lightTw["surface-container-lowest"]};`);
-  lines.push(`  --color-surface-container-low: ${lightTw["surface-container-low"]};`);
+  lines.push(
+    `  --color-surface-container-lowest: ${lightTw["surface-container-lowest"]};`,
+  );
+  lines.push(
+    `  --color-surface-container-low: ${lightTw["surface-container-low"]};`,
+  );
   lines.push(`  --color-surface-container: ${lightTw["surface-container"]};`);
-  lines.push(`  --color-surface-container-high: ${lightTw["surface-container-high"]};`);
-  lines.push(`  --color-surface-container-highest: ${lightTw["surface-container-highest"]};`);
-  lines.push(`  --color-outline-variant: var(--mx-color-border, ${fb(lightVars, "--mx-color-border", "#e2e8f0")});`);
+  lines.push(
+    `  --color-surface-container-high: ${lightTw["surface-container-high"]};`,
+  );
+  lines.push(
+    `  --color-surface-container-highest: ${lightTw["surface-container-highest"]};`,
+  );
+  lines.push(
+    `  --color-outline-variant: var(--mx-color-border, ${fb(lightVars, "--mx-color-border", "#e2e8f0")});`,
+  );
   lines.push("  /* Semantic status tokens (Material 3) */");
   lines.push(...renderStatusColorDeclarations(lightTw));
   lines.push("}");
 
-  lines.push('[data-theme-mode="dark"], [data-resolved-mode="dark"], .dark, html.dark {');
+  lines.push(
+    '[data-theme-mode="dark"], [data-resolved-mode="dark"], .dark, html.dark {',
+  );
   for (const [key, val] of Object.entries(darkVars)) {
     lines.push(`  ${key}: ${val};`);
   }
   lines.push("  /* Tailwind CSS & Material Design 3 Surface Tokens Mapping */");
-  lines.push(`  --color-primary: var(--mx-color-primary, ${fb(darkVars, "--mx-color-primary", "#6366f1")});`);
-  lines.push(`  --color-primary-hover: var(--mx-color-primaryHover, ${fb(darkVars, "--mx-color-primaryHover", "#818cf8")});`);
+  lines.push(
+    `  --color-primary: var(--mx-color-primary, ${fb(darkVars, "--mx-color-primary", "#6366f1")});`,
+  );
+  lines.push(
+    `  --color-primary-hover: var(--mx-color-primaryHover, ${fb(darkVars, "--mx-color-primaryHover", "#818cf8")});`,
+  );
   lines.push("  --color-on-primary: #ffffff;");
-  lines.push(`  --color-secondary: var(--mx-color-secondary, ${fb(darkVars, "--mx-color-secondary", "#06b6d4")});`);
-  lines.push(`  --color-surface: var(--mx-color-surface, ${fb(darkVars, "--mx-color-surface", "#1e293b")});`);
-  lines.push(`  --color-on-surface: var(--mx-color-text, ${fb(darkVars, "--mx-color-text", "#f8fafc")});`);
-  lines.push(`  --color-on-surface-variant: var(--mx-color-textMuted, ${fb(darkVars, "--mx-color-textMuted", "#94a3b8")});`);
+  lines.push(
+    `  --color-secondary: var(--mx-color-secondary, ${fb(darkVars, "--mx-color-secondary", "#06b6d4")});`,
+  );
+  lines.push(
+    `  --color-surface: var(--mx-color-surface, ${fb(darkVars, "--mx-color-surface", "#1e293b")});`,
+  );
+  lines.push(
+    `  --color-on-surface: var(--mx-color-text, ${fb(darkVars, "--mx-color-text", "#f8fafc")});`,
+  );
+  lines.push(
+    `  --color-on-surface-variant: var(--mx-color-textMuted, ${fb(darkVars, "--mx-color-textMuted", "#94a3b8")});`,
+  );
   lines.push(`  --color-surface-variant: ${darkTw["surface-variant"]};`);
-  lines.push(`  --color-surface-container-lowest: ${darkTw["surface-container-lowest"]};`);
-  lines.push(`  --color-surface-container-low: ${darkTw["surface-container-low"]};`);
+  lines.push(
+    `  --color-surface-container-lowest: ${darkTw["surface-container-lowest"]};`,
+  );
+  lines.push(
+    `  --color-surface-container-low: ${darkTw["surface-container-low"]};`,
+  );
   lines.push(`  --color-surface-container: ${darkTw["surface-container"]};`);
-  lines.push(`  --color-surface-container-high: ${darkTw["surface-container-high"]};`);
-  lines.push(`  --color-surface-container-highest: ${darkTw["surface-container-highest"]};`);
-  lines.push(`  --color-outline-variant: var(--mx-color-border, ${fb(darkVars, "--mx-color-border", "#334155")});`);
+  lines.push(
+    `  --color-surface-container-high: ${darkTw["surface-container-high"]};`,
+  );
+  lines.push(
+    `  --color-surface-container-highest: ${darkTw["surface-container-highest"]};`,
+  );
+  lines.push(
+    `  --color-outline-variant: var(--mx-color-border, ${fb(darkVars, "--mx-color-border", "#334155")});`,
+  );
   lines.push("  /* Semantic status tokens (Material 3) */");
   lines.push(...renderStatusColorDeclarations(darkTw));
   lines.push("}");
 
   lines.push("@media (prefers-color-scheme: dark) {");
-  lines.push('  html[data-theme-mode="system"]:not([data-resolved-mode="light"]),');
-  lines.push('  :root:not([data-theme-mode]):not([data-resolved-mode="light"]) {');
+  lines.push(
+    '  html[data-theme-mode="system"]:not([data-resolved-mode="light"]),',
+  );
+  lines.push(
+    '  :root:not([data-theme-mode]):not([data-resolved-mode="light"]) {',
+  );
   for (const [key, val] of Object.entries(darkVars)) {
     lines.push(`    ${key}: ${val};`);
   }
@@ -328,11 +393,16 @@ export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
   return `<style id="mosaix-compiled-theme">\n${lines.join("\n")}\n</style>`;
 }
 
-function tailwindForMode(manifest: ThemeManifest, mode: ThemeMode): Record<string, string> {
+function tailwindForMode(
+  manifest: ThemeManifest,
+  mode: ThemeMode,
+): Record<string, string> {
   const normalized = mode === "light" ? "light" : "dark";
   const tokens = (manifest as unknown as { tokens?: unknown }).tokens;
   const base = (tokens as Record<string, unknown>)?.tailwind ?? {};
-  const holder = manifest as unknown as { modes?: Record<string, Record<string, unknown>> };
+  const holder = manifest as unknown as {
+    modes?: Record<string, Record<string, unknown>>;
+  };
   const overlay = holder.modes?.[normalized]?.tailwind ?? {};
   const merged = deepMergeTokens(
     isStringMap(base) ? base : {},
@@ -354,7 +424,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function getTailwindThemeColors(mode: ThemeMode = "dark"): Record<string, string> {
+export function getTailwindThemeColors(
+  mode: ThemeMode = "dark",
+): Record<string, string> {
   const state = getState();
   const runtime = state?.runtime ?? getRuntime();
   const themeId = state?.themeId ?? getEffectiveThemeId();
@@ -369,7 +441,7 @@ export function setActiveThemeId(id: string): void {
   const catalog = getThemeCatalog();
   if (!catalog.has(id)) {
     throw new Error(
-      `[theme] unknown theme "${id}" — available: ${[...catalog.keys()].join(", ") || "(none)"}`
+      `[theme] unknown theme "${id}" — available: ${[...catalog.keys()].join(", ") || "(none)"}`,
     );
   }
 }

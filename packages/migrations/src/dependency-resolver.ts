@@ -35,7 +35,9 @@ export class DependencyResolver {
     const visit = (migration: Migration): void => {
       if (visited.has(migration.id)) return;
       if (visiting.has(migration.id)) {
-        throw new Error(`Circular dependency detected involving migration: ${migration.id}`);
+        throw new Error(
+          `Circular dependency detected involving migration: ${migration.id}`,
+        );
       }
       visiting.add(migration.id);
       for (const depId of migration.dependencies ?? []) {

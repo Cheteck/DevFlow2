@@ -5,7 +5,12 @@ import { MerkleAuditTrail } from "../src/domain/solidarity-geospatial-matching.j
 describe("MerkleAuditTrail (§2.10 — integrity, not factual truth)", () => {
   it("hashes blocks with real SHA-256 (64 hex chars, independently recomputable)", () => {
     const trail = new MerkleAuditTrail();
-    const block = trail.recordDistribution("dist-1", "BENEF-ABCDEF123456", 200, "attestation-1");
+    const block = trail.recordDistribution(
+      "dist-1",
+      "BENEF-ABCDEF123456",
+      200,
+      "attestation-1",
+    );
     expect(block.hash).toMatch(/^[0-9a-f]{64}$/);
     const recomputed = crypto
       .createHash("sha256")
@@ -19,9 +24,15 @@ describe("MerkleAuditTrail (§2.10 — integrity, not factual truth)", () => {
 
   it("detects chain tampering", () => {
     const trail = new MerkleAuditTrail();
-    trail.recordDistribution("dist-1", "BENEF-ABCDEF123456", 200, "attestation-1");
+    trail.recordDistribution(
+      "dist-1",
+      "BENEF-ABCDEF123456",
+      200,
+      "attestation-1",
+    );
     expect(trail.verifyChain()).toBe(true);
-    const blocks = (trail as unknown as { chain: Array<{ quantity: number }> }).chain;
+    const blocks = (trail as unknown as { chain: Array<{ quantity: number }> })
+      .chain;
     blocks[1].quantity = 9999;
     expect(trail.verifyChain()).toBe(false);
   });

@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { renderContext } from "../../server/context/render-context.js";
-import { getActiveThemeId, renderThemeStyleTag, setActiveThemeId } from "./theme-bridge.js";
+import {
+  getActiveThemeId,
+  renderThemeStyleTag,
+  setActiveThemeId,
+} from "./theme-bridge.js";
 
 describe("ThemeBridge context integration", () => {
   const defaultThemeId = "mosaix-default";
