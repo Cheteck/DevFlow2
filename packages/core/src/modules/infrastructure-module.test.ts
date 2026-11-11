@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { KernelContext } from "../kernel-module";
-import { InfrastructureModule } from "./infrastructure-module";
+import { KernelContext } from "../kernel-module.js";
+import { InfrastructureModule } from "./infrastructure-module.js";
 
 describe("InfrastructureModule", () => {
   it("registers provided infrastructure services into KernelContext", () => {

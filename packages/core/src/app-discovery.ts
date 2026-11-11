@@ -7,8 +7,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ApplicationManifest } from "@mosaix/contracts";
-import { Invariants } from "./invariants";
-import { RegistrationError } from "./kernel-errors";
+import { Invariants } from "./invariants.js";
+import { RegistrationError } from "./kernel-errors.js";
 
 export interface DiscoveredAppEntry {
   manifest: ApplicationManifest;

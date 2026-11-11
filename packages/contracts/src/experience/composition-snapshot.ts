@@ -3,12 +3,12 @@
  * Immutable result of a deterministic resolution pipeline consumed by the Shell.
  */
 
-import type { CompositionContext } from "./composition-context";
-import type { SurfaceContract } from "./surface-contract";
-import type { SlotContract } from "./slot-contract";
-import type { ContributionContract } from "./contribution-contract";
+import type { CompositionContext } from "./composition-context.js";
+import type { SurfaceContract } from "./surface-contract.js";
+import type { SlotContract } from "./slot-contract.js";
+import type { ContributionContract } from "./contribution-contract.js";
 
-import type { BlockWrapperConfig, BlockWrapperType } from "./block-wrapper-contract";
+import type { BlockWrapperConfig, BlockWrapperType } from "./block-wrapper-contract.js";
 
 export type RejectionReason =
   | "INVALID_CONTRACT"

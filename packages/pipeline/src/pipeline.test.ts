@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Pipeline } from "./pipeline";
+import { Pipeline } from "./pipeline.js";
 
 describe("Pipeline Execution Coverage", () => {
   it("processes pipeline middlewares in order", async () => {

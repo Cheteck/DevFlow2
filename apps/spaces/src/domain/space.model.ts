@@ -1,6 +1,6 @@
 import * as crypto from "node:crypto";
 import { Model } from "@mosaix/sdk";
-import { SpaceTemplateRegistry, type SpaceTemplateType } from "./space-template";
+import { SpaceTemplateRegistry, type SpaceTemplateType } from "./space-template.js";
 
 export class SpaceModel extends Model {
   static override tableName = "spaces_spaces";
@@ -15,7 +15,7 @@ export class SpaceModel extends Model {
   followersCount!: number;
   customDomain?: string;
   enabledCapabilities!: string[];
-  updatedAt?: Date;
+  // updatedAt hérité de Model (@mosaix/orm) — ne pas redéclarer (TS2612).
 }
 
 export interface SpaceTeamMember {
@@ -23,6 +23,18 @@ export interface SpaceTeamMember {
   role: "owner" | "administrator" | "editor" | "moderator" | "analyst" | string;
   permissions: string[];
   actingAsAllowedScopes: Array<"social" | "messaging" | "commerce" | "booking" | "events">;
+}
+
+export interface SpaceMetadata {
+  address?: string;
+  phone?: string;
+  latitude?: number;
+  longitude?: number;
+  rating?: number;
+  ratingsCount?: number;
+  sourceUrl?: string;
+  wilaya?: string;
+  businessCategory?: string;
 }
 
 export interface Space {
@@ -48,6 +60,17 @@ export interface Space {
   team: SpaceTeamMember[];
   enabledCapabilities: string[];
   publicNavigation: string[];
+  /**
+   * Métadonnées d'import (scraping / annuaire) : adresse, téléphone,
+   * géolocalisation, note, source. Optionnel, jamais requis par le domaine.
+   * Persisté dans le blob `data` (Postgres) et préservé par `hydrate`.
+   */
+  metadata?: SpaceMetadata;
+  /**
+   * Theme assigned to this Space (theme slug from themes/ catalog).
+   * `undefined` / absent = inherits global platform theme.
+   */
+  themeId?: string;
   createdAt: Date;
   updatedAt?: Date;
 }
@@ -61,6 +84,8 @@ export interface SpaceRepositoryPort {
   addTeamMember(spaceId: string, member: SpaceTeamMember): Promise<Space | null>;
   setCustomDomain(spaceId: string, domain: string): Promise<Space | null>;
   followSpace(spaceId: string): Promise<number>;
+  setSpaceTheme(spaceId: string, themeId: string): Promise<Space | null>;
+  resetSpaceTheme(spaceId: string): Promise<Space | null>;
 }
 
 export class SpaceService {
@@ -75,10 +100,16 @@ export class SpaceService {
     ownerId: string,
     tenantId: string,
     customDomain?: string,
-    subscriptionPlan: "free" | "pro" | "enterprise" = "free"
+    subscriptionPlan: "free" | "pro" | "enterprise" = "free",
+    metadata?: SpaceMetadata
   ): Promise<Space> {
     const template = this.templateRegistry.getTemplate(templateType);
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const slug = name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
     const id = `space-${crypto.randomUUID()}`;
 
     const space: Space = {
@@ -102,6 +133,7 @@ export class SpaceService {
       ],
       enabledCapabilities: [...template.recommendedCapabilities],
       publicNavigation: [...template.initialNavigation],
+      ...(metadata && Object.keys(metadata).length > 0 ? { metadata } : {}),
       createdAt: new Date(),
     };
 
@@ -225,5 +257,33 @@ export class SpaceService {
       await this.repository.followSpace(spaceId);
     }
     return space.followersCount;
+  }
+
+  async setSpaceTheme(spaceId: string, themeId: string): Promise<Space> {
+    const space = await this.getSpaceAsync(spaceId);
+    if (!space) throw new Error(`Space [${spaceId}] non trouvé.`);
+    if (this.repository) {
+      const updated = await this.repository.setSpaceTheme(spaceId, themeId);
+      if (!updated) throw new Error(`Failed to update theme for Space [${spaceId}]`);
+      this.spaces.set(spaceId, updated);
+      return updated;
+    }
+    space.themeId = themeId;
+    this.spaces.set(spaceId, space);
+    return space;
+  }
+
+  async resetSpaceTheme(spaceId: string): Promise<Space> {
+    const space = await this.getSpaceAsync(spaceId);
+    if (!space) throw new Error(`Space [${spaceId}] non trouvé.`);
+    if (this.repository) {
+      const updated = await this.repository.resetSpaceTheme(spaceId);
+      if (!updated) throw new Error(`Failed to reset theme for Space [${spaceId}]`);
+      this.spaces.set(spaceId, updated);
+      return updated;
+    }
+    delete space.themeId;
+    this.spaces.set(spaceId, space);
+    return space;
   }
 }

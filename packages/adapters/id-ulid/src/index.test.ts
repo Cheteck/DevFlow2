@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { UlidGeneratorAdapter } from "./index";
+import { UlidGeneratorAdapter } from "./index.js";
 
 describe("UlidGeneratorAdapter", () => {
   it("generates valid ULID-like strings", () => {

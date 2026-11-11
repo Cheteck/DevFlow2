@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DevServer } from "./dev-server";
+import { DevServer } from "./dev-server.js";
 
 describe("DevServer (Phase 3)", () => {
   it("starts a dev session with allocated port and diagnostics", () => {

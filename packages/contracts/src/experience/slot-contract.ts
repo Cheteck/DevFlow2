@@ -3,7 +3,7 @@
  * Pure declarative point of extension within a Surface.
  */
 
-import type { ExperienceKind } from "./contribution-contract";
+import type { ExperienceKind } from "./contribution-contract.js";
 
 export interface SlotContract {
   id: string;

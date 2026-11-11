@@ -6,7 +6,7 @@
  * conservé comme vue compat pour `application-runtime.ts` et `plugins/*` ;
  * les transitions sont désormais gardées (voir ALLOWED ci-dessous).
  */
-import { LifecycleError } from "./kernel-errors";
+import { LifecycleError } from "./kernel-errors.js";
 
 export type RuntimeComponentType = "plugin" | "bac" | "capability" | "adapter";
 

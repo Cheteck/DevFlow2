@@ -1,10 +1,10 @@
 import type { CachePort } from "@mosaix/ports-cache";
-import Redis from "ioredis";
+import { Redis, type Redis as RedisInstance } from "ioredis";
 
 export class RedisCacheAdapter implements CachePort {
-  private readonly redis: Redis;
+  private readonly redis: RedisInstance;
 
-  constructor(redisOrUrl: Redis | string) {
+  constructor(redisOrUrl: RedisInstance | string) {
     if (typeof redisOrUrl === "string") {
       this.redis = new Redis(redisOrUrl);
     } else {

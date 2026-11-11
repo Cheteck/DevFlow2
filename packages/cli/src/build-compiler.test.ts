@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ProductionBuildCompiler } from "./build-compiler";
+import { ProductionBuildCompiler } from "./build-compiler.js";
 import type { ApplicationManifest } from "@mosaix/contracts";
 
 describe("ProductionBuildCompiler (Phase 9)", () => {

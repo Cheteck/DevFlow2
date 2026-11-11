@@ -12,7 +12,7 @@ import {
   AuthConformanceSuite,
   ThemeConformanceSuite,
   KernelConformanceSuite,
-} from "./index";
+} from "./index.js";
 
 describe("MosaiX Conformance Suites", () => {
   it("validates event suite", () => {

@@ -1,3 +1,8 @@
+import {
+  MigrationAlreadyAppliedError,
+  MigrationMissingError,
+} from "./errors.js";
+
 /**
  * MigrationStore — persistence of applied migrations, keeping the origin
  * (owner) of each one (ADR-0006 §13). The store is the source of truth for
@@ -32,9 +37,9 @@ export interface MigrationStore {
   list(): Promise<readonly ExecutedMigration[]>;
   /** Returns a single executed migration, if present. */
   get(id: string): Promise<ExecutedMigration | undefined>;
-  /** Records a migration as applied. */
+  /** Records a migration as applied. Throws MigrationAlreadyAppliedError if the migration is already recorded. */
   save(migration: ExecutedMigration): Promise<void>;
-  /** Removes a migration from the ledger (rollback). */
+  /** Removes a migration from the ledger (rollback). Throws MigrationMissingError if the migration is not recorded. */
   remove(id: string): Promise<void>;
 }
 
@@ -51,10 +56,18 @@ export class InMemoryMigrationStore implements MigrationStore {
   }
 
   async save(migration: ExecutedMigration): Promise<void> {
+    const existing = await this.get(migration.id);
+    if (existing !== undefined) {
+      throw new MigrationAlreadyAppliedError(migration.id);
+    }
     this.entries.push({ ...migration });
   }
 
   async remove(id: string): Promise<void> {
+    const existing = await this.get(id);
+    if (existing === undefined) {
+      throw new MigrationMissingError(id);
+    }
     const idx = this.entries.findIndex((e) => e.id === id);
     if (idx >= 0) this.entries.splice(idx, 1);
   }

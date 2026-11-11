@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { SQLiteDatabaseAdapter } from "@mosaix/adapter-database-sqlite";
 import type { DatabasePort } from "@mosaix/ports-database";
+import { MigrationCompiler, SQLiteGrammar } from "@mosaix/migrations";
 import { runShellMigrations } from "../migrations.js";
 import { ShellThemeMigrationProvider } from "./theme-migrations.js";
 import {
@@ -32,15 +33,30 @@ async function migratedDb(): Promise<DatabasePort> {
 }
 
 describe("ShellThemeMigrationProvider", () => {
-  it("declares a canonical id and sqlite-compiled up/down bodies", () => {
+  it("declares a canonical id and compiles to sqlite up/down statements", async () => {
     const provider = new ShellThemeMigrationProvider();
     expect(provider.ownerId()).toBe("shell");
     const [migration] = provider.migrations();
     expect(migration).toBeDefined();
     expect(migration?.id).toBe("shell.theme.v1.001_create_theme_assignments");
-    expect(migration?.content).toContain("theme_assignments");
-    expect(migration?.content).toContain("uq_theme_assignments_target");
-    expect(migration?.down).toContain("theme_assignments");
+
+    const compiler = new MigrationCompiler(new SQLiteGrammar(), "sqlite", {
+      dialect: "sqlite",
+      capabilities: {
+        transactions: true,
+        lock: { distributed: false, processSafe: true, runtimeSafe: true },
+      },
+    });
+
+    const up = await compiler.compileUpAsync(migration!);
+    const upSql = up.statements.map((s) => s.sql).join("\n");
+    expect(upSql).toContain("theme_assignments");
+    expect(upSql).toContain("uq_theme_assignments_target");
+
+    const down = await compiler.compileDownAsync(migration!);
+    expect(down?.statements.map((s) => s.sql).join("\n")).toContain(
+      "theme_assignments",
+    );
     expect(migration?.checksum.length).toBeGreaterThan(0);
   });
 });
@@ -107,7 +123,9 @@ describe("entity theme assignments (V2.3)", () => {
     const two = await getThemeAssignment("space", "space-dev", db);
     expect(two?.themeId).toBe("ocean");
     expect(two?.mode).toBe("dark");
-    await expect(getThemeAssignment("space", "nope", db)).resolves.toBeUndefined();
+    await expect(
+      getThemeAssignment("space", "nope", db),
+    ).resolves.toBeUndefined();
 
     const all = await listThemeAssignments(db);
     expect(all.map((a) => `${a.targetType}:${a.targetId}`)).toEqual([

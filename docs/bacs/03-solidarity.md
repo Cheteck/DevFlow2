@@ -6,7 +6,7 @@ Le BAC **Solidarity** (`@apps/solidarity`) gère la coordination de crise, la lo
 ## 2. Architecture & Services
 - **`SolidarityCoordinationService`** : Pilotage des incidents, missions d'intervention, inventaire des ressources et traçabilité Merkle audit trail.
 
-## 3. Modèle de Données & Tables SQL
+## 3. Modèle de Données & Tables SQL (schéma isolé `solidarity.*` depuis v1.002, préfixes débruités)
 - `solidarity_incidents` : `(id, title, severity, location JSONB, status, created_at)`
 - `solidarity_resources` : `(id, hub_id FK, name, quantity, category, created_at)`
 - `solidarity_hubs` : `(id, name, coordinates, contact, created_at)`

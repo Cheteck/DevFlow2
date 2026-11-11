@@ -12,7 +12,7 @@ export class PostgresSpaceRepository {
   async createSpace(space: Space): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx.query(
-        `INSERT INTO spaces_spaces (id, name, slug, category, template, "ownerId", "tenantId", "followersCount", "customDomain", "enabledCapabilities", "publicNavigation", "createdAt", team, data, "subscriptionPlan")
+        `INSERT INTO "spaces"."spaces" (id, name, slug, category, template, "ownerId", "tenantId", "followersCount", "customDomain", "enabledCapabilities", "publicNavigation", "createdAt", team, data, "subscriptionPlan")
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
          ON CONFLICT (id) DO UPDATE SET
            name = EXCLUDED.name, slug = EXCLUDED.slug, category = EXCLUDED.category,
@@ -45,7 +45,7 @@ export class PostgresSpaceRepository {
 
   async getSpace(id: string): Promise<Space | undefined> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT data FROM spaces_spaces WHERE id = $1`,
+      `SELECT data FROM "spaces"."spaces" WHERE id = $1`,
       [id],
     );
     if (rows.length === 0) return undefined;
@@ -56,7 +56,7 @@ export class PostgresSpaceRepository {
 
   async getSpaceByDomainOrSlug(identifier: string): Promise<Space | undefined> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT data FROM spaces_spaces WHERE slug = $1 OR "customDomain" = $1 OR CONCAT(slug, '.mosaix.com') = $1`,
+      `SELECT data FROM "spaces"."spaces" WHERE slug = $1 OR "customDomain" = $1 OR CONCAT(slug, '.mosaix.com') = $1`,
       [identifier],
     );
     if (rows.length === 0) return undefined;
@@ -69,8 +69,8 @@ export class PostgresSpaceRepository {
     const safeLimit = Math.min(Math.max(limit, 1), 500);
     const safeOffset = Math.max(offset, 0);
     const rows = tenantId
-      ? await this.db.query<Record<string, unknown>>(`SELECT data FROM spaces_spaces WHERE "tenantId" = $1 ORDER BY "createdAt" DESC LIMIT $2 OFFSET $3`, [tenantId, safeLimit, safeOffset])
-      : await this.db.query<Record<string, unknown>>(`SELECT data FROM spaces_spaces ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2`, [safeLimit, safeOffset]);
+      ? await this.db.query<Record<string, unknown>>(`SELECT data FROM "spaces"."spaces" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC LIMIT $2 OFFSET $3`, [tenantId, safeLimit, safeOffset])
+      : await this.db.query<Record<string, unknown>>(`SELECT data FROM "spaces"."spaces" ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2`, [safeLimit, safeOffset]);
     return rows.map((r: Record<string, unknown>) => this.hydrate(r["data"] as Record<string, unknown> | string));
   }
 
@@ -119,7 +119,7 @@ export class PostgresSpaceRepository {
     let result: Space | null = null;
     await this.db.transaction(async (tx) => {
       const rows = await tx.query<Record<string, unknown>>(
-        `SELECT data FROM spaces_spaces WHERE id = $1 FOR UPDATE`,
+        `SELECT data FROM "spaces"."spaces" WHERE id = $1 FOR UPDATE`,
         [spaceId],
       );
       if (rows.length === 0) {
@@ -133,7 +133,7 @@ export class PostgresSpaceRepository {
       }
       const space = mutate(this.hydrate(raw as Record<string, unknown> | string));
       await tx.query(
-        `UPDATE spaces_spaces SET data = $1::jsonb, "customDomain" = $2, "enabledCapabilities" = $3, team = $4, "publicNavigation" = $5, "subscriptionPlan" = $6, "followersCount" = $7, "updatedAt" = $8 WHERE id = $9`,
+        `UPDATE "spaces"."spaces" SET data = $1::jsonb, "customDomain" = $2, "enabledCapabilities" = $3, team = $4, "publicNavigation" = $5, "subscriptionPlan" = $6, "followersCount" = $7, "updatedAt" = $8 WHERE id = $9`,
         [
           JSON.stringify(space),
           space.customDomain ?? null,
@@ -158,6 +158,22 @@ export class PostgresSpaceRepository {
     return space?.followersCount ?? 0;
   }
 
+  /** Update the space-level theme assignment (themeId stored in data blob). */
+  async setSpaceTheme(spaceId: string, themeId: string): Promise<Space | null> {
+    return this.mutateSpace(spaceId, (s) => {
+      (s as unknown as Record<string, unknown>)["themeId"] = themeId;
+      return s;
+    });
+  }
+
+  /** Remove the space-level theme assignment, resetting to inherited. */
+  async resetSpaceTheme(spaceId: string): Promise<Space | null> {
+    return this.mutateSpace(spaceId, (s) => {
+      delete (s as unknown as Record<string, unknown>)["themeId"];
+      return s;
+    });
+  }
+
   private hydrate(data: Record<string, unknown> | string): Space {
     const raw = (typeof data === "string" ? JSON.parse(data) : data) as Record<string, unknown>;
     const asStringArray = (value: unknown): string[] =>
@@ -174,6 +190,7 @@ export class PostgresSpaceRepository {
     };
     const plan = raw["subscriptionPlan"];
     const now = new Date();
+    const rawMetadata = raw["metadata"];
     return {
       id: String(raw["id"] ?? ""),
       name: String(raw["name"] ?? ""),
@@ -191,9 +208,15 @@ export class PostgresSpaceRepository {
       team: asTeam(raw["team"]),
       enabledCapabilities: asStringArray(raw["enabledCapabilities"]),
       publicNavigation: asStringArray(raw["publicNavigation"]),
+      ...(rawMetadata && typeof rawMetadata === "object" && !Array.isArray(rawMetadata)
+        ? { metadata: rawMetadata as Space["metadata"] }
+        : {}),
       createdAt: asDate(raw["createdAt"], now),
       ...(raw["updatedAt"] !== undefined && raw["updatedAt"] !== null
         ? { updatedAt: asDate(raw["updatedAt"], now) }
+        : {}),
+      ...(raw["themeId"] !== undefined && raw["themeId"] !== null
+        ? { themeId: String(raw["themeId"]) }
         : {}),
     };
   }

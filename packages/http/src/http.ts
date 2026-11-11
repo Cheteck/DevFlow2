@@ -88,14 +88,28 @@ export class Router {
     return this;
   }
 
+  patch(path: string, handler: RouteHandler): this {
+    this.routes.push({ method: "PATCH", path, handler });
+    return this;
+  }
+
   getRoutes(): ReadonlyArray<RouteDefinition> {
     return this.routes;
   }
 
   async handle(req: HttpRequest): Promise<HttpResponse> {
-    const route = this.routes.find(
-      (r) => r.method === req.method.toUpperCase() && r.path === req.path
+    // First try exact match
+    let route = this.routes.find(
+      (r) => r.method === req.method.toUpperCase() && r.path === req.path,
     );
+    // If not found, allow prefix routes that end with '/' to act as a catch‑all for dynamic IDs.
+    if (!route) {
+      route = this.routes.find((r) => {
+        if (r.method !== req.method.toUpperCase()) return false;
+        if (!r.path.endsWith("/")) return false;
+        return req.path.startsWith(r.path);
+      });
+    }
 
     if (!route) {
       return { statusCode: 404, body: { error: "Route not found" } };

@@ -28,7 +28,7 @@
 
 ## 1. Vision
 
-Un vendeur (Space `caj-jijel`, `boutique-amel`) ne crée plus directement dans `portfolio`. Il **propose** un produit depuis son Space (nom, description, catégorie, features CS-Cart, médias, prix souhaité) ; l'équipe plateforme **instruit** (complétude, qualité `DATA-09`, doublon `reference`, conformité), **demande des corrections** ou **publie**.
+Un vendeur (Space `caj-jijel`, `boutique-amel`) ne crée plus directement dans `portfolio`. Il **propose** un produit depuis son Space (nom, description, catégorie, features CS-Cart, médias — informations PIM uniquement, aucun prix : le prix sera défini dans l'offre Commerce) ; l'équipe plateforme **instruit** (complétude, qualité `DATA-09`, doublon `reference`, conformité), **demande des corrections** ou **publie**.
 
 ```
                  SPACE

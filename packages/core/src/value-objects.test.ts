@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Money, Timestamp } from "./value-objects";
+import { Money, Timestamp } from "./value-objects.js";
 
 describe("Money & Timestamp Value Objects", () => {
   it("formats and manipulates money amounts in cents safely", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { generateKeyPairSync, webcrypto } from "node:crypto";
-import { WebCryptoAdapter } from "./index";
+import { WebCryptoAdapter } from "./index.js";
 
 describe("WebCryptoAdapter", () => {
   it("can hash, encrypt/decrypt with AES-GCM, and sign/verify", async () => {
@@ -53,5 +53,33 @@ describe("WebCryptoAdapter", () => {
       "e0ce65df21d73247650d817162a1db0b86a40a9ceb840501cb492609711d23a0",
     );
     expect(adapter.randomBytes(16)).toHaveLength(16);
+  });
+
+  describe("timingSafeEqual", () => {
+    const adapter = new WebCryptoAdapter();
+
+    it("returns true for identical strings", () => {
+      expect(adapter.timingSafeEqual("123456", "123456")).toBe(true);
+    });
+
+    it("returns true for identical buffers", () => {
+      const buf = Buffer.from("abcde");
+      expect(adapter.timingSafeEqual(buf, buf)).toBe(true);
+      expect(adapter.timingSafeEqual(buf, Buffer.from("abcde"))).toBe(true);
+    });
+
+    it("returns false for different strings of same length", () => {
+      expect(adapter.timingSafeEqual("123456", "654321")).toBe(false);
+    });
+
+    it("returns false for different lengths", () => {
+      expect(adapter.timingSafeEqual("123", "123456")).toBe(false);
+    });
+
+    it("handles string vs Buffer inputs", () => {
+      expect(adapter.timingSafeEqual("abc", Buffer.from("abc"))).toBe(true);
+      expect(adapter.timingSafeEqual(Buffer.from("abc"), "abc")).toBe(true);
+      expect(adapter.timingSafeEqual("abc", Buffer.from("xyz"))).toBe(false);
+    });
   });
 });

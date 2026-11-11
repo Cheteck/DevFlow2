@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MosaixMessageBusAdapter } from "./index";
+import { MosaixMessageBusAdapter } from "./index.js";
 
 describe("MosaixMessageBusAdapter", () => {
   it("can publish and subscribe to in-memory topics", async () => {

@@ -11,7 +11,7 @@ import type {
   PlatformSettings,
 } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
-import { apps } from "../discovery.js";
+import { apps, renderBacIcon } from "../discovery.js";
 import { DynamicBacRegistry } from "../dynamic-bac-registry.js";
 
 export class BacOrchestrator {
@@ -25,10 +25,23 @@ export class BacOrchestrator {
     this.registerDiscoveredWorkspaceApps();
   }
 
+  /**
+   * Registers (or replaces) the dynamic loader for a BAC.
+   *
+   * Priority policy (explicit, last-registration-wins): a loader registered
+   * later replaces any earlier one — e.g. `wireBacDescriptors()` at boot
+   * overrides the builtin static-fallback loaders with Postgres-backed ones.
+   * Any already-cached descriptor for that BAC is evicted so a descriptor
+   * resolved before the wiring can never freeze the stale (unwired) version.
+   */
   registerDynamicLoader(id: string, loader: () => Promise<BacDescriptor>): void {
     const cleanId = id.replace(/^@apps\//, "");
     this.dynamicLoaders.set(cleanId, loader);
     this.dynamicLoaders.set(id, loader);
+    // Evict a possibly cached fallback so the next loadDescriptor() resolves
+    // through the newly registered (wired) loader.
+    this.descriptors.delete(cleanId);
+    this.descriptors.delete(id);
   }
 
   private registerBuiltinDynamicLoaders(): void {
@@ -300,7 +313,7 @@ export class BacOrchestrator {
           return {
             contentHtml: `
               <div class="p-8 text-center space-y-3">
-                <span class="text-4xl">${app.icon}</span>
+                <span class="text-4xl">${renderBacIcon(app.icon)}</span>
                 <h2 class="text-xl font-bold text-on-surface">${escapeHtml(app.name)}</h2>
                 <p class="text-sm text-on-surface-variant">${escapeHtml(app.description)}</p>
               </div>

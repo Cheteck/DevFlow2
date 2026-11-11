@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { DomainEventBus, EventStore, EventSchemaRegistry } from "@mosaix/core";
 import type { MosaixEventEnvelope, TenantIdentity } from "@mosaix/contracts";
+import type { Logger } from "@mosaix/core";
 
 const TENANT: TenantIdentity = {
   organizationId: "acme-corp",
@@ -100,6 +101,92 @@ describe("core: DomainEventBus — retry & dead-letter", () => {
     const evt = envelope("order.created", { o: 1 });
     await bus.publish(evt, "identity");
     expect(received).toEqual([evt.correlationId]);
+  });
+});
+
+describe("core: DomainEventBus — dead-letter logging", () => {
+  function capturingLogger(): Logger & { warnings: Array<{ message: string; fields?: Record<string, unknown> }> } {
+    const warnings: Array<{ message: string; fields?: Record<string, unknown> }> = [];
+    return {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn((message: string, fields?: Record<string, unknown>) => {
+        warnings.push({ message, fields });
+      }),
+      error: vi.fn(),
+      child: vi.fn(() => capturingLogger()),
+      warnings,
+    };
+  }
+
+  it("logs a structured warn when a handler fails after all retries", async () => {
+    const logger = capturingLogger();
+    const bus = new DomainEventBus(new EventStore(), allowAll(), undefined, undefined, logger);
+    const handler = vi.fn(async () => {
+      throw new Error("handler boom");
+    });
+    bus.subscribe("order.created", handler, "sales");
+    bus.setRetryPolicy("order.created", { retries: 1, backoffMs: 1 });
+
+    await bus.publish(envelope("order.created", { o: 1 }), "identity");
+
+    expect(handler).toHaveBeenCalledTimes(2); // initial + 1 retry
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    const call = logger.warn.mock.calls[0];
+    expect(call[0]).toBe("Event moved to dead-letter queue");
+    const fields = call[1];
+    expect(fields.eventId).toBeDefined();
+    expect(fields.subscriber).toBe("sales");
+    expect(fields.error).toBe("handler boom");
+    expect(fields.attempts).toBe(2); // 1 tentative + 1 retry
+    expect(fields.failedAt).toBeDefined();
+    expect(bus.deadLetters()).toHaveLength(1);
+  });
+
+  it("logs a structured warn with retries:0 after the initial attempt fails", async () => {
+    const logger = capturingLogger();
+    const bus = new DomainEventBus(new EventStore(), allowAll(), undefined, undefined, logger);
+    const handler = vi.fn(async () => {
+      throw new Error("initial failure");
+    });
+    bus.subscribe("order.created", handler, "sales");
+    // pas de setRetryPolicy => default { retries: 0 }
+
+    await bus.publish(envelope("order.created", { o: 1 }), "identity");
+
+    expect(handler).toHaveBeenCalledTimes(1); // tentative initiale uniquement
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    const fields = logger.warn.mock.calls[0][1];
+    expect(fields.attempts).toBe(1); // une seule tentative, aucun retry
+    expect(fields.error).toBe("initial failure");
+    expect(bus.deadLetters()).toHaveLength(1);
+  });
+
+  it("does not log when the handler succeeds", async () => {
+    const logger = capturingLogger();
+    const bus = new DomainEventBus(new EventStore(), allowAll(), undefined, undefined, logger);
+    bus.subscribe("order.created", async () => undefined, "sales");
+    bus.setRetryPolicy("order.created", { retries: 3, backoffMs: 1 });
+
+    await bus.publish(envelope("order.created", { o: 1 }), "identity");
+
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(bus.deadLetters()).toHaveLength(0);
+  });
+
+  it("uses a default logger when none is injected (production guarantee)", async () => {
+    const bus = new DomainEventBus(new EventStore(), allowAll());
+    const handler = vi.fn(async () => {
+      throw new Error("no logger injected");
+    });
+    bus.subscribe("order.created", handler, "sales");
+    bus.setRetryPolicy("order.created", { retries: 0, backoffMs: 1 });
+
+    // Ne doit pas lever d'erreur et doit placer l'événement en DLQ
+    await bus.publish(envelope("order.created", { o: 1 }), "identity");
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(bus.deadLetters()).toHaveLength(1);
   });
 });
 

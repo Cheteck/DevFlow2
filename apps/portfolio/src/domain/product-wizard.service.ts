@@ -21,18 +21,10 @@ export interface ProductStep1Identity {
 export interface ProductVariantInput {
   name: string;
   sku: string;
-  priceModifier?: number;
-  stock: number;
   attributes?: Record<string, string>;
 }
 
-export interface ProductStep2Pricing {
-  basePrice: number;
-  currency: string;
-  sku: string;
-  stock: number;
-  reorderPoint?: number;
-  taxClass?: string;
+export interface ProductStep2Variants {
   variants: ProductVariantInput[];
 }
 
@@ -60,7 +52,7 @@ export interface ProductWizardDraft {
   totalSteps: number;
   progressPercent: number;
   step1?: ProductStep1Identity;
-  step2?: ProductStep2Pricing;
+  step2?: ProductStep2Variants;
   step3?: ProductStep3Media;
   step4?: ProductStep4SeoAndPublish;
   createdAt: string;
@@ -143,7 +135,7 @@ export class ProductWizardService {
     return { valid: true, errors: [], draft: { ...draft } };
   }
 
-  saveStep2(draftId: string, data: ProductStep2Pricing): WizardStepResult {
+  saveStep2(draftId: string, data: ProductStep2Variants): WizardStepResult {
     const draft = this.activeDrafts.get(draftId);
     if (!draft) {
       return { valid: false, errors: ["Session introuvable."] };
@@ -153,24 +145,26 @@ export class ProductWizardService {
     }
 
     const errors: string[] = [];
-    if (typeof data.basePrice !== "number" || isNaN(data.basePrice) || data.basePrice < 0) {
-      errors.push("Le prix de base doit être un nombre positif ou nul.");
-    }
-    if (!data.currency || data.currency.length !== 3) {
-      errors.push("Code devise invalide (ex: EUR, USD, XOF).");
-    }
-    if (typeof data.stock !== "number" || isNaN(data.stock) || data.stock < 0) {
-      errors.push("Le stock initial doit être un nombre entier positif ou nul.");
-    }
+    const variants = Array.isArray(data.variants) ? data.variants : [];
+    const seenSkus = new Set<string>();
+    variants.forEach((v, idx) => {
+      if (!v.name || v.name.trim().length === 0) {
+        errors.push(`La variante #${idx + 1} doit avoir un nom.`);
+      }
+      if (!v.sku || !/^[A-Za-z0-9-_]+$/.test(v.sku)) {
+        errors.push(`La variante #${idx + 1} doit avoir un sku valide (lettres, chiffres, tirets, underscores).`);
+      } else if (seenSkus.has(v.sku)) {
+        errors.push(`Le sku "${v.sku}" est utilisé par plusieurs variantes.`);
+      } else {
+        seenSkus.add(v.sku);
+      }
+    });
 
     if (errors.length > 0) {
       return { valid: false, errors, draft };
     }
 
-    draft.step2 = {
-      ...data,
-      variants: Array.isArray(data.variants) ? data.variants : [],
-    };
+    draft.step2 = { variants };
     draft.currentStep = Math.max(draft.currentStep, 3);
     draft.progressPercent = 75;
     draft.updatedAt = new Date().toISOString();
@@ -223,7 +217,6 @@ export class ProductWizardService {
     draft.step4 = {
       ...data,
       slug: generatedSlug,
-      targetStatus: data.targetStatus || "Published",
     };
     draft.updatedAt = new Date().toISOString();
 
@@ -232,7 +225,8 @@ export class ProductWizardService {
 
   async finalizeAndPublish(
     draftId: string,
-    portfolioService: PortfolioService
+    portfolioService: PortfolioService,
+    tenantId: string = "default"
   ): Promise<Vendable> {
     const draft = this.activeDrafts.get(draftId);
     if (!draft || !draft.step1 || !draft.step2 || !draft.step3 || !draft.step4) {
@@ -249,36 +243,19 @@ export class ProductWizardService {
         type: draft.step1.type,
         status: draft.step4.targetStatus,
       },
-      pricing: {
-        basePrice: draft.step2.basePrice,
-        currency: draft.step2.currency,
-        taxClass: draft.step2.taxClass,
-      },
-      inventory: {
-        sku: draft.step2.sku || draft.step1.reference,
-        stock: draft.step2.stock,
-        reserved: 0,
-        reorderPoint: draft.step2.reorderPoint || 5,
-      },
-      seo: {
-        slug: draft.step4.slug,
-        metaTitle: draft.step4.metaTitle || draft.step1.name,
-        metaDesc: draft.step4.metaDesc || draft.step1.description,
-      },
       content: {
         [lang]: {
           name: draft.step1.name,
+          shortDescription: draft.step1.description.slice(0, 160),
           description: draft.step1.description,
-          keywords: draft.step1.tags,
         },
       },
       classification: {
         categories: [draft.step1.category],
         tags: draft.step1.tags,
+        collections: [],
       },
       characteristics: {
-        // Wizard-specific extras (brand, physical, custom, provenance) live
-        // in free-form attributes — the typed model has no dedicated slots.
         attributes: {
           ...(draft.step3.characteristics ?? {}),
           ...(draft.step3.weightGrams
@@ -301,29 +278,19 @@ export class ProductWizardService {
         url,
         metadata: {
           role: idx === 0 ? "primary" : "gallery",
-          order: idx,
+          positionIndex: idx,
         },
       })),
       variants: draft.step2.variants.map((v) => ({
         id: `var_${crypto.randomUUID()}`,
         reference: v.sku,
         content: { [lang]: { name: v.name } },
-        pricing: {
-          basePrice: draft.step2!.basePrice + (v.priceModifier || 0),
-          currency: draft.step2!.currency,
-        },
-        inventory: {
-          sku: v.sku,
-          stock: v.stock,
-          reserved: 0,
-          reorderPoint: 2,
-        },
         characteristics: { attributes: { ...(v.attributes ?? {}) } },
       })),
       relations: [],
     };
 
-    const saved = await portfolioService.createVendable(vendable);
+    const saved = await portfolioService.createVendable(vendable, tenantId);
 
     // Delete draft after publication
     this.activeDrafts.delete(draftId);

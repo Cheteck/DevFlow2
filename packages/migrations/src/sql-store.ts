@@ -11,7 +11,11 @@
  */
 
 import type { DatabasePort } from "@mosaix/ports-database";
-import type { ExecutedMigration, MigrationStore } from "./store";
+import {
+  MigrationAlreadyAppliedError,
+  MigrationMissingError,
+} from "./errors.js";
+import type { ExecutedMigration, MigrationStore } from "./store.js";
 
 export class SqlMigrationStore implements MigrationStore {
   private ensured = false;
@@ -90,11 +94,14 @@ export class SqlMigrationStore implements MigrationStore {
 
   async save(migration: ExecutedMigration): Promise<void> {
     await this.ensureLedger();
+    const existing = await this.get(migration.id);
+    if (existing !== undefined) {
+      throw new MigrationAlreadyAppliedError(migration.id);
+    }
     if (this.postgres) {
       await this.db.execute(
         `INSERT INTO mosaix_migrations (id, owner, checksum, batch_id, applied_at)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT(id) DO UPDATE SET checksum = excluded.checksum, batch_id = excluded.batch_id, applied_at = excluded.applied_at`,
+         VALUES ($1, $2, $3, $4, $5)`,
         [
           migration.id,
           migration.owner,
@@ -107,8 +114,7 @@ export class SqlMigrationStore implements MigrationStore {
     }
     await this.db.execute(
       `INSERT INTO mosaix_migrations (id, owner, checksum, batch_id, applied_at)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET checksum = excluded.checksum, batch_id = excluded.batch_id, applied_at = excluded.applied_at`,
+       VALUES (?, ?, ?, ?, ?)`,
       [
         migration.id,
         migration.owner,
@@ -121,6 +127,10 @@ export class SqlMigrationStore implements MigrationStore {
 
   async remove(id: string): Promise<void> {
     await this.ensureLedger();
+    const existing = await this.get(id);
+    if (existing === undefined) {
+      throw new MigrationMissingError(id);
+    }
     await this.db.execute(
       this.bind(`DELETE FROM mosaix_migrations WHERE id = ?`),
       [id],

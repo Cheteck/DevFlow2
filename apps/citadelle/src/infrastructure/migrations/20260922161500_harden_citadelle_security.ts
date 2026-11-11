@@ -1,36 +1,62 @@
+import { type Migration, type MigrationContext } from "@mosaix/migrations";
+
+/* checksum:begin */
+export const MIGRATION_CHECKSUM =
+  "140ede4a9dfec39221042333577993faf0759f589ebccb60f8ac633442ccc652";
+/* checksum:end */
+
 /**
- * @apps/citadelle — Patch orphelin NON APPLIQUÉ (évalué, vague citadelle).
+ * citadelle.auth.v1.002 — harden the Citadelle security columns.
  *
- * Cibles : `citadelle_identities` (last_login_at, mfa_enabled) et
- * `citadelle_sessions` (ip_address, user_agent) — tables réservées du
- * provider citadelle, PAS des tables shell-owned : aucun conflit
- * d'ownership avec `shell.core.v1.001`.
+ * Adds the security columns of the legacy `citadelle_*` tables (last login,
+ * MFA flag, IP address, user agent).
  *
- * NON-APPLICATION maintenue pour deux raisons :
- * 1. Phase-0 (`src/shell/bac-migrations.ts`, exclu délibéré) n'enregistre
- *    qu'1 migration/wave avec garde de longueur ; enregistrer ce patch via le
- *    provider donnerait 2 migrations et casserait `migrate:status` sans
- *    pouvoir toucher `src/shell/*` (interdit pour cette vague).
- * 2. Contenu = MFA persisté (`mfa_enabled`) : hors périmètre, backlog vague
- *    citadelle (avec `social_accounts`, wizard persistant, `citadelle_users`
- *    / `audit_logs` promis par la doc).
+ * ORPHAN MIGRATION — deliberately not registered in the shell registry
+ * (`src/shell/bac-migrations.ts`): the `citadelle_*` prefixed tables are no
+ * longer created (ownership transferred to the shell, see
+ * `citadelle.auth.v1.001_create_auth_tables`). The migration is kept as a
+ * TypeScript native module for the citadelle wave (DB-BAC-OWNERSHIP).
+ *
+ * Historical note: this migration was previously declared as a raw SQL
+ * string (SQL legacy mode, removed from the engine). Its historical
+ * checksum is kept in `legacyChecksums` so that databases where it is
+ * already applied are not rejected by the Planner.
  */
-import { SchemaBuilder, PostgresGrammar, computeChecksum, type Migration } from "@mosaix/migrations";
-
-const builder = new SchemaBuilder();
-const grammar = new PostgresGrammar();
-
-// Renforcement sécurité Citadelle
-builder.addColumn("citadelle_identities", "last_login_at", "timestamp", (col) => col.nullable());
-builder.addColumn("citadelle_identities", "mfa_enabled", "boolean", (col) => col.default(false));
-builder.addColumn("citadelle_sessions", "ip_address", "string", (col) => col.nullable());
-builder.addColumn("citadelle_sessions", "user_agent", "string", (col) => col.nullable());
-
-const statements = builder.blueprints.flatMap((bp) => grammar.compile(bp));
-
 export const migration: Migration = {
-  id: "20260922161500_harden_citadelle_security",
-  content: statements.map((s) => s.sql).join("\n"),
-  checksum: computeChecksum(statements.map((s) => s.sql).join("\n")),
+  id: "citadelle.auth.v1.002_harden_security",
+  checksum: MIGRATION_CHECKSUM,
+  legacyChecksums: ["416e03f5fed43e27"],
+  up: (context: MigrationContext) => {
+    context.schema.addColumn(
+      "citadelle_identities",
+      "last_login_at",
+      "timestamp",
+      (col) => col.nullable(),
+    );
+    context.schema.addColumn(
+      "citadelle_identities",
+      "mfa_enabled",
+      "boolean",
+      (col) => col.default(false),
+    );
+    context.schema.addColumn(
+      "citadelle_sessions",
+      "ip_address",
+      "string",
+      (col) => col.nullable(),
+    );
+    context.schema.addColumn(
+      "citadelle_sessions",
+      "user_agent",
+      "string",
+      (col) => col.nullable(),
+    );
+  },
+  downMigration: (context: MigrationContext) => {
+    context.schema.dropColumn("citadelle_sessions", "user_agent");
+    context.schema.dropColumn("citadelle_sessions", "ip_address");
+    context.schema.dropColumn("citadelle_identities", "mfa_enabled");
+    context.schema.dropColumn("citadelle_identities", "last_login_at");
+  },
   resources: ["table:citadelle_identities", "table:citadelle_sessions"],
 };

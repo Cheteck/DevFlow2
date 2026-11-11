@@ -1,0 +1,12 @@
+{
+  "name": "@mosaix/adapter-otp-delivery",
+  "version": "0.1.0",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "dependencies": {
+    "@mosaix/otp": "*",
+    "@mosaix/ports-email": "*",
+    "@mosaix/ports-sms": "*",
+    "@mosaix/ports-whatsapp": "*"
+  }
+}

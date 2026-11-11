@@ -123,4 +123,78 @@ describe("Booking Application Module", () => {
     expect(slotResult.id).toBeDefined();
     expect(slotResult.serviceName).toBe("Test Kernel Booking");
   });
+
+  it("holds slot capacity atomically (v1.003, no overbooking)", async () => {
+    const { PostgresBookingRepository } = await import("./infrastructure/postgres-booking-repository.js");
+    const seen: string[] = [];
+    const fakeDb = {
+      capabilities: { dialect: "postgres", transactions: true, lock: {} },
+      execute: async () => 1,
+      query: async (sql: string) => {
+        seen.push(sql);
+        return sql.includes("RETURNING") ? [{ id: "slot-1" }] : [];
+      },
+      transaction: async (fn: (tx: never) => Promise<never>) => fn({} as never),
+      acquireMigrationLock: async () => ({ release: async () => {} }),
+    };
+    const repo = new PostgresBookingRepository(fakeDb as never);
+    expect(await repo.holdSlot("slot-1", 2)).toBe(true);
+    expect(seen.some((s) => s.includes("bookedCount") && s.includes("capacity"))).toBe(true);
+
+    const repoEmpty = new PostgresBookingRepository({
+      ...fakeDb,
+      query: async (sql: string) => {
+        seen.push(sql);
+        return [];
+      },
+    } as never);
+    expect(await repoEmpty.holdSlot("slot-1", 99)).toBe(false);
+  });
+
+  it("claims due reminders with SKIP LOCKED (v1.003, no double-send)", async () => {
+    const { PostgresBookingRepository } = await import("./infrastructure/postgres-booking-repository.js");
+    const seen: string[] = [];
+    const tx = {
+      execute: async (sql: string) => {
+        seen.push(sql);
+        return 1;
+      },
+      query: async (sql: string) => {
+        seen.push(sql);
+        return sql.includes("FOR UPDATE") ? [{ id: "rem-1" }] : [];
+      },
+    };
+    const fakeDb = {
+      capabilities: { dialect: "postgres", transactions: true, lock: {} },
+      execute: async () => 1,
+      query: async () => [],
+      transaction: async (fn: (t: never) => Promise<never>) => fn(tx as never),
+      acquireMigrationLock: async () => ({ release: async () => {} }),
+    };
+    const repo = new PostgresBookingRepository(fakeDb as never);
+    await repo.claimDueReminders(new Date(), 10);
+    expect(seen.some((s) => s.includes("FOR UPDATE SKIP LOCKED"))).toBe(true);
+    expect(seen.some((s) => s.includes("attempts = attempts + 1"))).toBe(true);
+  });
+
+  it("releases slot capacity floored at zero (v1.003)", async () => {
+    const { PostgresBookingRepository } = await import("./infrastructure/postgres-booking-repository.js");
+    const seen: string[] = [];
+    const fakeDb = {
+      capabilities: { dialect: "postgres", transactions: true, lock: {} },
+      execute: async (sql: string) => {
+        seen.push(sql);
+        return 1;
+      },
+      query: async (sql: string) => {
+        seen.push(sql);
+        return [];
+      },
+      transaction: async (fn: (t: never) => Promise<never>) => fn({} as never),
+      acquireMigrationLock: async () => ({ release: async () => {} }),
+    };
+    const repo = new PostgresBookingRepository(fakeDb as never);
+    await repo.releaseSlot("slot-1", 3);
+    expect(seen.some((s) => s.includes("GREATEST("))).toBe(true);
+  });
 });

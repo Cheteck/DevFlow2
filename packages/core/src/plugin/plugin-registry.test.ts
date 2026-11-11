@@ -16,13 +16,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { PluginManifest } from "@mosaix/contracts";
-import { KernelError } from "../kernel-errors";
+import { KernelError } from "../kernel-errors.js";
 import {
   PluginError,
   PluginLifecycleError,
   PluginRegistrationError,
-} from "./plugin-errors";
-import { PluginRegistry, extensionPointKey } from "./plugin-registry";
+} from "./plugin-errors.js";
+import { PluginRegistry, extensionPointKey } from "./plugin-registry.js";
 
 function plugin(
   id: string,

@@ -8,9 +8,9 @@
 
 import { MosaixEventEnvelopeSchema } from "@mosaix/schemas";
 
-import { DomainEventBus, EventStore } from "../event-bus";
-import { EventSchemaRegistry } from "../event-schema-registry";
-import type { KernelContext, KernelModule } from "../kernel-module";
+import { DomainEventBus, EventStore } from "../event-bus.js";
+import { EventSchemaRegistry } from "../event-schema-registry.js";
+import type { KernelContext, KernelModule } from "../kernel-module.js";
 
 export class EventsModule implements KernelModule {
   readonly name = "events";

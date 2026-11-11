@@ -1,7 +1,12 @@
 import type { SecretsPort } from "@mosaix/ports-secrets";
+import { InMemoryGuard } from "@mosaix/support";
 
 export class InMemorySecretsAdapter implements SecretsPort {
   private secrets = new Map<string, string>();
+
+  constructor() {
+    InMemoryGuard.reportFallback("InMemorySecretsAdapter");
+  }
 
   async getSecret(key: string): Promise<string | undefined> {
     return this.secrets.get(key) ?? process.env[key];

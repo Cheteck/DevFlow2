@@ -1,22 +1,26 @@
 name: MosaiX CI & Architecture Enforcement
 
-# on:
-#   push:
-#     branches: [ main, master ]
-#   pull_request:
-#     branches: [ main, master ]
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v3
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'pnpm'
@@ -24,11 +28,66 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run Architecture Doctor
-        run: pnpm mosaix doctor || true
+      - name: Typecheck (all workspaces)
+        run: pnpm test:typecheck
 
-      - name: Run Application Conformance Validation
-        run: pnpm check:conformance
+      - name: Lint
+        run: pnpm lint
 
-      - name: Full Verification Check (Build, Lint, Typecheck, Test, Format)
-        run: pnpm check
+      - name: Build (all packages)
+        run: pnpm build
+
+      - name: Run Tests (full suite)
+        run: pnpm test
+
+      - name: Security Audit (dependencies)
+        run: pnpm audit --audit-level=moderate || true
+
+      - name: Format Check
+        run: tsx scripts/check-format.ts
+
+      - name: Run Additional Validations
+        run: |
+          pnpm mosaix doctor
+          pnpm check:conformance
+          pnpm check:manifests
+          pnpm check:contracts
+          pnpm check:themes
+          pnpm check:ui-contracts
+
+      # Security-focused test execution - ensure P0/P1 tests pass
+      - name: Run Security Tests (P0: Multi-tenant isolation, P1: Capability permissions)
+        run: |
+          pnpm vitest run packages/core/src/permission-tenant-isolation.test.ts
+          pnpm vitest run packages/core/src/capability-permission-prefix.test.ts
+
+  # Optional: Separate job for quicker PR feedback
+  quick-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm test:typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Fast Tests (unit only, no http integration)
+        run: pnpm vitest run --reporter=basic --exclude="**/http/**" --exclude="**/bac-access**"

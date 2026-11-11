@@ -6,7 +6,7 @@ Le BAC **Beam** (`@apps/beam`) fournit une suite de messagerie instantanée en t
 ## 2. Architecture & Services
 - **`BeamMessagingService`** : Gestion des conversations, dispatching des messages instantanés et chiffrement des charges utiles.
 
-## 3. Modèle de Données & Tables SQL
+## 3. Modèle de Données & Tables SQL (schéma isolé `beam.*` depuis v1.002, préfixes débruités)
 - `beam_conversations` : `(id, title, type, created_at)`
 - `beam_conversation_participants` : `(conversation_id FK, user_id FK, joined_at)`
 - `beam_messages` : `(id, conversation_id FK, sender_id, content, reply_to_message_id, thread_id, reactions JSONB GIN, attachments JSONB, encrypted_payload JSONB, created_at, deleted_at)`

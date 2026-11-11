@@ -10,8 +10,8 @@
  *    reste l'autorité sur la cohérence store/registry, R5).
  */
 
-import { compareMigrationIds } from "./migration";
-import type { Migration } from "./migration";
+import { compareMigrationIds } from "./migration.js";
+import type { Migration } from "./migration.js";
 
 function isFramework(id: string): boolean {
   return id === "framework" || id.startsWith("framework.");
@@ -35,7 +35,9 @@ export class DependencyResolver {
     const visit = (migration: Migration): void => {
       if (visited.has(migration.id)) return;
       if (visiting.has(migration.id)) {
-        throw new Error(`Circular dependency detected involving migration: ${migration.id}`);
+        throw new Error(
+          `Circular dependency detected involving migration: ${migration.id}`,
+        );
       }
       visiting.add(migration.id);
       for (const depId of migration.dependencies ?? []) {

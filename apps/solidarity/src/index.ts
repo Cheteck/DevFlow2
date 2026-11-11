@@ -26,11 +26,15 @@ export const MANIFEST = {
     { id: "solidarity.incident.create", version: "1.0.0" },
     { id: "solidarity.need.declare", version: "1.0.0" },
     { id: "solidarity.donation.submit", version: "1.0.0" },
+    { id: "solidarity.allocation.confirm", version: "1.0.0" },
+    { id: "solidarity.matching.propose", version: "1.0.0" },
   ],
   permissions: [
     "solidarity:incident:create:tenant",
     "solidarity:need:declare:tenant",
     "solidarity:donation:submit:tenant",
+    "solidarity:allocation:confirm:tenant",
+    "solidarity:matching:propose:tenant",
   ],
   events: [
     "solidarity.incident.created",
@@ -90,6 +94,16 @@ export class SolidarityServiceProvider {
       return solidarityService.submitDonation(inp);
     });
 
+    app.provideCapability("solidarity.allocation.confirm", async (input) => {
+      const inp = input as { resourceId: string; needId: string; quantity: number; idempotencyKey: string };
+      return solidarityService.allocateResource(inp.resourceId, inp.needId, inp.quantity, inp.idempotencyKey);
+    });
+
+    app.provideCapability("solidarity.matching.propose", async (input) => {
+      const inp = input as { needId: string };
+      return solidarityService.proposeMatchesForNeed(inp.needId);
+    });
+
     return app;
   }
 }
@@ -128,7 +142,9 @@ export function createSolidarityComposition(parentContainer?: Container) {
 export * from "./domain/models.js";
 export * from "./domain/solidarity-geospatial-matching.js";
 export * from "./domain/solidarity-offline-reports.js";
+export * from "./domain/solidarity-operational-rules.js";
 export * from "./application/solidarity-commands.js";
 
 export * from "./infrastructure/solidarity-service.js";
+export * from "./infrastructure/solidarity-controller.js";
 

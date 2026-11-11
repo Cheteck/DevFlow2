@@ -12,9 +12,9 @@
  * Consumers: theme compiler (Phase 3), ResolvedThemeSchema.
  */
 
-import type { ThemeManifest } from "./theme-manifest";
-import type { ThemeMode } from "./theme-mode";
-import type { ThemeTarget } from "./theme-target";
+import type { ThemeManifest } from "./theme-manifest.js";
+import type { ThemeMode } from "./theme-mode.js";
+import type { ThemeTarget } from "./theme-target.js";
 
 export interface ResolvedTheme {
   readonly target?: ThemeTarget;

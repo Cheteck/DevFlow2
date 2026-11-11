@@ -148,7 +148,7 @@ describe("BacOrchestrator", () => {
     const result = await orchestrator.renderBac("crashing-bac", {
       tenantId: "default",
       spaceId: null,
-      user: { id: "u-1", roles: ["member"], permissions: [] },
+      user: { id: "u-1", roles: ["member"], permissions: [], isAuthenticated: true },
       theme: { mode: "dark" },
       request: { path: "/crash", query: {}, headers: {} },
     });
@@ -156,5 +156,37 @@ describe("BacOrchestrator", () => {
     expect(result.contentHtml).toContain("Erreur d'Exécution du Module Crashing BAC");
     expect(result.contentHtml).toContain("Internal crash in BAC rendering pipeline");
     expect(result.pageTitle).toContain("Erreur");
+  });
+
+  it("lets a late wired loader replace an already-cached fallback descriptor", async () => {
+    const orchestrator = new BacOrchestrator();
+
+    // Simulate boot order inversion: the builtin static fallback for
+    // commerce is resolved (and cached) before the Postgres wiring runs.
+    const fallback = await orchestrator.loadDescriptor("commerce");
+    expect(fallback).toBeDefined();
+
+    const wired: BacDescriptor = {
+      id: "@apps/commerce",
+      name: "Commerce Marketplace (wired)",
+      version: "1.0.0",
+      routePrefix: "/commerce",
+      icon: "🛒",
+      isEnabled: true,
+      async isAvailable() {
+        return true;
+      },
+      async render() {
+        return { contentHtml: "<div>Wired Store</div>", pageTitle: "Commerce" };
+      },
+    };
+    orchestrator.registerDynamicLoader("commerce", async () => wired);
+
+    // The stale fallback must not stay frozen in cache.
+    const resolved = await orchestrator.loadDescriptor("commerce");
+    expect(resolved?.name).toBe("Commerce Marketplace (wired)");
+    expect(orchestrator.getDescriptor("@apps/commerce")?.name).toBe(
+      "Commerce Marketplace (wired)",
+    );
   });
 });

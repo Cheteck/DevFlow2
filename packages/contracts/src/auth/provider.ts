@@ -1,5 +1,5 @@
-import type { AuthenticationRequest } from "./authentication-request";
-import type { AuthenticationResult } from "./authentication-result";
+import type { AuthenticationRequest } from "./authentication-request.js";
+import type { AuthenticationResult } from "./authentication-result.js";
 
 export interface VerificationRequest {
   sessionId: string;
@@ -9,7 +9,7 @@ export interface VerificationRequest {
 
 export interface VerificationResult {
   valid: boolean;
-  principal?: import("./authenticated-principal").AuthenticatedPrincipal;
+  principal?: import( "./authenticated-principal.js").AuthenticatedPrincipal;
 }
 
 export interface LogoutContext {

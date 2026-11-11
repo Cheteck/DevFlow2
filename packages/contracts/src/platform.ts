@@ -32,7 +32,8 @@ export interface PlatformSettings {
   /** Roles allowed during maintenance */
   allowedRolesInMaintenance: string[];
   /** Strategy for unauthenticated visitors */
-  unauthenticatedStrategy: "redirect_login" | "render_public_landing" | "render_auth_bac";
+  unauthenticatedStrategy:
+    "redirect_login" | "render_public_landing" | "render_auth_bac";
   /** Auth BAC ID for login rendering */
   authBacId: string;
   /** Guest experience — independent from defaultBacId (PRD Guest vs Authenticated) */
@@ -56,9 +57,17 @@ export interface BacExecutionContext {
     email?: string;
     roles: string[];
     permissions: string[];
+    /**
+     * Explicit authentication state resolved by the Shell from the session
+     * (never inferred from roles: a role list is not an auth proof, and an
+     * authenticated user may carry zero roles). Views MUST branch on this
+     * flag for auth-gated rendering; roles/permissions only refine
+     * what an authenticated subject may do.
+     */
+    isAuthenticated: boolean;
   };
   theme: {
-    mode: "light" | "dark" | "high-contrast";
+    mode: "light" | "dark" | "system";
     tokens?: Record<string, string>;
   };
   request: {
@@ -105,4 +114,3 @@ export interface BacDescriptor {
    */
   render(context: BacExecutionContext): Promise<BacRenderResult>;
 }
-

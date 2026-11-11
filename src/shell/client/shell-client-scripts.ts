@@ -173,6 +173,10 @@ export function getShellClientScripts(): string {
         };
 
         // Presence Status Management
+        // The presence selector (and its toast) only exists on authenticated
+        // pages where renderUserSwitcherWidget() rendered the user menu.
+        // On anonymous pages (login, register, public BAC) the element is
+        // absent - never fire a presence toast for unauthenticated visitors.
         window.updatePresenceStatus = function(status) {
           localStorage.setItem('mosaix_presence_status', status);
           const dots = document.querySelectorAll('.user-presence-dot');
@@ -188,7 +192,11 @@ export function getShellClientScripts(): string {
           });
           const textEl = document.getElementById('usermenu-presence-text');
           if (textEl) textEl.textContent = current.text;
-          window.showToast('Statut de présence : ' + current.text, 'info', 2000);
+          // Only announce presence changes when the authenticated user menu
+          // is actually rendered. Anonymous visitors have no presence UI.
+          if (textEl) {
+            window.showToast('Statut de présence : ' + current.text, 'info', 2000);
+          }
         };
 
         // Tenant Context Switcher
@@ -307,27 +315,64 @@ export function getShellClientScripts(): string {
           }
         };
 
-        // Theme Mode Toggle (Light/Dark)
-        window.toggleThemeMode = function() {
+        // Theme Mode Engine (Light / Dark / System) with hot switching & cross-tab sync
+        window.setTheme = function(mode) {
+          const validMode = (mode === "light" || mode === "dark" || mode === "system") ? mode : "system";
           const html = document.documentElement;
-          const current = html.getAttribute('data-theme-mode') || 'dark';
-          const nextMode = current === 'dark' ? 'light' : 'dark';
-          
-          html.setAttribute('data-theme-mode', nextMode);
-          if (nextMode === 'dark') {
-            html.classList.add('dark');
+
+          let effectiveMode = validMode;
+          if (validMode === "system") {
+            effectiveMode = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+          }
+
+          html.setAttribute("data-theme-mode", validMode);
+          html.setAttribute("data-resolved-mode", effectiveMode);
+
+          if (effectiveMode === "dark") {
+            html.classList.add("dark");
+            html.classList.remove("light");
           } else {
-            html.classList.remove('dark');
+            html.classList.remove("dark");
+            html.classList.add("light");
           }
-          
-          localStorage.setItem('mosaix_theme_mode', nextMode);
+
           try {
-            fetch('/api/theme?mode=' + nextMode, { method: 'POST' });
-          } catch {}
-          if (typeof window.showToast === 'function') {
-            window.showToast('Thème ' + (nextMode === 'dark' ? 'Sombre' : 'Clair') + ' activé', 'info', 2000);
-          }
+            localStorage.setItem("mosaix_theme_mode", validMode);
+          } catch (e) {}
+
+          try {
+            fetch("/api/theme?mode=" + validMode, { method: "POST" });
+          } catch (e) {}
+
+          window.dispatchEvent(new CustomEvent("mosaix:theme-changed", {
+            detail: { mode: validMode, effectiveMode: effectiveMode }
+          }));
         };
+
+        window.toggleThemeMode = function() {
+          const current = document.documentElement.getAttribute("data-theme-mode") || "system";
+          const nextMode = current === "dark" ? "light" : current === "light" ? "system" : "dark";
+          window.setTheme(nextMode);
+        };
+
+        // System OS Dark Preference Change Listener
+        if (window.matchMedia) {
+          try {
+            window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function() {
+              const currentMode = document.documentElement.getAttribute("data-theme-mode") || localStorage.getItem("mosaix_theme_mode") || "system";
+              if (currentMode === "system") {
+                window.setTheme("system");
+              }
+            });
+          } catch (e) {}
+        }
+
+        // Cross-tab theme sync
+        window.addEventListener("storage", function(e) {
+          if (e.key === "mosaix_theme_mode" && e.newValue) {
+            window.setTheme(e.newValue);
+          }
+        });
 
         // Close dropdowns and modals on click outside or keydown
         document.addEventListener('click', function(e) {
@@ -405,6 +450,68 @@ export function getShellClientScripts(): string {
           }
         };
 
+        // Primary rail floating tooltip: single fixed container (#rail-tooltip,
+        // SSR-rendered by renderPrimarySidebar). Per-item absolute tooltips
+        // were removed — they overflowed the 76px rail (positioned past its
+        // right edge) and produced the horizontal scroll + empty gutter. Content comes from
+        // [data-rail-tip]/[data-rail-sub] via textContent (XSS-safe).
+        (function initRailTooltip() {
+          function hideRailTip() {
+            const tip = document.getElementById('rail-tooltip');
+            if (tip) {
+              tip.classList.remove('rail-tip-visible');
+              tip.setAttribute('aria-hidden', 'true');
+            }
+          }
+          window.hideRailTip = hideRailTip;
+
+          function showRailTip(anchor) {
+            if (!anchor || typeof anchor.getAttribute !== 'function') return;
+            const title = anchor.getAttribute('data-rail-tip');
+            if (!title) return;
+            // Rail masqué (mobile <md) : aucun tooltip.
+            if (anchor.offsetParent === null && !anchor.getBoundingClientRect().width) return;
+            const tip = document.getElementById('rail-tooltip');
+            if (!tip) return;
+            const sub = anchor.getAttribute('data-rail-sub') || '';
+            tip.innerHTML = '';
+            const titleEl = document.createElement('span');
+            titleEl.className = 'rail-tip-title';
+            titleEl.textContent = title;
+            tip.appendChild(titleEl);
+            if (sub) {
+              const subEl = document.createElement('span');
+              subEl.className = 'rail-tip-sub';
+              subEl.textContent = sub;
+              tip.appendChild(subEl);
+            }
+            const rect = anchor.getBoundingClientRect();
+            if (!rect.width && !rect.height) return;
+            const maxLeft = Math.max(88, window.innerWidth - 232);
+            tip.style.left = Math.min(rect.right + 12, maxLeft) + 'px';
+            const half = 28;
+            tip.style.top = Math.max(half, Math.min(rect.top + rect.height / 2, window.innerHeight - half)) + 'px';
+            tip.classList.add('rail-tip-visible');
+            tip.setAttribute('aria-hidden', 'false');
+          }
+
+          document.addEventListener('mouseover', function(e) {
+            const anchor = e.target && e.target.closest ? e.target.closest('[data-rail-tip]') : null;
+            if (anchor) showRailTip(anchor);
+            else hideRailTip();
+          });
+          document.addEventListener('focusin', function(e) {
+            const anchor = e.target && e.target.closest ? e.target.closest('[data-rail-tip]') : null;
+            if (anchor) showRailTip(anchor);
+          });
+          document.addEventListener('focusout', hideRailTip);
+          document.addEventListener('scroll', hideRailTip, true);
+          window.addEventListener('resize', hideRailTip);
+          document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') hideRailTip();
+          });
+        })();
+
         // Initialize active locale, presence status, and theme mode
         setTimeout(() => {
           const activeLocale = localStorage.getItem('mosaix_active_locale') || 'fr';
@@ -415,13 +522,8 @@ export function getShellClientScripts(): string {
           if (presenceSelect) presenceSelect.value = savedStatus;
           window.updatePresenceStatus(savedStatus);
 
-          const savedTheme = localStorage.getItem('mosaix_theme_mode') || 'dark';
-          document.documentElement.setAttribute('data-theme-mode', savedTheme);
-          if (savedTheme === 'dark') {
-            document.documentElement.classList.add('dark');
-          } else {
-            document.documentElement.classList.remove('dark');
-          }
+          const savedTheme = localStorage.getItem('mosaix_theme_mode') || 'system';
+          window.setTheme(savedTheme);
         }, 50);
       })();
     </script>

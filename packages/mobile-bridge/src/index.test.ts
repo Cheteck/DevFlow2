@@ -7,7 +7,7 @@ import {
   DeltaSyncEngine,
   MobileOpenApiExporter,
   FcmPushAdapter,
-} from "./index";
+} from "./index.js";
 
 describe("@mosaix/mobile-bridge", () => {
   describe("PKCE Validator", () => {

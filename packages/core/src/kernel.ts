@@ -22,21 +22,21 @@ import type {
   TenantIdentity,
 } from "@mosaix/contracts";
 import { ApplicationManifestSchema } from "@mosaix/schemas";
-import { KernelContext, type KernelConfig, type KernelModule, type KernelOptions } from "./kernel-module";
-import { Invariants } from "./invariants";
-import { RouteRegistry } from "./route-registry";
-import type { LifecycleCallbacks } from "./lifecycle";
+import { KernelContext, type KernelConfig, type KernelModule, type KernelOptions } from "./kernel-module.js";
+import { Invariants } from "./invariants.js";
+import { RouteRegistry } from "./route-registry.js";
+import type { LifecycleCallbacks } from "./lifecycle.js";
 import {
   asKernelError,
   AuthorizationError,
   CapabilityError,
   LifecycleError,
   RegistrationError,
-} from "./kernel-errors";
-import { ObservabilityModule } from "./modules/observability-module";
-import { defaultModules } from "./modules";
-import type { Logger, Metrics, Trace } from "./observability";
-import type { CapabilityEntry, PayloadValidator } from "./capability-registry";
+} from "./kernel-errors.js";
+import { ObservabilityModule } from "./modules/observability-module.js";
+import { defaultModules } from "./modules/index.js";
+import type { Logger, Metrics, Trace } from "./observability.js";
+import type { CapabilityEntry, PayloadValidator } from "./capability-registry.js";
 
 export type { KernelOptions };
 export type KernelOptionsCompat = KernelOptions;

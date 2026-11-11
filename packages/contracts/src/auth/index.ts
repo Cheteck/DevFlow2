@@ -6,30 +6,30 @@
  * logic and depends only on @mosaix/types.
  */
 
-export type { AuthenticationMethod } from "./authentication-method";
+export type { AuthenticationMethod } from "./authentication-method.js";
 export type {
   AuthenticationContext,
   AuthenticationFactor,
-} from "./authentication-context";
-export type { AuthenticatedPrincipal } from "./authenticated-principal";
-export type { AuthenticationRequest } from "./authentication-request";
+} from "./authentication-context.js";
+export type { AuthenticatedPrincipal } from "./authenticated-principal.js";
+export type { AuthenticationRequest } from "./authentication-request.js";
 export type {
   AuthenticationResult,
   AuthRedirect,
   AuthChallenge,
   AuthError,
-} from "./authentication-result";
+} from "./authentication-result.js";
 export type {
   Identity,
   ExternalIdentity,
   LinkExternalIdentityInput,
-} from "./identity";
-export type { Session } from "./session";
+} from "./identity.js";
+export type { Session } from "./session.js";
 export type {
   Credential,
   CredentialType,
   SaveCredentialInput,
-} from "./credential";
+} from "./credential.js";
 export type {
   AuthenticationProvider,
   VerificationRequest,
@@ -38,7 +38,7 @@ export type {
   RefreshContext,
   TokenType,
   TokenResult,
-} from "./provider";
+} from "./provider.js";
 export type {
   AuthEvent,
   AuthEventType,
@@ -52,4 +52,4 @@ export type {
   PasswordResetPayload,
   AccountLockedPayload,
   AccountUnlockedPayload,
-} from "./auth-events";
+} from "./auth-events.js";

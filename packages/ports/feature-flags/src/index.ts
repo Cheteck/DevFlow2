@@ -5,6 +5,8 @@ export interface FeatureFlagDefinition {
   variationType?: "boolean" | "string" | "json";
   category?: string;
   enabled?: boolean;
+  /** Optional seed-time targeting, honored by adapters that persist allowlists. */
+  rolesAllowlist?: string[];
 }
 
 export interface FeatureFlagUserContext {

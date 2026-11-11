@@ -1,0 +1,8 @@
+fix(health): implement real /health probes (P0-2 / R05)
+
+- /health/live, /health/ready, /health/startup alongside legacy /healthz, /readyz
+- /health/ready pings DB (latency reported) and fails closed when Redis configured
+- production NODE_ENV detection; 503 when unhealthy
+- health-check.middleware carries TODO to wire CachePort ping (fail-closed)
+
+Addresses PRODUCTION_ROADMAP P0-2.

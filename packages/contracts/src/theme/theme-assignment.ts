@@ -9,8 +9,8 @@
  * Consumers: ThemeAssignmentChangedEvent payload, ThemeAssignmentSchema.
  */
 
-import type { ThemeMode } from "./theme-mode";
-import type { ThemeTarget } from "./theme-target";
+import type { ThemeMode } from "./theme-mode.js";
+import type { ThemeTarget } from "./theme-target.js";
 
 export type AssignmentSource = "platform" | "admin" | "user" | "application";
 

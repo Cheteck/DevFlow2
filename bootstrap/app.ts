@@ -16,9 +16,11 @@
 
 import {
   CompositionOverrideManager,
+  loadConfig,
   loadEnvFile,
   validateEnv,
   type NormalizedEnv,
+  type ReadonlyAppConfig,
 } from "@mosaix/core";
 import type { DatabasePort } from "@mosaix/ports-database";
 import type { IdentityStore } from "@mosaix/ports-identity-store";
@@ -137,6 +139,7 @@ export class ApplicationBuilder {
     const run = (s: BootStep) => wanted.size === 0 || wanted.has(s);
 
     let env!: NormalizedEnv;
+    let appConfig!: ReadonlyAppConfig;
     let db!: {
       manager: DatabaseManager;
       dbAdapter: DatabasePort;
@@ -152,11 +155,15 @@ export class ApplicationBuilder {
         this.options.env ??
         (process.env as Record<string, string | undefined>);
       env = validateEnv(source);
+      appConfig = loadConfig(source);
     }
 
     // 2. Security — production constraints before any I/O.
+    // SecurityGuard reçoit la configuration centralisée via le constructeur
+    // (injection explicite, aucun accès direct à process.env depuis le guard).
     if (run("security") && !this.options.skipSecurity) {
-      SecurityGuard.enforceProductionConstraints();
+      const guard = new SecurityGuard(appConfig);
+      guard.enforceProductionConstraints();
     }
 
     // 3. Database — connect only, PRAGMAs awaited.

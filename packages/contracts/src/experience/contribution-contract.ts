@@ -3,7 +3,7 @@
  * Intent sémantique (kind, content, policies, placements) sans renderer ni DOM/React.
  */
 
-import type { PlacementContract } from "./placement-contract";
+import type { PlacementContract } from "./placement-contract.js";
 
 export type ExperienceKind =
   | "navigation"

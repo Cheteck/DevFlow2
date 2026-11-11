@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { z } from "zod";
-import { validateEnv, loadEnvFile } from "./env.schema";
+import { validateEnv, loadEnvFile } from "./env.schema.js";
 
 describe("validateEnv (canonical + aliases, extensible)", () => {
   it("defaults port to 3000 on empty env", () => {

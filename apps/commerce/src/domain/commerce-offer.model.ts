@@ -11,6 +11,14 @@ export interface SellerEntityRef {
 
 export type CommerceOfferStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "ARCHIVED";
 
+export interface PriceHistoryEntry {
+  priceInCents: number;
+  currency: string;
+  actorId: string;
+  reason: string;
+  updatedAt: string;
+}
+
 export interface CommerceOffer {
   id: string;
   seller: SellerEntityRef;
@@ -19,6 +27,7 @@ export interface CommerceOffer {
   description?: string;
   priceInCents: number;
   currency: string;
+  priceHistory?: PriceHistoryEntry[];
   status: CommerceOfferStatus;
   stockAllocation?: number; // undefined = unlimited / catalog controlled
   commissionRateBps: number; // e.g. 500 for 5.00%
@@ -38,6 +47,40 @@ export interface PayoutBreakdown {
   currency: string;
 }
 
+/**
+ * Centralized availability semantics for `stockAllocation`.
+ * Domain contract: `undefined` = unlimited catalog-controlled stock
+ * (always purchasable); a number = tracked allocation. The presentation
+ * layer must use this helper instead of inferring purchasability from
+ * truthiness — `0` is out of stock, negatives are invalid data.
+ */
+export type StockTone = "ok" | "warn" | "out" | "unknown";
+
+export interface OfferAvailability {
+  label: string;
+  tone: StockTone;
+  purchasable: boolean;
+}
+
+export function getOfferAvailability(stockAllocation?: number): OfferAvailability {
+  if (stockAllocation === undefined) {
+    return { label: "En stock", tone: "ok", purchasable: true };
+  }
+  if (!Number.isInteger(stockAllocation) || stockAllocation < 0) {
+    return { label: "Disponibilité indisponible", tone: "unknown", purchasable: false };
+  }
+  if (stockAllocation === 0) {
+    return { label: "Rupture de stock", tone: "out", purchasable: false };
+  }
+  if (stockAllocation === 1) {
+    return { label: "Plus qu'une unité", tone: "warn", purchasable: true };
+  }
+  if (stockAllocation <= 5) {
+    return { label: `Plus que ${stockAllocation} unités`, tone: "warn", purchasable: true };
+  }
+  return { label: `En stock (${stockAllocation})`, tone: "ok", purchasable: true };
+}
+
 export interface CreateOfferInput {
   seller: SellerEntityRef;
   vendableId: string;
@@ -53,6 +96,8 @@ export interface CreateOfferInput {
   };
   metadata?: Record<string, unknown>;
   initialStatus?: CommerceOfferStatus;
+  actorId?: string;
+  initialReason?: string;
 }
 
 export interface CommerceOfferRepositoryPort {
@@ -60,6 +105,15 @@ export interface CommerceOfferRepositoryPort {
   getOfferById(id: string): Promise<CommerceOffer | null>;
   listOffersBySeller(sellerType: SellerEntityType, sellerId: string): Promise<CommerceOffer[]>;
   listOffersByVendable(vendableId: string): Promise<CommerceOffer[]>;
+  /** Public vitrine: ACTIVE offers newest-first. */
+  listActiveOffers(limit?: number): Promise<CommerceOffer[]>;
+}
+
+export function resolveEffectivePrice(
+  offer: CommerceOffer,
+  _context?: Record<string, unknown>
+): Money {
+  return Money.fromCents(offer.priceInCents, offer.currency);
 }
 
 /**
@@ -83,6 +137,18 @@ export class CommerceOfferService {
     }
 
     const now = new Date().toISOString();
+    const currency = input.currency ?? "EUR";
+    const actorId = input.actorId ?? input.seller.id;
+    const reason = input.initialReason ?? "Initial offer creation";
+
+    const initialPriceEntry: PriceHistoryEntry = {
+      priceInCents: input.priceInCents,
+      currency,
+      actorId,
+      reason,
+      updatedAt: now,
+    };
+
     const offer: CommerceOffer = {
       id: `off-${crypto.randomUUID()}`,
       seller: input.seller,
@@ -90,7 +156,8 @@ export class CommerceOfferService {
       title: input.title,
       description: input.description,
       priceInCents: input.priceInCents,
-      currency: input.currency ?? "EUR",
+      currency,
+      priceHistory: [initialPriceEntry],
       status: input.initialStatus ?? "ACTIVE",
       stockAllocation: input.stockAllocation,
       commissionRateBps: input.commissionRateBps ?? 500, // 5% default platform fee
@@ -99,6 +166,45 @@ export class CommerceOfferService {
       createdAt: now,
       updatedAt: now,
     };
+
+    this.offers.set(offer.id, offer);
+    if (this.repository) {
+      await this.repository.saveOffer(offer);
+    }
+
+    return offer;
+  }
+
+  async updatePrice(
+    offerId: string,
+    newPriceInCents: number,
+    actorId: string,
+    reason: string
+  ): Promise<CommerceOffer> {
+    if (newPriceInCents < 0) {
+      throw new Error("Price cannot be negative.");
+    }
+
+    const offer = await this.getOffer(offerId);
+    if (!offer) {
+      throw new Error(`CommerceOffer [${offerId}] not found.`);
+    }
+
+    const now = new Date().toISOString();
+    const entry: PriceHistoryEntry = {
+      priceInCents: newPriceInCents,
+      currency: offer.currency,
+      actorId,
+      reason,
+      updatedAt: now,
+    };
+
+    offer.priceInCents = newPriceInCents;
+    if (!offer.priceHistory) {
+      offer.priceHistory = [];
+    }
+    offer.priceHistory.push(entry);
+    offer.updatedAt = now;
 
     this.offers.set(offer.id, offer);
     if (this.repository) {
@@ -150,6 +256,16 @@ export class CommerceOfferService {
     return Array.from(this.offers.values()).filter(
       (o) => o.vendableId === vendableId && o.status === "ACTIVE"
     );
+  }
+
+  /** Public vitrine feed: all ACTIVE offers, newest first. */
+  async listAllActive(limit = 48): Promise<CommerceOffer[]> {
+    if (this.repository) {
+      return this.repository.listActiveOffers(limit);
+    }
+    return Array.from(this.offers.values())
+      .filter((o) => o.status === "ACTIVE")
+      .slice(0, Math.min(Math.max(limit, 1), 200));
   }
 
   calculatePayout(offer: CommerceOffer, totalQuantity: number = 1): PayoutBreakdown {

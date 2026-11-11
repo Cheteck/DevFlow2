@@ -7,11 +7,30 @@ import * as http from "node:http";
 import { URL } from "node:url";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as crypto from "node:crypto";
 
 import type { ThemeMode, BacExecutionContext } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
-import { platformSettingsService } from "@mosaix/core";
+import {
+  platformSettingsService,
+  loadConfig,
+  ConsoleLogger,
+  FileLogger,
+  type Logger,
+} from "@mosaix/core";
 import { createApplication } from "../bootstrap/index.js";
+
+import { LocalPasswordProvider } from "@mosaix/adapter-auth-local";
+import { EnvSecretsAdapter } from "@mosaix/adapter-secrets-env";
+import type { IdentityStore } from "@mosaix/ports-identity-store";
+import type { SessionStore } from "@mosaix/ports-session-store";
+import type { CredentialStore } from "@mosaix/ports-credential-store";
+import type { TokenStore } from "@mosaix/ports-token-store";
+import { getSharedAuthComposition } from "../bootstrap/auth-composition.js";
+import { SQLiteSessionStoreAdapter } from "@mosaix/adapter-session-store-sqlite";
+import { SQLiteTokenStoreAdapter } from "@mosaix/adapter-token-store-sqlite";
+import { SQLiteCredentialStoreAdapter } from "@mosaix/adapter-credential-store-sqlite";
+import { SQLiteIdentityStoreAdapter } from "@mosaix/adapter-identity-store-sqlite";
 
 // Shell services & state
 import { apps } from "./shell/discovery.js";
@@ -21,6 +40,17 @@ import {
   getActiveSpaceProfile,
   type UserProfile,
 } from "./shell/profiles.js";
+import {
+  buildSsrAuthContext,
+  type SsrAuthContext,
+} from "./shell/ssr-auth-context.js";
+import {
+  resolveBacAccess,
+  parseBacView,
+  buildNavProfile,
+  resolveSafeNext,
+} from "./shell/bac-access.js";
+import { renderLoginPage, renderRegisterPage } from "./shell/pages/auth-pages.js";
 import {
   standardRateLimiter,
   strictRateLimiter,
@@ -33,15 +63,91 @@ import {
   renderThemeStyleTag,
   generateUnifiedThemeCssVariables,
   getResolvedTheme,
+  ShellThemeProvider,
+  applyThemeMode,
+  runWithThemeContext,
 } from "./shell/theme/theme-bridge.js";
+import { renderContext } from "./server/context/render-context.js";
+import { resolveTheme } from "./server/services/theme-resolution.service.js";
 import { renderBacAdminSafely } from "./shell/renderer.js";
+import { PRIMARY_RAIL_SHARED_CSS } from "./shell/renderer.js";
 import { getPlatformFeatureFlags } from "./shell/feature-flags.js";
+
+// ─── Configuration centralisée (Lot 1 — socle) ─────────────────────
+// Chargement et validation de l'environnement au point de composition.
+// Aucun consommateur métier ne lit process.env directement : la configuration
+// est injectée explicitement ici, puis distribuée aux composants concernés.
+// ─── Fichier de log du dev server (dogfooding: FileLogger réutilise
+// l'interface Logger existante, zéro dépendance externe) ──────────────────
+const logDir = path.join(process.cwd(), ".mosaix", "logs");
+const fileLogger = new FileLogger("info", { component: "ShellServer" }, { logDir, fileName: "server.log" });
+const consoleLogger = new ConsoleLogger("info", { component: "ShellServer" });
+
+// Logger combiné : écrit sur la console ET dans le fichier de log.
+// Permet de garder les diagnostics visibles tout en les persistant sur disque.
+const logger: Logger = {
+  debug(message: string, fields?: Record<string, unknown>): void {
+    consoleLogger.debug(message, fields);
+    fileLogger.debug(message, fields);
+  },
+  info(message: string, fields?: Record<string, unknown>): void {
+    consoleLogger.info(message, fields);
+    fileLogger.info(message, fields);
+  },
+  warn(message: string, fields?: Record<string, unknown>): void {
+    consoleLogger.warn(message, fields);
+    fileLogger.warn(message, fields);
+  },
+  error(message: string, fields?: Record<string, unknown>): void {
+    consoleLogger.error(message, fields);
+    fileLogger.error(message, fields);
+  },
+  child(fields: Record<string, unknown>): Logger {
+    return {
+      debug: (m, f) => { consoleLogger.debug(m, { ...fields, ...f }); fileLogger.debug(m, { ...fields, ...f }); },
+      info: (m, f) => { consoleLogger.info(m, { ...fields, ...f }); fileLogger.info(m, { ...fields, ...f }); },
+      warn: (m, f) => { consoleLogger.warn(m, { ...fields, ...f }); fileLogger.warn(m, { ...fields, ...f }); },
+      error: (m, f) => { consoleLogger.error(m, { ...fields, ...f }); fileLogger.error(m, { ...fields, ...f }); },
+      child: (f2) => logger.child({ ...fields, ...f2 }),
+    };
+  },
+};
+
+// Configuration chargée et validée au démarrage (fail-fast explicite).
+// Immuable après validation : pas de reload, pas de cache, pas de résolution DB dans ce lot.
+const appConfig = loadConfig(undefined, { isProduction: appEnvIsProduction() });
+
+// Détection de l'environnement de production pour le fail-fast conditionnel.
+// MOSAIX_ENV est canonique, NODE_ENV est l'alias legacy (convention S-05).
+function appEnvIsProduction(): boolean {
+  return (
+    (process.env.MOSAIX_ENV ?? process.env.NODE_ENV ?? "development") ===
+    "production"
+  );
+}
 
 // Server decoupling modules
 import { handleMaintenanceGate } from "./server/middleware/maintenance-gate.js";
 import { dispatchApiRequest } from "./server/api-dispatcher.js";
+import { PortfolioService } from "../apps/portfolio/src/domain/portfolio-service.js";
+import { ProposalService } from "../apps/portfolio/src/domain/proposal-service.js";
+import { PostgresProposalRepository } from "../apps/portfolio/src/infrastructure/postgres-proposal-repository.js";
+import { PostgresVendableRepository } from "../apps/portfolio/src/infrastructure/postgres-vendable-repository.js";
+import { wireBacDescriptors } from "./server/bac-wiring.js";
 import { renderBacPage } from "./shell/pages/bac-page.js";
 import { renderHomePage } from "./shell/pages/home-page.js";
+
+// Request hard ceiling: a hung upstream (descriptor.render, DB, cluster relay) can
+// never pin a worker indefinitely. 30s is generous for SSR + MCP round-trips;
+// anything slower is almost certainly stuck, not slow (S-09).
+// Valeur lue depuis la configuration centralisée validée au démarrage.
+const REQUEST_TIMEOUT_MS = appConfig.platform.requestTimeoutMs;
+
+// Stable per-request id: links logs, traces, and the response header so a
+// slow request is traceable without server-side correlation tables (OBS-TRC-01).
+function generateRequestId(): string {
+  return `req_${crypto.randomUUID()}`;
+}
 
 // Single composition root (Laravel `bootstrap/app.php`): env → security →
 // database (connect only, PRAGMAs awaited) → migrations fail-fast →
@@ -49,21 +155,75 @@ import { renderHomePage } from "./shell/pages/home-page.js";
 // migrations applied via the CLI — the boot path never runs DDL or seeds.
 // Fresh checkout or pending migrations? Run: pnpm mosaix migrate
 // (add --seed for baseline demo data).
+logger.info("Boot: createApplication starting");
 const app = await createApplication();
+logger.info("Boot: createApplication done");
 const { compositionOverrideManager } = app;
 const PORT = app.env.resolvedPort;
+
+// ---------------------------------------------------------------------------
+// Shared Auth Composition (Shell) — public registration + login
+// Wires persistent SQLite stores + LocalPasswordProvider into the singleton
+// used by `src/server/routes/auth-routes.ts` and `src/shell/ssr-auth-context.ts`.
+// ---------------------------------------------------------------------------
+const identityStore: IdentityStore = new SQLiteIdentityStoreAdapter(app.dbAdapter);
+const sessionStore: SessionStore = new SQLiteSessionStoreAdapter(app.dbAdapter);
+const credentialStore: CredentialStore = new SQLiteCredentialStoreAdapter(app.dbAdapter);
+const tokenStore: TokenStore = new SQLiteTokenStoreAdapter(app.dbAdapter);
+
+const authContainer = getSharedAuthComposition({
+  sessionStore,
+  identityStore,
+  credentialStore,
+  tokenStore,
+  providers: new Map(),
+});
+
+// Register the local password provider. The Shell routes call
+// `authManager.authenticate({ provider: "credentials", ... })`, so the
+// provider is registered under the key "credentials".
+if (authContainer.authManager) {
+  const localProvider = new LocalPasswordProvider({
+    credentialStore,
+    identityStore,
+    secrets: new EnvSecretsAdapter(),
+    sessionCreation: authContainer.authManager,
+  });
+  authContainer.authManager.registerProvider(localProvider);
+  // Also register under "credentials" for backward compatibility with Shell routes
+  authContainer.authManager.registerProvider({
+    id: "credentials",
+    capabilities: localProvider.capabilities,
+    authenticate: (req) => localProvider.authenticate(req),
+  });
+}
 
 // Initialize platform feature flags with database adapter for persistent storage
 await getPlatformFeatureFlags(app.dbAdapter);
 
+// Connect BAC descriptors to their domain services (Postgres-backed).
+// A wiring failure never blocks boot: the static fallback renders honest
+// empty states and the error is logged loudly.
+await wireBacDescriptors(app.dbAdapter);
+
 // Static MIME types (module-level: never rebuilt per request).
+// Extended set for PWA assets and common static files.
 const STATIC_MIME_TYPES: Record<string, string> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
   ".svg": "image/svg+xml",
-  ".css": "text/css",
-  ".js": "application/javascript",
-  ".json": "application/json",
+  ".css": "text/css; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".mjs": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
+  ".ico": "image/x-icon",
+  ".txt": "text/plain; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".woff2": "font/woff2",
+  ".woff": "font/woff",
+  ".ttf": "font/ttf",
 };
 
 // API routes with sensitive side effects get the strict bucket.
@@ -88,19 +248,19 @@ function getSharedStyles(mode: ThemeMode): string {
       background-color: var(--background);
       color: var(--on-surface);
     }
-    .glass-card {
-      background: ${mode === "light" ? "rgba(255, 255, 255, 0.7)" : "rgba(26, 28, 44, 0.7)"};
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid ${mode === "light" ? "rgba(15, 23, 42, 0.08)" : "rgba(255, 255, 255, 0.08)"};
-    }
     .sidebar-collapsed .secondary-sidebar {
       display: none !important;
     }
     .sidebar-collapsed .main-workspace {
       margin-left: 72px !important;
     }
+    /* Rail primaire minimisé (bug pré-existant) : .no-scrollbar manquait sur
+       les pages BAC + tooltips flottants. Source unique : renderer.ts. */
+    ${PRIMARY_RAIL_SHARED_CSS}
   `;
+  /* NOTE: .glass-card is defined exclusively in src/shell/styles.css using
+     --color-* tokens so it adapts to all themes and modes automatically.
+     Do not add hardcoded RGBA overrides here — they bypass the Theme Manager. */
 }
 
 function headersToRecord(
@@ -114,13 +274,19 @@ function headersToRecord(
   return out;
 }
 
-const server = http.createServer(async (req, res) => {
+async function handleRequest(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  requestId: string,
+): Promise<void> {
   try {
     // Inject standard OWASP security headers
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "SAMEORIGIN");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("X-XSS-Protection", "1; mode=block");
+    // Per-request tracing header (OBS-TRC-01)
+    res.setHeader("X-Request-Id", requestId);
 
     const parsedUrl = new URL(
       req.url || "/",
@@ -140,21 +306,35 @@ const server = http.createServer(async (req, res) => {
       if (!allow(req, res)) return;
     }
 
-    // 1. Static Assets Delivery (/public/)
+    // 1. Static Assets Delivery (public/ root serves both /public/* and root assets like /site.webmanifest)
+    const publicDir = path.resolve(process.cwd(), "public");
+    let staticPath: string | null = null;
+    
     if (pathname.startsWith("/public/")) {
-      const publicDir = path.resolve(process.cwd(), "public");
-      const safePath = path.resolve(process.cwd(), "." + pathname);
-      if (!safePath.startsWith(publicDir)) {
+      // Explicit /public/* path
+      staticPath = path.resolve(process.cwd(), "." + pathname);
+    } else if (
+      // Root-level static assets (favicon, manifest, etc.)
+      pathname === "/site.webmanifest" ||
+      pathname === "/favicon.ico" ||
+      pathname === "/favicon.svg" ||
+      pathname === "/robots.txt"
+    ) {
+      staticPath = path.resolve(publicDir, "." + pathname);
+    }
+    
+    if (staticPath) {
+      if (!staticPath.startsWith(publicDir)) {
         res.writeHead(403, { "Content-Type": "text/plain" });
         res.end("Forbidden");
         return;
       }
-      if (fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
-        const ext = path.extname(safePath).toLowerCase();
+      if (fs.existsSync(staticPath) && fs.statSync(staticPath).isFile()) {
+        const ext = path.extname(staticPath).toLowerCase();
         res.writeHead(200, {
           "Content-Type": STATIC_MIME_TYPES[ext] || "application/octet-stream",
         });
-        fs.createReadStream(safePath).pipe(res);
+        fs.createReadStream(staticPath).pipe(res);
         return;
       }
     }
@@ -164,47 +344,112 @@ const server = http.createServer(async (req, res) => {
     // demo credential — never a trust boundary; production gates live in
     // SecurityGuard + isDemoMode().
     const currentUser: UserProfile = getActiveUserProfile(req, parsedUrl);
+    // AUTH-07: request identity for the navbar boundary. Real sessions win;
+    // demo personas only when demo mode is on; otherwise explicit anonymous
+    // (auth buttons, never the user menu). Sidebar/authorization flows keep
+    // using `currentUser` until AUTH-05 ports land — the navbar is the only
+    // consumer of `ssrAuth` for now.
+    const ssrAuth: SsrAuthContext = await buildSsrAuthContext(req, parsedUrl);
+    // Navigation profile derived from the SAME access policy as the route
+    // guard below (never `allowedBacs` as a competing authority). Display
+    // only — enforcement happens in the guard.
+    const navProfile: UserProfile = buildNavProfile(ssrAuth, apps);
     const activeSpaceProfile = await getActiveSpaceProfile(req, parsedUrl, app.dbAdapter);
     const currentSpace = activeSpaceProfile ? activeSpaceProfile.id : null;
-    const themeCookie = (req.headers.cookie || "").match(
-      /mosaix_theme_mode=([a-z-]+)/,
-    );
-    const requestedTheme = themeCookie ? themeCookie[1] : "";
-    const currentThemeMode: ThemeMode =
-      requestedTheme === "light" ||
-      requestedTheme === "high-contrast" ||
-      requestedTheme === "system"
-        ? requestedTheme
-        : "dark";
-    const sharedStyles = getSharedStyles(currentThemeMode);
+    // Resolve the theme for the resolved space (or fallback to platform default)
+    const resolvedTheme = await resolveTheme(activeSpaceProfile?.themeId);
+    // Store in AsyncLocalStorage so downstream rendering can access it without globals
+    renderContext.enterWith({ space: activeSpaceProfile, theme: resolvedTheme });
 
-    // 3. Platform Maintenance Gate Middleware (FEAT-01)
-    if (
-      handleMaintenanceGate(
-        req,
-        res,
-        pathname,
-        currentUser.role,
-        currentThemeMode,
-        sharedStyles,
-      )
-    ) {
-      return;
-    }
+    // Declare theme variables at outer scope so they remain accessible after the closure
+    // Initialize with defaults; they will be assigned inside runWithThemeContext
+    let currentThemeMode: ThemeMode = "dark" as ThemeMode;
+    let sharedStyles: string = "";
 
-    // 4. API Request Dispatcher (Theme, User, Flags, Compositions, Auth, Feed, GDPR, SSE)
-    const isApiHandled = await dispatchApiRequest(req, res, parsedUrl, {
-      activeMode: currentThemeMode,
-      currentUser,
-      compositionOverrideManager,
-      feedService: getFeedService(app.dbAdapter),
-      eventBackplane: distributedEventBackplane,
-      anonymizationOrchestrator: getAnonymizationOrchestrator(app.dbAdapter),
-      db: app.dbAdapter,
+    await runWithThemeContext(async () => {
+      // Tell the theme bridge the active theme id
+      ShellThemeProvider.setActiveThemeId(resolvedTheme.themeId);
+      const themeCookie = (req.headers.cookie || "").match(
+        /mosaix_theme_mode=([a-z-]+)/,
+      );
+      const requestedTheme = themeCookie ? themeCookie[1] : "";
+      currentThemeMode =
+        requestedTheme === "light" ||
+        requestedTheme === "system"
+          ? requestedTheme
+          : "dark";
+
+      await applyThemeMode(currentThemeMode);
+
+      sharedStyles = getSharedStyles(currentThemeMode);
+
+      // 3. Platform Maintenance Gate Middleware (FEAT-01)
+      if (
+        handleMaintenanceGate(
+          req,
+          res,
+          pathname,
+          currentUser.role,
+          currentThemeMode,
+          sharedStyles,
+        )
+      ) {
+        return;
+      }
+
+      // 4. API Request Dispatcher (Theme, User, Flags, Compositions, Auth, Feed, GDPR, SSE)
+      const isApiHandled = await dispatchApiRequest(req, res, parsedUrl, {
+        activeMode: currentThemeMode,
+        currentUser,
+        compositionOverrideManager,
+        feedService: getFeedService(app.dbAdapter),
+        eventBackplane: distributedEventBackplane,
+        anonymizationOrchestrator: getAnonymizationOrchestrator(app.dbAdapter),
+        db: app.dbAdapter,
+        buildProposalServices: (db) => {
+          const portfolioService = new PortfolioService(new PostgresVendableRepository(db));
+          const proposalService = new ProposalService(new PostgresProposalRepository(db), portfolioService);
+          return { portfolioService, proposalService };
+        },
+      });
+      if (isApiHandled) {
+        return;
+      }
+
+      // 4b. Public auth pages (login + public registration, both functional).
+      // Authenticated/demo sessions have no business here → back to `next`.
+      if (pathname === "/login" || pathname === "/register") {
+        if (req.method !== "GET") {
+          res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
+          res.end("Method not allowed");
+          return;
+        }
+        const safeNext = resolveSafeNext(parsedUrl.searchParams.get("next"));
+        if (ssrAuth.kind !== "anonymous") {
+          res.writeHead(302, { Location: safeNext });
+          res.end();
+          return;
+        }
+        const html =
+          pathname === "/login"
+            ? renderLoginPage({
+                activeMode: currentThemeMode,
+                sharedStyles,
+                safeNext,
+                requestUrl: req.url,
+              })
+            : renderRegisterPage({
+                activeMode: currentThemeMode,
+                sharedStyles,
+                safeNext,
+                requestUrl: req.url,
+              });
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(html);
+        return;
+      }
     });
-    if (isApiHandled) {
-      return;
-    }
+
 
     // 5. BAC Workspace Views Routing
     const matchedApp = apps.find(
@@ -213,21 +458,32 @@ const server = http.createServer(async (req, res) => {
 
     if (matchedApp) {
       const cleanAppId = matchedApp.id.replace(/^@apps\//, "");
-      const isAllowed =
-        currentUser.allowedBacs.includes("*") ||
-        currentUser.allowedBacs.includes(matchedApp.id) ||
-        currentUser.allowedBacs.includes(cleanAppId) ||
-        (cleanAppId === "citadelle" &&
-          currentUser.allowedBacs.includes("identity")) ||
-        (cleanAppId === "identity" &&
-          currentUser.allowedBacs.includes("citadelle"));
+      // Global BAC access policy (guest boundary): same resolver as nav
+      // filtering. `?view=` normalization is shared so a request can never
+      // be authorized under one interpretation and rendered under another.
+      const parsedView = parseBacView(parsedUrl.searchParams);
+      // Ambiguous `?view=` (repeated param) is refused outright — never
+      // authorized under one interpretation and rendered under another.
+      const decision = parsedView.ambiguous
+        ? ssrAuth.kind === "anonymous"
+          ? { kind: "login" as const }
+          : { kind: "forbidden" as const }
+        : resolveBacAccess(ssrAuth, cleanAppId, parsedView.view);
 
-      if (!isAllowed) {
+      if (decision.kind !== "allowed") {
+        if (decision.kind === "login") {
+          const here = pathname + (parsedUrl.search || "");
+          res.writeHead(302, {
+            Location: `/login?next=${encodeURIComponent(resolveSafeNext(here))}`,
+          });
+          res.end();
+          return;
+        }
         res.writeHead(403, { "Content-Type": "text/html; charset=utf-8" });
         res.end(`
         <div style="font-family:sans-serif; text-align:center; padding:50px;">
           <h2 style="color:#ef4444;">Accès non autorisé</h2>
-          <p>Votre profil (${escapeHtml(currentUser.roleLabel)}) n'a pas accès au module <strong>${escapeHtml(matchedApp.name)}</strong>.</p>
+          <p>Votre profil (${escapeHtml(navProfile.roleLabel)}) n'a pas accès au module <strong>${escapeHtml(matchedApp.name)}</strong>.</p>
           <a href="/" style="color:#6366f1;">&larr; Retour à l'accueil</a>
         </div>
       `);
@@ -248,14 +504,23 @@ const server = http.createServer(async (req, res) => {
         bacOrchestrator.getDescriptor(matchedApp.id);
 
       if (descriptor) {
+        // Least privilege for anonymous renders: BAC views must never see
+        // member roles/permissions through the execution context.
+        // isAuthenticated comes from the resolved session (ssrAuth), never
+        // from roles (VUES-AUTHFLAG-01).
+        const execUser =
+          ssrAuth.kind === "anonymous"
+            ? { id: "guest", roles: [] as string[], permissions: [] as string[], isAuthenticated: false as const }
+            : {
+                id: currentUser.id,
+                roles: [currentUser.role],
+                permissions: currentUser.permissions,
+                isAuthenticated: true as const,
+              };
         const executionContext: BacExecutionContext = {
           tenantId: "default",
           spaceId: currentSpace,
-          user: {
-            id: currentUser.id,
-            roles: [currentUser.role],
-            permissions: currentUser.permissions,
-          },
+          user: execUser,
           theme: {
             // "system" has no runtime rendering — resolve to light (matches SSR default branch).
             mode: currentThemeMode === "system" ? "light" : currentThemeMode,
@@ -290,8 +555,9 @@ const server = http.createServer(async (req, res) => {
         currentUser,
         currentSpace,
         renderedContent,
-        contributionsCount: appContributions.length,
         requestUrl: req.url,
+        auth: ssrAuth,
+        navProfile,
       });
 
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -300,6 +566,13 @@ const server = http.createServer(async (req, res) => {
     }
 
     // 6. Dynamic Default BAC Resolution & Workspace Root Routing
+    // Anonymous visitors get the public marketplace vitrine instead of the
+    // personalized hub (tranche decision: `/` → `/commerce`).
+    if (ssrAuth.kind === "anonymous" && pathname === "/") {
+      res.writeHead(302, { Location: "/commerce" });
+      res.end();
+      return;
+    }
     const platformSettings = await platformSettingsService.getSettings();
     const defaultBacResolution = await bacOrchestrator.resolveDefaultBac(
       platformSettings,
@@ -309,20 +582,35 @@ const server = http.createServer(async (req, res) => {
     if (defaultBacResolution) {
       const { descriptor } = defaultBacResolution;
       const cleanAppId = descriptor.id.replace(/^@apps\//, "");
-      // Live read (D-01): never cache the plugin registry across requests.
-      const bacEntry = DynamicBacRegistry.getAll().find(
-        (b) => b.id === descriptor.id || b.id === cleanAppId,
-      );
-      const appContributions = bacEntry ? bacEntry.contributions : [];
-
+      // Same global policy as explicit BAC routes: the default BAC is not
+      // a backdoor for anonymous visitors (e.g. unknown path rendering the
+      // solara feed).
+      const defaultDecision = resolveBacAccess(ssrAuth, cleanAppId, "");
+      if (defaultDecision.kind === "login") {
+        const here = pathname + (parsedUrl.search || "");
+        res.writeHead(302, {
+          Location: `/login?next=${encodeURIComponent(resolveSafeNext(here))}`,
+        });
+        res.end();
+        return;
+      }
+      if (defaultDecision.kind === "forbidden") {
+        res.writeHead(403, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(`<div style="font-family:sans-serif; text-align:center; padding:50px;"><h2 style="color:#ef4444;">Accès non autorisé</h2><a href="/" style="color:#6366f1;">&larr; Retour à l'accueil</a></div>`);
+        return;
+      }
       const executionContext: BacExecutionContext = {
         tenantId: "default",
         spaceId: currentSpace,
-        user: {
-          id: currentUser.id,
-          roles: [currentUser.role],
-          permissions: currentUser.permissions,
-        },
+        user:
+          ssrAuth.kind === "anonymous"
+            ? { id: "guest", roles: [] as string[], permissions: [] as string[], isAuthenticated: false as const }
+            : {
+                id: currentUser.id,
+                roles: [currentUser.role],
+                permissions: currentUser.permissions,
+                isAuthenticated: true as const,
+              },
         theme: {
           // "system" has no runtime rendering — resolve to light (matches SSR default branch).
           mode: currentThemeMode === "system" ? "light" : currentThemeMode,
@@ -351,8 +639,9 @@ const server = http.createServer(async (req, res) => {
         currentUser,
         currentSpace,
         renderedContent: renderResult.contentHtml,
-        contributionsCount: appContributions.length,
         requestUrl: req.url,
+        auth: ssrAuth,
+        navProfile,
       });
 
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -371,6 +660,12 @@ const server = http.createServer(async (req, res) => {
     </div>
   `;
 
+    // Fallback: personalized hub is never served to anonymous visitors.
+    if (ssrAuth.kind === "anonymous") {
+      res.writeHead(302, { Location: "/commerce" });
+      res.end();
+      return;
+    }
     const homeHtml = renderHomePage({
       activeMode: currentThemeMode,
       sharedStyles,
@@ -379,20 +674,132 @@ const server = http.createServer(async (req, res) => {
       feedPosts: [],
       widgetsHtml,
       requestUrl: req.url,
+      auth: ssrAuth,
+      navProfile,
     });
 
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(homeHtml);
   } catch (err: unknown) {
-    console.error("[ServerError]", err);
+    const isTimeout =
+      err instanceof Error && err.name === "TimeoutError";
+    logger.error("[ServerError]", {
+      requestId,
+      err: String(err),
+      timeout: isTimeout,
+    });
     if (!res.headersSent) {
-      res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
-      const message = err instanceof Error ? err.message : "Unknown error";
-      res.end(`Internal Server Error: ${message}`);
+      res.writeHead(isTimeout ? 503 : 500, {
+        "Content-Type": "text/plain; charset=utf-8",
+      });
+      const message = isTimeout
+        ? "Service Unavailable: request timed out"
+        : err instanceof Error
+          ? err.message
+          : "Unknown error";
+      res.end(isTimeout ? message : `Internal Server Error: ${message}`);
+    }
+  }
+}
+
+const server = http.createServer(async (req, res) => {
+  const requestId = generateRequestId();
+  // Hard request ceiling (S-09): a hung upstream (descriptor.render, DB
+  // query, cluster relay) can never pin a worker indefinitely. The race
+  // rejects the handler's promise; the socket is closed with 503. The
+  // orphaned handler promise is left to run to completion (or be GC'd) —
+  // Node's event loop does not await it.
+  const timeoutSignal = new Promise<never>((_, reject) => {
+    const timer = setTimeout(() => {
+      const err = new Error("Request timed out");
+      err.name = "TimeoutError";
+      reject(err);
+    }, REQUEST_TIMEOUT_MS);
+    timer.unref?.();
+    res.on("finish", () => clearTimeout(timer));
+  });
+
+  try {
+    await Promise.race([handleRequest(req, res, requestId), timeoutSignal]);
+  } catch (err: unknown) {
+    const isTimeout =
+      err instanceof Error && err.name === "TimeoutError";
+    logger.error("[ServerError]", {
+      requestId,
+      err: String(err),
+      timeout: isTimeout,
+    });
+    if (!res.headersSent) {
+      res.writeHead(isTimeout ? 503 : 500, {
+        "Content-Type": "text/plain; charset=utf-8",
+      });
+      const message = isTimeout
+        ? "Service Unavailable: request timed out"
+        : err instanceof Error
+          ? err.message
+          : "Unknown error";
+      res.end(isTimeout ? message : `Internal Server Error: ${message}`);
     }
   }
 });
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`MosaiX platform host listening on http://0.0.0.0:${PORT}`);
+  logger.info(`MosaiX platform host listening on http://0.0.0.0:${PORT}`);
+});
+
+// ─── Arrêt applicatif du serveur HTTP (détournement du port 3000) ─────
+// Permet au DevSupervisor de demander une fermeture propre via IPC,
+// et de réagir aux signaux SIGINT/SIGTERM sans laisser le port occupé.
+let shutdownPromise: Promise<void> | undefined;
+
+async function shutdown(reason: string): Promise<void> {
+  if (shutdownPromise) {
+    return shutdownPromise;
+  }
+
+  shutdownPromise = (async () => {
+    logger.info(`[API] Arrêt demandé : ${reason}`);
+
+    if (!server.listening) {
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+      server.closeAllConnections();
+    });
+
+    logger.info("[API] Serveur HTTP arrêté.");
+  })();
+
+  return shutdownPromise;
+}
+
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.once(signal, () => {
+    void shutdown(signal).catch((error) => {
+      logger.error("[API] Erreur shutdown:", error);
+      process.exitCode = 1;
+    });
+  });
+}
+
+process.on("message", (message: unknown) => {
+  if (
+    typeof message === "object" &&
+    message !== null &&
+    "type" in message &&
+    (message as { type?: string }).type === "shutdown"
+  ) {
+    void shutdown("supervisor").catch((error) => {
+      logger.error("[API] Erreur shutdown:", error);
+      process.exitCode = 1;
+    });
+  }
 });

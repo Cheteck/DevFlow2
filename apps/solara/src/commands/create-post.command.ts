@@ -1,6 +1,7 @@
 import type { Command, CommandHandler } from "@mosaix/commands";
 import type { Post, SocialActorType, DefaultPublicationType } from "../domain/social.model.js";
 import { SolaraSocialService } from "../domain/social.model.js";
+import { getGlobalPluginEngine } from "../../../../src/shell/plugin-engine-bootstrap.js";
 
 export interface CreatePostPayload {
   actorType: SocialActorType;
@@ -25,6 +26,9 @@ export class CreatePostHandler implements CommandHandler<CreatePostCommand, Post
 
   async handle(command: CreatePostCommand): Promise<Post> {
     const p = command.payload;
+    const engine = getGlobalPluginEngine();
+    await engine.runHook("solara.post.beforeCreate", { content: p.content });
+
     return this.socialService.createPost(
       p.actorType,
       p.actorId,

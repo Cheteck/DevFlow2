@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { EnvManager } from "./env";
+import { EnvManager } from "./env.js";
 import { z } from "zod";
 
 describe("EnvManager", () => {

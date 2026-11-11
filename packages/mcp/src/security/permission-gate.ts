@@ -2,8 +2,8 @@
  * @mosaix/mcp — Agent Permission Gate
  */
 
-import type { MCPPrincipal } from "./principal-resolver";
-import { MCPAuditLogger, mcpAuditLogger } from "./audit-logger";
+import type { MCPPrincipal } from "./principal-resolver.js";
+import { MCPAuditLogger, mcpAuditLogger } from "./audit-logger.js";
 
 export class MCPPermissionGate {
   private auditLogger: MCPAuditLogger;

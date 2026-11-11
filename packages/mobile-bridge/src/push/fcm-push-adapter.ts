@@ -1,6 +1,6 @@
 import * as crypto from "node:crypto";
-import type { PushNotificationPort, PushNotificationPayload, PushDispatchResult } from "./push-notification-port";
-import { DeviceRegistry } from "./device-registry";
+import type { PushNotificationPort, PushNotificationPayload, PushDispatchResult } from "./push-notification-port.js";
+import { DeviceRegistry } from "./device-registry.js";
 
 export interface FcmConfiguration {
   projectId?: string;

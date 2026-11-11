@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ControlPlaneServer } from "./control-plane";
+import { ControlPlaneServer } from "./control-plane.js";
 
 describe("ControlPlaneServer", () => {
   it("serves topology via Controller, Router, and Security Guard", async () => {

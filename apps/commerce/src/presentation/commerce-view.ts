@@ -1,27 +1,54 @@
 /**
  * @apps/commerce — Autonomous BAC View & Descriptor
  * Self-contained SSR presentation layer for MosaiX Commerce (Orders, Checkout & Offers).
+ *
+ * Data doctrine: every section reads from injected domain services (backed
+ * by Postgres in production). No static seeds, no fabricated items — an
+ * empty store renders an explicit empty state, never fake products.
  */
 
 import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
+import { CommerceOfferService, getOfferAvailability, type CommerceOffer } from "../domain/commerce-offer.model.js";
+import { OrderService } from "../domain/order.service.js";
 
-export function createCommerceDescriptor(): BacDescriptor {
-  // Static seed of default marketplace offers
-  const OFFERS = [
-    { id: "off-001", title: "Xiaomi 18 Pro Max 5G", price: 1249, rating: "4.9", category: "Électronique", stock: 12, description: "Snapdragon 8 Elite, 8500mAh, 5G 30 bands." },
-    { id: "off-002", title: "Bague de fiançailles Amel", price: 2450, rating: "5.0", category: "Bijouterie", stock: 2, description: "Or pur 18 carats avec diamant certifié GIA." },
-    { id: "off-003", title: "Cafetière Espresso Vintage", price: 189, rating: "4.7", category: "Maison", stock: 15, description: "Style italien avec moulin à grains intégré." },
-    { id: "off-004", title: "Montre de sport Chronos 2", price: 349, rating: "4.8", category: "Montres", stock: 8, description: "Suivi cardiaque et GPS intégré, étanche 50m." }
-  ];
+export interface CommerceDescriptorDeps {
+  offerService?: CommerceOfferService;
+  orderService?: OrderService;
+}
+
+export type CommerceView = "offers" | "cart" | "orders";
+
+/**
+ * Normalizes the `?view=` parameter. Unknown values fall back to the
+ * public vitrine — the SSR access guard (`resolveBacAccess`, strict views)
+ * already refused anything it should refuse; this default only keeps
+ * direct descriptor users on a predictable view.
+ */
+export function resolveView(raw: unknown): CommerceView {
+  const candidate = Array.isArray(raw) ? raw[0] : raw;
+  if (candidate === "offers" || candidate === "cart" || candidate === "orders") {
+    return candidate;
+  }
+  return "offers";
+}
+
+export function createCommerceDescriptor(deps: CommerceDescriptorDeps = {}): BacDescriptor {
+  // Explicit wiring: production MUST inject both services (bac-wiring.ts).
+  // A missing service renders a configuration-error state — never an empty
+  // business state, which would masquerade a broken deployment as "no data".
+  const offerService = deps.offerService;
+  const orderService = deps.orderService;
 
   return {
     id: "@apps/commerce",
     name: "Commerce Marketplace",
     version: "1.0.0",
     routePrefix: "/commerce",
-    icon: "🛒",
+    icon: "🏪",
     isEnabled: true,
+    // Declarative only: the SSR route guard (bac-access policy) and the MCP
+    // permission gate enforce access — this descriptor never grants it.
     requiredPermissions: ["commerce:order:create"],
 
     async isAvailable(): Promise<boolean> {
@@ -29,232 +56,242 @@ export function createCommerceDescriptor(): BacDescriptor {
     },
 
     async render(context: BacExecutionContext): Promise<BacRenderResult> {
-      const view = context.request.query.view || "offers";
+      const view = resolveView(context.request.query.view);
+      // Auth boundary: the explicit session flag from the execution context.
+      // Roles NEVER decide this — an authenticated user may carry zero roles
+      // and a role list is not an authentication proof. The SSR guard stays
+      // the primary enforcement; this is defense in depth.
+      const isGuest = context.user.isAuthenticated !== true;
+      // Offer count for the tabs header (populated by the offers branch).
+      let offerCount = 0;
+
+      if (isGuest && (view === "cart" || view === "orders")) {
+        const loginHere = `/login?next=${encodeURIComponent(`/commerce?view=${view}`)}`;
+        const label = view === "cart" ? "votre panier" : "vos commandes";
+        return {
+          contentHtml: `
+          <div class="space-y-6">
+            <div class="glass-card rounded-2xl p-8 text-center space-y-4">
+              <div class="text-3xl">🔒</div>
+              <h2 class="text-sm font-bold text-on-surface">Connectez-vous pour voir ${label}</h2>
+              <p class="text-xs text-on-surface-variant">La boutique reste librement consultable sans compte.</p>
+              <a href="${loginHere}" class="inline-block px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold">Se connecter</a>
+            </div>
+          </div>`,
+          pageTitle: "Commerce — Connexion requise",
+        };
+      }
 
       let subViewHtml: string;
       if (view === "cart") {
+        // No cart backend yet (BACKLOG): say so explicitly. The copy must
+        // never imply that adding to cart works.
         subViewHtml = `
           <div class="space-y-6">
             <h2 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-4">Votre Panier</h2>
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              
-              <!-- Cart Items -->
-              <div class="lg:col-span-8 space-y-4">
-                <div class="glass-card rounded-2xl p-5 border border-outline-variant/20 flex gap-4 items-center">
-                  <div class="w-12 h-12 rounded-xl bg-surface-variant flex items-center justify-center text-xl shrink-0">📱</div>
-                  <div class="flex-1 min-w-0">
-                    <h3 class="text-xs font-bold text-on-surface truncate">Xiaomi 18 Pro Max 5G</h3>
-                    <p class="text-[10px] text-on-surface-variant mt-0.5">Vendeur : Tech_Space_DZ</p>
-                    <span class="text-xs font-mono tabular-nums font-bold text-primary mt-1 block">1 249.00 €</span>
-                  </div>
-                  <div class="flex items-center gap-3">
-                    <button class="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-xs border border-outline-variant/20 hover:bg-surface-container-high transition cursor-pointer">-</button>
-                    <span class="text-xs font-bold font-mono tabular-nums">1</span>
-                    <button class="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-xs border border-outline-variant/20 hover:bg-surface-container-high transition cursor-pointer">+</button>
-                  </div>
-                  <button onclick="this.closest('.glass-card').remove(); const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-rose-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Article retire !'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="text-rose-400 hover:text-rose-300 p-2 cursor-pointer shrink-0" title="Supprimer">
-                    <span class="material-symbols-outlined text-sm">delete</span>
-                  </button>
-                </div>
-
-                <div class="glass-card rounded-2xl p-5 border border-outline-variant/20 flex gap-4 items-center">
-                  <div class="w-12 h-12 rounded-xl bg-surface-variant flex items-center justify-center text-xl shrink-0">☕</div>
-                  <div class="flex-1 min-w-0">
-                    <h3 class="text-xs font-bold text-on-surface truncate">Cafetière Espresso Vintage</h3>
-                    <p class="text-[10px] text-on-surface-variant mt-0.5">Vendeur : Home_Deco</p>
-                    <span class="text-xs font-mono tabular-nums font-bold text-primary mt-1 block">189.00 €</span>
-                  </div>
-                  <div class="flex items-center gap-3">
-                    <button class="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-xs border border-outline-variant/20 hover:bg-surface-container-high transition cursor-pointer">-</button>
-                    <span class="text-xs font-bold font-mono tabular-nums">1</span>
-                    <button class="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-xs border border-outline-variant/20 hover:bg-surface-container-high transition cursor-pointer">+</button>
-                  </div>
-                  <button onclick="this.closest('.glass-card').remove(); const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-rose-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Article retire !'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="text-rose-400 hover:text-rose-300 p-2 cursor-pointer shrink-0" title="Supprimer">
-                    <span class="material-symbols-outlined text-sm">delete</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Checkout Summary -->
-              <div class="lg:col-span-4">
-                <div class="glass-card rounded-2xl p-5 border border-outline-variant/20 space-y-4">
-                  <h3 class="text-xs font-bold text-on-surface">Résumé de la commande</h3>
-                  <div class="space-y-2 text-xs border-b border-outline-variant/10 pb-3 font-mono tabular-nums">
-                    <div class="flex justify-between">
-                      <span class="text-on-surface-variant">Sous-total :</span>
-                      <span class="font-bold">1 438.00 €</span>
-                    </div>
-                    <div class="flex justify-between">
-                      <span class="text-on-surface-variant">Frais de livraison :</span>
-                      <span class="font-bold text-emerald-400">Gratuit</span>
-                    </div>
-                  </div>
-                  <div class="flex justify-between text-xs font-bold font-mono tabular-nums">
-                    <span>Total :</span>
-                    <span class="text-primary text-sm">1 438.00 €</span>
-                  </div>
-
-                  <!-- Mode de paiement -->
-                  <div class="space-y-2 pt-2">
-                    <label class="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Mode de Paiement</label>
-                    <div class="grid grid-cols-2 gap-2">
-                      <label class="border border-primary/30 bg-primary/5 rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer hover:bg-primary/10 transition">
-                        <input type="radio" name="payment-method" value="cod" class="hidden" checked />
-                        <span class="text-xs font-bold">🚚 COD</span>
-                        <span class="text-[9px] text-on-surface-variant mt-1">À la livraison (Algérie)</span>
-                      </label>
-                      <label class="border border-outline-variant/20 rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer hover:bg-surface-variant/30 transition">
-                        <input type="radio" name="payment-method" value="cib" class="hidden" />
-                        <span class="text-xs font-bold">💳 CIB / SATIM</span>
-                        <span class="text-[9px] text-on-surface-variant mt-1">Paiement instantané</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Commande validee avec succes !'; document.body.appendChild(t); setTimeout(()=>window.location.href='/commerce?view=orders',2000);" class="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-indigo-500 text-on-primary text-xs font-bold hover:opacity-95 transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 cursor-pointer">
-                    <span class="material-symbols-outlined text-sm">shopping_cart_checkout</span>
-                    <span>Confirmer la commande</span>
-                  </button>
-                </div>
-              </div>
-
+            <div class="glass-card rounded-2xl p-8 text-center space-y-4">
+              <div class="text-3xl">🛒</div>
+              <h3 class="text-sm font-bold text-on-surface">Panier indisponible pour le moment</h3>
+              <p class="text-xs text-on-surface-variant">La gestion du panier est en cours d'implémentation. En attendant, parcourez la boutique.</p>
+              <a href="/commerce?view=offers" class="inline-block px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold">Voir la boutique</a>
             </div>
           </div>
         `;
       } else if (view === "orders") {
-        subViewHtml = `
+        // Missing wiring is a configuration error, never "no orders".
+        // Query failures propagate to the centralized SSR error boundary
+        // (start.ts) instead of rendering a false empty state.
+        // NOTE: `context.user.id` is the display-profile id, not yet the
+        // session identity (AUTH-05 IdentityProfilePort) — per-user scoping
+        // becomes exact when the identity projection lands.
+        if (!orderService) {
+          return serviceUnavailable("Mes Commandes", "Le service des commandes n'est pas configuré.");
+        }
+        const userId = context.user.id;
+        const orders = await orderService.listOrdersByUser(userId);
+        subViewHtml = orders.length === 0 ? `
+          <div class="space-y-6">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-4">Mes Commandes</h2>
+            <div class="glass-card rounded-2xl p-8 text-center space-y-4">
+              <div class="text-3xl">📦</div>
+              <h3 class="text-sm font-bold text-on-surface">Aucune commande pour le moment</h3>
+              <p class="text-xs text-on-surface-variant">Vos commandes validées apparaîtront ici avec leur suivi.</p>
+              <a href="/commerce?view=offers" class="inline-block px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold">Voir la boutique</a>
+            </div>
+          </div>
+        ` : `
           <div class="space-y-6">
             <h2 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-4">Mes Commandes</h2>
             <div class="space-y-4">
-              
+              ${orders.map((o) => {
+                let totalLabel = "Total indisponible";
+                try {
+                  totalLabel = formatMoneyStrict(Number(o.totalAmount ?? NaN), String(o.currency ?? ""));
+                } catch {
+                  // totalLabel stays honest; the order still renders.
+                }
+                return `
               <div class="glass-card rounded-2xl p-5 border border-outline-variant/20 space-y-4">
                 <div class="flex justify-between items-start border-b border-outline-variant/10 pb-3 flex-wrap gap-2">
                   <div>
-                    <h3 class="text-xs font-bold text-on-surface">Commande #ORD-9284-85</h3>
-                    <p class="text-[10px] text-on-surface-variant">Placée le 24 sept. 2026 à 20:12</p>
+                    <h3 class="text-xs font-bold text-on-surface">Commande #${escapeHtml(String(o.id))}</h3>
+                    <p class="text-[10px] text-on-surface-variant">Placée le ${escapeHtml(formatOrderDate(o.createdAt))}</p>
                   </div>
-                  <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                    En cours de livraison
+                  <span class="text-[10px] font-bold text-primary uppercase tracking-wider">
+                    ${escapeHtml(String(o.status ?? ""))}
                   </span>
                 </div>
-                <div class="flex gap-3 items-center">
-                  <div class="w-10 h-10 rounded-xl bg-surface-variant flex items-center justify-center text-lg">📱</div>
-                  <div class="flex-1 min-w-0">
-                    <h4 class="text-xs font-bold truncate">Xiaomi 18 Pro Max 5G</h4>
-                    <p class="text-[10px] text-on-surface-variant font-mono tabular-nums">1 x 1 249.00 €</p>
-                  </div>
-                  <span class="text-xs font-mono tabular-nums font-bold text-primary">1 249.00 €</span>
+                <div class="flex justify-between items-center text-xs font-mono tabular-nums">
+                  <span class="text-on-surface-variant">Total :</span>
+                  <span class="font-bold text-primary">${totalLabel}</span>
                 </div>
-                <div class="flex justify-between items-center pt-3 border-t border-outline-variant/10 text-[11px] text-on-surface-variant">
-                  <span>Paiement : <strong class="text-on-surface font-semibold">COD (À la livraison)</strong></span>
-                  <span>Livreur assigné : <strong class="text-on-surface font-semibold">Ali Express</strong></span>
-                </div>
-              </div>
-
-              <div class="glass-card rounded-2xl p-5 border border-outline-variant/20 space-y-4">
-                <div class="flex justify-between items-start border-b border-outline-variant/10 pb-3 flex-wrap gap-2">
-                  <div>
-                    <h3 class="text-xs font-bold text-on-surface">Commande #ORD-8103-24</h3>
-                    <p class="text-[10px] text-on-surface-variant">Placée le 12 sept. 2026 à 14:05</p>
-                  </div>
-                  <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
-                    Livrée & Clôturée
-                  </span>
-                </div>
-                <div class="flex gap-3 items-center">
-                  <div class="w-10 h-10 rounded-xl bg-surface-variant flex items-center justify-center text-lg">☕</div>
-                  <div class="flex-1 min-w-0">
-                    <h4 class="text-xs font-bold truncate">Cafetière Espresso Vintage</h4>
-                    <p class="text-[10px] text-on-surface-variant font-mono tabular-nums">1 x 189.00 €</p>
-                  </div>
-                  <span class="text-xs font-mono tabular-nums font-bold text-primary">189.00 €</span>
-                </div>
-                <div class="flex justify-between items-center pt-3 border-t border-outline-variant/10 text-[11px] text-on-surface-variant">
-                  <span>Paiement : <strong class="text-on-surface font-semibold">CIB / SATIM (Payé)</strong></span>
-                </div>
-              </div>
-
+              </div>`; }).join("")}
             </div>
           </div>
         `;
       } else {
-        // Default offers list
-        const gridHtml = OFFERS.map(o => `
-          <div class="glass-card rounded-2xl p-5 border border-outline-variant/20 flex flex-col justify-between hover:border-primary/40 transition duration-200">
-            <div class="space-y-3">
-              <div class="flex justify-between items-start">
-                <h3 class="text-xs font-bold text-on-surface mt-1">${escapeHtml(o.title)}</h3>
-                <span class="text-[10px] text-amber-400 font-bold font-mono tabular-nums flex items-center gap-0.5">
-                  ⭐ ${o.rating}
-                </span>
-              </div>
-              <p class="text-[11px] text-on-surface-variant leading-relaxed">${escapeHtml(o.description)}</p>
-              
-              <div class="flex items-center gap-1.5 text-[10px] text-on-surface-variant/80">
-                <span>${escapeHtml(o.category)}</span>
-                <span aria-hidden="true" class="text-outline-variant/40">·</span>
-                <span>Stock : <strong class="font-mono tabular-nums">${o.stock}</strong></span>
-              </div>
+        // Default offers list — real ACTIVE offers, newest first.
+        if (!offerService) {
+          return serviceUnavailable("Boutique", "Le service de la vitrine n'est pas configuré.");
+        }
+        const offers = await offerService.listAllActive();
+        offerCount = offers.length;
+        const gridHtml = offers.length === 0 ? `
+          <div class="col-span-full glass-card rounded-2xl p-8 text-center space-y-4">
+            <div class="text-3xl">🏪</div>
+            <h3 class="text-sm font-bold text-on-surface">Aucune offre publiée pour le moment</h3>
+            <p class="text-xs text-on-surface-variant">Les Spaces vendeurs n'ont pas encore publié d'offres. Revenez bientôt.</p>
+          </div>` : offers.map((o) => {
+          const searchable = `${o.title} ${o.description ?? ""} ${o.seller.name ?? o.seller.id}`.toLowerCase();
+          const initial = (o.seller.name ?? o.seller.id ?? "?").trim().charAt(0).toUpperCase() || "?";
+          // Strict per-card money: invalid amounts never render as 0.00.
+          let priceLabel = "Prix indisponible";
+          let priceAttr = "-1";
+          try {
+            priceLabel = formatMoneyStrict(o.priceInCents, o.currency);
+            priceAttr = String(o.priceInCents);
+          } catch {
+            // priceLabel stays honest; card still renders.
+          }
+          const availability = getOfferAvailability(o.stockAllocation);
+          return `
+          <article class="offer-card glass-card rounded-2xl border border-outline-variant/20 flex flex-col hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 transition duration-200 overflow-hidden"
+            data-search="${escapeHtml(searchable)}" data-price="${priceAttr}" data-created="${escapeHtml(o.createdAt)}">
+            <div class="h-28 bg-gradient-to-br from-primary/15 via-surface-container to-surface-container-low flex items-center justify-center text-4xl font-bold text-primary/60 select-none" aria-hidden="true">
+              ${escapeHtml(initial)}
             </div>
-            <div class="pt-4 mt-4 border-t border-outline-variant/10 flex items-center justify-between">
-              <span class="text-xs font-mono tabular-nums font-bold text-primary">${o.price.toFixed(2)} €</span>
-              <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Article ajoute au panier !'; document.body.appendChild(t); setTimeout(()=>window.location.href='/commerce?view=cart',1500);" class="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/95 text-on-primary text-[10px] font-bold transition cursor-pointer">
+            <div class="p-4 space-y-3 flex flex-col flex-1">
+              <div class="flex items-center gap-1.5 text-[11px] min-w-0">
+                <span class="w-1.5 h-1.5 rounded-full bg-success shrink-0"></span>
+                <span class="font-medium text-on-surface-variant truncate">${escapeHtml(o.seller.name ?? o.seller.id)}</span>
+              </div>
+              <h3 class="text-xs font-bold text-on-surface leading-snug line-clamp-2 min-h-[2rem]">${escapeHtml(o.title)}</h3>
+              <div class="bg-surface-container-low border border-outline-variant/15 rounded-xl px-3 py-2 flex items-baseline justify-between">
+                <span class="text-[10px] text-on-surface-variant">Prix</span>
+                <span class="text-sm font-mono tabular-nums font-bold text-primary">${priceLabel}</span>
+              </div>
+              <div class="flex items-center gap-1.5 text-[11px] font-medium ${availabilityToneClass(availability.tone)}">
+                <span class="w-1.5 h-1.5 rounded-full ${availabilityDotClass(availability.tone)}"></span>
+                ${escapeHtml(availability.label)}
+              </div>
+              ${isGuest ? `
+              <a href="/commerce?view=cart" class="mt-auto block text-center w-full py-2 rounded-xl bg-primary/10 hover:bg-primary hover:text-on-primary text-primary text-[11px] font-bold border border-primary/25 transition cursor-pointer">
                 Ajouter au panier
-              </button>
+              </a>` : `
+              <span class="mt-auto block text-center w-full py-2 rounded-xl bg-surface-container border border-outline-variant/20 text-on-surface-variant text-[11px] font-bold cursor-not-allowed" title="La gestion du panier est en cours d'implémentation">
+                Panier bientôt disponible
+              </span>`}
             </div>
-          </div>
-        `).join("");
+          </article>`;
+        }).join("");
 
         subViewHtml = `
-          <div class="space-y-6">
-            <div class="flex justify-between items-center flex-wrap gap-3">
-              <div>
-                <h2 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Marché Décentralisé</h2>
-                <p class="text-xs text-on-surface-variant mt-1">Explorez les offres d'achat direct et découvrez nos produits exclusifs.</p>
+          <div class="space-y-4">
+            <section class="glass-card rounded-2xl border border-outline-variant/15 p-4" data-purpose="marketplace-toolbar">
+              <div class="flex flex-col md:flex-row md:items-center gap-3">
+                <div class="relative flex-1 min-w-0">
+                  <label for="offer-search" class="sr-only">Rechercher dans les offres affichées</label>
+                  <span class="material-symbols-outlined text-sm text-on-surface-variant/60 absolute left-3 top-2.5 pointer-events-none">search</span>
+                  <input id="offer-search" type="search" placeholder="Rechercher parmi les ${offers.length} offre(s) affichée(s)…"
+                  class="w-full bg-surface-container border border-outline-variant/20 focus:border-primary/50 rounded-xl pl-9 pr-3 py-2 text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none transition" />
               </div>
-              <div class="flex gap-2 text-xs">
-                <select class="bg-surface-container border border-outline-variant/20 rounded-lg p-2 text-on-surface focus:outline-none">
-                  <option>Toutes les Catégories</option>
-                  <option>Électronique</option>
-                  <option>Bijouterie</option>
-                  <option>Maison</option>
+              <div class="flex items-center gap-3 shrink-0">
+                <span id="offer-count" aria-live="polite" class="text-[11px] text-on-surface-variant font-medium">${offers.length} offre(s)</span>
+                <label for="offer-sort" class="sr-only">Trier les offres</label>
+                <select id="offer-sort" class="bg-surface-container border border-outline-variant/20 rounded-xl px-2.5 py-2 text-xs text-on-surface focus:outline-none cursor-pointer">
+                  <option value="new">Plus récentes</option>
+                  <option value="asc">Prix croissant</option>
+                  <option value="desc">Prix décroissant</option>
                 </select>
               </div>
             </div>
+            </section>
+            <p id="offer-empty-search" class="hidden text-xs text-on-surface-variant/70 italic text-center py-6">Aucune offre ne correspond à cette recherche.</p>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div id="offer-grid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               ${gridHtml}
             </div>
+
+            <footer class="border-t border-outline-variant/15 pt-4 pb-2 flex items-center justify-between gap-4 text-[11px] text-on-surface-variant">
+              <span>Affichage de <strong class="text-on-surface">${offers.length}</strong> offre(s) publiée(s)</span>
+            </footer>
+          </div>
+          <script>
+          (function() {
+            var grid = document.getElementById('offer-grid');
+            var input = document.getElementById('offer-search');
+            var sort = document.getElementById('offer-sort');
+            var count = document.getElementById('offer-count');
+            var emptyMsg = document.getElementById('offer-empty-search');
+            if (!grid || !input || !sort) return;
+            function apply() {
+              var q = input.value.toLowerCase().trim();
+              var cards = Array.prototype.slice.call(grid.querySelectorAll('.offer-card'));
+              var visible = 0;
+              cards.forEach(function(card) {
+                var hit = !q || (card.getAttribute('data-search') || '').indexOf(q) !== -1;
+                card.classList.toggle('hidden', !hit);
+                if (hit) visible++;
+              });
+              var mode = sort.value;
+              var shown = cards.filter(function(card) { return !card.classList.contains('hidden'); });
+              shown.sort(function(a, b) {
+                if (mode === 'asc') return (+a.dataset.price) - (+b.dataset.price);
+                if (mode === 'desc') return (+b.dataset.price) - (+a.dataset.price);
+                return (b.dataset.created || '').localeCompare(a.dataset.created || '');
+              });
+              shown.forEach(function(card) { grid.appendChild(card); });
+              if (count) count.textContent = visible + ' offre(s)';
+              if (emptyMsg) emptyMsg.classList.toggle('hidden', visible !== 0);
+            }
+            input.addEventListener('input', apply);
+            sort.addEventListener('change', apply);
+          })();
+          </script>
           </div>
         `;
       }
 
+      // Compact in-view tabs (the shell header already shows the title —
+      // no duplicated header block here).
       const contentHtml = `
         <div class="space-y-6">
-          
-          <!-- Subnavigation -->
-          <div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center text-2xl">🛒</div>
-              <div>
-                <h1 class="text-sm font-bold text-on-surface">Marketplace</h1>
-                <p class="text-[11px] text-on-surface-variant">Achat direct et gestion des transactions</p>
-              </div>
-            </div>
-            <div class="flex gap-2">
-              <a href="/commerce?view=offers" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === 'offers' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
-                Boutique
-              </a>
-              <a href="/commerce?view=cart" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${view === 'cart' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
-                <span class="material-symbols-outlined text-sm">shopping_cart</span>
-                <span>Panier</span>
-                <span class="px-1.5 py-0.2 rounded-full bg-primary-container text-on-primary text-[9px] font-bold font-mono tabular-nums">2</span>
-              </a>
-              <a href="/commerce?view=orders" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${view === 'orders' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
-                <span class="material-symbols-outlined text-sm">receipt_long</span>
-                <span>Commandes</span>
-              </a>
-            </div>
+          <div class="flex items-center justify-between gap-2 border-b border-outline-variant/15">
+          <div class="flex gap-1">
+            <a href="/commerce?view=offers" class="px-4 py-2 text-xs font-bold transition border-b-2 -mb-px ${view === 'offers' ? "border-primary text-primary" : "border-transparent text-on-surface-variant hover:text-on-surface"}">
+              Boutique
+            </a>
+            ${isGuest ? "" : `
+            <a href="/commerce?view=cart" class="px-4 py-2 text-xs font-bold transition border-b-2 -mb-px flex items-center gap-1.5 ${view === 'cart' ? "border-primary text-primary" : "border-transparent text-on-surface-variant hover:text-on-surface"}">
+              <span class="material-symbols-outlined text-sm">shopping_cart</span>
+              <span>Panier</span>
+            </a>
+            <a href="/commerce?view=orders" class="px-4 py-2 text-xs font-bold transition border-b-2 -mb-px flex items-center gap-1.5 ${view === 'orders' ? "border-primary text-primary" : "border-transparent text-on-surface-variant hover:text-on-surface"}">
+              <span class="material-symbols-outlined text-sm">receipt_long</span>
+              <span>Commandes</span>
+            </a>`}
+          </div>
+          ${view === "offers" ? `<span class="text-[11px] text-on-surface-variant font-medium pb-2">${offerCount} offre(s)</span>` : ""}
           </div>
 
           <!-- Main Inner View -->
@@ -270,3 +307,65 @@ export function createCommerceDescriptor(): BacDescriptor {
     },
   };
 }
+
+function serviceUnavailable(title: string, message: string): BacRenderResult {
+  return {
+    contentHtml: `
+      <div class="space-y-6">
+        <div class="glass-card rounded-2xl p-8 text-center space-y-4 border-red-500/20">
+          <div class="text-3xl">⚠️</div>
+          <h2 class="text-sm font-bold text-on-surface">${escapeHtml(title)}</h2>
+          <p class="text-xs text-on-surface-variant">${escapeHtml(message)} Réessayez dans un instant.</p>
+        </div>
+      </div>`,
+    pageTitle: "Commerce — Service indisponible",
+  };
+}
+
+const ISO_CURRENCY_PATTERN = /^[A-Z]{3}$/;
+
+/**
+ * Strict monetary formatting: integer minor units + allowlisted ISO code,
+ * locale-aware display. Throws on invalid input — callers render an explicit
+ * "indisponible" state per card instead of a fabricated 0.00.
+ */
+export function formatMoneyStrict(priceInCents: number, currency: string, locale = "fr-FR"): string {
+  if (!Number.isSafeInteger(priceInCents)) {
+    throw new Error("Invalid monetary amount: integer minor units required.");
+  }
+  if (typeof currency !== "string" || !ISO_CURRENCY_PATTERN.test(currency)) {
+    throw new Error("Invalid currency: ISO 4217 code required.");
+  }
+  try {
+    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(priceInCents / 100);
+  } catch {
+    return `${(priceInCents / 100).toFixed(2)} ${currency}`;
+  }
+}
+
+/** Strict monetary display is the only formatter; invalid data throws. */
+function availabilityToneClass(tone: "ok" | "warn" | "out" | "unknown"): string {
+  if (tone === "warn") return "text-warning";
+  if (tone === "out") return "text-error";
+  if (tone === "unknown") return "text-on-surface-variant";
+  return "text-success";
+}
+
+function availabilityDotClass(tone: "ok" | "warn" | "out" | "unknown"): string {
+  if (tone === "warn") return "bg-warning";
+  if (tone === "out") return "bg-error";
+  if (tone === "unknown") return "bg-surface-container-highest";
+  return "bg-success";
+}
+
+function formatOrderDate(value: unknown): string {
+  const date = value instanceof Date ? value : new Date(String(value ?? ""));
+  if (Number.isNaN(date.getTime())) return "Date inconnue";
+  try {
+    return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(date);
+  } catch {
+    return "Date inconnue";
+  }
+}
+
+export type { CommerceOffer };

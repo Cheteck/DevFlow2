@@ -2,8 +2,8 @@
  * Application manifest — a Bounded Application Context (Manifest v2).
  */
 
-import type { MosaixArtifactManifest } from "../mosaix-artifact";
-import type { ApplicationExperienceContract } from "./application-experience";
+import type { MosaixArtifactManifest } from "../mosaix-artifact.js";
+import type { ApplicationExperienceContract } from "./application-experience.js";
 
 export interface ApplicationDomain {
   name?: string;

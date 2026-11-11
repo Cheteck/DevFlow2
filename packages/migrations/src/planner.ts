@@ -3,25 +3,45 @@
  * state (Registry) and the current state (Store) and produces an immutable
  * `MigrationPlan` (ADR-0006 §8, §9, §10).
  *
- * The Planner only decides; the Runner only executes. Two invocations with the
- * same source state (Registry) and the same target state (Store) produce the
- * exact same plan (R14).
+ * The Planner only decides; the Runner only executes. Two invocations with
+ * the same source state (Registry) and the same target state (Store) produce
+ * the exact same plan (R14).
+ *
+ * Compilation boundary (Phase 07): the Planner is the single place where a
+ * migration is turned into executable SQL statements. The plan therefore
+ * carries the compiled statements (`PlannedMigration.statements`) and the
+ * Runner executes them verbatim — the previewed SQL is exactly the executed
+ * SQL.
  */
 
-import { computeChecksum } from "./checksum";
+import { computeChecksum } from "./checksum.js";
+import { MigrationCompiler } from "./compiler.js";
 import {
   MigrationChecksumError,
+  MigrationExecutionError,
   MigrationMissingError,
   MigrationResourceConflictError,
-} from "./errors";
-import type { Migration } from "./migration";
-import type { MigrationRegistry } from "./registry";
-import type { ExecutedMigration, MigrationStore } from "./store";
+} from "./errors.js";
+import {
+  PostgresGrammar,
+  SQLiteGrammar,
+  type SqlStatement,
+} from "./grammar.js";
+import type { Migration } from "./migration.js";
+import type { MigrationRegistry } from "./registry.js";
+import type { MigrationRuntime } from "./migration-context.js";
+import type { ExecutedMigration, MigrationStore } from "./store.js";
 
 /** One step of an immutable migration plan. */
 export interface PlannedMigration {
   readonly migration: Migration;
   readonly operation: "up" | "down";
+  /**
+   * Compiled statements, ready to be executed by the Runner. The Planner
+   * guarantees they match what the migration declares — the Runner never
+   * re-compiles and never re-interprets the migration.
+   */
+  readonly statements: readonly SqlStatement[];
 }
 
 /** Immutable, inspectable migration plan (ADR-0006 §9). */
@@ -42,6 +62,19 @@ export interface PlanOptions {
   readonly rollback?: boolean | RollbackTarget;
 }
 
+/**
+ * Default runtime used when the caller does not provide one. SQLite is the
+ * portable default of the engine; production callers (shell, CLI) always
+ * pass the real capabilities of their adapter.
+ */
+export const DEFAULT_MIGRATION_RUNTIME: MigrationRuntime = {
+  dialect: "sqlite",
+  capabilities: {
+    transactions: true,
+    lock: { distributed: false, processSafe: true, runtimeSafe: true },
+  },
+};
+
 /** Derives a deterministic source version from the registry content. */
 export function computeSourceVersion(registry: MigrationRegistry): string {
   const migrations = registry.all();
@@ -50,10 +83,19 @@ export function computeSourceVersion(registry: MigrationRegistry): string {
 }
 
 export class MigrationPlanner {
+  private readonly compiler: MigrationCompiler;
+
   constructor(
     private readonly registry: MigrationRegistry,
     private readonly store: MigrationStore,
-  ) {}
+    runtime: MigrationRuntime = DEFAULT_MIGRATION_RUNTIME,
+  ) {
+    const grammar =
+      runtime.dialect === "postgres"
+        ? new PostgresGrammar()
+        : new SQLiteGrammar();
+    this.compiler = new MigrationCompiler(grammar, runtime.dialect, runtime);
+  }
 
   /**
    * Computes the plan. Upgrade by default: new migrations are planned `up`,
@@ -62,9 +104,9 @@ export class MigrationPlanner {
    * (`MigrationMissingError`, R5). Resource collisions among the planned
    * migrations are rejected at Blueprint level (R9).
    *
-   * Rollback: planned `down` in reverse application order (PRD §29). Without
-   * options this undoes the last batch; with `{ kind: "steps", count }` it
-   * undoes the last `count` applied migrations.
+   * Rollback: planned `down` in reverse application order (PRD §29). A
+   * TypeScript migration without `downMigration`
+   * is irreversible: the rollback is refused before any mutation.
    */
   async plan(options: PlanOptions = {}): Promise<MigrationPlan> {
     const desired = this.registry.all();
@@ -77,23 +119,68 @@ export class MigrationPlanner {
       return this.buildRollbackPlan(desired, executed, options.rollback);
     }
 
-    const operations: PlannedMigration[] = [];
-    for (const migration of desired) {
-      if (!executedById.has(migration.id)) {
-        operations.push({ migration, operation: "up" });
-      }
-    }
+    const pending = desired.filter(
+      (migration) => !executedById.has(migration.id),
+    );
 
-    this.assertNoResourceCollisions(operations);
+    // Identity/resource assertions run BEFORE any compilation: a broken
+    // desired state fails fast, without executing migration code.
+    this.assertNoResourceCollisions(
+      pending.map((migration) => ({ migration, operation: "up" as const })),
+    );
+
+    const operations: PlannedMigration[] = [];
+    for (const migration of pending) {
+      operations.push({
+        migration,
+        operation: "up",
+        statements: await this.compileUp(migration),
+      });
+    }
 
     return this.buildPlan(operations);
   }
 
-  private buildRollbackPlan(
+  /**
+   * Compiles the upgrade direction of a migration.
+   *
+   * The MigrationCompiler turns the blueprints declared by `up(context)` into
+   * SQL statements (SchemaBuilder DSL + data statements).
+   */
+  private async compileUp(
+    migration: Migration,
+  ): Promise<readonly SqlStatement[]> {
+    const compiled = await this.compiler.compileUpAsync(migration);
+    return compiled.statements;
+  }
+
+  /**
+   * Compiles the rollback direction of a migration.
+   *
+   * A migration without `downMigration` is
+   * irreversible: the rollback is refused before any mutation.
+   *
+   * @throws MigrationExecutionError when the migration is irreversible.
+   */
+  private async compileDown(
+    migration: Migration,
+  ): Promise<readonly SqlStatement[]> {
+    const compiled = await this.compiler.compileDownAsync(migration);
+    if (compiled !== undefined) {
+      return compiled.statements;
+    }
+    throw new MigrationExecutionError(
+      `Migration "${migration.id}" is irreversible: it declares no downMigration(). ` +
+        `Rollback is refused before any mutation.`,
+      migration.id,
+    );
+  }
+
+  private async buildRollbackPlan(
     desired: readonly Migration[],
     executed: readonly ExecutedMigration[],
     target: boolean | RollbackTarget,
-  ): MigrationPlan {
+  ): Promise<MigrationPlan> {
     const byId = new Map(desired.map((m) => [m.id, m]));
     const toRollback = this.selectRollbackSet(executed, target);
 
@@ -103,8 +190,12 @@ export class MigrationPlanner {
       if (migration === undefined) {
         throw new MigrationMissingError(entry.id);
       }
-      if (migration.down === undefined) continue;
-      operations.push({ migration, operation: "down" });
+      const statements = await this.compileDown(migration);
+      operations.push({
+        migration,
+        operation: "down",
+        statements,
+      });
     }
 
     return this.buildPlan(operations);
@@ -134,6 +225,14 @@ export class MigrationPlanner {
     return selected.reverse();
   }
 
+  /**
+   * Rejects a desired state that does not match the ledger.
+   *
+   * Checksum comparison (R2): the executed checksum must be the declared
+   * checksum, or one of the declared `legacyChecksums` — the explicit
+   * compatibility mapping used when a migration is reworked (e.g. SQL string
+   * → TypeScript native) without changing its historical identity.
+   */
   private assertStoreConsistent(
     desired: readonly Migration[],
     executedById: Map<string, { checksum: string }>,
@@ -146,33 +245,41 @@ export class MigrationPlanner {
     }
     for (const migration of desired) {
       const executedMigration = executedById.get(migration.id);
-      if (
-        executedMigration !== undefined &&
-        executedMigration.checksum !== migration.checksum
-      ) {
-        throw new MigrationChecksumError(
-          migration.id,
-          executedMigration.checksum,
-          migration.checksum,
-        );
+      if (executedMigration === undefined) {
+        continue;
       }
+      if (executedMigration.checksum === migration.checksum) {
+        continue;
+      }
+      const legacy = migration.legacyChecksums ?? [];
+      if (legacy.includes(executedMigration.checksum)) {
+        continue;
+      }
+      throw new MigrationChecksumError(
+        migration.id,
+        executedMigration.checksum,
+        migration.checksum,
+      );
     }
   }
 
   private assertNoResourceCollisions(
-    operations: readonly PlannedMigration[],
+    operations: readonly { readonly migration: Migration }[],
   ): void {
-    const resourceOwners = new Map<string, string>();
+    const resourceOwners = new Map<string, string>(); // resource -> ownerId
     for (const op of operations) {
+      const ownerId = this.registry.ownerOf(op.migration.id) ?? op.migration.id;
       for (const resource of op.migration.resources) {
         const existing = resourceOwners.get(resource);
-        if (existing !== undefined && existing !== op.migration.id) {
+        // Même owner : évolution autorisée (même ressource sur plusieurs
+        // migrations d'un même owner). Collision uniquement entre owners différents.
+        if (existing !== undefined && existing !== ownerId) {
           throw new MigrationResourceConflictError(resource, [
             existing,
-            op.migration.id,
+            ownerId,
           ]);
         }
-        resourceOwners.set(resource, op.migration.id);
+        resourceOwners.set(resource, ownerId);
       }
     }
   }

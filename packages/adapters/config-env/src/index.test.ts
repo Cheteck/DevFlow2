@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EnvConfigAdapter } from "./index";
+import { EnvConfigAdapter } from "./index.js";
 
 describe("EnvConfigAdapter", () => {
   it("resolves config from custom source or throws for required", () => {

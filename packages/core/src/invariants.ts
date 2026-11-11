@@ -1,5 +1,5 @@
 import type { ApplicationManifest } from "@mosaix/contracts";
-import { RegistrationError } from "./kernel-errors";
+import { RegistrationError } from "./kernel-errors.js";
 
 const SEMVER_RE = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/;
 

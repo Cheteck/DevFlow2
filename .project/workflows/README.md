@@ -24,6 +24,7 @@ Chaque workflow est une procédure courte, orientée mission, exécutable à la 
 | audit | technical-debt | `/workflow audit technical-debt` | Tâches backlog |
 | maintenance | fix | `/workflow maintenance fix` | `completed/` + rapport |
 | maintenance | refactor | `/workflow maintenance refactor` | Commits atomiques + tests |
+| maintenance | migration-conversion | `/workflow maintenance migration-conversion` | Migration DSL + audits verts |
 | improvement | code-quality | `/workflow improvement code-quality` | Commits + connaissances |
 | improvement | performance | `/workflow improvement performance` | `reports/performance.md` (preuves) |
 | analysis | functional-gap | `/workflow analysis functional-gap` | `reports/functional-gap.md` + backlog |

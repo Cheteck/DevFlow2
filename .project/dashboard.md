@@ -1,18 +1,20 @@
 # MosaiX Dashboard
-**Dernière mise à jour :** 2026-09-25 — Remédiation d'Audit de Sécurité SEC-01 (VULN-01 à VULN-08 traitées) + Pull `ac99009`/`0ebe478`/`356422d`  
-**Statut Global :** 🟢 Système Nominal & Sécurisé — Moteur d'Autorisation v2, 14 tables Portfolio CS-Cart, `portfolio_proposals` + `ProposalService` (`PRD-0010` v1.3), `Money`/`Timestamp`, 8 Vulnérabilités de Sécurité résolues ; reste `DATA-07` + `PRD-0011` 19 pages UI
+**Dernière mise à jour :** 2026-11-01 — P0-1…P0-6 terminés (6/9 Production Blockers résolus). Tests : 1170/1170 passants / 203 suites. 12 nouveaux tests E2E production ajoutés.
+**Statut Global :** 🟢 Phase 1 Production Blockers — 6/9 DONE (R06, R05, R02, R09, R01, R07) ; 3 restants : P0-7 R03 Saga audit, P0-8 R04 MCP audit, P0-9 R08 Tenant isolation.
 
 
 ---
 
-## 1. Métriques Clés
+## 1. Métriques Clés (2026-11-01)
 
-- **Bounded Application Components (BACs) :** 10 (`citadelle`, `solara`, `solidarity`, `imperia`, `spaces`, `commerce`, `beam`, `portfolio`, `booking`, `subscription`)
+- **Bounded Application Components (BACs) :** 10 canoniques + 3 horizon + 5 campus/sports
+- **Tests :** 1170/1170 passants / 203 suites (0 flaky, 12 skipped)
 - **Contrats de Contributions UI :** 26 enregistrés et isolés
 - **Validation Manifestes & Graphe Topologique :** 10/10 validés
 - **Thèmes Validés :** 2 (`midnight-ocean`, `mosaix-default`)
-- **Audit de Sécurité :** 8/8 vulnérabilités résolues (SEC-01)
-- **Compilation & Linters :** 0 erreur, 0 warning
+- **Audit de Sécurité :** 8/8 vulnérabilités résolues (SEC-01) + R01 key revocation ajouté
+- **Compilation & Linters :** 0 erreur, 0 warning (config `tsc` clean)
+- **Production Blockers (P0) :** 6/9 DONE (R06, R05, R02, R09, R01, R07) — 3 restants
 
 ---
 
@@ -35,12 +37,17 @@
 - ✅ **SHELL-01 BAC par défaut & Orchestration Découplée** : Mise en place de `PlatformSettings` / `PlatformSettingsService` (résolution 3-tiers DB/Env/Code), contrat `BacDescriptor` unifié, et moteur `BacOrchestrator` dans le Shell. Montage autonome du BAC par défaut sans dépendance statique envers Solara.
 - ✅ **PRD-0010 Proposals v1.3 simplifiée** : `portfolio_proposals` 1 table mutable (contenu courant écrasé, `platform_feedback`, `vendable_id NULL→V987`) + `ProposalService` 7 méthodes `createDraft→approve` (`356422d`, 197L) — sans `proposal_revisions`, audit externe.
 - ✅ **PRD-0011 Portfolio complet** : PRD `PRD-0011-portfolio.md` v1.0 + §10 MeshJS `G:\MeshJS-by-Jules\apps\catalog` (`CatalogEngine` 12 repos, `CategoryEngine.getParentChain`, `StickerEngine` 4 conditions) + `themeContract` 10 BACs (`2395e23`).
-- ✅ **Commerce source unique offre/stock/prix** : `portfolio_variants` abstrait sans `price/stock` (`FORBIDDEN_OPERATIONAL_KEYS` `portfolio-service.ts:61`), `CommerceOffer` `priceInCents/commissionRateBps/stockAllocation` + `Money` VO seule vérité (`commerce:offer:create`).
+- ✅ **Commerce source unique offre/prix + disponibilité (cf. `apps/commerce/responsibilities.md`)** : `portfolio_variants` abstrait sans `price/stock` (`FORBIDDEN_OPERATIONAL_KEYS` `portfolio-service.ts:61`), `CommerceOffer` `priceInCents/commissionRateBps/stockAllocation` + `Money` VO seule vérité (`commerce:offer:create`) ; `stockAllocation` = référence d'allocation derrière `InventoryPort` (extraction `@apps/inventory` si justifié), jamais propriété du vendable.
 - ✅ **Paiements COD Algérie + Wallet** : `commerce_payment_intents` `cod_pending→cod_delivered→succeeded` par défaut, `CheckoutOrderWorkflow` `AuthorizePayment` no-op pour COD, wallet escrow `wallets/wallet_transactions` prévu moyen terme (`escrow_hold→release`).
 - ✅ **BAC Livraison** : extraction `delivery-partner.service.ts` → `@apps/delivery` `delivery_methods(cod|express|pickup) + delivery_boys + deliveries + assignments` (`out_for_delivery→delivered` + `proofUrl` + `codAmountInCents`).
 
-## 3. Statut du Backlog Actif
-- **Statut Global** : 13/17 livrées (SEC-01, ROLE, DATA-01..06/09, PRD-0010 DB) — restent `DATA-07` triggers, `PRD-0011` 19 pages (DB done, UI à faire).
+## 3. Statut du Backlog Actif (2026-10-31)
+
+- **Pilotage :** `.project/backlog/BACKLOG.md` (registre : 5 P0 · 6 P1 · 9 P2) + `.project/backlog/RELEASE-READINESS.md` (gate prod) + `.project/backlog/INMEMORY_REMEDIATION.md` (audit vérifié 2026-10-31)
+- **Production Roadmap :** `.project/PRODUCTION_ROADMAP.md` (Phase 1: 9 P0 tasks R06→R08)
+- **Production Audit :** `.project/PRODUCTION_AUDIT.md` (dernier audit 2026-10-31)
+- **Legacy gelé :** `.project/backlog/active-backlog.md` → snapshot `.project/archive/active-backlog-2026-10-09-legacy.md`
+- **Archives :** `.project/_archive_review/` (98 fichiers archivés pour revue avant suppression définitive)
 
 
 ## 4. Gaps Résolus & Améliorations Récentes (archive)
@@ -58,10 +65,10 @@
 - ✅ **P0 - Sécurité Cryptographique** : `SecurityGuard` avec vérification stricte des secrets JWT en production.
 - ✅ **P1 - Keyset Pagination** : `FeedService` avec pagination par curseur d'horodatage sur `/api/feed`.
 - ✅ **P1 - Phase 23 (Subscriptions & Billing)** : Création complète du 10ème BAC `@apps/subscription` avec forfaits récurrents, metering et contrôle d'accès par capability-gating.
-- 🚀 **Phase 25 (BAC Domain Evolution & Hardening)** : Évolution et durcissement livrés sur les 10 BACs (Scrypt/lockout & RGPD Citadelle, State Machine & PaymentIntent & Offres Agnostiques multi-entités Commerce, Recherche à facettes & pricing variants Portfolio, Pipeline modération 3-tiers & parseur tags Solara, iCalendar RFC 5545 & Waitlist Booking, Matching géospatial & Merkle audit trail Solidarity, E2E Crypto ECDH/AES-GCM & bots Beam, Custom domain DNS/SSL & usage tracker Spaces, Compliance SOC2/HIPAA/GDPR & GitOps drift detector Imperia, Prorata & dunning schedule Subscription).
+- 🚀 **Phase 25 (BAC Domain Evolution & Hardening)** : Évolution et durcissement livrés sur les 10 BACs (Scrypt/lockout & RGPD Citadelle, State Machine & PaymentIntent & Offres Agnostiques multi-entités Commerce, Recherche à facettes & variantes descriptives Portfolio (PIM pur, sans prix ni stock), Pipeline modération 3-tiers & parseur tags Solara, iCalendar RFC 5545 & Waitlist Booking, Matching géospatial & Merkle audit trail Solidarity, E2E Crypto ECDH/AES-GCM & bots Beam, Custom domain DNS/SSL & usage tracker Spaces, Compliance SOC2/HIPAA/GDPR & GitOps drift detector Imperia, Prorata & décisions `past_due` Subscription (dunning/notifications→externes)).
 - ✅ **BAC-COM-07 - Offres Agnostiques de Vendables** : Le Bounded Application Component `commerce` prend désormais en charge les offres (`CommerceOffer`) de manière totalement agnostique pour toute entité vendeuse (`SellerEntityRef` : `space`, `tenant`, `user`, `collective`, etc.) avec cycle de vie d'offre, allocation de stock, calcul de commission et routage de paiement.
-- 🛡️ **Phase 26 - Infrastructure, RLS Natif & Sécurité Avancée** : Schémas PostgreSQL canoniques par BAC (`PostgresBacSchemaMigrator`), Row Level Security natif (`PostgresRlsManager`), `SchemaBuilder.inSchema()`, hasher Bcrypt / Argon2 (`Citadelle`), Saga de réservation et compensation de stock (`Commerce`), import CSV avec validation (`Portfolio`), portail prestataire SSR (`Booking`), antivirus et legal hold (`Beam`), domaine personnalisé avec HSTS/ACME Let's Encrypt et SCIM (`Spaces`), règles de gouvernance déclaratives Rego (`Imperia`), metering Redis sorted sets et reconnaissance de revenus ASC 606 (`Subscription`), ADR-0014 et diagrammes d'architecture C4.
-- 🧩 **Phase 27 - Plugin Engine Optimal (Priorités 1 à 8)** : 
+- 🛡️ **Phase 26 - Infrastructure, RLS Natif & Sécurité Avancée** : Schémas PostgreSQL canoniques par BAC (`PostgresBacSchemaMigrator`), Row Level Security natif (`PostgresRlsManager`), `SchemaBuilder.inSchema()`, hasher Bcrypt / Argon2 (`Citadelle`), Saga de réservation et compensation via `InventoryPort` (`Commerce`), import CSV avec validation (`Portfolio`), portail prestataire SSR (`Booking`), antivirus et legal hold (`Beam`), domaine personnalisé avec HSTS/ACME Let's Encrypt et SCIM (`Spaces`), règles de gouvernance déclaratives Rego (`Imperia`), metering Redis sorted sets (`Subscription`, montants dus uniquement) et projections MRR/ARR côté analytics (jamais source de vérité Subscription), ADR-0014 et diagrammes d'architecture C4.
+- 🧩 **Phase 27 - Plugin Engine Optimal (Priorités 1 à 8)** :
   1. `HookExecutionEngine` (`runHook(point, args)` en waterfall/parallel/bail, priorités, timeout).
   2. `WorkspacePluginLoader` (scan `plugins/**/mosaix.json`, watch, hot reload/unload).
   3. `PluginSandboxEnvironment` (isolation Realm/VM, timeout threshold et containment global).
@@ -71,5 +78,29 @@
   7. `PluginCliCommandRunner` (`mosaix plugin install|update|remove|list|dev`).
   8. `PluginMarketplaceRegistry` (index distant, résolution semver `^1.0.0`, vérification d'intégrité SHA-256 et signature cryptographique HMAC/RSA).
 
+---
 
+## 5. Nettoyage Documentation (2026-10-31)
 
+### Fichiers Archivés (98 total)
+| Catégorie | Nb | Détails |
+|---|---|---|
+| Rapports de session (2026-09-24 → 2026-11-06) | 40 | `session-*.md` pré-2026-10-31 |
+| Audits techniques obsolètes | 18 | `audit-*.md`, `mcp-*.md`, `security-*.md`, `frontend-audit-*.md`, `db-bypass-*.md`, `remediation-plan-*.md`, `repository-health-*.md` |
+| Plans pré-production dépassés | 6 | `STATE.md`, `PRE-PRODUCTION-AUDIT-PLAN*.md`, `WORKFLOW-PRE-PRODUCTION-AUDIT.md`, `project_state.md`, `roadmap-auth.md`, `PLATFORM-GRANDES-LIGNES.md` |
+| Rapports DEV-SERVER (travail parallèle, pas nous) | 5 | `DEV-SERVER-*.md` |
+| Fichiers de travail temporaires | 11 | `commit-msg-*.txt`, `vitest-*.txt` |
+| Artefacts build racine | 7 | `.tsc-*.txt`, `.tsc-verify*.txt`, `prompt.txt` |
+| Audit applicatif (supplanté par PRODUCTION_AUDIT.md) | 1 | `audit-applicatif-mosaix-2026.md` |
+
+### Nouvelles Créations
+- **`PROJECT_OVERVIEW.md`** — Source canonique d'état courant (vérifiée contre le code)
+- **`_archive_review/`** — Zone de rétention avant suppression définitive
+
+### Corrections
+- `BACKLOG.md` : doublon `VIEW-E2E-A` supprimé (lignes 16-17)
+
+### Rollback
+```bash
+git reset --hard d0c24d9  # avant commit "chore: remove root build artifacts"
+```

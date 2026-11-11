@@ -21,6 +21,7 @@
     "@mosaix/adapter-id-uuid": "workspace:*",
     "@mosaix/adapter-identity-store-postgres": "workspace:*",
     "@mosaix/adapter-identity-store-sqlite": "workspace:*",
+    "@mosaix/adapter-session-store-postgres": "workspace:*",
     "@mosaix/adapter-session-store-redis": "workspace:*",
     "@mosaix/adapter-session-store-sqlite": "workspace:*",
     "@mosaix/adapter-token-store-postgres": "workspace:*",

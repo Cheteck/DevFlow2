@@ -17,7 +17,21 @@
       "accent": "#8b5cf6",
       "danger": "#ef4444",
       "success": "#10b981",
-      "warning": "#f59e0b"
+      "successHover": "#059669",
+      "successContainer": "#d1fae5",
+      "onSuccess": "#022c22",
+      "warning": "#f59e0b",
+      "warningHover": "#d97706",
+      "warningContainer": "#fef3c7",
+      "onWarning": "#422006",
+      "error": "#ef4444",
+      "errorHover": "#dc2626",
+      "errorContainer": "#fee2e2",
+      "onError": "#450a0a",
+      "info": "#3b82f6",
+      "infoHover": "#2563eb",
+      "infoContainer": "#dbeafe",
+      "onInfo": "#0c2a5a"
     },
     "typography": {
       "fontFamily": "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
@@ -69,7 +83,23 @@
       "tertiary": "#8b5cf6",
       "outline": "#cbd5e1",
       "outline-variant": "#e2e8f0",
-      "background": "#f8fafc"
+      "background": "#f8fafc",
+      "success": "#10b981",
+      "success-hover": "#059669",
+      "success-container": "#d1fae5",
+      "on-success": "#022c22",
+      "warning": "#f59e0b",
+      "warning-hover": "#d97706",
+      "warning-container": "#fef3c7",
+      "on-warning": "#422006",
+      "error": "#ef4444",
+      "error-hover": "#dc2626",
+      "error-container": "#fee2e2",
+      "on-error": "#450a0a",
+      "info": "#3b82f6",
+      "info-hover": "#2563eb",
+      "info-container": "#dbeafe",
+      "on-info": "#0c2a5a"
     }
   },
   "modes": {
@@ -90,7 +120,24 @@
         "surface": "#1e293b",
         "text": "#f8fafc",
         "textMuted": "#94a3b8",
-        "border": "#334155"
+        "border": "#334155",
+        "danger": "#f87171",
+        "success": "#34d399",
+        "successHover": "#6ee7b7",
+        "successContainer": "#064e3b",
+        "onSuccess": "#d1fae5",
+        "warning": "#fbbf24",
+        "warningHover": "#fcd34d",
+        "warningContainer": "#78350f",
+        "onWarning": "#fef3c7",
+        "error": "#f87171",
+        "errorHover": "#fca5a5",
+        "errorContainer": "#7f1d1d",
+        "onError": "#fee2e2",
+        "info": "#60a5fa",
+        "infoHover": "#93c5fd",
+        "infoContainer": "#1e3a8a",
+        "onInfo": "#dbeafe"
       },
       "tailwind": {
         "surface": "#0b1326",
@@ -109,37 +156,23 @@
         "tertiary": "#c4c1fb",
         "outline": "#958ea0",
         "outline-variant": "#494454",
-        "background": "#0b1326"
-      }
-    },
-    "high-contrast": {
-      "colors": {
-        "primary": "#ffff00",
-        "primaryHover": "#ffff80",
-        "background": "#000000",
-        "surface": "#000000",
-        "text": "#ffffff",
-        "textMuted": "#ffffff",
-        "border": "#ffffff"
-      },
-      "tailwind": {
-        "surface": "#000000",
-        "surface-container-lowest": "#000000",
-        "surface-container-low": "#000000",
-        "surface-container": "#000000",
-        "surface-container-high": "#1a1a1a",
-        "surface-container-highest": "#2a2a2a",
-        "surface-variant": "#1a1a1a",
-        "on-surface": "#ffffff",
-        "on-surface-variant": "#ffff80",
-        "primary": "#ffff00",
-        "on-primary": "#000000",
-        "primary-container": "#ffff00",
-        "secondary": "#00ffff",
-        "tertiary": "#ff00ff",
-        "outline": "#ffffff",
-        "outline-variant": "#ffffff",
-        "background": "#000000"
+        "background": "#0b1326",
+        "success": "#34d399",
+        "success-hover": "#6ee7b7",
+        "success-container": "#064e3b",
+        "on-success": "#d1fae5",
+        "warning": "#fbbf24",
+        "warning-hover": "#fcd34d",
+        "warning-container": "#78350f",
+        "on-warning": "#fef3c7",
+        "error": "#f87171",
+        "error-hover": "#fca5a5",
+        "error-container": "#7f1d1d",
+        "on-error": "#fee2e2",
+        "info": "#60a5fa",
+        "info-hover": "#93c5fd",
+        "info-container": "#1e3a8a",
+        "on-info": "#dbeafe"
       }
     }
   }

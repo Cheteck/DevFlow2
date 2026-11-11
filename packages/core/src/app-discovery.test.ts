@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ApplicationDiscovery } from "./app-discovery";
+import { ApplicationDiscovery } from "./app-discovery.js";
 
 describe("ApplicationDiscovery (Phase 2.3)", () => {
   const validManifest = {

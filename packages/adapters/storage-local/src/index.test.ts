@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { LocalStorageAdapter } from "./index";
+import { LocalStorageAdapter } from "./index.js";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { rm, mkdir } from "node:fs/promises";

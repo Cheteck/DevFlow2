@@ -1,8 +1,9 @@
-import type { MigrationRegistry } from "./registry";
-import { MigrationPlanner } from "./planner";
-import { MigrationRunner } from "./runner";
-import type { MigrationStore } from "./store";
+import type { MigrationRegistry } from "./registry.js";
+import { MigrationPlanner } from "./planner.js";
+import { MigrationRunner } from "./runner.js";
+import type { MigrationStore } from "./store.js";
 import type { DatabasePort } from "@mosaix/ports-database";
+import type { MigrationRuntime } from "./migration-context.js";
 
 export interface MigrationStatus {
   readonly id: string;
@@ -21,7 +22,16 @@ export class MigrationCLI {
     private readonly store: MigrationStore,
     db: DatabasePort,
   ) {
-    this.planner = new MigrationPlanner(registry, store);
+    // The Planner compiles the migrations: it needs the dialect and the
+    // capabilities of the adapter that will execute them.
+    const runtime: MigrationRuntime = {
+      dialect: db.capabilities.dialect,
+      capabilities: {
+        transactions: db.capabilities.transactions,
+        lock: db.capabilities.lock,
+      },
+    };
+    this.planner = new MigrationPlanner(registry, store, runtime);
     this.runner = new MigrationRunner(db, store);
   }
 
@@ -65,7 +75,13 @@ export class MigrationCLI {
     });
   }
 
-  /** Generates a template for creating a migration (migrate:create). */
+  /**
+   * Generates a template for creating a migration (migrate:create).
+   *
+   * The engine only accepts TypeScript native migrations: the template is a
+   * module with an `up(context)` body, an optional `downMigration(context)`
+   * body and a canonical id.
+   */
   static create(
     owner: string,
     module: string,
@@ -74,7 +90,29 @@ export class MigrationCLI {
     name: string,
   ): { id: string; content: string } {
     const id = `${owner}.${module}.${version}.${sequence}_${name}`;
-    const content = `-- Migration: ${id}\n-- Write your SQL schema here\n`;
+    const content = `import type { Migration, MigrationContext } from "@mosaix/migrations";
+
+/**
+ * ${id}
+ *
+ * The checksum is computed from this file's source — run
+ * \`pnpm migration:checksums\` after every change.
+ */
+export const migration: Migration = {
+  id: "${id}",
+  checksum: "",
+  resources: [],
+  up: (context: MigrationContext) => {
+    context.schema.createTable("example", (table) => {
+      table.string("id").primary();
+      table.timestamp("createdAt");
+    });
+  },
+  downMigration: (context: MigrationContext) => {
+    context.schema.dropTable("example");
+  },
+};
+`;
     return { id, content };
   }
 }

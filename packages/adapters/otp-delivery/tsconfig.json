@@ -1,0 +1,20 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "../../../.mosaix/build/packages/adapters/otp-delivery",
+    "rootDir": "../..",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "tsBuildInfoFile": "../../../.mosaix/build/packages/adapters/otp-delivery/.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"],
+  "references": [
+    { "path": "../../otp" },
+    { "path": "../../ports/email" },
+    { "path": "../../ports/sms" },
+    { "path": "../../ports/whatsapp" }
+  ]
+}

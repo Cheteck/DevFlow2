@@ -3,7 +3,11 @@
  * Self-contained SSR presentation layer for MosaiX Solara Social & Content (inspired by Facebook).
  */
 
-import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
+import type {
+  BacDescriptor,
+  BacExecutionContext,
+  BacRenderResult,
+} from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
 import { SolaraSocialService } from "../domain/social.model.js";
 import {
@@ -11,10 +15,12 @@ import {
   TrendingVelocityRanker,
   SponsoredPostInjector,
   ContentSafetyFilter,
-  isSponsoredPost
+  isSponsoredPost,
 } from "@mosaix/feed-engine";
 
-export function createSolaraDescriptor(socialService?: SolaraSocialService): BacDescriptor {
+export function createSolaraDescriptor(
+  socialService?: SolaraSocialService,
+): BacDescriptor {
   const service = socialService || new SolaraSocialService();
 
   const FRIENDS = [
@@ -23,7 +29,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
     { name: "Sarah", role: "Support", avatar: "👤" },
     { name: "Sofiane", role: "Citizen", avatar: "🚴" },
     { name: "Yasmine", role: "Educator", avatar: "🎨" },
-    { name: "Karim", role: "Manager", avatar: "📊" }
+    { name: "Karim", role: "Manager", avatar: "📊" },
   ];
 
   return {
@@ -48,9 +54,18 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
 
       if (view === "profile") {
         // --- HIGH FIDELITY FACEBOOK-STYLE PROFILE VIEW ---
-        const userPosts = (await service.listFeedAsync()).filter(p => p.actorId === user.id || p.actorId === "Administrateur" || !p.actorId);
-        
-        const userPostsHtml = userPosts.length > 0 ? userPosts.map(p => `
+        const userPosts = (await service.listFeedAsync()).filter(
+          (p) =>
+            p.actorId === user.id ||
+            p.actorId === "Administrateur" ||
+            !p.actorId,
+        );
+
+        const userPostsHtml =
+          userPosts.length > 0
+            ? userPosts
+                .map(
+                  (p) => `
           <article class="glass-card rounded-2xl p-5 space-y-3 border border-outline-variant/20 hover:border-primary/30 transition-all duration-200">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-3">
@@ -68,7 +83,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
             <p class="text-xs text-on-surface leading-relaxed whitespace-pre-line">${escapeHtml(p.content)}</p>
             <div class="pt-2 flex items-center justify-between text-xs text-on-surface-variant border-t border-outline-variant/10">
               <div class="flex items-center gap-4">
-                <button onclick="const count = this.querySelector('.like-count'); count.textContent = String(parseInt(count.textContent) + 1); const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Publication aimee !'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="flex items-center gap-1.5 hover:text-rose-400 transition cursor-pointer">
+                <button onclick="const count = this.querySelector('.like-count'); count.textContent = String(parseInt(count.textContent) + 1); const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-success text-on-success font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Publication aimee !'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="flex items-center gap-1.5 hover:text-error transition cursor-pointer">
                   <span class="material-symbols-outlined text-sm">favorite</span>
                   <span class="like-count font-mono tabular-nums">${p.likeCount || 0}</span>
                 </button>
@@ -79,7 +94,10 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
               </div>
             </div>
           </article>
-        `).join("") : `
+        `,
+                )
+                .join("")
+            : `
           <div class="glass-card rounded-2xl p-8 text-center text-xs text-on-surface-variant border border-outline-variant/20">
             Aucune publication sur votre journal pour le moment.
           </div>
@@ -117,11 +135,11 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
 
                 <!-- Profile CTA actions -->
                 <div class="flex items-center gap-2 pb-2">
-                  <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Story creee avec succes !'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold transition hover:opacity-95 shadow-md shadow-primary/20 flex items-center gap-1.5 cursor-pointer">
+                  <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-success text-on-success font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Story creee avec succes !'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold transition hover:opacity-95 shadow-md shadow-primary/20 flex items-center gap-1.5 cursor-pointer">
                     <span class="material-symbols-outlined text-sm">add_circle</span>
                     <span>Ajouter à la story</span>
                   </button>
-                  <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Formulaire de modification ouvert'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-xs font-bold text-on-surface transition cursor-pointer flex items-center gap-1.5">
+                  <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-success text-on-success font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Formulaire de modification ouvert'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-xs font-bold text-on-surface transition cursor-pointer flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-sm">edit</span>
                     <span>Modifier</span>
                   </button>
@@ -161,14 +179,16 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
                     <span class="text-[10px] text-primary font-bold font-mono tabular-nums">6 actives</span>
                   </div>
                   <div class="grid grid-cols-3 gap-3">
-                    ${FRIENDS.map(f => `
+                    ${FRIENDS.map(
+                      (f) => `
                       <div class="text-center group cursor-pointer">
                         <div class="aspect-square rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/15 flex items-center justify-center text-xl shadow-sm transition group-hover:scale-105">
                           ${f.avatar}
                         </div>
                         <span class="text-[9px] font-bold text-on-surface block mt-1 truncate">${escapeHtml(f.name)}</span>
                       </div>
-                    `).join("")}
+                    `,
+                    ).join("")}
                   </div>
                 </div>
               </div>
@@ -182,7 +202,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
                     <input type="text" id="profile-wall-composer" placeholder="Écrire quelque chose sur votre journal..." class="flex-1 bg-surface-container-low/60 border border-outline-variant/30 rounded-xl px-4 py-2.5 text-xs text-on-surface focus:outline-none focus:border-primary transition" />
                   </div>
                   <div class="flex justify-end pt-1">
-                    <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Publication ajoutee au journal'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="px-4 py-2 rounded-xl bg-primary hover:bg-primary/95 text-on-primary text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                    <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-success text-on-success font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Publication ajoutee au journal'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="px-4 py-2 rounded-xl bg-primary hover:bg-primary/95 text-on-primary text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
                       <span class="material-symbols-outlined text-sm">send</span>
                       <span>Publier sur mon journal</span>
                     </button>
@@ -210,29 +230,43 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
         if (feedMode === "trending") {
           rankedPosts = TrendingVelocityRanker.rankByTrending(rawPosts);
         } else if (feedMode === "media") {
-          rankedPosts = rawPosts.filter(p => p.mediaUrls && p.mediaUrls.length > 0);
+          rankedPosts = rawPosts.filter(
+            (p) => p.mediaUrls && p.mediaUrls.length > 0,
+          );
         } else if (feedMode === "chronological") {
-          rankedPosts = [...rawPosts].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+          rankedPosts = [...rawPosts].sort(
+            (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+          );
         } else {
           // Default: "for_you" personalized AI recommendation
-          rankedPosts = ForYouRecommendationEngine.generateForYouFeed(rawPosts, {
-            userId: user.id || "Administrateur",
-            followedSpaceIds: ["space-commerce", "space-events"],
-            interestTags: ["artisanat", "booking", "musique", "tech"]
-          });
+          rankedPosts = ForYouRecommendationEngine.generateForYouFeed(
+            rawPosts,
+            {
+              userId: user.id || "Administrateur",
+              followedSpaceIds: ["space-commerce", "space-events"],
+              interestTags: ["artisanat", "booking", "musique", "tech"],
+            },
+          );
         }
 
         // 3. Native Non-Intrusive Sponsored Insertion
-        const displayPosts = SponsoredPostInjector.inject(rankedPosts, service.getSponsoredPool(), {
-          interval: 3,
-          maxSponsoredPosts: 2
-        });
+        const displayPosts = SponsoredPostInjector.inject(
+          rankedPosts,
+          service.getSponsoredPool(),
+          {
+            interval: 3,
+            maxSponsoredPosts: 2,
+          },
+        );
 
-        const postsHtml = displayPosts.length > 0 ? displayPosts.map(p => {
-          const isSponsored = isSponsoredPost(p);
+        const postsHtml =
+          displayPosts.length > 0
+            ? displayPosts
+                .map((p) => {
+                  const isSponsored = isSponsoredPost(p);
 
-          if (isSponsored) {
-            return `
+                  if (isSponsored) {
+                    return `
               <article class="glass-card rounded-2xl p-5 space-y-4 border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-surface-container-high/30 to-purple-500/5 shadow-lg relative overflow-hidden transition-all duration-200 hover:border-amber-500/50">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-3">
@@ -242,15 +276,15 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
                     <div>
                       <div class="flex items-center gap-1.5">
                         <h3 class="text-xs font-bold text-on-surface">${escapeHtml(p.sponsorName || "Sponsor MosaiX")}</h3>
-                        <span class="material-symbols-outlined text-[13px] text-amber-400" title="Partenaire certifié">verified</span>
+                        <span class="material-symbols-outlined text-[13px] text-warning" title="Partenaire certifié">verified</span>
                       </div>
-                      <p class="text-[10px] text-amber-500 font-semibold flex items-center gap-1">
-                        <span class="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] uppercase tracking-wider">${escapeHtml(p.sponsorBadge || "Sponsorisé")}</span>
+                      <p class="text-[10px] text-warning font-semibold flex items-center gap-1">
+                        <span class="px-1.5 py-0.5 rounded bg-warning-container border border-warning/20 text-[9px] uppercase tracking-wider">${escapeHtml(p.sponsorBadge || "Sponsorisé")}</span>
                         <span>· Campagne ${escapeHtml(p.campaignId)}</span>
                       </p>
                     </div>
                   </div>
-                  <button onclick="fetch('/api/solara/telemetry/ad', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({campaignId:'${p.campaignId}', postId:'${p.id}', eventType:'click'})}); const t=document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-amber-500 text-white font-bold text-xs shadow-lg z-50'; t.textContent='Annonce transparente certifiee par le protocole MosaiX'; document.body.appendChild(t); setTimeout(()=>t.remove(),2500);" class="text-[10px] text-on-surface-variant hover:text-amber-400 transition flex items-center gap-1 cursor-pointer">
+                  <button onclick="fetch('/api/solara/telemetry/ad', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({campaignId:'${p.campaignId}', postId:'${p.id}', eventType:'click'})}); const t=document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-warning text-on-warning font-bold text-xs shadow-lg z-50'; t.textContent='Annonce transparente certifiee par le protocole MosaiX'; document.body.appendChild(t); setTimeout(()=>t.remove(),2500);" class="text-[10px] text-on-surface-variant hover:text-warning transition flex items-center gap-1 cursor-pointer">
                     <span class="material-symbols-outlined text-xs">info</span>
                     <span>Transparence</span>
                   </button>
@@ -258,15 +292,19 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
 
                 <p class="text-xs text-on-surface leading-relaxed whitespace-pre-line font-medium">${escapeHtml(p.content)}</p>
 
-                ${p.mediaUrls && p.mediaUrls.length > 0 ? `
+                ${
+                  p.mediaUrls && p.mediaUrls.length > 0
+                    ? `
                   <div class="rounded-xl overflow-hidden border border-outline-variant/20 shadow-md">
                     <img src="${escapeHtml(p.mediaUrls[0])}" alt="Média sponsorisé" class="w-full h-48 md:h-56 object-cover hover:scale-[1.01] transition-transform duration-300" />
                   </div>
-                ` : ""}
+                `
+                    : ""
+                }
 
                 <div class="pt-2 flex items-center justify-between text-xs text-on-surface-variant border-t border-outline-variant/10">
                   <div class="flex items-center gap-3">
-                    <button onclick="const count = this.querySelector('.like-count'); count.textContent = String(parseInt(count.textContent) + 1);" class="flex items-center gap-1.5 hover:text-rose-400 transition cursor-pointer">
+                    <button onclick="const count = this.querySelector('.like-count'); count.textContent = String(parseInt(count.textContent) + 1);" class="flex items-center gap-1.5 hover:text-error transition cursor-pointer">
                       <span class="material-symbols-outlined text-sm">favorite</span>
                       <span class="like-count font-mono tabular-nums">${p.likeCount || 0}</span>
                     </button>
@@ -276,18 +314,22 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
                     </button>
                   </div>
 
-                  ${p.ctaText ? `
-                    <a href="${escapeHtml(p.ctaUrl || '#')}" onclick="fetch('/api/solara/telemetry/ad', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({campaignId:'${p.campaignId}', postId:'${p.id}', eventType:'cta_conversion'})});" class="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer">
+                  ${
+                    p.ctaText
+                      ? `
+                    <a href="${escapeHtml(p.ctaUrl || "#")}" onclick="fetch('/api/solara/telemetry/ad', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({campaignId:'${p.campaignId}', postId:'${p.id}', eventType:'cta_conversion'})});" class="px-4 py-1.5 rounded-xl bg-warning hover:bg-warning-hover text-on-warning font-bold text-xs shadow-md shadow-warning/20 transition-all flex items-center gap-1.5 cursor-pointer">
                       <span>${escapeHtml(p.ctaText)}</span>
                       <span class="material-symbols-outlined text-sm">arrow_forward</span>
                     </a>
-                  ` : ""}
+                  `
+                      : ""
+                  }
                 </div>
               </article>
             `;
-          }
+                  }
 
-          return `
+                  return `
             <article class="glass-card rounded-2xl p-5 space-y-3 border border-outline-variant/20 hover:border-primary/30 transition-all duration-200">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -310,19 +352,23 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
 
               <p class="text-xs text-on-surface leading-relaxed whitespace-pre-line">${escapeHtml(p.content)}</p>
 
-              ${p.mediaUrls && p.mediaUrls.length > 0 ? `
+              ${
+                p.mediaUrls && p.mediaUrls.length > 0
+                  ? `
                 <div class="rounded-xl overflow-hidden border border-outline-variant/20 shadow-md">
                   <img src="${escapeHtml(p.mediaUrls[0])}" alt="Média publication" class="w-full h-48 md:h-56 object-cover" />
                 </div>
-              ` : ""}
+              `
+                  : ""
+              }
 
               <div class="pt-2 flex items-center justify-between text-xs text-on-surface-variant border-t border-outline-variant/10">
                 <div class="flex items-center gap-3">
-                  <button onclick="const count = this.querySelector('.like-count'); count.textContent = String(parseInt(count.textContent) + 1); const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Publication aimée !'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="flex items-center gap-1.5 hover:text-rose-400 transition cursor-pointer">
+                  <button onclick="const count = this.querySelector('.like-count'); count.textContent = String(parseInt(count.textContent) + 1); const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-success text-on-success font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Publication aimée !'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="flex items-center gap-1.5 hover:text-error transition cursor-pointer">
                     <span class="material-symbols-outlined text-sm">favorite</span>
                     <span class="like-count font-mono tabular-nums">${p.likeCount || 0}</span>
                   </button>
-                  <button onclick="const count = this.querySelector('.fire-count'); count.textContent = String(parseInt(count.textContent) + 1);" class="flex items-center gap-1.5 hover:text-amber-400 transition cursor-pointer" title="Inspiration">
+                  <button onclick="const count = this.querySelector('.fire-count'); count.textContent = String(parseInt(count.textContent) + 1);" class="flex items-center gap-1.5 hover:text-warning transition cursor-pointer" title="Inspiration">
                     <span class="text-xs">💡</span>
                     <span class="fire-count font-mono tabular-nums">3</span>
                   </button>
@@ -337,7 +383,9 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
               </div>
             </article>
           `;
-        }).join("") : `
+                })
+                .join("")
+            : `
           <div class="glass-card rounded-2xl p-10 text-center space-y-3 border border-outline-variant/20">
             <h3 class="font-bold text-sm text-on-surface">Aucune publication dans ce flux</h3>
             <p class="text-xs text-on-surface-variant max-w-sm mx-auto">Changez d'onglet d'algorithme ou soyez le premier à publier.</p>
@@ -347,7 +395,9 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
         subViewHtml = `
           <div class="space-y-6">
             <!-- Space Banner if applicable -->
-            ${currentSpace ? `
+            ${
+              currentSpace
+                ? `
               <div class="glass-card rounded-2xl p-4 flex items-center justify-between border-l-4 border-l-secondary bg-surface-container-high/40">
                 <div class="flex items-center gap-3">
                   <span class="material-symbols-outlined text-secondary text-2xl">workspaces</span>
@@ -357,23 +407,25 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
                   </div>
                 </div>
               </div>
-            ` : ""}
+            `
+                : ""
+            }
 
             <!-- Feed Algorithm Selector (Bluesky / Phoenix Style) -->
             <div class="flex items-center gap-2 p-1.5 rounded-2xl bg-surface-container-low/70 border border-outline-variant/20 overflow-x-auto">
-              <a href="/solara?view=feed&mode=for_you" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === 'for_you' ? 'bg-primary text-on-primary shadow-sm shadow-primary/20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}">
+              <a href="/solara?view=feed&mode=for_you" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === "for_you" ? "bg-primary text-on-primary shadow-sm shadow-primary/20" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"}">
                 <span class="text-sm">✨</span>
                 <span>Pour Toi</span>
               </a>
-              <a href="/solara?view=feed&mode=trending" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === 'trending' ? 'bg-primary text-on-primary shadow-sm shadow-primary/20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}">
+              <a href="/solara?view=feed&mode=trending" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === "trending" ? "bg-primary text-on-primary shadow-sm shadow-primary/20" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"}">
                 <span class="text-sm">🔥</span>
                 <span>Tendances</span>
               </a>
-              <a href="/solara?view=feed&mode=chronological" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === 'chronological' ? 'bg-primary text-on-primary shadow-sm shadow-primary/20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}">
+              <a href="/solara?view=feed&mode=chronological" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === "chronological" ? "bg-primary text-on-primary shadow-sm shadow-primary/20" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"}">
                 <span class="text-sm">⏱️</span>
                 <span>Chronologique</span>
               </a>
-              <a href="/solara?view=feed&mode=media" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === 'media' ? 'bg-primary text-on-primary shadow-sm shadow-primary/20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}">
+              <a href="/solara?view=feed&mode=media" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${feedMode === "media" ? "bg-primary text-on-primary shadow-sm shadow-primary/20" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"}">
                 <span class="text-sm">🖼️</span>
                 <span>Médias</span>
               </a>
@@ -395,7 +447,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
               </div>
 
               <div class="relative">
-                <textarea id="composer-text" rows="3" placeholder="Quoi de neuf aujourd'hui, ${escapeHtml(user.id || 'Administrateur')} ?" class="w-full bg-surface-container-low/60 border border-outline-variant/30 rounded-xl p-3 text-xs text-on-surface focus:outline-none focus:border-primary transition resize-none placeholder:text-on-surface-variant/50"></textarea>
+                <textarea id="composer-text" rows="3" placeholder="Quoi de neuf aujourd'hui, ${escapeHtml(user.id || "Administrateur")} ?" class="w-full bg-surface-container-low/60 border border-outline-variant/30 rounded-xl p-3 text-xs text-on-surface focus:outline-none focus:border-primary transition resize-none placeholder:text-on-surface-variant/50"></textarea>
               </div>
 
               <div class="flex items-center justify-between pt-1">
@@ -405,12 +457,12 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
                     <span class="text-[11px] hidden sm:inline">Média</span>
                   </button>
                   <button class="p-2 rounded-lg hover:bg-surface-variant/40 transition flex items-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-base text-indigo-400">poll</span>
+                    <span class="material-symbols-outlined text-base text-primary">poll</span>
                     <span class="text-[11px] hidden sm:inline">Sondage</span>
                   </button>
                 </div>
 
-                <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Publication Solara envoyée avec succès'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-5 py-2 rounded-xl bg-gradient-to-r from-primary to-indigo-500 hover:from-primary/90 hover:to-indigo-500/90 text-on-primary text-xs font-bold shadow-md shadow-primary/20 transition-all flex items-center gap-2 cursor-pointer">
+                <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-success text-on-success font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Publication Solara envoyée avec succès'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-5 py-2 rounded-xl bg-gradient-to-r from-primary to-primary-hover hover:from-primary/90 hover:to-primary-hover/90 text-on-primary text-xs font-bold shadow-md shadow-primary/20 transition-all flex items-center gap-2 cursor-pointer">
                   <span class="material-symbols-outlined text-sm">send</span>
                   <span>Publier</span>
                 </button>
@@ -429,20 +481,22 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
         <div class="space-y-6">
           
           <!-- Solara Navigation header -->
-          <div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
+          <div class="bac-page-header">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center text-2xl">☀️</div>
+              <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center">
+                <span class="material-symbols-outlined text-2xl">wb_sunny</span>
+              </div>
               <div>
-                <h1 class="text-sm font-bold text-on-surface">Solara</h1>
-                <p class="text-[11px] text-on-surface-variant">Le réseau social de MosaiX</p>
+                <h1>Solara</h1>
+                <p class="bac-page-subtitle">Le réseau social de MosaiX</p>
               </div>
             </div>
             <div class="flex gap-2">
-              <a href="/solara?view=feed" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${view === 'feed' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              <a href="/solara?view=feed" class="bac-tab-btn ${view === "feed" ? "active" : ""}">
                 <span class="material-symbols-outlined text-sm">dynamic_feed</span>
                 <span>Fil d'actualité</span>
               </a>
-              <a href="/solara?view=profile" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${view === 'profile' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
+              <a href="/solara?view=profile" class="bac-tab-btn ${view === "profile" ? "active" : ""}">
                 <span class="material-symbols-outlined text-sm">person</span>
                 <span>Mon Profil</span>
               </a>
@@ -463,11 +517,11 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
           </div>
           <div class="space-y-1">
             <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant px-2 font-mono">Navigation</span>
-            <a href="/solara?view=feed" class="flex items-center gap-2 px-3 py-2 rounded-xl ${view === 'feed' ? 'bg-primary/10 text-primary font-bold' : 'hover:bg-surface-variant/40 text-on-surface-variant hover:text-on-surface'} text-xs transition">
+            <a href="/solara?view=feed" class="flex items-center gap-2 px-3 py-2 rounded-xl ${view === "feed" ? "bg-primary/10 text-primary font-bold" : "hover:bg-surface-variant/40 text-on-surface-variant hover:text-on-surface"} text-xs transition">
               <span class="material-symbols-outlined text-base">dynamic_feed</span>
               <span>Fil d'actualité</span>
             </a>
-            <a href="/solara?view=profile" class="flex items-center gap-2 px-3 py-2 rounded-xl ${view === 'profile' ? 'bg-primary/10 text-primary font-bold' : 'hover:bg-surface-variant/40 text-on-surface-variant hover:text-on-surface'} text-xs transition">
+            <a href="/solara?view=profile" class="flex items-center gap-2 px-3 py-2 rounded-xl ${view === "profile" ? "bg-primary/10 text-primary font-bold" : "hover:bg-surface-variant/40 text-on-surface-variant hover:text-on-surface"} text-xs transition">
               <span class="material-symbols-outlined text-base">person</span>
               <span>Mon Profil</span>
             </a>
@@ -477,7 +531,7 @@ export function createSolaraDescriptor(socialService?: SolaraSocialService): Bac
 
       return {
         contentHtml,
-        pageTitle: `Solara — ${view === 'profile' ? 'Mon Profil' : 'Réseau Social'}`,
+        pageTitle: `Solara — ${view === "profile" ? "Mon Profil" : "Réseau Social"}`,
         contextualSidebarHtml,
       };
     },

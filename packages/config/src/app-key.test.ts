@@ -11,7 +11,7 @@ import {
   MissingAppKeyError,
   InvalidAppKeyError,
   APP_KEY_PREFIX,
-} from "./app-key";
+} from "./app-key.js";
 
 describe("app-key (Laravel-style)", () => {
   it("generates base64: keys decoding to 32 bytes", () => {
@@ -71,6 +71,38 @@ describe("app-key (Laravel-style)", () => {
     );
     expect(() =>
       requireAppKey({ MOSAIX_APP_KEY: generateAppKey() }),
+    ).not.toThrow();
+  });
+
+  it("supports key versioning and revocation (R01)", () => {
+    const key = generateAppKey();
+
+    // Unversioned key works.
+    expect(() =>
+      requireAppKey({ MOSAIX_APP_KEY: key }),
+    ).not.toThrow();
+
+    // Versioned key works when not revoked.
+    expect(() =>
+      requireAppKey({ MOSAIX_APP_KEY: key, MOSAIX_APP_KEY_VERSION: "2026-11" }),
+    ).not.toThrow();
+
+    // Revoked version fails fast.
+    expect(() =>
+      requireAppKey({
+        MOSAIX_APP_KEY: key,
+        MOSAIX_APP_KEY_VERSION: "2026-11",
+        MOSAIX_APP_REVOKED_KEY_VERSIONS: "2025-01, 2026-11",
+      }),
+    ).toThrow(InvalidAppKeyError);
+
+    // Other versions remain usable.
+    expect(() =>
+      requireAppKey({
+        MOSAIX_APP_KEY: key,
+        MOSAIX_APP_KEY_VERSION: "2026-12",
+        MOSAIX_APP_REVOKED_KEY_VERSIONS: "2026-11",
+      }),
     ).not.toThrow();
   });
 });

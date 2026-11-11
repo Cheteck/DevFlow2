@@ -9,6 +9,4 @@ export interface AccessibilityProfile {
   reducedMotion?: boolean;
   /** Supports large text scaling. */
   largeText?: boolean;
-  /** High contrast variant. */
-  highContrast?: boolean;
 }

@@ -1,0 +1,29 @@
+{
+  "name": "@apps/inventory",
+  "version": "0.1.0",
+  "description": "Inventory Bounded Application Context for MosaiX — stock levels, reservations and restock signals (no pricing)",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsc --build --watch",
+    "build": "tsc --build",
+    "clean": "rimraf dist",
+    "test": "vitest run"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@mosaix/contracts": "workspace:*",
+    "@mosaix/core": "workspace:*",
+    "@mosaix/sdk": "workspace:*",
+    "@mosaix/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

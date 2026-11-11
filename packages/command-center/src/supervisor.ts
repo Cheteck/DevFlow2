@@ -1,0 +1,1243 @@
+/**
+ * @mosaix/command-center — DevSupervisor: orchestration for COMMAND CENTER.
+ *
+ * Owns two independent ManagedProcess instances (api + mcp), the EnvWatcher,
+ * the bounded event/log history, the RestartTracker and the TUI loop.
+ *
+ * Safety properties:
+ * - restarts are serialized through a mutex + generation token (no concurrent
+ *   restarts, no double respawn);
+ * - old processes are awaited before replacements spawn;
+ * - MCP stdout is piped + drained, never rendered (stdio protocol intact);
+ * - shutdown is graceful (SIGTERM, capped wait, SIGKILL) on SIGINT/SIGTERM;
+ * - non-TTY / CI / NO_COLOR falls back to plain prefixed text output.
+ */
+import * as readline from "node:readline";
+import * as path from "node:path";
+import { FileLogger } from "@mosaix/core";
+import type {
+  CommandCenterSnapshot,
+  EventCategory,
+  EventLevel,
+  HostStats,
+  LogStream,
+  RestartCycle,
+  ServiceName,
+  ServiceSnapshot,
+  SupervisorOptions,
+  SupervisorServiceEvent,
+  ViewFilters,
+  Command,
+} from "./supervisor-types.js";
+import { EventBus, EventHistory } from "./event-bus.js";
+import { ManagedProcess } from "./process-manager.js";
+import { EnvWatcher, type EnvFileEvent } from "./env-watcher.js";
+import { RestartTracker } from "./restart-tracker.js";
+import { analyzeSnapshot } from "./diagnostics.js";
+import { TerminalRenderer, vtSupported } from "./terminal-renderer.js";
+import { DEFAULT_FILTERS, renderCommandCenter } from "./renderer.js";
+import { filterPalette, clampIndex } from "./palette.js";
+import { viewManager, type ViewName } from "./views/view-manager.js";
+
+/**
+ * API port ONLY when genuinely known: the child inherits our env, so an
+ * explicit MOSAIX_PORT/APP_PORT/PORT variable is authoritative. Anything
+ * else (core resolution, defaults) is never guessed — null means unknown.
+ */
+export function resolveKnownPort(
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const raw = env.MOSAIX_PORT ?? env.APP_PORT ?? env.PORT;
+  if (raw === undefined || raw === null) return null;
+  const port = String(raw).trim();
+  return /^\d{2,5}$/.test(port) ? port : null;
+}
+
+/**
+ * Global state derived from REAL service states — never simulated.
+ *
+ * Coherence rule (EADDRINUSE lesson): a live process is not an operational
+ * server. OPERATIONAL requires the API confirmed READY (MCP has no probe
+ * by design, RUNNING suffices). FAILED/CRASHED anywhere means DOWN.
+ * An API stuck RUNNING-unconfirmed past boot means DEGRADED, not up.
+ */
+export function computeOverall(
+  services: ServiceSnapshot[],
+): CommandCenterSnapshot["overall"] {
+  if (services.some((s) => s.state === "FAILED" || s.state === "CRASHED")) {
+    return "DOWN";
+  }
+  if (services.every((s) => s.state === "READY")) return "OPERATIONAL";
+  const api = services.find((s) => s.name === "api");
+  const mcp = services.find((s) => s.name === "mcp");
+  if (
+    api?.state === "READY" &&
+    (mcp === undefined || mcp.state === "RUNNING" || mcp.state === "READY")
+  ) {
+    return "OPERATIONAL";
+  }
+  if (services.some((s) => s.state === "STARTING" || s.state === "STOPPING")) {
+    return "STARTING";
+  }
+  return "DEGRADED";
+}
+
+export class DevSupervisor {
+  private readonly bus: EventBus;
+  private readonly tracker: RestartTracker;
+  private readonly api: ManagedProcess;
+  private readonly mcp: ManagedProcess;
+  private readonly watcher: EnvWatcher;
+  private readonly startedAt = Date.now();
+  private sessionRestarts = 0;
+  private filters: ViewFilters = { ...DEFAULT_FILTERS };
+  /** Single renderer instance for the whole session (P0: never recreated). */
+  private screen: TerminalRenderer | null = null;
+  /** Single heartbeat timer (P0: never one timer per refresh). */
+  private heartbeat: NodeJS.Timeout | null = null;
+  private shuttingDown = false;
+  private restartChain: Promise<void> = Promise.resolve();
+  private restartToken = 0;
+  private watchPaused = false;
+  private mcpDrainedBytes = 0;
+  private lastCpu: NodeJS.CpuUsage | null = null;
+  private lastCpuAt: number | null = null;
+  /** File logger persistant les logs du dev server sur disque. */
+  private readonly fileLogger: FileLogger;
+  /** Commandes disponibles dans la palette (id -> commande). */
+  private readonly commands: Map<string, Command> = new Map();
+  private keypressHandler:
+    | ((
+        _chunk: Buffer,
+        key?: { name?: string; ctrl?: boolean; sequence?: string },
+      ) => void)
+    | null = null;
+  /** Gestion du clavier : mode "raw" (TTY interactif) ou "line" (non-TTY). */
+  private keyboardMode: "raw" | "line" | "disabled" = "disabled";
+  /** Initialisation du clavier déja effectuée ? */
+  private keyboardInitialized = false;
+  /** Interface readline pour le mode non-TTY (commandes suivies d'Entrée). */
+  private keyboardInterface: readline.Interface | null = null;
+  /** Ancien état de rawMode pour restauration. */
+  private previousRawMode = false;
+  /** Dernière frame rendue en mode non-TTY (déduplication heartbeat). */
+  private lastRenderedFrame = "";
+  /** Affichage gelé : le heartbeat ne re-rend plus (permet sélection texte). */
+  private displayFrozen = false;
+  constructor(private readonly opts: SupervisorOptions) {
+    this.history_ = new EventHistory(
+      opts.eventBufferSize ?? 300,
+      opts.logBufferSize ?? 800,
+    );
+    this.bus = new EventBus(this.history_);
+    this.tracker = new RestartTracker(opts.cycleBufferSize ?? 20);
+    this.fileLogger = new FileLogger("info", { component: "DevSupervisor" }, {
+      logDir: path.join(opts.root, ".mosaix", "logs"),
+      fileName: "dev-server.log",
+    });
+
+    // Enregistre les commandes de la palette (command center).
+    this.registerCommand({
+      id: "restart-api",
+      label: "Restart API",
+      hint: "api",
+      category: "service",
+      execute: () => this.restartService("api"),
+    });
+    this.registerCommand({
+      id: "restart-mcp",
+      label: "Restart MCP",
+      hint: "mcp",
+      category: "service",
+      execute: () => this.restartService("mcp"),
+    });
+    this.registerCommand({
+      id: "restart-all",
+      label: "Restart All",
+      hint: "all",
+      category: "service",
+      execute: () => this.scheduleRestart("manual restart (all)", "all"),
+    });
+    this.registerCommand({
+      id: "stop-api",
+      label: "Stop API",
+      hint: "api",
+      category: "service",
+      execute: () => this.stopService("api"),
+    });
+    this.registerCommand({
+      id: "stop-mcp",
+      label: "Stop MCP",
+      hint: "mcp",
+      category: "service",
+      execute: () => this.stopService("mcp"),
+    });
+    this.registerCommand({
+      id: "start-api",
+      label: "Start API",
+      hint: "api",
+      category: "service",
+      execute: () => this.startService("api"),
+    });
+    this.registerCommand({
+      id: "start-mcp",
+      label: "Start MCP",
+      hint: "mcp",
+      category: "service",
+      execute: () => this.startService("mcp"),
+    });
+    this.registerCommand({
+      id: "toggle-logs",
+      label: "Toggle Logs",
+      hint: "L",
+      category: "logs",
+      execute: () => {
+        this.filters.showLogs = !this.filters.showLogs;
+        this.filters.logScroll = 0;
+        this.render();
+      },
+    });
+    this.registerCommand({
+      id: "toggle-errors",
+      label: "Toggle Errors Only",
+      hint: "E",
+      category: "logs",
+      execute: () => {
+        this.filters.errorOnly = !this.filters.errorOnly;
+        this.filters.logScroll = 0;
+        this.render();
+      },
+    });
+    this.registerCommand({
+      id: "toggle-watch",
+      label: "Toggle Watch",
+      hint: "P",
+      category: "system",
+      execute: () => this.toggleWatchPause(),
+    });
+    this.registerCommand({
+      id: "clear-logs",
+      label: "Clear Logs",
+      hint: "C",
+      category: "logs",
+      execute: () => {
+        this.history_.clearLogs();
+        this.filters.logScroll = 0;
+        this.emit("SYSTEM", "Log view cleared (diagnostic history preserved)");
+        this.render();
+      },
+    });
+    this.registerCommand({
+      id: "quit",
+      label: "Quit",
+      hint: "Q",
+      category: "system",
+      execute: () => void this.shutdown("SIGINT"),
+    });
+
+    const readinessTimeoutMs = opts.readinessTimeoutMs ?? 25_000;
+    const shutdownTimeoutMs = opts.shutdownTimeoutMs ?? 5000;
+
+    this.api = new ManagedProcess({
+      name: "api",
+      label: "Platform Server",
+      command: opts.apiCommand,
+      args: opts.apiArgs,
+      cwd: opts.root,
+      env: process.env,
+      readiness: { pattern: /listening on/i, timeoutMs: readinessTimeoutMs },
+      readinessTimeoutMs,
+      shutdownTimeoutMs,
+      onEvent: (category, message, level, payload) =>
+        this.emit(category, message, level, payload),
+      onLog: (service, stream, text, level) => {
+        this.history_.pushLog(service, stream, text, level);
+        this.fileLogger.info(text, { service, stream, level });
+      },
+    });
+    this.mcp = new ManagedProcess({
+      name: "mcp",
+      label: "MCP Server",
+      command: opts.mcpCommand,
+      args: opts.mcpArgs,
+      cwd: opts.root,
+      env: process.env,
+      readinessTimeoutMs,
+      shutdownTimeoutMs,
+      isolateStdout: true,
+      onEvent: (category, message, level, payload) =>
+        this.emit(category, message, level, payload),
+      onLog: (service, stream, text, level) => {
+        this.history_.pushLog(service, stream, text, level);
+        this.fileLogger.info(text, { service, stream, level });
+      },
+      onStdoutDrained: (bytes) => {
+        this.mcpDrainedBytes += bytes;
+      },
+    });
+
+    this.watcher = new EnvWatcher({
+      root: opts.root,
+      files: opts.watchedFiles ?? [".env", ".env.local"],
+      debounceMs: opts.debounceMs ?? 300,
+      onEvent: (event) => this.handleEnvEvent(event),
+      onWatchState: (watched, active) => {
+        void watched;
+        void active;
+        this.render();
+      },
+    });
+  }
+
+  get useTui(): boolean {
+    if (this.opts.noTui) return false;
+    if (process.env.NO_TUI !== undefined) return false;
+    if (process.env.CI !== undefined) return false;
+    if (!process.stdout.isTTY) return false;
+    // P0: terminals without VT cursor addressing must NEVER get frame
+    // repaints (their ignored escape sequences caused the duplication bug).
+    // They fall back to the plain text stream instead.
+    return vtSupported();
+  }
+
+  private emit(
+    category: EventCategory,
+    message: string,
+    level: EventLevel = "info",
+    payload?: SupervisorServiceEvent,
+  ): void {
+    this.bus.emit(category, message, level, payload);
+    if (!this.useTui) {
+      const line = `[${category.toLowerCase()}] ${message}`;
+      if (level === "error") console.error(line);
+      else console.log(line);
+    } else {
+      this.render();
+    }
+  }
+
+  /**
+   * Enregistre une commande exécutable dans la palette.
+   */
+  registerCommand(cmd: Command): void {
+    this.commands.set(cmd.id, cmd);
+  }
+
+  /** Retourne toutes les commandes disponibles (pour la palette). */
+  get commandsList(): readonly Command[] {
+    return [...this.commands.values()];
+  }
+
+  /**
+   * Émet un événement structuré de cycle de vie de service depuis le Supervisor
+   * (ex: redémarrage manuel), avec son payload typé.
+   */
+  private emitServiceEvent(event: SupervisorServiceEvent): void {
+    const tag = event.service === "api" ? "API" : "MCP";
+    let message: string;
+    let level: EventLevel = "info";
+    switch (event.type) {
+      case "service.restarted":
+        message = `Service ${event.service} restarted (new pid ${event.newPid ?? "?"})`;
+        break;
+      default:
+        message = `Service ${event.service} ${event.type}`;
+        break;
+    }
+    this.bus.emit(tag, message, level, event);
+  }
+
+  private pushAppLog(
+    service: ServiceName,
+    stream: LogStream,
+    text: string,
+  ): void {
+    this.history_.pushLog(service, stream, text);
+    if (!this.useTui) {
+      const prefix = service === "api" ? "[api]" : "[mcp]";
+      const out = stream === "stderr" ? console.error : console.log;
+      for (const line of text.split(/\r?\n/)) {
+        if (line.trim()) out(`${prefix} ${line}`);
+      }
+    } else {
+      this.render();
+    }
+  }
+
+  async start(): Promise<void> {
+    this.wireAppLogs();
+    this.bus.emit("SYSTEM", "MOSAIX // DEVELOPER COCKPIT starting (dev)");
+    this.watcher.start();
+    this.emit(
+      "WATCH",
+      `Watching ${(this.opts.watchedFiles ?? [".env", ".env.local"]).join(", ")} (debounce ${this.opts.debounceMs ?? 300} ms)`,
+    );
+    await this.api.start();
+    await this.mcp.start();
+    this.installSignals();
+    // Toujours configurer le clavier, même en mode non-TTY (PowerShell,
+    // CI, etc.) pour que les raccourcis (1-6, r, s, a, Tab, Ctrl+K, Q)
+    // fonctionnent sur tous les terminaux.
+    this.setupKeyboard();
+    if (this.useTui) {
+      this.startTui();
+    } else {
+      this.emit("SYSTEM", "Non-interactive terminal — text output mode");
+    }
+    this.render();
+  }
+
+  /** Rewire log callbacks so text/TUI modes share redaction + routing. */
+  private wireAppLogs(): void {
+    void this.pushAppLog;
+  }
+
+  private handleEnvEvent(event: EnvFileEvent): void {
+    const label = `${event.file} ${event.kind}`;
+    this.emit("WATCH", `${event.file} ${event.kind} detected`);
+    if (this.watchPaused) {
+      this.emit(
+        "WATCH",
+        "Watch paused — change recorded, no restart scheduled",
+        "warn",
+      );
+      return;
+    }
+    void this.scheduleRestart(`WATCH ${label}`, "all");
+  }
+
+  /**
+   * Serialized safe restart. Concurrent triggers collapse into one queued
+   * cycle; a newer request cancels an in-flight one via generation token.
+   */
+  scheduleRestart(
+    reason: string,
+    scope: ServiceName | "all" = "all",
+  ): Promise<void> {
+    const token = ++this.restartToken;
+    this.restartChain = this.restartChain
+      .then(() => this.runRestart(reason, scope, token))
+      .catch(() => undefined);
+    return this.restartChain;
+  }
+
+  /**
+   * Arrête un service spécifique (ou tous) de façon sérialisée.
+   * Réutilise le mécanisme restartChain + génération pour éviter les courses.
+   */
+  scheduleStop(reason: string, scope: ServiceName | "all" = "all"): Promise<void> {
+    const token = ++this.restartToken;
+    this.restartChain = this.restartChain
+      .then(() => this.runStop(reason, scope, token))
+      .catch(() => undefined);
+    return this.restartChain;
+  }
+
+  /**
+   * Démarre un service spécifique (ou tous) de façon sérialisée.
+   */
+  scheduleStart(reason: string, scope: ServiceName | "all" = "all"): Promise<void> {
+    const token = ++this.restartToken;
+    this.restartChain = this.restartChain
+      .then(() => this.runStart(reason, scope, token))
+      .catch(() => undefined);
+    return this.restartChain;
+  }
+
+  /** Arrêt individuel d'un service (opération sérialisée). */
+  async stopService(id: ServiceName): Promise<void> {
+    await this.scheduleStop(`manual stop ${id}`, id);
+  }
+
+  /** Démarrage individuel d'un service (opération sérialisée). */
+  async startService(id: ServiceName): Promise<void> {
+    await this.scheduleStart(`manual start ${id}`, id);
+  }
+
+  /** Redémarrage individuel d'un service (opération sérialisée). */
+  async restartService(id: ServiceName): Promise<void> {
+    await this.scheduleRestart(`manual restart ${id}`, id);
+  }
+
+  private async runStop(
+    reason: string,
+    scope: ServiceName | "all",
+    token: number,
+  ): Promise<void> {
+    if (this.shuttingDown || token !== this.restartToken) return;
+    const targets =
+      scope === "all"
+        ? [this.api, this.mcp]
+        : [scope === "api" ? this.api : this.mcp];
+    for (const target of targets) {
+      if (token !== this.restartToken || this.shuttingDown) return;
+      await target.stop(reason);
+    }
+  }
+
+  private async runStart(
+    reason: string,
+    scope: ServiceName | "all",
+    token: number,
+  ): Promise<void> {
+    if (this.shuttingDown || token !== this.restartToken) return;
+    const targets =
+      scope === "all"
+        ? [this.api, this.mcp]
+        : [scope === "api" ? this.api : this.mcp];
+    for (const target of targets) {
+      if (token !== this.restartToken || this.shuttingDown) return;
+      target.noteManualRestart();
+      await target.start();
+    }
+  }
+
+  private async runRestart(
+    reason: string,
+    scope: ServiceName | "all",
+    token: number,
+  ): Promise<void> {
+    if (this.shuttingDown || token !== this.restartToken) return;
+    const cycle: RestartCycle = this.tracker.begin(scope, reason);
+    this.sessionRestarts += 1;
+    this.emit("RESTART", `Restart scheduled — ${reason}`);
+    this.tracker.mark(cycle, "debounceDoneAt");
+    this.tracker.note(cycle, `trigger: ${reason}`);
+
+    const targets =
+      scope === "all"
+        ? [this.api, this.mcp]
+        : [scope === "api" ? this.api : this.mcp];
+    this.tracker.mark(cycle, "stopRequestedAt");
+    this.emit("SYSTEM", "Previous process stopping");
+    const stopped: Array<{
+      service: ServiceName;
+      code: number | null;
+      signal: string | null;
+    }> = [];
+    for (const target of targets) {
+      if (token !== this.restartToken || this.shuttingDown) {
+        this.tracker.finish(cycle, "cancelled");
+        return;
+      }
+      const result = await target.stop("restart");
+      stopped.push({
+        service: target.name,
+        code: result.code,
+        signal: result.signal,
+      });
+    }
+    cycle.exitCodes.push(...stopped);
+
+    if (token !== this.restartToken || this.shuttingDown) {
+      this.tracker.finish(cycle, "cancelled");
+      return;
+    }
+    this.tracker.mark(cycle, "spawnedAt");
+    for (const target of targets) {
+      target.noteManualRestart();
+      await target.start();
+      this.emit(target.name === "api" ? "API" : "MCP", "New process spawned");
+      const stoppedInfo = stopped.find((s) => s.service === target.name);
+      this.emitServiceEvent({
+        type: "service.restarted",
+        service: target.name,
+        timestamp: Date.now(),
+        oldCode: stoppedInfo?.code ?? null,
+        newPid: target.snapshotBoot().pid ?? null,
+      });
+    }
+
+    // Await readiness per configured criteria before declaring completion.
+    const readyTimeout = this.opts.readinessTimeoutMs ?? 25_000;
+    let ok = true;
+    for (const target of targets) {
+      const ready = await target.waitForReady(readyTimeout);
+      ok = ok && ready;
+    }
+    if (token !== this.restartToken || this.shuttingDown) {
+      this.tracker.finish(cycle, "cancelled");
+      return;
+    }
+    this.tracker.mark(cycle, "readyAt");
+    this.tracker.finish(cycle, ok ? "completed" : "timeout");
+    this.emit(
+      "SYSTEM",
+      ok
+        ? "Environment reload completed — restart done"
+        : "Restart timed out waiting for readiness",
+      ok ? "info" : "warn",
+    );
+    this.render();
+  }
+
+  snapshot(): CommandCenterSnapshot {
+    const services: ServiceSnapshot[] = [this.api, this.mcp].map((proc) => {
+      const boot = proc.snapshotBoot();
+      return {
+        name: proc.name,
+        label: proc.label,
+        state: proc.currentState,
+        pid: boot.pid,
+        alive: proc.isAlive,
+        uptimeMs: boot.uptimeMs,
+        restarts: proc.restartCount,
+        lastExitCode: proc.lastExit.code,
+        lastSignal: proc.lastExit.signal,
+        lastError: proc.error,
+        lastBootMs: boot.lastBootMs,
+        readiness: proc.readinessLabel(),
+        readinessState: proc.readinessState,
+        startupFailure: proc.startupFailure,
+      };
+    });
+    const overall = computeOverall(services);
+    const partial: CommandCenterSnapshot = {
+      startedAt: this.startedAt,
+      now: Date.now(),
+      overall,
+      services,
+      watch: {
+        files: this.opts.watchedFiles ?? [".env", ".env.local"],
+        watched: this.watcher.watchedFiles,
+        active: this.watcher.isActive,
+        paused: this.watchPaused,
+        lastEvent: this.watcher.lastFileEvent
+          ? `${this.watcher.lastFileEvent.file} ${this.watcher.lastFileEvent.kind}`
+          : null,
+        lastReason: null,
+      },
+      events: this.history_.getEvents(),
+      logs: this.history_.getLogs(),
+      cycles: this.tracker.getCycles(),
+      diagnostics: [],
+      restarts: this.sessionRestarts,
+      host: this.sampleHost(),
+      apiPort: resolveKnownPort(),
+    };
+    partial.diagnostics = analyzeSnapshot(partial);
+    return partial;
+  }
+
+  /**
+   * Measured supervisor-process stats (scope labeled in the UI). CPU % is
+   * computed between consecutive samples; null until two samples exist.
+   * Never simulated, never child-attributed.
+   */
+  private sampleHost(): HostStats {
+    const mem = process.memoryUsage();
+    const now = Date.now();
+    const current = process.cpuUsage();
+    let cpuPct: number | null = null;
+    if (this.lastCpu && this.lastCpuAt !== null && now > this.lastCpuAt) {
+      const diff = process.cpuUsage(this.lastCpu);
+      const elapsedMs = now - this.lastCpuAt;
+      cpuPct = ((diff.user + diff.system) / 1000 / elapsedMs) * 100;
+      if (!Number.isFinite(cpuPct) || cpuPct < 0) cpuPct = null;
+    }
+    this.lastCpu = current;
+    this.lastCpuAt = now;
+    return {
+      rssMB: Math.round(mem.rss / 1024 / 1024),
+      heapMB: Math.round(mem.heapUsed / 1024 / 1024),
+      cpuPct,
+    };
+  }
+
+  // ---- TUI + keyboard ----
+
+  private startTui(): void {
+    // Single creation point: exactly one renderer, one heartbeat, one
+    // keypress subscription for the whole session.
+    if (!this.screen) {
+      this.screen = new TerminalRenderer(process.stdout);
+      this.screen.start();
+    }
+    if (!this.heartbeat) {
+      this.heartbeat = setInterval(() => this.render(), 1000);
+      this.heartbeat.unref?.();
+    }
+  }
+
+  /**
+   * Configure la lecture du clavier pour les raccourcis du CLI.
+   * Toujours appelée, même en mode non-TTY, afin que les raccourcis
+            * (1-6, r, s, a, Tab, Ctrl+K, Q, etc.) fonctionnent sur tous les
+    * terminaux, y compris Windows PowerShell où stdout n'est pas un TTY.
+   */
+  private setupKeyboard(): void {
+    if (this.keyboardInitialized) {
+      return;
+    }
+
+    const stdin = process.stdin;
+    this.keyboardInitialized = true;
+
+    // Mode interactif : réception immédiate des touches (stdin est un TTY,
+    // ou terminal Windows qui supporte raw mode même si isTTY est false)
+    if (typeof stdin.setRawMode === "function") {
+      // Sauvegarder l'état AVANT toute modification (critique pour la restauration).
+      this.previousRawMode = stdin.isRaw ?? false;
+
+      try {
+        stdin.setRawMode(true);
+      } catch {
+        /* raw mode non supporté, on passe au mode line ci-dessous */
+      }
+
+      if (stdin.isRaw === true) {
+        this.keyboardMode = "raw";
+
+        // Initialiser le handler une seule fois (défensif contre les appels multiples)
+        if (!this.keypressHandler) {
+          this.keypressHandler = (
+            _chunk: Buffer,
+            key?: { name?: string; ctrl?: boolean; sequence?: string },
+          ) => {
+            void _chunk;
+            if (!key) return;
+            if (key.ctrl && key.name === "c") {
+              void this.shutdown("SIGINT");
+              return;
+            }
+            this.handleKey(key.name ?? key.sequence ?? "", Boolean(key.ctrl));
+          };
+        }
+
+        readline.emitKeypressEvents(stdin);
+        stdin.on("keypress", this.keypressHandler);
+        stdin.resume();
+        return;
+      }
+
+      // Restaurer si raw mode n'a pas pris
+      try {
+        stdin.setRawMode(false);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    // Mode non interactif : commandes suivies d'Entrée (PowerShell, CI, etc.)
+    if (!stdin.isTTY || this.keyboardMode !== "raw") {
+      this.keyboardMode = "line";
+      stdin.resume();
+      this.keyboardInterface = readline.createInterface({
+        input: stdin,
+        terminal: false,
+      });
+      this.keyboardInterface.on("line", (line: string) => {
+        this.handleCommand(line.trim());
+      });
+      return;
+    }
+
+    this.keyboardMode = "disabled";
+  }
+
+  /**
+   * Gestion d'une commande textuelle saisie au clavier (mode non-TTY).
+   * Les commandes doivent être suivies d'Entrée.
+   */
+  private handleCommand(command: string): void {
+    const normalized = command.toLowerCase();
+
+    if (/^[1-6]$/.test(normalized)) {
+      this.handleKey(normalized, false);
+      return;
+    }
+
+    if (normalized === "ctrl+k") {
+      this.handleKey("k", true);
+      return;
+    }
+
+    if (normalized === "tab") {
+      this.handleKey("tab", false);
+      return;
+    }
+
+    if (["r", "s", "a", "q"].includes(normalized)) {
+      this.handleKey(normalized, false);
+      return;
+    }
+
+    if (normalized.length > 0) {
+      this.emit("SYSTEM", "Commande inconnue: " + command);
+    }
+  }
+
+  /**
+   * Nettoie le clavier et restaure le terminal à son état initial.
+   */
+  private cleanupKeyboard(): void {
+    if (!this.keyboardInitialized) {
+      return;
+    }
+
+    const stdin = process.stdin;
+
+    if (this.keyboardMode === "raw") {
+      if (this.keypressHandler) {
+        stdin.removeListener("keypress", this.keypressHandler);
+      }
+
+      if (typeof stdin.setRawMode === "function") {
+        stdin.setRawMode(this.previousRawMode);
+      }
+    }
+
+    if (this.keyboardMode === "line") {
+      this.keyboardInterface?.close();
+      this.keyboardInterface = null;
+    }
+
+    this.keypressHandler = null;
+    this.keyboardMode = "disabled";
+    this.keyboardInitialized = false;
+  }
+
+  /**
+   * Keyboard shortcuts — every key performs a real action. While the
+   * command palette is open, keystrokes edit the query instead (shortcuts
+   * never fire from a text input).
+   */
+  handleKey(key: string, ctrl = false): void {
+    if (ctrl && (key === "k" || key === "K")) {
+      this.filters.paletteOpen = !this.filters.paletteOpen;
+      this.filters.paletteQuery = "";
+      this.filters.paletteIndex = 0;
+      this.render();
+      return;
+    }
+    if (this.filters.paletteOpen) {
+      this.handlePaletteKey(key);
+      return;
+    }
+    switch (key) {
+      case "q":
+      case "Q":
+        void this.shutdown("SIGINT");
+        break;
+      case "?":
+        this.filters.showHelp = !this.filters.showHelp;
+        this.render();
+        break;
+      case "r":
+        // Redémarre le service sélectionné (ou l'API par défaut).
+        void this.restartService(this.filters.selectedService ?? "api");
+        break;
+      case "R":
+        // Redémarre tous les services.
+        void this.scheduleRestart("manual restart (R)", "all");
+        break;
+      case "s":
+        // Arrête le service sélectionné (ou l'API par défaut).
+        void this.stopService(this.filters.selectedService ?? "api");
+        break;
+      case "a":
+        // Démarre le service sélectionné (ou l'API par défaut).
+        void this.startService(this.filters.selectedService ?? "api");
+        break;
+      case "tab":
+        this.cycleSelectedService();
+        break;
+      case "l":
+      case "L":
+        this.filters.showLogs = !this.filters.showLogs;
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "e":
+      case "E":
+        this.filters.errorOnly = !this.filters.errorOnly;
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "c":
+      case "C":
+        // Clears the log VIEW; bounded diagnostic history (events/cycles)
+        // is preserved.
+        this.history_.clearLogs();
+        this.filters.logScroll = 0;
+        this.emit("SYSTEM", "Log view cleared (diagnostic history preserved)");
+        break;
+      case "p":
+      case "P":
+        this.toggleWatchPause();
+        break;
+      case "z":
+      case "Z":
+        // Gel/dégel de l'affichage : permet de sélectionner/copier du texte
+        // dans les logs sans que le heartbeat n'efface l'écran.
+        this.displayFrozen = !this.displayFrozen;
+        this.emit(
+          "SYSTEM",
+          this.displayFrozen ? "Affichage gelé (Appuyez sur Z pour dégeler)" : "Affichage dégelé",
+        );
+        this.render();
+        break;
+      case "1":
+        viewManager.setActiveView("dashboard");
+        this.filters.activeView = "dashboard";
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "2":
+        viewManager.setActiveView("processes");
+        this.filters.activeView = "processes";
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "3":
+        viewManager.setActiveView("logs");
+        this.filters.activeView = "logs";
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "4":
+        viewManager.setActiveView("diagnostics");
+        this.filters.activeView = "diagnostics";
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "5":
+        viewManager.setActiveView("environment");
+        this.filters.activeView = "environment";
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "6":
+        viewManager.setActiveView("sessions");
+        this.filters.activeView = "sessions";
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "f":
+      case "F":
+        // Toggle service filter (déplacé des touches 1/2 qui servent
+        // désormais à la navigation entre les vues).
+        this.filters.serviceFilter =
+          this.filters.serviceFilter === "api" ? "all" : "api";
+        this.filters.logScroll = 0;
+        this.emit("SYSTEM", `Service filter: ${this.filters.serviceFilter}`);
+        this.render();
+        break;
+      case "up":
+        this.scrollLogs(1);
+        break;
+      case "down":
+        this.scrollLogs(-1);
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** Scroll the expanded log view (clamped, no-op when logs collapsed). */
+  private scrollLogs(delta: number): void {
+    if (!this.filters.showLogs) return;
+    this.filters.logScroll = Math.max(0, this.filters.logScroll + delta);
+    this.render();
+  }
+
+  private handlePaletteKey(key: string): void {
+    const matches = filterPalette(this.filters.paletteQuery);
+    switch (key) {
+      case "escape":
+        this.filters.paletteOpen = false;
+        this.filters.paletteQuery = "";
+        this.filters.paletteIndex = 0;
+        this.render();
+        return;
+      case "return":
+      case "enter": {
+        const index = clampIndex(this.filters.paletteIndex, matches.length);
+        const selected = matches[index];
+        this.filters.paletteOpen = false;
+        this.filters.paletteQuery = "";
+        this.filters.paletteIndex = 0;
+        if (selected) this.runPaletteCommand(selected.id);
+        else this.render();
+        return;
+      }
+      case "up":
+        this.filters.paletteIndex = clampIndex(
+          this.filters.paletteIndex - 1,
+          matches.length,
+        );
+        this.render();
+        return;
+      case "down":
+        this.filters.paletteIndex = clampIndex(
+          this.filters.paletteIndex + 1,
+          matches.length,
+        );
+        this.render();
+        return;
+      case "backspace":
+        this.filters.paletteQuery = this.filters.paletteQuery.slice(0, -1);
+        this.filters.paletteIndex = 0;
+        this.render();
+        return;
+      default:
+        break;
+    }
+    if (key.length === 1 && !key.startsWith("\x1b")) {
+      this.filters.paletteQuery += key;
+      this.filters.paletteIndex = 0;
+      this.render();
+    }
+  }
+
+  /** Executes a palette command — same real actions as the shortcuts. */
+  runPaletteCommand(id: string): void {
+    // 1. Exécute via le registre de commandes (enregistrées dynamiquement).
+    const cmd = this.commands.get(id);
+    if (cmd) {
+      void cmd.execute();
+      this.filters.paletteOpen = false;
+      this.filters.paletteQuery = "";
+      this.filters.paletteIndex = 0;
+      this.render();
+      return;
+    }
+    // 2. Fallback vers les commandes intégrées (switch).
+    switch (id) {
+      case "restart-all":
+        void this.scheduleRestart("palette: restart all", "all");
+        break;
+      case "restart-api":
+        void this.scheduleRestart("palette: restart api", "api");
+        break;
+      case "restart-mcp":
+        void this.scheduleRestart("palette: restart mcp", "mcp");
+        break;
+      case "toggle-logs":
+        this.filters.showLogs = !this.filters.showLogs;
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "toggle-errors":
+        this.filters.errorOnly = !this.filters.errorOnly;
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "clear-logs":
+        this.history_.clearLogs();
+        this.filters.logScroll = 0;
+        this.emit("SYSTEM", "Log view cleared (diagnostic history preserved)");
+        break;
+      case "toggle-watch":
+        this.toggleWatchPause();
+        break;
+      case "filter-api":
+        this.filters.serviceFilter = "api";
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "filter-mcp":
+        this.filters.serviceFilter = "mcp";
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "filter-all":
+        this.filters.serviceFilter = "all";
+        this.filters.logScroll = 0;
+        this.render();
+        break;
+      case "goto-dashboard":
+        viewManager.setActiveView("dashboard");
+        this.render();
+        break;
+      case "goto-processes":
+        viewManager.setActiveView("processes");
+        this.render();
+        break;
+      case "goto-logs":
+        viewManager.setActiveView("logs");
+        this.render();
+        break;
+      case "goto-diagnostics":
+        viewManager.setActiveView("diagnostics");
+        this.render();
+        break;
+      case "goto-environment":
+        viewManager.setActiveView("environment");
+        this.render();
+        break;
+      case "goto-sessions":
+        viewManager.setActiveView("sessions");
+        this.render();
+        break;
+      case "1":
+        viewManager.setActiveView("dashboard");
+        this.render();
+        break;
+      case "2":
+        viewManager.setActiveView("processes");
+        this.render();
+        break;
+      case "3":
+        viewManager.setActiveView("logs");
+        this.render();
+        break;
+      case "4":
+        viewManager.setActiveView("diagnostics");
+        this.render();
+        break;
+      case "5":
+        viewManager.setActiveView("environment");
+        this.render();
+        break;
+      case "6":
+        viewManager.setActiveView("sessions");
+        this.render();
+        break;
+      case "toggle-help":
+        this.filters.showHelp = !this.filters.showHelp;
+        this.render();
+        break;
+      case "quit":
+        void this.shutdown("SIGINT");
+        break;
+      default:
+        this.render();
+        break;
+    }
+  }
+
+  private toggleWatchPause(): void {
+    this.watchPaused = !this.watchPaused;
+    if (this.watchPaused) this.watcher.pause();
+    else this.watcher.resume();
+    this.emit(
+      "WATCH",
+      this.watchPaused
+        ? "Watch paused — supervision of processes continues"
+        : "Watch resumed",
+      this.watchPaused ? "warn" : "info",
+    );
+  }
+
+  /** Fait défiler le service sélectionné : null → api → mcp → null. */
+  private cycleSelectedService(): void {
+    const order: (ServiceName | null)[] = [null, "api", "mcp"];
+    const idx = order.indexOf(this.filters.selectedService);
+    const next = order[(idx + 1) % order.length];
+    this.filters.selectedService = next;
+    const label = next === null ? "aucun" : next;
+    this.emit(
+      "SYSTEM",
+      `Service sélectionné : ${label}`,
+    );
+    this.render();
+  }
+
+  /**
+   * Sole repaint entry point. Coalesced by the TerminalRenderer: bursts of
+   * events/keys/timer ticks collapse into one in-place paint. Child log
+   * output never reaches here directly — it only feeds the bounded history
+   * buffer and surfaces inside the frame's log zone.
+   *
+   * Même en mode non-TTY (Windows PowerShell sans TTY), render() écrit
+   * directement sur process.stdout pour que les raccourcis clavier
+   * produisent un rendu visible.
+   */
+  private render(): void {
+    const snapshot = this.snapshot();
+    viewManager.updateSnapshot(snapshot);
+    const width = process.stdout.columns ?? 100;
+    const height = process.stdout.rows ?? 40;
+
+    if (this.useTui && this.screen) {
+      // Mode TUI : rendu via le TerminalRenderer avec coalescing des frames
+      this.screen.requestPaint(() =>
+        renderCommandCenter(snapshot, this.filters, { width, height }),
+      );
+      return;
+    }
+
+    // Affichage gelé : on ne re-rend pas (permet sélection/copie de texte)
+    if (this.displayFrozen) {
+      return;
+    }
+
+    // Mode non-TTY (PowerShell, CI, etc.) : écrire directement sur stdout
+    const lines = renderCommandCenter(snapshot, this.filters, {
+      width,
+      height,
+    });
+
+    // Déduplication : ne réécrire que si le contenu a changé.
+    // Évite le re-rendu incessant du heartbeat quand l'état est stable.
+    const frame = lines;
+    if (frame === this.lastRenderedFrame) {
+      return;
+    }
+    this.lastRenderedFrame = frame;
+
+    // Effacer l'écran avant de réafficher, sinon les frames s'empilent.
+    // Utilise les API Node.js natives (plus robustes que les séquences VT brutes
+    // sur certains terminaux Windows PowerShell) avec fallback VT.
+    try {
+      process.stdout.cursorTo(0, 0);
+      process.stdout.clearScreenDown();
+    } catch {
+      /* ignore, fallback VT ci-dessous */
+    }
+    process.stdout.write("\x1b[2J\x1b[H" + frame + "\n");
+  }
+
+  private installSignals(): void {
+    process.on("SIGINT", () => {
+      void this.shutdown("SIGINT");
+    });
+    process.on("SIGTERM", () => {
+      void this.shutdown("SIGTERM");
+    });
+  }
+
+  /** Graceful shutdown: stop UI first, then watcher, then children. */
+  async shutdown(signal: string): Promise<void> {
+    if (this.shuttingDown) return;
+    this.shuttingDown = true;
+    this.restartToken += 1;
+    this.bus.emit("SYSTEM", `Shutting down (${signal}) — stopping services`);
+    // Nettoyage du clavier (raw + line) avant de fermer les services.
+    this.cleanupKeyboard();
+    // Full renderer + listener teardown: one heartbeat, one keypress
+    // subscription, one resize subscription (renderer-owned), cursor shown.
+    if (this.heartbeat) clearInterval(this.heartbeat);
+    this.heartbeat = null;
+    this.screen?.dispose();
+    this.screen = null;
+    process.stdin.pause();
+    this.watcher.dispose();
+    await Promise.all([this.api.stop("shutdown"), this.mcp.stop("shutdown")]);
+    // Belt and braces: no orphans — forceKill seulement si le processus
+    // est encore vivant après le stop gracieux (évite le double-kill sur Windows).
+    if (this.api.isAlive) await this.api.forceKill().catch(() => {});
+    if (this.mcp.isAlive) await this.mcp.forceKill().catch(() => {});
+    this.api.markDisposed();
+    this.mcp.markDisposed();
+    this.bus.emit("SYSTEM", "Shutdown complete — no orphan processes");
+    if (!process.env.VITEST && !process.env.MOSAIX_DEV_NO_EXIT) {
+      // Délai de 100 ms pour permettre au terminal d'afficher le dernier frame
+      // avant la sortie. unref() pour ne pas bloquer une fin naturelle du
+      // processus si tous les handles sont déjà fermés.
+      setTimeout(() => process.exit(0), 100).unref();
+    }
+  }
+
+  get mcpIsolatedBytes(): number {
+    return this.mcpDrainedBytes;
+  }
+
+  /** Accès en lecture seule à l'historique des événements et logs. */
+  get history(): EventHistory {
+    return this.history_;
+  }
+
+  private readonly history_: EventHistory;
+}

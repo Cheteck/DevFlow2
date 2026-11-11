@@ -334,9 +334,11 @@ export class PersistentFeatureFlagsManager {
 
   public isEnabledSync(key: string, defaultValue = false): boolean {
     // Aligned with async isEnabled(): unknown flags default to false (D-05).
-    // Prefer the adapter's sync read over reaching into its internals (T-01).
-    const syncRead = this.adapter.isEnabledSync?.bind(this.adapter);
-    if (typeof syncRead === "function") return syncRead(key, defaultValue);
+    // Only the memory adapter offers a sync read — same narrowing pattern as
+    // init() below; Postgres paths fall back to the default (T-01).
+    if (this.adapter instanceof MemoryFeatureFlagsAdapter) {
+      return this.adapter.isEnabledSync(key, defaultValue);
+    }
     return defaultValue;
   }
 
@@ -430,10 +432,7 @@ export const platformFeatureFlags = {
   get toggleFlag(): PersistentFeatureFlagsManager["toggleFlag"] {
     return getPlatformFeatureFlags().toggleFlag.bind(getPlatformFeatureFlags());
   },
-  get getAllFlagsSnapshot(): PersistentFeatureFlagsManager["getAllFlagsSnapshot"] {
-    return getPlatformFeatureFlags().getAllFlagsSnapshot.bind(getPlatformFeatureFlags());
-  },
-  get getAdapter(): () => PersistentFeatureFlagsManager["getAdapter"] {
-    return () => getPlatformFeatureFlags().getAdapter();
+  get getAdapter(): PersistentFeatureFlagsManager["getAdapter"] {
+    return getPlatformFeatureFlags().getAdapter.bind(getPlatformFeatureFlags());
   },
 } as unknown as PersistentFeatureFlagsManager;

@@ -7,8 +7,8 @@ import * as crypto from "node:crypto";
 import { OpenApiGenerator, CorsMiddleware, SecurityHeadersMiddleware, type CorsOptions, type Router } from "@mosaix/http";
 import { Pipeline } from "@mosaix/pipeline";
 import { JwtService } from "@mosaix/auth";
-import { RateLimiter, type RateLimiterOptions } from "./rate-limiter";
-import { AuthRateLimiterMiddleware, type AuthRateLimiterOptions } from "./auth-rate-limiter";
+import { RateLimiter, type RateLimiterOptions } from "./rate-limiter.js";
+import { AuthRateLimiterMiddleware, type AuthRateLimiterOptions } from "./auth-rate-limiter.js";
 import { incrementRequestCounter, otlpTraceExporter } from "@mosaix/telemetry";
 
 const { randomUUID } = crypto;

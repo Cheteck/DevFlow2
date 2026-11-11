@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { RouteRegistry } from "./route-registry";
+import { RouteRegistry } from "./route-registry.js";
 
 describe("RouteRegistry (Phase 4)", () => {
   it("registers and retrieves route contracts", () => {

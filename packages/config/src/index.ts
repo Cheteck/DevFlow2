@@ -1,7 +1,7 @@
-export { env, createEnvHelper } from "./env";
-export { Config, ConfigManager, config } from "./config";
-export type { ConfigEvent } from "./config";
+export { env, createEnvHelper } from "./env.js";
+export { Config, ConfigManager, config } from "./config.js";
+export type { ConfigEvent } from "./config.js";
 
-export * from "./secret-resolver";
-export * from "./app-key";
-export * from "./env-file";
+export * from "./secret-resolver.js";
+export * from "./app-key.js";
+export * from "./env-file.js";

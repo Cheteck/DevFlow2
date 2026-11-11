@@ -1,71 +1,289 @@
-/**
- * @apps/portfolio — Autonomous BAC View & Descriptor
- * Self-contained SSR presentation layer for MosaiX Portfolio & Catalog.
- */
+import { createTypedRegistry, InMemoryGuard } from "@mosaix/support";
+import type {
+  BacDescriptor,
+  BacExecutionContext,
+  BacRenderResult,
+} from "@mosaix/contracts";
+import { PortfolioService } from "../domain/portfolio-service.js";
+import { InMemoryVendableRepository } from "../infrastructure/in-memory-vendable-repository.js";
+import type { Vendable } from "../domain/vendable.js";
 
-import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
-import { escapeHtml } from "@mosaix/support";
+/* AUDIT-RESET a055b8e (2026-10-13) — AUCUNE PERTE DÉTECTÉE.
+ * Le diff de a055b8e migre cette vue vers le PIM normalisé (identity.reference, content.fr.name,
+ * search({name})→tableau), en cohérence avec les commits PIM antérieurs ; les imports existent
+ * (infrastructure/in-memory-vendable-repository.ts, domain/vendable.ts). Fait partie du batch
+ * "and 14 more" mais son contenu correspond au travail de session.
+ * Vérification restante : search/findVendable + rendus dashboard/détail avant toute restauration. */
 
-export function createPortfolioDescriptor(): BacDescriptor {
-  const PRODUCTS = [
-    { id: "v-001", name: "Xiaomi 18 Pro Max 5G", ref: "XIAOMI-18-PM", type: "Product", status: "Published", price: "1249.00 €", stock: 12, features: { chipset: "Snapdragon 8 Elite", battery: "8500mAh", network: "5G (30 bands)" } },
-    { id: "v-002", name: "Bague Amel Or Pur 18k", ref: "GOLD-AMEL-18K", type: "Product", status: "Published", price: "2450.00 €", stock: 2, features: { material: "Or Jaune 18 carats", stone: "Diamant GIA 0.5ct" } },
-    { id: "v-003", name: "Cours Yoga Vinyasa", ref: "YOGA-VIN-01", type: "Service", status: "Draft", price: "25.00 €", stock: 25, features: { duration: "60 mins", level: "Tous Niveaux" } },
-    { id: "v-004", name: "E-Book Économie Circulaire", ref: "EBK-ECO-CIRC", type: "DigitalProduct", status: "In Review", price: "12.99 €", stock: 999, features: { format: "PDF, EPUB", pages: "180" } }
-  ];
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+export type PortfolioSubViewRenderer = (
+  context: { query?: Record<string, string> },
+  deps: { portfolioService: PortfolioService; vendables: Vendable[] },
+) => Promise<string | BacRenderResult> | string | BacRenderResult;
+
+const portfolioSubViewRegistry = createTypedRegistry<
+  string,
+  PortfolioSubViewRenderer
+>([], { name: "PortfolioSubViewRegistry" });
+
+export function registerPortfolioSubView(
+  viewKey: string,
+  renderer: PortfolioSubViewRenderer,
+): void {
+  portfolioSubViewRegistry.register(viewKey, renderer);
+}
+
+export function overridePortfolioSubView(
+  viewKey: string,
+  renderer: PortfolioSubViewRenderer,
+): void {
+  portfolioSubViewRegistry.override(viewKey, renderer);
+}
+
+export function createPortfolioView(
+  service?: PortfolioService,
+  tenantId: string = "default"
+) {
+  const activeService =
+    // eslint-disable-next-line no-restricted-syntax
+    service || (() => {
+      InMemoryGuard.reportFallback("VendableRepository", "no portfolioService provided to createPortfolioView");
+      return new PortfolioService(new InMemoryVendableRepository());
+    })();
 
   return {
-    id: "@apps/portfolio",
-    name: "Portfolio Catalog",
-    version: "1.0.0",
-    routePrefix: "/portfolio",
-    icon: "🎨",
-    isEnabled: true,
-    requiredPermissions: ["portfolio:vendable:read"],
+    async render(context: {
+      query?: Record<string, string>;
+    }): Promise<BacRenderResult> {
+      const view = context.query?.view || "dashboard";
+      const searchQuery = context.query?.search || "";
+      const selectedRef = context.query?.ref || "";
 
-    async isAvailable(): Promise<boolean> {
-      return true;
-    },
+      // Fetch real catalog vendables from PortfolioService
+      let vendables: Vendable[] = [];
+      try {
+        vendables = await activeService.search(
+          {
+            name: searchQuery || undefined,
+            limit: 48,
+            offset: 0,
+          },
+          tenantId
+        );
+      } catch {
+        /* empty catalog fallback on search error */
+      }
 
-    async render(context: BacExecutionContext): Promise<BacRenderResult> {
-      const view = context.request.query.view || "all";
+      // Check registered custom subview handlers (OCP extension)
+      const customRenderer = portfolioSubViewRegistry.get(view);
+      if (customRenderer) {
+        const customRes = await customRenderer(context, {
+          portfolioService: activeService,
+          vendables,
+        });
+        if (
+          typeof customRes === "object" &&
+          customRes !== null &&
+          "contentHtml" in customRes
+        ) {
+          return customRes;
+        }
+        return {
+          contentHtml: String(customRes),
+          pageTitle: `Portfolio — ${view}`,
+        };
+      }
 
       let innerViewHtml: string;
-      if (view === "categories") {
+
+      const publishedCount = vendables.filter(
+        (v) => v.identity.status === "Published",
+      ).length;
+      const draftCount = vendables.filter(
+        (v) => v.identity.status === "Draft",
+      ).length;
+      const archivedCount = vendables.filter(
+        (v) => v.identity.status === "Archived",
+      ).length;
+
+      if (view === "detail" && selectedRef) {
+        let vendable: Vendable | undefined = vendables.find(
+          (v) =>
+            v.identity.reference === selectedRef ||
+            v.identity.id === selectedRef,
+        );
+        if (!vendable) {
+          try {
+            vendable = await activeService.findVendable(selectedRef, tenantId);
+          } catch {
+            vendable = undefined;
+          }
+        }
+
+        if (vendable) {
+          const titleFr =
+            vendable.content.fr?.name || vendable.identity.reference;
+          const titleEn = vendable.content.en?.name || "";
+          const descFr =
+            vendable.content.fr?.description ||
+            "Aucune description renseignée.";
+          const specs = vendable.characteristics?.specifications || {};
+
+          innerViewHtml = `
+            <div class="space-y-6">
+              <div class="flex items-center justify-between">
+                <a href="/portfolio?view=all" class="text-xs text-primary font-bold hover:underline">&larr; Retour au catalogue</a>
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                  vendable.identity.status === "Published"
+                    ? "bg-success-container text-on-success border border-success/20"
+                    : "bg-warning-container text-on-warning border border-warning/20"
+                }">${escapeHtml(vendable.identity.status)}</span>
+              </div>
+
+              <div class="glass-card p-6 rounded-2xl border border-outline-variant/20 space-y-6">
+                <div>
+                  <h2 class="text-lg font-bold text-on-surface">${escapeHtml(titleFr)}</h2>
+                  ${titleEn ? `<p class="text-xs text-on-surface-variant font-medium mt-0.5">${escapeHtml(titleEn)}</p>` : ""}
+                  <p class="text-xs text-on-surface-variant font-mono mt-1">Réf / Code: <span class="text-primary font-bold">${escapeHtml(vendable.identity.reference)}</span> · Type: ${escapeHtml(vendable.identity.type)}</p>
+                </div>
+
+                <div class="p-4 rounded-xl bg-surface-container/60 border border-outline-variant/10 space-y-2">
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Description PIM</h3>
+                  <p class="text-xs text-on-surface leading-relaxed">${escapeHtml(descFr)}</p>
+                </div>
+
+                <div class="space-y-3">
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Spécifications & Attributs EAV</h3>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    ${Object.entries(specs)
+                      .map(
+                        ([k, v]) => `
+                      <div class="p-3 rounded-xl bg-surface-container/40 border border-outline-variant/10 flex justify-between items-center">
+                        <span class="font-medium text-on-surface-variant capitalize">${escapeHtml(k)}</span>
+                        <span class="font-bold text-on-surface">${escapeHtml(String(v))}</span>
+                      </div>
+                    `,
+                      )
+                      .join("")}
+                    ${Object.keys(specs).length === 0 ? '<p class="text-xs text-on-surface-variant italic col-span-2">Aucun attribut EAV renseigné.</p>' : ""}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          innerViewHtml = `
+            <div class="glass-card p-8 rounded-2xl border border-outline-variant/20 text-center space-y-4">
+              <p class="text-xs text-error font-bold">Fiche introuvable pour la référence [${escapeHtml(selectedRef)}].</p>
+              <a href="/portfolio?view=all" class="text-xs text-primary font-bold hover:underline">&larr; Retour au catalogue</a>
+            </div>
+          `;
+        }
+      } else if (view === "dashboard") {
+        innerViewHtml = `
+          <div class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div class="glass-card p-4 rounded-2xl border border-outline-variant/20 flex items-center justify-between">
+                <div>
+                  <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block">Total Vendables</span>
+                  <span class="text-xl font-extrabold text-on-surface tabular-nums">${vendables.length}</span>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">📦</div>
+              </div>
+
+              <div class="glass-card p-4 rounded-2xl border border-outline-variant/20 flex items-center justify-between">
+                <div>
+                  <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block">Publiés / Validés</span>
+                  <span class="text-xl font-extrabold text-success tabular-nums">${publishedCount}</span>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-success-container text-on-success flex items-center justify-center font-bold text-lg">✅</div>
+              </div>
+
+              <div class="glass-card p-4 rounded-2xl border border-outline-variant/20 flex items-center justify-between">
+                <div>
+                  <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block">Brouillons (Draft)</span>
+                  <span class="text-xl font-extrabold text-warning tabular-nums">${draftCount}</span>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-warning-container text-on-warning flex items-center justify-center font-bold text-lg">⏳</div>
+              </div>
+
+              <div class="glass-card p-4 rounded-2xl border border-outline-variant/20 flex items-center justify-between">
+                <div>
+                  <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block">Archivés</span>
+                  <span class="text-xl font-extrabold text-on-surface-variant tabular-nums">${archivedCount}</span>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">📂</div>
+              </div>
+            </div>
+
+            <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface">Statut du Catalogue Réel (PRD-0011)</h3>
+                <span class="text-[10px] px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 font-bold">${vendables.length} fiches enregistrées</span>
+              </div>
+              <p class="text-xs text-on-surface-variant">Administration du catalogue central. Les fiches ci-dessus reflètent les données persistées en base.</p>
+            </div>
+          </div>
+        `;
+      } else if (view === "features") {
+        innerViewHtml = `
+          <div class="space-y-6">
+            <div class="flex justify-between items-center flex-wrap gap-3">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Catalogue des Caractéristiques</h3>
+                <p class="text-[10px] text-on-surface-variant mt-0.5">Configuration des groupes d'attributs et types de caractéristiques EAV</p>
+              </div>
+            </div>
+
+            <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead>
+                    <tr class="border-b border-outline-variant/20 text-[10px] uppercase font-bold text-on-surface-variant">
+                      <th class="pb-3">Réf Vendable</th>
+                      <th class="pb-3">Intitulé</th>
+                      <th class="pb-3">Type</th>
+                      <th class="pb-3">Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-outline-variant/10 text-on-surface font-semibold">
+                    ${vendables
+                      .map(
+                        (v) => `
+                      <tr>
+                        <td class="py-3 font-mono text-primary">${escapeHtml(v.identity.reference)}</td>
+                        <td>${escapeHtml(v.content.fr?.name || v.content.en?.name || v.identity.reference)}</td>
+                        <td><span class="px-2 py-0.5 rounded bg-surface-container text-[10px]">${escapeHtml(v.identity.type)}</span></td>
+                        <td><span class="text-success font-bold">${escapeHtml(v.identity.status)}</span></td>
+                      </tr>
+                    `,
+                      )
+                      .join("")}
+                    ${vendables.length === 0 ? '<tr><td colspan="4" class="py-4 text-center text-on-surface-variant">Aucun vendable trouvé.</td></tr>' : ""}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (view === "categories") {
         innerViewHtml = `
           <div class="glass-card rounded-2xl p-5 border border-outline-variant/20 space-y-4">
             <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Arborescence des Catégories</h3>
-            
+            <p class="text-xs text-on-surface-variant">Visualisation de la taxonomie du catalogue.</p>
             <div class="space-y-2 text-xs font-semibold">
               <div class="p-3 bg-surface-container rounded-xl border border-outline-variant/10 flex items-center gap-2">
                 <span>📁</span>
-                <span>Électronique & High-Tech</span>
-                <span class="text-[10px] text-on-surface-variant font-normal ml-auto font-mono tabular-nums">12 produits</span>
-              </div>
-              <div class="pl-6 space-y-2 border-l-2 border-outline-variant/25">
-                <div class="p-3 bg-surface-container/60 rounded-xl flex items-center gap-2">
-                  <span>📱</span>
-                  <span>Smartphones & Mobiles</span>
-                  <span class="text-[10px] text-on-surface-variant font-normal ml-auto font-mono tabular-nums">4 produits</span>
-                </div>
-                <div class="p-3 bg-surface-container/60 rounded-xl flex items-center gap-2">
-                  <span>💻</span>
-                  <span>Ordinateurs & Accessoires</span>
-                  <span class="text-[10px] text-on-surface-variant font-normal ml-auto font-mono tabular-nums">8 produits</span>
-                </div>
-              </div>
-
-              <div class="p-3 bg-surface-container rounded-xl border border-outline-variant/10 flex items-center gap-2 mt-4">
-                <span>📁</span>
-                <span>Mode & Joaillerie</span>
-                <span class="text-[10px] text-on-surface-variant font-normal ml-auto font-mono tabular-nums">5 produits</span>
-              </div>
-              <div class="pl-6 space-y-2 border-l-2 border-outline-variant/25">
-                <div class="p-3 bg-surface-container/60 rounded-xl flex items-center gap-2">
-                  <span>💎</span>
-                  <span>Bijoux en Or Pur</span>
-                  <span class="text-[10px] text-on-surface-variant font-normal ml-auto font-mono tabular-nums">2 produits</span>
-                </div>
+                <span>Catalogue Général</span>
+                <span class="text-[10px] text-on-surface-variant font-normal ml-auto font-mono tabular-nums">${vendables.length} vendables</span>
               </div>
             </div>
           </div>
@@ -74,78 +292,96 @@ export function createPortfolioDescriptor(): BacDescriptor {
         innerViewHtml = `
           <div class="space-y-6">
             <div class="flex items-center justify-between flex-wrap gap-3">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Propositions d'Ajouts (Workflow)</h3>
-              <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Formulaire initie !'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary font-bold text-xs cursor-pointer">Nouvelle Proposition</button>
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Propositions d'Ajouts (Space → Portfolio Workflow)</h3>
+                <p class="text-[10px] text-on-surface-variant mt-0.5">Validation des suggestions proposées par les marchands</p>
+              </div>
             </div>
 
-            <div class="space-y-4">
-              <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-3">
-                <div class="flex justify-between items-start flex-wrap gap-2">
-                  <div>
-                    <h4 class="text-xs font-bold text-on-surface">Proposition #PROP-0019 : Xiaomi 18 Ultra Plus</h4>
-                    <p class="text-[10px] text-on-surface-variant mt-0.5">Soumis par : Tech_Dealer_DZ · 24 sept. 2026</p>
-                  </div>
-                  <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Brouillon</span>
-                </div>
-                <p class="text-[11px] text-on-surface-variant leading-relaxed">Ajout d'une nouvelle variante de Xiaomi avec 1TB de stockage et coque en céramique polie.</p>
-                <div class="pt-3 border-t border-outline-variant/10 flex justify-end gap-2 text-xs">
-                  <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-rose-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Proposition rejetee'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="px-3 py-1.5 rounded-lg hover:bg-surface-variant/40 text-rose-400 font-bold cursor-pointer">Rejeter</button>
-                  <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Proposition approuvee !'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold cursor-pointer">Approuver</button>
-                </div>
+            <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 text-center py-8">
+              <p class="text-xs text-on-surface-variant">Aucune proposition en attente pour le moment.</p>
+            </div>
+          </div>
+        `;
+      } else if (view === "bulk") {
+        innerViewHtml = `
+          <div class="space-y-6">
+            <div class="flex justify-between items-center flex-wrap gap-3">
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Import & Export de Masse (Bulk CSV / JSON)</h3>
+                <p class="text-[10px] text-on-surface-variant mt-0.5">Validation et transfert de données du catalogue</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
+                <h4 class="text-xs font-bold text-on-surface uppercase tracking-wider">Importation CSV / JSON</h4>
+                <p class="text-[11px] text-on-surface-variant">Importez des vendables en masse via le parser backend.</p>
+              </div>
+
+              <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
+                <h4 class="text-xs font-bold text-on-surface uppercase tracking-wider">Exportation Catalogue</h4>
+                <p class="text-[11px] text-on-surface-variant">Exportez la base au format CSV ou JSON-LD.</p>
               </div>
             </div>
           </div>
         `;
       } else {
         // All products view
-        const rowsHtml = PRODUCTS.map(p => `
+        const rowsHtml = vendables
+          .map(
+            (v) => `
           <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 flex flex-col justify-between hover:border-primary/40 transition duration-200">
             <div class="space-y-3">
               <div class="flex justify-between items-start">
-                <h3 class="text-xs font-bold text-on-surface">${escapeHtml(p.name)}</h3>
+                <h3 class="text-xs font-bold text-on-surface">${escapeHtml(v.content.fr?.name || v.content.en?.name || v.identity.reference)}</h3>
                 <span class="text-[10px] font-bold uppercase tracking-wider ${
-                  p.status === 'Published' ? 'text-emerald-400' : 
-                  p.status === 'Draft' ? 'text-on-surface-variant/50' : 'text-amber-400'
+                  v.identity.status === "Published"
+                    ? "text-success"
+                    : v.identity.status === "Draft"
+                      ? "text-on-surface-variant/50"
+                      : "text-warning"
                 }">
-                  ${escapeHtml(p.status)}
+                  ${escapeHtml(v.identity.status)}
                 </span>
               </div>
               
               <div class="text-[10px] text-on-surface-variant/80 space-x-1.5 font-mono">
-                <span>Réf: ${escapeHtml(p.ref)}</span>
+                <span>Réf: ${escapeHtml(v.identity.reference)}</span>
                 <span>·</span>
-                <span>Type: ${escapeHtml(p.type)}</span>
-                <span>·</span>
-                <span>Stock: <strong class="tabular-nums">${p.stock}</strong></span>
+                <span>Type: ${escapeHtml(v.identity.type)}</span>
               </div>
 
-              <div class="mt-3 p-2.5 rounded-xl bg-surface-container-lowest/50 border border-outline-variant/10 space-y-1">
-                ${Object.entries(p.features).map(([k, v]) => `
-                  <div class="flex justify-between text-[10px]">
-                    <span class="capitalize text-on-surface-variant/80">${escapeHtml(k)} :</span>
-                    <span class="font-bold text-on-surface">${escapeHtml(v)}</span>
-                  </div>
-                `).join("")}
+              <div class="text-[11px] text-on-surface-variant line-clamp-2">
+                ${escapeHtml(v.content.fr?.description || v.content.en?.description || "Pas de description.")}
               </div>
             </div>
+
             <div class="pt-4 border-t border-outline-variant/10 flex items-center justify-between mt-4">
-              <span class="text-xs font-mono tabular-nums font-bold text-primary">${escapeHtml(p.price)}</span>
-              <button onclick="const t = document.createElement('div'); t.className='fixed bottom-6 right-6 p-4 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all duration-300 z-50'; t.textContent='Edition de cet article activee'; document.body.appendChild(t); setTimeout(()=>t.remove(),2000);" class="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 text-[10px] font-bold text-on-surface cursor-pointer">
-                Éditer
-              </button>
+              <span class="text-xs font-mono tabular-nums font-bold text-primary">${escapeHtml(v.identity.reference)}</span>
+              <a href="/portfolio?view=detail&ref=${encodeURIComponent(v.identity.reference)}" class="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/25 text-[10px] font-bold text-on-surface">
+                Voir Fiche
+              </a>
             </div>
           </div>
-        `).join("");
+        `,
+          )
+          .join("");
 
         innerViewHtml = `
           <div class="space-y-6">
             <div class="flex justify-between items-center flex-wrap gap-2">
-              <h2 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Catalogue des Vendables</h2>
-              <span class="text-xs text-on-surface-variant">Aperçu et configuration globale de vos offres</span>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Catalogue des Vendables (${vendables.length} affichés)</h2>
+              <form method="GET" action="/portfolio" class="flex items-center gap-2">
+                <input type="hidden" name="view" value="all" />
+                <input type="text" name="search" value="${escapeHtml(searchQuery)}" placeholder="Rechercher par référence, nom..." class="px-3 py-1.5 rounded-xl bg-surface-container border border-outline-variant/20 text-xs text-on-surface w-64" />
+                <button type="submit" class="px-3 py-1.5 rounded-xl bg-primary text-on-primary font-bold text-xs">Rechercher</button>
+              </form>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               ${rowsHtml}
+              ${vendables.length === 0 ? '<div class="col-span-full text-center py-8 text-xs text-on-surface-variant">Aucun vendable ne correspond à la recherche.</div>' : ""}
             </div>
           </div>
         `;
@@ -153,32 +389,22 @@ export function createPortfolioDescriptor(): BacDescriptor {
 
       const contentHtml = `
         <div class="space-y-6">
-          
-          <!-- Subnavigation bar -->
-          <div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center text-2xl">🎨</div>
-              <div>
-                <h1 class="text-sm font-bold text-on-surface">Portfolio Catalog</h1>
-                <p class="text-[11px] text-on-surface-variant">Gestion de catalogue de vendables (EAV, caractéristiques CS-Cart, validation)</p>
-              </div>
+          <div class="bac-page-header">
+            <div>
+              <h1>Portfolio Catalog</h1>
+              <p class="bac-page-subtitle">Gestion de catalogue de vendables (CS-Cart EAV, Modèles de Variantes, Validation Qualité)</p>
             </div>
-            <div class="flex gap-2">
-              <a href="/portfolio?view=all" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === 'all' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
-                Tous les Produits
-              </a>
-              <a href="/portfolio?view=categories" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === 'categories' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
-                Catégories
-              </a>
-              <a href="/portfolio?view=proposals" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${view === 'proposals' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
-                Propositions
-              </a>
+            <div class="flex gap-2 flex-wrap">
+              <a href="/portfolio?view=dashboard" class="bac-tab-btn ${view === "dashboard" ? "active" : ""}">Dashboard</a>
+              <a href="/portfolio?view=all" class="bac-tab-btn ${view === "all" || view === "detail" ? "active" : ""}">Tous les Produits</a>
+              <a href="/portfolio?view=features" class="bac-tab-btn ${view === "features" ? "active" : ""}">Caractéristiques EAV</a>
+              <a href="/portfolio?view=categories" class="bac-tab-btn ${view === "categories" ? "active" : ""}">Catégories</a>
+              <a href="/portfolio?view=proposals" class="bac-tab-btn ${view === "proposals" ? "active" : ""}">Propositions</a>
+              <a href="/portfolio?view=bulk" class="bac-tab-btn ${view === "bulk" ? "active" : ""}">Import/Export</a>
             </div>
           </div>
 
-          <!-- Subview Content -->
           ${innerViewHtml}
-
         </div>
       `;
 
@@ -186,6 +412,29 @@ export function createPortfolioDescriptor(): BacDescriptor {
         contentHtml,
         pageTitle: "Portfolio — Gestion de Catalogue",
       };
+    },
+  };
+}
+
+export function createPortfolioDescriptor(
+  service?: PortfolioService,
+): BacDescriptor {
+  const view = createPortfolioView(service, "default");
+  return {
+    id: "@apps/portfolio",
+    name: "Portfolio & Product Information",
+    version: "1.0.0",
+    routePrefix: "/portfolio",
+    icon: "🎨",
+    isEnabled: true,
+    requiredPermissions: ["portfolio:vendable:read:tenant"],
+
+    async isAvailable(): Promise<boolean> {
+      return true;
+    },
+
+    async render(context: BacExecutionContext): Promise<BacRenderResult> {
+      return view.render({ query: context.request.query });
     },
   };
 }

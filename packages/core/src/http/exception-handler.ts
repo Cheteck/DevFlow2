@@ -1,4 +1,4 @@
-import type { HttpContext } from "./http-context";
+import type { HttpContext } from "./http-context.js";
 
 export interface HttpError extends Error {
   status?: number;

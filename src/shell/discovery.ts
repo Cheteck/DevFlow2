@@ -1,32 +1,112 @@
 import * as path from "node:path";
 import { ApplicationDiscovery, shellRegistry } from "@mosaix/core";
+import type { ApplicationManifest } from "@mosaix/contracts";
+import { escapeHtml } from "@mosaix/support";
 import { DynamicBacRegistry } from "./dynamic-bac-registry.js";
 import { CompositionManager } from "./composition-loader.js";
 
-export const APP_ICONS: Record<string, string> = {
-  identity: "👤",
-  citadelle: "🛡️",
-  solara: "☀️",
-  solidarity: "🤝",
-  imperia: "🏛️",
-  spaces: "📁",
-  commerce: "🛒",
-  beam: "💬",
-  portfolio: "🎨",
-  booking: "📅",
-  subscription: "💳"
-};
+/** Fallback when a manifest carries no usable icon (logged, never silent). */
+export const FALLBACK_BAC_ICON = "📦";
 
-// Seed shellRegistry with standard navigation icons
-for (const [key, icon] of Object.entries(APP_ICONS)) {
-  if (key === "subscription") continue; // Exclude engine from main navigation
-  shellRegistry.registerNavigationItem({
-    bacId: key,
-    label: key.charAt(0).toUpperCase() + key.slice(1),
-    icon,
-    route: `/${key}`,
-  });
+export type BacIconKind = "emoji" | "material" | "image";
+
+export interface ParsedBacIcon {
+  kind: BacIconKind;
+  /** Emoji grapheme, Material Symbol name, or image URL/path (raw). */
+  value: string;
 }
+
+const MATERIAL_SYMBOL_NAME = /^[a-z0-9_]+$/;
+const IMAGE_EXTENSIONS = [".ico", ".png", ".jpg", ".jpeg", ".svg", ".webp", ".gif"];
+
+/**
+ * Typed icon parsing (single source of truth for the icon mini-syntax).
+ * Returns null when the value is not a supported icon — callers fall back
+ * to {@link FALLBACK_BAC_ICON}. `javascript:`/`data:`/whitespace payloads
+ * are rejected here, so renderers can interpolate without re-validating.
+ */
+export function parseBacIcon(raw: unknown): ParsedBacIcon | null {
+  if (typeof raw !== "string") return null;
+  const value = raw.trim();
+  if (value.length === 0 || /\s/.test(value)) return null;
+
+  const material = /^material:(.+)$/i.exec(value);
+  if (material) {
+    const name = material[1].trim().toLowerCase();
+    return MATERIAL_SYMBOL_NAME.test(name) ? { kind: "material", value: name } : null;
+  }
+
+  const lower = value.toLowerCase();
+  const isRelative = value.startsWith("/") || value.startsWith("./") || value.startsWith("../");
+  const isRemote = lower.startsWith("https://") || lower.startsWith("http://");
+  if ((isRelative || isRemote) && IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
+    return { kind: "image", value };
+  }
+
+  // Bare emoji grapheme (current design language).
+  return value.length <= 8 ? { kind: "emoji", value } : null;
+}
+
+/**
+ * Safe icon HTML for any manifest icon value. Unknown/unsafe values render
+ * the fallback — output is always escaped, including image URLs.
+ */
+export function renderBacIcon(icon: string, fallback = FALLBACK_BAC_ICON): string {
+  const parsed = parseBacIcon(icon) ?? parseBacIcon(fallback);
+  if (!parsed) return escapeHtml(fallback);
+  if (parsed.kind === "material") {
+    return `<span class="material-symbols-outlined" aria-hidden="true">${escapeHtml(parsed.value)}</span>`;
+  }
+  if (parsed.kind === "image") {
+    return `<img src="${escapeHtml(parsed.value)}" alt="" loading="lazy" aria-hidden="true" style="width:1.25em;height:1.25em;object-fit:contain;" />`;
+  }
+  return escapeHtml(parsed.value);
+}
+
+/**
+ * Manifest-driven icon resolution (single source of truth:
+ * `experience.appCard.icon`, BAC-owned). Invalid values warn and fall back —
+ * see {@link parseBacIcon} for the supported syntax.
+ */
+export function resolveManifestIcon(
+  manifest: ApplicationManifest,
+  warn: (message: string) => void = console.warn,
+): string {
+  const raw = manifest.experience?.appCard?.icon;
+  const parsed = parseBacIcon(raw);
+  if (parsed) {
+    // Store the canonical value (trimmed/lowercased material name).
+    return parsed.kind === "emoji" || parsed.kind === "image"
+      ? (raw as string).trim()
+      : `material:${parsed.value}`;
+  }
+  warn(
+    `[discovery] BAC "${manifest.id}" has no valid experience.appCard.icon — using fallback ${FALLBACK_BAC_ICON}.`,
+  );
+  return FALLBACK_BAC_ICON;
+}
+
+export function isBacVisibleInNavigation(manifest: ApplicationManifest): boolean {
+  return manifest.experience?.appCard?.showInNavigation !== false;
+}
+
+function seedShellNavigation(): void {
+  for (const manifest of ApplicationDiscovery.discoverWorkspaceApps(
+    path.resolve(process.cwd(), "apps"),
+  )) {
+    if (!isBacVisibleInNavigation(manifest)) continue;
+    const cleanId = manifest.id.replace(/^@apps\//, "");
+    shellRegistry.registerNavigationItem({
+      bacId: manifest.id,
+      label: manifest.experience?.appCard?.title || cleanId.charAt(0).toUpperCase() + cleanId.slice(1),
+      icon: resolveManifestIcon(manifest),
+      route: `/${cleanId}`,
+    });
+  }
+}
+
+// Seed shellRegistry once at import (same lifecycle as the previous map).
+seedShellNavigation();
 
 export function discoverApps() {
   const appsDir = path.resolve(process.cwd(), "apps");
@@ -39,7 +119,7 @@ export function discoverApps() {
     const prefix =
       routes && !Array.isArray(routes) && routes.prefix ? routes.prefix : `/${cleanId}`;
     const bacInfo = DynamicBacRegistry.get(cleanId);
-    
+
     const render = (targetPath?: string) => {
       if (bacInfo && bacInfo.pageViews && bacInfo.pageViews.length > 0) {
         if (targetPath) {
@@ -56,7 +136,7 @@ export function discoverApps() {
       return `
         <div class="p-8 text-center space-y-4">
           <div class="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-3xl mx-auto shadow-inner">
-            ${shellRegistry.getIconForBac(cleanId, APP_ICONS[cleanId] || "📦")}
+            ${shellRegistry.getIconForBac(cleanId, FALLBACK_BAC_ICON)}
           </div>
           <div>
             <h2 class="text-xl font-bold text-on-surface">${name}</h2>
@@ -71,7 +151,7 @@ export function discoverApps() {
     };
 
     const isInComposition = CompositionManager.isAppActiveInComposition(id);
-    const icon = shellRegistry.getIconForBac(cleanId, APP_ICONS[cleanId] || APP_ICONS[id] || "🚀");
+    const icon = shellRegistry.getIconForBac(cleanId, FALLBACK_BAC_ICON);
 
     return {
       id,
@@ -80,6 +160,8 @@ export function discoverApps() {
       category: "Modules",
       route: prefix,
       icon,
+      // Manifest-driven visibility (engine BACs hide without shell hardcode).
+      navigable: isBacVisibleInNavigation(m),
       renderView: render,
       featureFlag: `apps.${cleanId}.enabled`,
       inComposition: isInComposition

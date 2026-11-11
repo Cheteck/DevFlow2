@@ -26,7 +26,7 @@ export interface SlotResolutionContext {
   route: string;
   tenantId?: string;
   locale?: string;
-  variant?: "light" | "dark" | "high-contrast";
+  variant?: "light" | "dark" | "system";
   activeThemeId: string;
   parentThemeId?: string;
   apps?: AppThemeOverrideConfig[];
@@ -50,7 +50,10 @@ export function resolveSlot(ctx: SlotResolutionContext): SlotResolutionResult {
   let winningLevel = 1;
 
   if (ctx.parentThemeId) {
-    chain.push({ provider: "parent", template: `parent-default/${ctx.slotId}` });
+    chain.push({
+      provider: "parent",
+      template: `parent-default/${ctx.slotId}`,
+    });
   }
 
   const themeTemplate = `themes/${ctx.activeThemeId}/slots/${ctx.slotId}.html`;
@@ -61,15 +64,24 @@ export function resolveSlot(ctx: SlotResolutionContext): SlotResolutionResult {
   if (!isShell && ctx.apps) {
     let ownerAppId: string | null = null;
     let longestMatchLen = -1;
-    const matchingApps: Array<{ id: string; app: AppThemeOverrideConfig; pattern: string }> = [];
+    const matchingApps: Array<{
+      id: string;
+      app: AppThemeOverrideConfig;
+      pattern: string;
+    }> = [];
 
     for (const app of ctx.apps) {
       const appRoutes = Array.isArray(app.routes)
         ? app.routes
-        : (app.routes && typeof app.routes === "object" && "prefix" in app.routes ? [app.routes.prefix as string] : [`/${app.id}`]);
+        : app.routes && typeof app.routes === "object" && "prefix" in app.routes
+          ? [app.routes.prefix as string]
+          : [`/${app.id}`];
 
       for (const pattern of appRoutes) {
-        if (ctx.route.startsWith(pattern) || (pattern.endsWith("/*") && ctx.route.startsWith(pattern.slice(0, -2)))) {
+        if (
+          ctx.route.startsWith(pattern) ||
+          (pattern.endsWith("/*") && ctx.route.startsWith(pattern.slice(0, -2)))
+        ) {
           matchingApps.push({ id: app.id, app, pattern });
           if (pattern.length > longestMatchLen) {
             longestMatchLen = pattern.length;
@@ -79,13 +91,26 @@ export function resolveSlot(ctx: SlotResolutionContext): SlotResolutionResult {
       }
     }
 
-    if (ownerAppId && matchingApps.filter(m => m.pattern.length === longestMatchLen).length > 1) {
-      const conflicting = matchingApps.filter(m => m.pattern.length === longestMatchLen).map(m => m.id).join(", ");
-      throw new ThemeError(`Structural conflict: Ambiguous route ownership for '${ctx.route}' between apps: ${conflicting}`, { route: ctx.route, conflicting });
+    if (
+      ownerAppId &&
+      matchingApps.filter((m) => m.pattern.length === longestMatchLen).length >
+        1
+    ) {
+      const conflicting = matchingApps
+        .filter((m) => m.pattern.length === longestMatchLen)
+        .map((m) => m.id)
+        .join(", ");
+      throw new ThemeError(
+        `Structural conflict: Ambiguous route ownership for '${ctx.route}' between apps: ${conflicting}`,
+        { route: ctx.route, conflicting },
+      );
     }
 
     for (const item of ctx.apps) {
-      const overrides = item.themeOverrides || (item as unknown as { app?: AppThemeOverrideConfig }).app?.themeOverrides;
+      const overrides =
+        item.themeOverrides ||
+        (item as unknown as { app?: AppThemeOverrideConfig }).app
+          ?.themeOverrides;
       const overrideSlot = overrides?.slots?.[ctx.slotId];
       if (overrideSlot) {
         const isOwner = item.id === ownerAppId;

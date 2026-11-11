@@ -7,7 +7,7 @@ import {
   upsertEnvKeys,
   ensureEnvFile,
   readEnvFile,
-} from "./env-file";
+} from "./env-file.js";
 
 describe("env-file", () => {
   let dir: string;

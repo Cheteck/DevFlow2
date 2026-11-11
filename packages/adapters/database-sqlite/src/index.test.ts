@@ -4,15 +4,38 @@ import {
   MigrationRegistry,
   MigrationRunner,
   InMemoryMigrationStore,
+  computeChecksum,
+  type MigrationContext,
 } from "@mosaix/migrations";
-import { SQLiteDatabaseAdapter } from "./index";
+import { SQLiteDatabaseAdapter } from "./index.js";
 
-function rawMigration(
+/**
+ * A TypeScript native migration: the DDL is declared with the
+ * SchemaBuilder DSL (the engine compiles it, the migration never carries a
+ * SQL string).
+ */
+function nativeMigration(
   id: string,
-  content: string,
+  sql: string,
   resources: readonly string[] = [],
 ) {
-  return { id, content, resources };
+  const table = resources[0]?.replace(/^table:/, "") ?? "default";
+  const isSeed = sql.trim().toUpperCase().startsWith("INSERT");
+  return {
+    id,
+    checksum: computeChecksum(sql),
+    resources,
+    up: (context: MigrationContext) => {
+      if (isSeed) {
+        context.data.insert(table, { id: 1 });
+        return;
+      }
+      context.schema.createTable(table, (t) => {
+        t.integer("id").primary();
+        t.text("email").nullable();
+      });
+    },
+  };
 }
 
 describe("SQLite adapter — Phase 0 validation (create table via full pipeline)", () => {
@@ -22,7 +45,7 @@ describe("SQLite adapter — Phase 0 validation (create table via full pipeline)
       {
         ownerId: () => "identity",
         migrations: () => [
-          rawMigration(
+          nativeMigration(
             "identity.users.v1.001_create_users",
             "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT NOT NULL);",
             ["table:users"],
@@ -62,15 +85,15 @@ describe("SQLite adapter — Phase 0 validation (create table via full pipeline)
       {
         ownerId: () => "mosaix",
         migrations: () => [
-          rawMigration(
+          nativeMigration(
             "mosaix.core.v1.001_base",
             "CREATE TABLE core (id INTEGER PRIMARY KEY);",
             ["table:core"],
           ),
-          rawMigration(
+          nativeMigration(
             "mosaix.core.v1.002_seed",
             "INSERT INTO core (id) VALUES (1);",
-            [],
+            ["table:core"],
           ),
         ],
       },
@@ -158,15 +181,15 @@ describe("SQLite adapter — Phase 0 validation (create table via full pipeline)
       {
         ownerId: () => "identity",
         migrations: () => [
-          rawMigration(
+          nativeMigration(
             "identity.users.v1.001_create_users",
             "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT NOT NULL);",
             ["table:users"],
           ),
-          rawMigration(
+          nativeMigration(
             "identity.users.v1.002_bad",
             "INSERT INTO missing_table (id) VALUES (1);",
-            [],
+            ["table:missing_table"],
           ),
         ],
       },

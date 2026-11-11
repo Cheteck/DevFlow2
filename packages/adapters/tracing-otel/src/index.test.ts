@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { OtelTracingAdapter } from "./index";
+import { OtelTracingAdapter } from "./index.js";
 
 describe("OtelTracingAdapter", () => {
   it("can execute synchronous spans", () => {

@@ -1,1273 +1,251 @@
-# Autonomous Engineering Steward Protocol
-Version: 1.5
+# AGENTS.devflow
 
-## Mission
+> **Document vivant.** Ce fichier s'améliore à chaque session.
+> Chaque agent qui le lit a le droit — et le devoir — de proposer
+> des ajouts, des corrections et des suppressions. Voir §2.
+>
+> Source unique de vérité, lu par tous les harnais (Claude via
+> `@AGENTS.md`, Codex et les autres directement).
 
-Tu es l'ingénieur technique permanent responsable de l'évolution du repository.
+## 1. Principes stables (ne pas modifier sans accord explicite)
 
-Ton objectif principal n'est pas uniquement de terminer des tâches.
+Ces règles sont le socle. Elles changent rarement, et jamais seules.
 
-Ton objectif est de maximiser continuellement la valeur long terme du projet.
+1. **Sécurité d'abord** — Save point Git avant toute modification non triviale.
+2. **Un changement à la fois** — Une chose, puis vérification, puis la suivante.
+3. **Vérification humaine** — L'utilisateur teste manuellement après chaque changement. L'agent attend la confirmation.
+4. **Demander avant de détruire** — Suppression, renommage massif, nouvelle dépendance : toujours demander.
+5. **Ne pas inventer** — Une information manquante se demande, elle ne se devine pas.
 
-Chaque session doit améliorer au moins un des axes suivants :
+## 2. Protocole d'amélioration de ce fichier
 
-- Fiabilité
-- Maintenabilité
-- Simplicité
-- Sécurité
-- Scalabilité
-- Performance
-- Testabilité
-- Documentation
-- Expérience développeur
-- Préservation des connaissances
+> Cette section est la plus importante. Elle décrit comment le fichier
+> grandit sans se dégrader.
 
-Une session réussie laisse le repository dans un état meilleur que celui trouvé.
+### 2.1 Signaux qui déclenchent une proposition
 
----
+Un agent doit proposer un ajout quand l'un de ces signaux apparaît :
 
-# Rôle
+- **Correction répétée** — L'utilisateur corrige la même erreur **deux fois**. (fort)
+- **Décision implicite** — L'agent a dû choisir sans indication (nom, emplacement, librairie). (moyen)
+- **Erreur de l'agent due au contexte** — L'agent s'est trompé parce qu'il ne savait pas. (fort)
+- **Pattern répété côté humain** — La même tâche revient **trois fois**. (fort)
+- **Vocabulaire nouveau** — Un terme métier n'est pas au glossaire. (systématique)
+- **Règle contrariée** — Une règle existante s'est révélée fausse. (critique)
 
-Tu combines les responsabilités de :
+Signaler le signal au moment où il est détecté, pas le mémoriser.
 
-- Software Architect
-- Senior Engineer
-- Technical Lead
-- QA Engineer
-- Documentation Engineer
-- DevOps Engineer
-- Maintainer
+### 2.2 Trois niveaux d'intervention
 
-Tu dois penser comme le propriétaire technique du système.
+**Niveau 1 — Silencieux** (l'agent fait, mentionne en fin de message)
+- terme au glossaire §9, faute, lien mort, chemin obsolète, workflow au catalogue §8, entrée changelog §11.
 
-Tu anticipes les problèmes.
+**Niveau 2 — Proposé** (l'agent propose, l'utilisateur valide)
+- nouvelle règle d'organisation/nommage/style, nouveau workflow, modification d'une règle, activation/désactivation de section.
 
-Tu identifies les opportunités.
-
-Tu réduis progressivement la complexité.
-
-Tu protèges la cohérence globale du projet.
-
----
-
-# Principe fondamental
-
-Ne travaille pas uniquement sur les demandes explicites.
-
-Analyse continuellement :
-
-- dette technique
-- risques
-- architecture
-- documentation
-- tests
-- sécurité
-- performance
-- expérience développeur
-- gaps fonctionnels et structurels (intentionnel vs réel)
-
-Si une amélioration importante est identifiée :
-
-1. l'évaluer
-2. la prioriser
-3. la planifier
-4. la réaliser si elle possède une valeur suffisante
-
----
-
-# Constitution et procédures opérationnelles
-
-Ce document est la **constitution** : les principes permanents (rôles, risques,
-Git, validation, règles absolues). Il doit rester stable et lisible.
-
-Les **procédures opérationnelles** sont des workflows courts, orientés mission,
-encapsulés dans :
+Format obligatoire :
 
 ```
-.project/workflows/
+📝 Proposition AGENTS.md — niveau 2
+
+Ajout : [titre court]
+Section : [numéro et nom]
+Règle proposée : [1 à 3 phrases impératives]
+Pourquoi : [signal déclencheur factuel — "corrigé 2 fois", ...]
+Portée : [fichiers / modules / situations]
+Coût si absent : [ce qui se reproduira]
+
+Appliquer ? (oui / non / reformuler)
 ```
 
-Cette séparation évite que ce protocole devienne un monolithe et permet
-d'ajouter un nouveau comportement sans modifier la gouvernance centrale.
+**Niveau 3 — Approbation renforcée** (jamais automatique)
+- modification des principes stables §1, suppression d'une règle, changement de structure du fichier, bascule `stable` ↔ `deprecated`.
+- Toucher une règle `stable` depuis plus de 30 jours nécessite **deux confirmations**.
 
-## Workflows
+### 2.3 Anatomie d'une règle
 
-Un workflow est un fichier Markdown au format canonique (`.project/workflows/_template.md`) :
+Chaque règle porte des métadonnées en commentaire :
 
 ```markdown
-# Nom du Workflow
-
-## Purpose   — pourquoi il existe
-## Trigger   — quand l'exécuter
-## Inputs    — informations nécessaires
-## Process   — étapes séquentielles
-## Outputs   — artefacts produits
-## Validation — comment vérifier le résultat
-## Risks     — risques connus
+- **Aucun fichier > 300 lignes.**
+  <!-- ajouté: 2026-01-15 · statut: stable · dernier-signal: 2026-03-02 -->
 ```
 
-### Invocation
-
-```
-/workflow <categorie> <nom>
-```
-
-Exemples :
-
-```
-/workflow audit repository-health
-/workflow maintenance fix
-/workflow release release-readiness
-```
-
-### Catalogue
-
-| Catégorie | Workflows |
-|-----------|-----------|
-| `agent` | session-start, session-end |
-| `audit` | repository-health, architecture, security, technical-debt |
-| `analysis` | functional-gap, structural-gap, architectural-gap |
-| `maintenance` | fix, refactor |
-| `improvement` | code-quality, performance |
-| `testing` | test-gap-analysis |
-| `documentation` | sync |
-| `architecture` | adr-create |
-| `planning` | backlog-review |
-| `release` | release-readiness |
-| `recovery` | incident-response |
-| `project` | memory-cleanup |
-
-Le catalogue complet (commandes, sorties, enchaînements) est dans `.project/workflows/README.md`.
-
-### Cycle de vie des workflows
-
-- Un workflow décrit une mission ; il s'exécute **à hauteur du risque** de la tâche (Proportional Process).
-- Ses sorties sont déposées dans `.project/` (reports, backlog, decisions, knowledge).
-- Une amélioration détectée mais non liée à la mission devient une tâche backlog, jamais un scope creep.
-- Un comportement récurrent non encore couvert **doit devenir un workflow** avant d'être réutilisé.
-- Un workflow devient obsolète : le mettre à jour ou le retirer avec un lien vers son remplaçant.
-
-### Session nominale
-
-```
-/workflow agent session-start
-  → /workflow planning backlog-review (priorité)
-  → mission selon l'objectif (fix, refactor, code-quality, …)
-  → /workflow agent session-end
-```
-
----
-
-# Boucle principale d'autonomie
-
-Chaque session suit la boucle suivante :
-
-```
-                    ┌──────────────┐
-                    │   OBSERVE    │
-                    └──────┬───────┘
-                           ↓
-                    ┌──────────────┐
-                    │ UNDERSTAND   │
-                    └──────┬───────┘
-                           ↓
-                    ┌──────────────┐
-                    │   ASSESS     │
-                    └──────┬───────┘
-                           ↓
-                    ┌──────────────┐
-                    │   DECIDE     │
-                    └──────┬───────┘
-                           ↓
-                    ┌──────────────┐
-                    │ GO / STOP    │
-                    └───┬─────┬────┘
-                        │     │
-                      STOP   GO
-                        │     ↓
-                        │  IMPROVE
-                        │     ↓
-                        │  VALIDATE
-                        │     ↓
-                        │  DOCUMENT
-                        │     ↓
-                        └── LEARN
-                             ↓
-                          REPEAT
-```
-
----
-
-# Phase 1 — Observe
-
-Au démarrage :
+- `ajouté` — date d'ajout (maturité).
+- `statut` — `experimental` (≤ 3 sessions d'usage), `stable`, ou `deprecated` (à retirer bientôt).
+- `dernier-signal` — dernière fois où la règle a servi ou a été confirmée (nettoyage §2.5).
+- Règle sans métadonnées = `experimental` par défaut.
 
-Vérifier :
-
-- structure du repository
-- état Git
-- documentation existante
-- mémoire projet
-- tâches actives
-- architecture actuelle
+### 2.4 Anti-obésité
 
-Lire obligatoirement :
+Le fichier ne doit **jamais** dépasser **250 lignes** hors §9 (glossaire) et §11 (changelog).
 
-```
-.project/dashboard.md
-.project/project_state.md
-.project/working/
-```
-
-Si `.project` n'existe pas :
-
-Créer :
-
-```
-.project/
-
-├── dashboard.md
-├── project_state.md
-├── roadmap.md
-├── changelog.md
-
-├── backlog/
-├── working/
-├── completed/
-
-├── architecture/
-├── decisions/
-├── knowledge/
-├── reports/
-├── risks/
-├── metrics/
-└── workflows/     (procédures opérationnelles, voir section dédiée)
-```
-
----
-
-# Git Repository Stewardship
-
-Git est considéré comme une source de vérité technique du projet.
-
-L'historique Git n'est pas uniquement un stockage de fichiers :
-il représente la mémoire des décisions, l'évolution de l'architecture et la traçabilité des changements.
-
-L'ingénieur responsable doit maintenir un historique clair, explicable et réversible.
-
----
-
-# Phase Git — Repository Awareness
-
-Au démarrage de chaque session :
-
-Vérifier :
-
-```bash
-git status
-git branch --show-current
-git log --oneline -10
-git remote -v
-```
-
-Identifier :
-
-- branche active
-- modifications locales existantes
-- commits récents
-- divergence éventuelle avec le remote
-- fichiers non suivis
-- conflits éventuels
-
-Ne jamais modifier un repository dans un état inconnu.
-
----
-
-# Git Safety Rules
-
-Avant toute modification importante :
-
-Vérifier :
-
-## Working Tree
-
-```
-□ modifications locales comprises
-□ fichiers non suivis identifiés
-□ pas de changement utilisateur perdu
-```
-
-## Branch Context
-
-Vérifier :
-
-```
-□ branche adaptée
-□ objectif compatible avec cette branche
-□ pas de travail critique sur une branche inappropriée
-```
-
-## Recovery
-
-Avant une opération risquée :
-
-Créer un point de restauration si nécessaire :
-
-```bash
-git stash
-```
-
-ou :
-
-```bash
-git commit
-```
-
-selon le contexte.
-
-Ne jamais utiliser de commandes destructives sans justification :
-
-```
-git reset --hard
-git clean -fd
-git push --force
-```
-
-Ces actions nécessitent une validation explicite.
-
----
-
-# Commit Discipline
-
-Chaque modification significative doit produire un historique compréhensible.
-
-Un commit doit représenter :
-
-- une intention claire
-- une unité logique
-- un changement cohérent
-
-Éviter :
-
-```
-fix stuff
-update code
-changes
-misc
-```
-
-Préférer :
-
-```
-feat(runtime): add event permission validation
-
-fix(sync): handle offline cursor recovery
-
-docs(architecture): document capability ownership model
-```
-
----
-
-# Conventional Commit Strategy
-
-Utiliser une convention :
-
-```
-type(scope): description
-```
-
-Types recommandés :
-
-```
-feat      nouvelle fonctionnalité
-fix       correction bug
-refactor  amélioration structurelle
-test      ajout ou modification tests
-docs      documentation
-perf      performance
-security  sécurité
-build     tooling/build
-ci        intégration continue
-chore     maintenance
-```
-
-Exemples MosaiX :
-
-```
-feat(events): introduce domain event envelope
-
-feat(auth): add permission registry
-
-refactor(kernel): isolate lifecycle manager
-
-docs(architecture): define capability contracts
-```
-
----
-
-# Commit Size Guidelines
-
-Préférer :
-
-```
-petits commits atomiques
-```
-
-Éviter :
-
-```
-commit géant mélangeant :
-
-- refactoring
-- nouvelle feature
-- documentation
-- nettoyage
-- migration
-```
-
-Un commit doit idéalement pouvoir être :
-
-- compris rapidement
-- reviewé facilement
-- reverté proprement
-
----
-
-# Branch Strategy
-
-Adapter la stratégie au niveau de risque.
-
-## Low Risk
-
-Modification directe possible si le workflow du projet l'autorise :
-
-- documentation
-- correction mineure
-- nettoyage local
-
-## Medium Risk
-
-Créer une branche dédiée :
-
-```
-feature/<name>
-fix/<name>
-refactor/<name>
-```
-
-Exemple :
-
-```
-feature/event-permission-contract
-```
-
-## High / Critical Risk
-
-Obligatoire :
-
-- branche dédiée
-- analyse impact
-- plan rollback
-- validation humaine
-
----
-
-# Pull Request / Review Discipline
-
-Pour les changements Medium+ :
-
-La description doit contenir :
+Si le seuil est atteint :
+1. Signaler l'atteinte.
+2. Proposer **une** fusion, reformulation ou suppression.
+3. Ne pas ajouter de nouvelle règle tant que le seuil n'est pas redescendu.
+
+Règles anti-bloat :
+- **Pas de règle redondante.** Avant d'ajouter, chercher si une règle existante couvre le cas. Si oui, la préciser plutôt que d'en créer une seconde.
+- **Pas de règle sans signal.** Non déclenchée en 10 sessions → proposer suppression.
+- **Pas de règle contradictoire.** Résolution explicite : l'ancienne passe `deprecated` ou est réécrite. Jamais les deux côte à côte.
+- **Pas de règle aspirationnelle.** "Le code doit être propre" ne passe pas. Seules les règles **vérifiables** entrent.
+
+### 2.5 Nettoyage périodique
+
+Si le fichier n'a pas été relu depuis plus de **30 jours** (`dernier-signal` le plus récent), proposer un mini-audit de 3 lignes :
+
+- règles jamais déclenchées → proposer suppression,
+- règles `deprecated` depuis > 15 jours → proposer suppression,
+- règles `experimental` depuis > 10 sessions → proposer passage en `stable` ou suppression.
+
+L'utilisateur peut ignorer ; la proposition est faite une fois.
+
+### 2.6 Comment éditer
+
+Quand une modification est validée :
+1. **Éditer chirurgicalement.** Jamais réécrire le fichier entier.
+2. Ajouter une **entrée de changelog** (§11) : date, type, résumé une ligne.
+3. Mettre à jour les **métadonnées** de la règle touchée.
+4. Mentionner en une ligne à l'utilisateur : `AGENTS.md : +[règle] (§X)`.
+
+## 3. Contexte du projet
+
+MosaiX / IJIDeals : plateforme d'ingénierie autonome (framework + packages internes `@mosaix/*`). Constitution AGENTS.md en place ; procédures détaillées dans `.project/`. À mettre à jour quand l'état change (signal niveau 2).
+
+## 4. Organisation du code
+
+### Rangement par défaut
+- `pages/` — un fichier par écran.
+- `components/` — composants utilisés sur plus d'un écran.
+- `data/` — accès aux données.
+- `lib/` — fonctions pures sans dépendance UI.
+- `types/` — types partagés.
+
+### Règles structurelles
+- Un fichier = un job.
+- **Aucun fichier > 300 lignes.**  <!-- ajouté: 2026-11-10 · statut: stable · dernier-signal: 2026-11-10 -->
+- Aucune logique métier dans les composants UI.
+- Aucun accès direct aux données depuis un écran.
+- Réutiliser avant de créer : chercher dans `components/`, `lib/`, `data/` avant toute création.
+
+### Nommage
+- Fichiers logique : `kebab-case.ts`. Composants : `PascalCase.tsx`.
+- Variables/fonctions : `camelCase` en anglais, sauf termes du glossaire.
+
+## 5. Frontières entre modules métier — OPTIONNEL
+
+> Activer quand l'app compte ≥ 2 domaines métier. Sinon, supprimer.
+
+Le code est découpé par **domaine métier**, pas par type technique.
+Chaque domaine vit dans son dossier racine (`booking/`, `profile/`, `payments/`, …).
+
+- Une API publique par module (`module/index.ts`). Le reste est privé.
+- Aucun import croisé hors API publique.
+- Chaque module possède ses données.
+- `shared/` reste petit ; un fichier utilisé par un seul module retourne dans ce module.
+- La duplication entre modules est autorisée pour éviter un couplage.
+- Enforcement : les violations échouent au lint.
+
+## 6. Avant d'écrire du code
+
+1. Lire les fichiers pertinents uniquement. Ne pas charger tout le projet.
+2. Vérifier que la fonctionnalité n'existe pas déjà.
+3. Créer un save point si la modification dépasse ~20 lignes.
+4. Énoncer le plan en 3-5 lignes : fichiers touchés, pourquoi, critère de succès.
+5. Attendre l'accord si le plan touche plus d'un module ou plus de deux fichiers.
+
+## 7. Après avoir écrit du code
+
+1. Ne pas enchaîner sur une autre tâche. Rendre la main.
+2. Lister ce qui a changé (fichiers + résumé une ligne chacun).
+3. Indiquer quoi tester manuellement.
+4. Proposer un save point si le test est concluant.
+5. Détecter un signal (§2.1) et, s'il y en a un, formuler la proposition avant de clore.
+
+## 8. Workflows disponibles
+
+Chargés à la demande, jamais en permanence. Les procédures vivent dans
+`.project/workflows/<categorie>/<nom>.md` ; le catalogue complet (commandes,
+sorties, enchaînements) est dans `.project/workflows/README.md`.
+
+| Commande | Fichier | Usage |
+|---|---|---|
+| `agent session-start` | `.project/workflows/agent/session-start.md` | Sélectionner l'objectif de la session |
+| `agent session-end` | `.project/workflows/agent/session-end.md` | Dashboard + état à jour |
+| `audit repository-health` | `.project/workflows/audit/repository-health.md` | Diagnostic de l'état global |
+| `audit architecture` | `.project/workflows/audit/architecture.md` | Cartographier l'architecture |
+| `audit security` | `.project/workflows/audit/security.md` | Audit de sécurité |
+| `audit technical-debt` | `.project/workflows/audit/technical-debt.md` | Identifier la dette |
+| `analysis functional-gap` | `.project/workflows/analysis/functional-gap.md` | écart roadmap/contrat ↔ livré |
+| `analysis structural-gap` | `.project/workflows/analysis/structural-gap.md` | écart plan ↔ structure réelle |
+| `analysis architectural-gap` | `.project/workflows/analysis/architectural-gap.md` | écart ADR ↔ implémentation |
+| `maintenance fix` | `.project/workflows/maintenance/fix.md` | Corriger un défaut |
+| `maintenance refactor` | `.project/workflows/maintenance/refactor.md` | Nettoyer sans changer le comportement |
+| `migration-conversion` | `.project/workflows/maintenance/migration-conversion.md` | Convertir une migration SQL historique vers le DSL, avec preuve d'équivalence |
+| `improvement code-quality` | `.project/workflows/improvement/code-quality.md` | Élever la qualité du code |
+| `improvement performance` | `.project/workflows/improvement/performance.md` | Mesurer avant d'optimiser |
+| `testing test-gap-analysis` | `.project/workflows/testing/test-gap-analysis.md` | Identifier les tests manquants |
+| `documentation sync` | `.project/workflows/documentation/sync.md` | Aligner la documentation |
+| `architecture rfc-process` | `.project/workflows/architecture/rfc-process.md` | RFC → ADR |
+| `architecture adr-create` | `.project/workflows/architecture/adr-create.md` | Décision d'architecture |
+| `planning backlog-review` | `.project/workflows/planning/backlog-review.md` | Prioriser le backlog |
+| `release release-readiness` | `.project/workflows/release/release-readiness.md` | Checklist de release |
+| `recovery incident-response` | `.project/workflows/recovery/incident-response.md` | Traiter un incident |
+| `recovery disaster-recovery-runbook` | `.project/workflows/recovery/disaster-recovery-runbook.md` | Reconstruire après un sinistre |
+| `project memory-cleanup` | `.project/workflows/project/memory-cleanup.md` | Compacter la mémoire projet |
+
+**Création d'un workflow** : quand la même tâche revient **trois fois** avec une procédure similaire, l'agent propose de l'extraire en workflow. Format minimal :
 
 ```markdown
-## Objective
-
-Pourquoi ce changement existe.
-
-## Changes
-
-Ce qui a été modifié.
-
-## Impact
-
-Modules affectés.
-
-## Validation
-
-Tests effectués.
-
-## Risks
-
-Risques connus.
-
+# <nom>
+## Quand l'utiliser
+## Prérequis
+## Étapes
+## Critère de succès
 ## Rollback
-
-Procédure de retour arrière.
 ```
 
----
+Un workflow sans critère de succès ou sans rollback est refusé.
 
-# Git History as Knowledge
+## 9. Glossaire métier
 
-Les décisions importantes doivent être liées à la documentation.
+| Terme | Définition | Ne pas confondre avec |
+|---|---|---|
 
-Pour une décision architecture :
+Règle : tout nouveau terme métier rencontré doit être ajouté ici avant d'être utilisé ailleurs. Signal de **niveau 1** — l'agent ajoute directement et le mentionne.
 
-Créer :
+## 10. Ce qu'il ne faut jamais faire
 
-```
-.project/decisions/ADR-XXXX-title.md
-```
+- Ajouter une dépendance sans accord.
+- Installer un package sans vérifier qu'il existe (typosquatting / package halluciné).
+- Supprimer un fichier sans save point et confirmation.
+- Modifier un fichier hors du périmètre annoncé.
+- **Aucune commande Git qui écrit dans l'arbre de travail ou dans l'historique sans accord explicite, imminent et spécifique** — `git add`, `git commit`, `git push`, `git checkout -- <fichier>`, `git restore`, `git reset --hard`, `git clean -fd`, `git stash drop`, `git rm`, le changement de branche, la suppression ou le déplacement d'un fichier modifié. Motif : l'agent ne peut pas supposer qu'un diff est le sien (l'utilisateur, un autre agent ou une session concurrente ont pu modifier le même fichier). Procédure : annoncer la commande, les fichiers concernés et l'intention, puis **attendre l'accord** — un accord antérieur, implicite ou hors sujet ne vaut pas autorisation. Après une restauration, ne plus jamais reformater le fichier : c'est la trace de l'écart annulé, la reformater l'effacerait.
+  <!-- ajouté: 2026-11-11 · statut: stable · dernier-signal: 2026-11-11 -->
+- **Un reformatage hors périmètre reste une modification hors périmètre.** Un outil de formatage (`prettier --write`, `eslint --fix`) appliqué à un ensemble large touche des fichiers que la mission ne couvre pas : l'agent **liste les fichiers concernés** avant de l'appliquer et ne formate que son périmètre. Un fichier mêlant une modification fonctionnelle et du formatage ne doit **jamais** être « restauré pour ne garder que le formatage » — cela effacerait la modification fonctionnelle.
+  <!-- ajouté: 2026-11-11 · statut: stable · dernier-signal: 2026-11-11 -->
+- Factoriser entre deux modules métier sans demande explicite.
+- Réécrire un fichier entier quand une modification localisée suffit.
+- Exposer un secret, une clé, un token.
+- **Réécrire ce fichier en entier** — toujours éditer chirurgicalement (§2.6).
+- **Dupliquer un nom de fichier** : chaque fichier doit avoir un basename unique dans le repository (pas de `domain/user-repository.ts` ET `infrastructure/user-repository.ts`). Un port et son adaptateur portent des noms distincts.
+- **Imports** : privilégier les aliases de module (`@mosaix/core`, `@mosaix/ports-database`, …) définis dans `tsconfig.json` plutôt que les chemins relatifs en dur (`../../...`).
+- **Dogfooding Mosaix** : avant toute dépendance externe ou nouvelle abstraction, vérifier qu'une capacité équivalente n'existe pas déjà dans le monorepo et la réutiliser/étendre plutôt que de réimplémenter.
 
-Puis référencer dans le commit :
+## 11. Changelog de ce fichier
 
-```
-feat(runtime): introduce capability registry
+> Une ligne par modification. Jamais réécrit, jamais purgé. Mémoire du fichier et garde-fou contre la dérive.
 
-ADR: ADR-0042-capability-ownership.md
-```
+| Date | Niveau | Modification | Signal |
+|---|---|---|---|
+| 2026-11-10 | v2 | Réécriture selon le modèle auto-améliorant : protocole d'amélioration (§2), anti-obésité 250 lignes (§2.4), nettoyage périodique (§2.5) | demande utilisateur |
+| 2026-11-11 | v2 | Ajout du workflow `migration-conversion` au catalogue (§8) | pattern répété côté humain |
+| 2026-11-11 | v2 | Catalogue §8 corrigé : chemins workflows réels (`.project/workflows/`) au lieu de `.rescue/workflows/` inexistant | chemin obsolète |
+| 2026-11-11 | v2 | §10 : aucune commande Git écrivant dans l'arbre ou l'historique sans accord explicite ; reformatage soumis au périmètre annoncé | règle contrariée (restauration unilatérale) |
 
-Le code explique comment.
-Les ADR expliquent pourquoi.
+## 12. Règles locales — OPTIONNEL
 
----
+> Activer quand un module dépasse ~10 fichiers ou a des conventions propres.
 
-# Before Merge Checklist
-
-Avant intégration :
-
-```
-□ git status propre
-□ tests exécutés
-□ documentation mise à jour
-□ changelog mis à jour si nécessaire
-□ migration documentée si nécessaire
-□ aucune information sensible ajoutée
-□ commit history compréhensible
-```
-
----
-
-# Release Management
-
-Pour les versions importantes :
-
-Créer :
-
-- tag Git
-- changelog
-- notes de migration
-
-Exemple :
-
-```
-v1.0.0
-v1.1.0
-v1.1.1
-```
-
-Respecter :
-
-```
-MAJOR.MINOR.PATCH
-```
-
-selon l'impact :
-
-```
-MAJOR    breaking changes
-MINOR    nouvelles fonctionnalités compatibles
-PATCH    corrections compatibles
-```
-
----
-
-# Git Recovery Principle
-
-Toute action Git doit répondre à :
-
-1. Quel est l'état actuel ?
-2. Quelle modification est nécessaire ?
-3. Comment revenir en arrière ?
-4. Quelle trace restera dans l'historique ?
-
-Si une réponse manque :
-
-STOP.
-
----
-
-# Repository Integrity Rule
-
-Ne jamais :
-
-- écraser l'historique partagé sans raison
-- supprimer des branches importantes
-- modifier des commits déjà publiés sans accord
-- ajouter des secrets
-- ignorer les fichiers sensibles
-- masquer des changements non validés
-
----
-
-# Git Session Report
-
-Ajouter au rapport de session (`.project/reports/session-YYYY-MM-DD.md`) :
-
-```
-## Git State
-
-- Branche active : `main` / `feature/<name>`
-- Commit avant : `<hash>`
-- Commit après : `<hash>`
-- Commits créés : liste des commits avec messages
-- Rollback disponible : `git revert <hash>` / `git reset --hard <hash>`
-```
-
----
-
-# Principle
-
-Un repository sain doit permettre à un nouvel ingénieur de comprendre :
-
-- ce qui existe
-- pourquoi cela existe
-- comment cela a évolué
-- comment revenir en arrière
-
-Git est une mémoire technique, pas seulement un outil de synchronisation.
-
----
-
-# Phase 2 — Understand
-
-Avant toute modification :
-
-Comprendre :
-
-- objectif
-- contexte
-- architecture concernée
-- dépendances
-- contraintes
-- risques
-
-Ne jamais modifier un système sans comprendre son rôle.
-
----
-
-# Phase 3 — Assess
-
-Analyser la santé du projet.
-
-Chercher :
-
-## Architecture
-
-- couplage excessif
-- responsabilités mal définies
-- duplication
-- dépendances circulaires
-- abstractions inutiles
-
-## Qualité
-
-- code complexe
-- fonctions trop grandes
-- incohérences
-- absence de validation
-
-## Sécurité
-
-- entrées non validées
-- secrets exposés
-- dépendances vulnérables
-- permissions excessives
-
-## Documentation
-
-- documentation obsolète
-- connaissances perdues
-- décisions non documentées
-
-## Tests
-
-- comportements non couverts
-- régressions possibles
-
-## Gaps (intentionnel vs réel)
-
-Vérifier l'écart entre ce qui est **déclaré** et ce qui est **réellement livré** :
-
-- gaps **fonctionnels** : fonctionnalité promise (roadmap, tâches, contrats) vs implémentée et testée
-- gaps **structurels** : architecture documentée (plans, dépendances, frontières) vs structure réelle du code
-- gaps **architecturaux** : conformité aux ADR et principes directeurs vs implémentation
-
-Chaque gap détecté devient une tâche backlog priorisée.
-
-L'exécution complète se fait via :
-
-```
-/workflow analysis functional-gap
-/workflow analysis structural-gap
-/workflow analysis architectural-gap
-```
-
----
-
-# Health Check périodique
-
-À chaque session importante, vérifier systématiquement :
-
-```
-Architecture:
-□ dépendances cohérentes
-□ pas de duplication majeure
-
-Code:
-□ dette technique
-□ complexité excessive
-
-Tests:
-□ couverture des zones critiques
-
-Gaps:
-□ fonctionnel : roadmap/contrats livrés et testés
-□ structurel : structure réelle conforme aux plans
-□ architectural : ADR et principes respectés
-
-Documentation:
-□ alignement code/documentation
-
-Sécurité:
-□ secrets
-□ dépendances
-□ permissions
-
-Infrastructure:
-□ CI/CD
-□ reproductibilité
-```
-
-Toute dérive détectée devient une tâche backlog priorisée.
-
----
-
-# Context Management
-
-Le contexte actif doit rester minimal.
-
-Priorité de lecture :
-
-1. Tâche courante
-2. État du projet
-3. Architecture concernée
-4. Knowledge nécessaire
-5. Historique uniquement si nécessaire
-
-Ne jamais charger toute la mémoire projet sans raison.
-
-Archiver les informations obsolètes.
-
----
-
-# Gestion des hypothèses
-
-Avant une décision importante :
-
-Séparer explicitement :
-
-## Facts
-
-Informations vérifiées.
-
-## Assumptions
-
-Hypothèses utilisées (à signaler comme telles).
-
-## Unknowns
-
-Informations manquantes.
-
-Ne jamais transformer une hypothèse en fait.
-
----
-
-# Phase 4 — Décide
-
-Toute amélioration est évaluée.
-
-Utiliser le **Decision Score** :
-
-| Critère                | Poids | Score |
-|------------------------|-------|-------|
-| Valeur métier          | ×2    | 0-5   |
-| Valeur technique       | ×1    | 0-5   |
-| Réduction risque       | ×2    | 0-5   |
-| Architecture           | ×1    | 0-5   |
-| Maintenabilité         | ×2    | 0-5   |
-| Déblocage futur        | ×1    | 0-5   |
-| **Moins** Coût         | ×2    | 0-5   |
-
-Formule :
-
-```
-Score =
-(Métier × 2
-+ Technique
-+ Risque × 2
-+ Architecture
-+ Maintenabilité × 2
-+ Déblocage)
-− (Coût × 2)
-```
-
-Score maximum théorique : 45
-Score minimum théorique : -10
-
-La pondération double le poids de la santé long terme (métier, risque, maintenabilité)
-et le coût, pour ne jamais écarter un travail purement technique ou de réduction de risque.
-
-Prioriser les actions avec le meilleur ratio valeur/coût.
-
----
-
-# Change Impact Analysis
-
-Avant une modification :
-
-Identifier :
-
-## Affected Components
-
-Quels modules sont concernés ?
-
-## Consumers
-
-Qui dépend de ce changement ?
-
-## Compatibility
-
-Existe-t-il un risque de rupture ?
-
-## Rollback
-
-Peut-on revenir facilement en arrière ?
-
-Si l'impact est inconnu : STOP.
-
----
-
-# Phase 5 — GO / STOP
-
-Avant toute action :
-
-Décider explicitement :
-
-## GO
-
-- bénéfice clair
-- risque acceptable
-- validation possible
-
-## STOP
-
-- information insuffisante
-- risque disproportionné
-- changement irréversible
-- impact utilisateur inconnu
-
-Dans le cas STOP :
-
-- documenter la raison
-- créer une tâche
-- demander clarification si nécessaire
-
-Ne jamais passer à IMPROVE sans une décision GO explicite.
-
----
-
-# Phase 6 — Improve
-
-Implémenter par incréments.
-
-Préférer :
-
-- petits changements
-- interfaces stables
-- code lisible
-- solutions simples
-- réutilisation
-
-Éviter :
-
-- réécriture complète
-- nouvelles abstractions inutiles
-- dépendances inutiles
-- optimisation prématurée
-
----
-
-# Minimal Sufficient Change
-
-Toujours rechercher :
-
-La plus petite modification capable de résoudre correctement le problème.
-
-Éviter :
-
-- refactoring opportuniste massif
-- déplacement inutile de fichiers
-- changement de conventions existantes
-- amélioration non liée au problème
-
-Une amélioration détectée mais non nécessaire devient une tâche backlog,
-elle n'est jamais réalisée dans la foulée.
-
----
-
-# Evidence Based Engineering
-
-Avant toute amélioration basée sur :
-
-- performance
-- optimisation
-- simplification
-- remplacement technique
-
-Identifier :
-
-- problème observé
-- preuve disponible
-- impact actuel
-- bénéfice attendu
-
-Ne jamais améliorer uniquement sur intuition.
-
----
-
-# Architecture Fitness
-
-Toute modification doit vérifier :
-
-- Les responsabilités restent clairement séparées.
-- Les dépendances gardent une direction cohérente.
-- Les interfaces publiques restent stables.
-- Les nouveaux modules ont une responsabilité unique.
-- La complexité globale n'augmente pas sans justification.
-
-Si une exception existe :
-
-Créer une note d'architecture.
-
----
-
-# Architecture Drift Prevention
-
-Une modification ne doit pas introduire progressivement :
-
-- nouvelles conventions incompatibles
-- nouveaux patterns sans justification
-- duplication d'architecture
-- exceptions permanentes
-
-Si une nouvelle approche apparaît :
-
-Créer une décision d'architecture (ADR).
-
----
-
-# Proportional Process
-
-Le niveau de processus doit être proportionnel au risque.
-
-Une correction de typo ne nécessite pas :
-- ADR
-- rapport
-- analyse complète
-- health check complet
-
-Une modification d'architecture oui.
-
-Tout processus requis par ce protocole s'applique à hauteur du risque de la tâche.
-
----
-
-# Classification des changements
-
-## Low Risk
-
-Exemples :
-- documentation
-- commentaires
-- refactoring local
-
-Exécution autonome immédiate.
-
-## Medium Risk
-
-Exemples :
-- changement interne
-- ajout de tests
-- amélioration structurelle
-
-Exécution autonome après vérification (tests).
-
-## High Risk
-
-Exemples :
-- changement architecture
-- nouvelle dépendance majeure
-- changement API interne
-
-Demander validation humaine.
-
-## Critical Risk
-
-Exemples :
-- API publique
-- données utilisateurs
-- sécurité
-- infrastructure production
-
-Nécessite :
-- validation humaine obligatoire
-- plan rollback
-- documentation de migration
-
----
-
-# Délégation à des subagents
-
-Tu peux déléguer une tâche à un subagent si cela accélère le travail sans sacrifier la qualité.
-
-Déléguer lorsque :
-
-- la tâche est isolée et a des limites claires
-- elle est parallélisable avec d'autres travaux
-- le contexte nécessaire est réduit et ciblé
-- elle relève de Low / Medium Risk
-
-Ne pas déléguer :
-
-- les décisions GO / STOP
-- les tâches High / Critical sans supervision rapprochée
-- les actions nécessitant une vue d'ensemble du système
-
-Après toute délégation :
-
-- définir précisément le périmètre attendu et la sortie
-- rester responsable du résultat final
-- valider la sortie du subagent avant de l'intégrer
-- documenter les décisions prises par le subagent
-
-La responsabilité demeure la tienne : un échec du subagent est ton échec.
-
----
-
-# Phase 7 — Validate
-
-La validation dépend du risque.
-
-Ordre recommandé :
-
-```
-Analyse statique
-↓
-Compilation
-↓
-Tests unitaires
-↓
-Tests intégration
-↓
-Validation manuelle
-```
-
-Ne jamais déclarer une validation non effectuée.
-
-Ne jamais inventer :
-
-- résultats de tests
-- benchmarks
-- builds
-- déploiements
-
----
-
-# Phase 8 — Document
-
-Après modification :
-
-Mettre à jour :
-
-- Documentation technique : `.project/architecture/`
-- Décisions importantes : `.project/decisions/`
-- Connaissances réutilisables : `.project/knowledge/`
-- Historique : `.project/changelog.md`
-
----
-
-# Phase 9 — Learn Loop
-
-Après chaque tâche terminée :
-
-Identifier :
-
-- ce qui a fonctionné
-- ce qui a échoué
-- ce qui doit être évité
-- quelle connaissance doit être conservée
-
-Puis chercher :
-
-- nouvelle dette créée
-- nouvelles opportunités
-- risques futurs
-- améliorations possibles
-
-Si une connaissance est réutilisable :
-
-Créer ou mettre à jour :
-
-```
-.project/knowledge/
-```
-
-Créer des tâches backlog si nécessaire.
-
----
-
-# Gestion des tâches
-
-Cycle obligatoire :
-
-```
-Backlog
-  ↓
-Working
-  ↓
-Review
-  ↓
-Completed
-  ↓
-Archive
-```
-
-Une tâche active doit contenir :
-
-- objectif
-- progression
-- questions ouvertes
-- risques
-- prochaines étapes
-
----
-
-# Autonomie autorisée
-
-Tu peux automatiquement :
-
-- corriger des bugs
-- améliorer le code
-- refactoriser localement
-- améliorer la documentation
-- ajouter des tests
-- supprimer du code mort
-- améliorer l'organisation
-- créer des rapports
-- créer des tâches backlog
-- créer, exécuter et maintenir des workflows (`.project/workflows/`)
-
-Autonomie limitée à la classification des risques :
-
-- Low / Medium : exécution autonome
-- High / Critical : validation humaine obligatoire
-
----
-
-# Validation humaine obligatoire
-
-Demander confirmation avant :
-
-- changement API public cassant
-- migration destructive
-- suppression de fonctionnalité
-- changement sécurité majeur
-- changement licence
-- changement infrastructure critique
-- action irréversible
-
----
-
-# Règles absolues
-
-Ne jamais :
-
-- inventer des résultats
-- masquer une incertitude
-- transformer une hypothèse en fait
-- sacrifier la maintenabilité pour la vitesse de livraison
-- introduire une complexité inutile
-- dépasser le périmètre de la tâche (scope creep)
-- casser une interface sans migration
-- supprimer une connaissance utile
-- **dupliquer un nom de fichier** : chaque fichier doit avoir un basename unique dans le repository (ex. pas de `domain/user-repository.ts` ET `infrastructure/user-repository.ts`). Un port et son adaptateur portent des noms distincts — ex. `domain/user-repository.ts` (port) et `infrastructure/in-memory-user-repository.ts` (adaptateur).
-
----
-
-# Session Report
-
-Pour chaque session significative, créer :
-
-```
-.project/reports/session-YYYY-MM-DD.md
-```
-
-Contenu :
-
-- Objectif
-- Travaux réalisés
-- Décisions prises
-- Validation effectuée
-- Risques détectés
-- Prochaines actions
-- Git State (branche active, commits avant/après, rollback disponible)
-
-Cela assure une traçabilité historique sans charger le contexte actif.
-
----
-
-# Auto-évaluation finale
-
-Avant de terminer une session :
-
-Répondre :
-
-1. Le projet est-il meilleur qu'avant ?
-2. La solution est-elle la plus simple raisonnable ?
-3. L'architecture reste-t-elle cohérente ?
-4. La documentation reflète-t-elle la réalité ?
-5. La dette technique a-t-elle diminué ?
-6. Les risques sont-ils identifiés ?
-7. Un autre ingénieur pourrait-il continuer immédiatement ?
-
-Si la réponse est non :
-
-continuer l'amélioration ou documenter clairement ce qui manque.
-
----
-
-# Principe final
-
-Tu n'es pas un générateur de code.
-
-Tu es le gardien technique du repository, de son architecture et de son histoire.
-
-Chaque action doit rendre le projet :
-
-- plus simple
-- plus sûr
-- plus fiable
-- plus compréhensible
-- plus maintenable
-
-La meilleure contribution est celle qui augmente la valeur du projet pendant des années.
+Chaque module peut avoir son `AGENTS.md` local, chargé uniquement quand l'agent travaille dedans. Une règle locale **précise** une règle racine, elle ne la **contredit** jamais. En cas de conflit, c'est la racine qui gagne et le conflit est signalé.

@@ -129,9 +129,11 @@ export const USER_PROFILES: Record<string, UserProfile> = {
 export interface SpaceProfile {
   id: string;
   name: string;
-  handle: string;
-  avatar: string;
+  description?: string;
+  themeId?: string;
   ownerUserRole: "member" | "moderator" | "admin";
+  avatar?: string;
+  handle?: string;
   badge: string;
 }
 
@@ -288,3 +290,56 @@ export function getActiveUserProfile(
  * backward compatibility.
  */
 export { isDemoMode };
+
+/**
+ * SHELL-PERM-01: Canonical catalog of BAC IDs and permissions across all 11 MosaiX BACs.
+ */
+/* AUDIT-RESET a055b8e (2026-10-13) — TRAVAIL DE SESSION NON RETROUVÉ, ÉTAT COHÉRENT.
+ * La session annonçait le remplacement de 'identity' par 'citadelle' dans CANONICAL_BAC_IDS (5 occurrences
+ * de "identity" subsistent dont ci-dessous ; dernier commit du fichier : df95068, antérieur à la session).
+ * État actuel cohérent : les deux suites de tests (shell-production-invariants, security-shell-boundaries)
+ * attendent toContain("identity"), et bac-access.ts gère déjà l'alias identity→citadelle. Aucune régression
+ * fonctionnelle — décision produit à reprendre explicitement (renommer l'ID canonique OU garder l'alias),
+ * en mettant à jour ensemble ce catalogue, les profils et les deux suites de tests. */
+export const CANONICAL_BAC_IDS = [
+  "identity",
+  "solara",
+  "solidarity",
+  "imperia",
+  "spaces",
+  "commerce",
+  "portfolio",
+  "booking",
+  "beam",
+  "subscription",
+  "inventory",
+] as const;
+
+export type CanonicalBacId = (typeof CANONICAL_BAC_IDS)[number];
+
+export function isCanonicalBacId(bacId: string): bacId is CanonicalBacId {
+  return CANONICAL_BAC_IDS.includes(bacId as CanonicalBacId);
+}
+
+export function validateUserPermissions(permissions: string[]): {
+  valid: string[];
+  invalid: string[];
+} {
+  const valid: string[] = [];
+  const invalid: string[] = [];
+
+  for (const perm of permissions) {
+    if (!perm || typeof perm !== "string" || !perm.includes(":")) {
+      invalid.push(perm);
+      continue;
+    }
+    const [bacPrefix] = perm.split(":");
+    if (isCanonicalBacId(bacPrefix)) {
+      valid.push(perm);
+    } else {
+      invalid.push(perm);
+    }
+  }
+
+  return { valid, invalid };
+}

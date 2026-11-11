@@ -6,8 +6,14 @@
 import { Model, applyTraits, SoftDeleteTrait, TimestampableTrait } from "@mosaix/sdk";
 import type { SellerEntityRef } from "./commerce-offer.model.js";
 
+/* AUDIT-RESET a055b8e (2026-10-13) — PERTE CONFIRMÉE PUIS RESTAURÉE (V1.1, voir git log).
+ * "PendingPayment" était annoncé par la session puis absent du commit ; `git log -S PendingPayment`
+ * vide sur tout l'historique. Restauré ici dans l'union + migration du CHECK (migrations.ts +
+ * 20261013000000_order_pending_payment) ; tester la machine avant toute évolution. */
+
 export type OrderStatus =
   | "Pending"
+  | "PendingPayment"
   | "Paid"
   | "Processing"
   | "Shipped"
@@ -47,6 +53,8 @@ export class OrderModel extends Model {
   totalAmount: number = 0;
   taxAmount: number = 0;
   discountCode?: string;
+  /** Double-submit protection (partial UNIQUE in DB, enforced in OrderService). */
+  idempotencyKey?: string;
   shippingAddress?: OrderAddress;
   billingAddress?: OrderAddress;
   lineItems: OrderLineItem[] = [];

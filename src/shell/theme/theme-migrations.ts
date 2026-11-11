@@ -11,42 +11,18 @@
  * in the `mosaix_migrations` ledger, so this is idempotent across restarts.
  */
 import {
-  SchemaBuilder,
-  SQLiteGrammar,
-  computeChecksum,
   type Migration,
+  type MigrationContext,
   type MigrationProvider,
 } from "@mosaix/migrations";
 
 export const SHELL_THEME_MIGRATION_ID =
   "shell.theme.v1.001_create_theme_assignments";
 
-function buildUpContent(): string {
-  const builder = new SchemaBuilder();
-  builder.createTable("theme_assignments", (table) => {
-    table.string("id").primary();
-    table.string("target_type");
-    table.string("target_id");
-    table.string("theme_id");
-    table.string("mode").nullable();
-    table.string("source");
-    table.timestamp("updated_at");
-    table.unique("uq_theme_assignments_target", ["target_type", "target_id"]);
-  });
-  const grammar = new SQLiteGrammar();
-  return builder.blueprints
-    .flatMap((bp) => grammar.compile(bp))
-    .map((s) => s.sql)
-    .join("\n");
-}
-
-function buildDownContent(): string {
-  const grammar = new SQLiteGrammar();
-  return [{ type: "dropTable" as const, table: "theme_assignments" }]
-    .flatMap((bp) => grammar.compile(bp))
-    .map((s) => s.sql)
-    .join("\n");
-}
+/* checksum:begin */
+export const MIGRATION_CHECKSUM =
+  "a11185bad139ad9ec9160a5558edee9c8e6d336aebd8971d0da7c1c4a3afde7f";
+/* checksum:end */
 
 export class ShellThemeMigrationProvider implements MigrationProvider {
   ownerId(): string {
@@ -54,14 +30,29 @@ export class ShellThemeMigrationProvider implements MigrationProvider {
   }
 
   migrations(): readonly Migration[] {
-    const content = buildUpContent();
-    const down = buildDownContent();
     return [
       {
         id: SHELL_THEME_MIGRATION_ID,
-        content,
-        down,
-        checksum: computeChecksum(content),
+        checksum: MIGRATION_CHECKSUM,
+        legacyChecksums: ["65acffe0d12fb35b"],
+        up: (context: MigrationContext) => {
+          context.schema.createTable("theme_assignments", (table) => {
+            table.string("id").primary();
+            table.string("target_type");
+            table.string("target_id");
+            table.string("theme_id");
+            table.string("mode").nullable();
+            table.string("source");
+            table.timestamp("updated_at");
+            table.unique("uq_theme_assignments_target", [
+              "target_type",
+              "target_id",
+            ]);
+          });
+        },
+        downMigration: (context: MigrationContext) => {
+          context.schema.dropTable("theme_assignments");
+        },
         resources: [
           "table:theme_assignments",
           "index:uq_theme_assignments_target",

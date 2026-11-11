@@ -6,6 +6,7 @@ import {
   createSign,
   createVerify,
   randomBytes,
+  timingSafeEqual as cryptoTimingSafeEqual,
 } from "node:crypto";
 import type { CryptoPort } from "@mosaix/ports-crypto";
 
@@ -80,5 +81,14 @@ export class NodeCryptoAdapter implements CryptoPort {
   async verifyPassword(password: string, expectedHash: string, _salt: string): Promise<boolean> {
     const hash = createHash("sha256").update(password).digest("hex");
     return hash === expectedHash;
+  }
+
+  timingSafeEqual(a: string | Buffer, b: string | Buffer): boolean {
+    const bufA = typeof a === "string" ? Buffer.from(a, "utf-8") : a;
+    const bufB = typeof b === "string" ? Buffer.from(b, "utf-8") : b;
+    if (bufA.length !== bufB.length) {
+      return false;
+    }
+    return cryptoTimingSafeEqual(bufA, bufB);
   }
 }

@@ -2,7 +2,7 @@
  * @mosaix/events — Asynchronous Outbox Worker & Dead Letter Queue (DLQ) with Replay Engine
  */
 
-import type { TransactionalOutboxEngine, OutboxEventModel } from "./outbox";
+import type { TransactionalOutboxEngine, OutboxEventModel } from "./outbox.js";
 
 export class DeadLetterQueue {
   private dlqEvents: OutboxEventModel[] = [];

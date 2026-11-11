@@ -15,7 +15,7 @@ import {
   themeChangedEvent,
   type ThemeAssignmentChangedEvent,
   type ThemeChangedEvent,
-} from "../index";
+} from "../index.js";
 
 describe("ThemeAssignmentChangedEvent (D-11)", () => {
   it("type constant is theme.assignment.changed", () => {

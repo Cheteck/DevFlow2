@@ -16,8 +16,8 @@ import {
   type KernelModule,
 } from "@mosaix/core";
 import type { PluginManifest } from "@mosaix/contracts";
-import { PluginModule, PLUGIN_SERVICE } from "./plugin-module";
-import type { PluginRegistry } from "../plugin/plugin-registry";
+import { PluginModule, PLUGIN_SERVICE } from "./plugin-module.js";
+import type { PluginRegistry } from "../plugin/plugin-registry.js";
 
 function plugin(id: string): PluginManifest {
   return {

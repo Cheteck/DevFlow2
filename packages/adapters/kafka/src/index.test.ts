@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from "vitest";
 import { Kafka } from "kafkajs";
-import { KafkaPubSubAdapter } from "./index";
+import { KafkaPubSubAdapter } from "./index.js";
 
 describe("KafkaPubSubAdapter", () => {
   it("interacts with KafkaJS client correctly", async () => {

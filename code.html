@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MosaïX Spaces &amp; Modular Pages - Variante Mosaïque (Bento Grid)</title>
+<!-- Tailwind CSS CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              200: '#ddd6fe',
+              300: '#c4b5fd',
+              400: '#a78bfa',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+              800: '#5b21b6',
+              900: '#4c1d95',
+            },
+            surface: {
+              base: '#0b0f19',
+              sidebar: '#0e1322',
+              card: '#182032',
+              cardHover: '#1e2840',
+              cardBorder: 'rgba(255, 255, 255, 0.08)',
+              cardBorderGlow: 'rgba(139, 92, 246, 0.35)',
+              topbar: 'rgba(11, 15, 25, 0.85)'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<!-- External Font Awesome for rich icons -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet"/>
+<style data-purpose="custom-scrollbars">
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f19;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #252e46;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b4668;
+    }
+  </style>
+<style data-purpose="effects">
+    .card-glow:hover {
+      box-shadow: 0 12px 36px -8px rgba(139, 92, 246, 0.28);
+    }
+    .glass-panel {
+      background: rgba(19, 24, 38, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .berber-pattern {
+      background-image: radial-gradient(rgba(16, 185, 129, 0.12) 1.5px, transparent 1.5px), radial-gradient(rgba(139, 92, 246, 0.12) 1.5px, transparent 1.5px);
+      background-size: 24px 24px;
+      background-position: 0 0, 12px 12px;
+    }
+    .circuit-pattern {
+      background-image: radial-gradient(rgba(59, 130, 246, 0.15) 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+  </style>
+</head>
+<body class="bg-[#0b0f19] text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-brand-500 selection:text-white">
+<!-- BEGIN: ApplicationLayout -->
+<div class="flex h-screen overflow-hidden">
+<!-- BEGIN: LeftSidebar -->
+<aside class="w-64 flex-shrink-0 bg-surface-sidebar border-r border-white/5 flex flex-col justify-between hidden md:flex transition-all duration-300 z-30" data-purpose="main-navigation-sidebar">
+<!-- Top Brand & Space Selector -->
+<div class="flex flex-col">
+<!-- Logo & Brand Header -->
+<div class="h-16 flex items-center px-5 border-b border-white/5 justify-between">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 via-indigo-500 to-purple-400 flex items-center justify-center text-white shadow-lg shadow-brand-500/25 ring-1 ring-white/20">
+<i class="fa-solid fa-shapes text-lg"></i>
+</div>
+<div>
+<span class="font-bold text-base tracking-wide bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">MosaïX</span>
+<span class="text-[10px] font-semibold tracking-wider uppercase block text-brand-400">Modular OS</span>
+</div>
+</div>
+<button class="text-slate-400 hover:text-white text-xs p-1.5 rounded-lg hover:bg-white/5 transition" title="Réduire le volet">
+<i class="fa-solid fa-chevron-left"></i>
+</button>
+</div>
+<!-- Current Workspace Switcher -->
+<div class="p-3">
+<button class="w-full text-left p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 flex items-center justify-between group transition">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs ring-1 ring-indigo-500/30">
+<i class="fa-solid fa-globe"></i>
+</div>
+<div class="truncate">
+<p class="text-xs font-semibold text-slate-200 truncate">Espaces Partagés</p>
+<p class="text-[10px] text-slate-400 truncate">Équipes &amp; Projets publics</p>
+</div>
+</div>
+<div class="flex items-center gap-1.5 flex-shrink-0">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+<span class="text-[10px] text-emerald-400 font-medium">Actif</span>
+</div>
+</button>
+</div>
+<!-- Sidebar Internal Quick Search -->
+<div class="px-3 py-1">
+<div class="relative">
+<i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-500"></i>
+<input class="w-full bg-[#131929] text-xs text-slate-200 placeholder-slate-500 pl-8 pr-3 py-2 rounded-lg border border-white/5 focus:outline-none focus:border-brand-500 transition" placeholder="Rechercher une option..." type="text"/>
+</div>
+</div>
+<!-- Sidebar Nav Links -->
+<nav class="mt-4 px-2 space-y-1">
+<div class="px-3 pb-2 flex items-center justify-between">
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Navigation &amp; Outils</span>
+<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-white/5 text-slate-400">0</span>
+</div>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] transition" href="#">
+<i class="fa-solid fa-house w-4 text-center"></i>
+<span class="">Accueil Hub</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold bg-brand-500/15 text-brand-300 border border-brand-500/20 transition" href="#">
+<i class="fa-solid fa-layer-group w-4 text-center text-brand-400"></i>
+<span class="">MosaïX Spaces</span>
+<span class="ml-auto text-[10px] bg-brand-500 text-white font-bold px-1.5 py-0.2 rounded-full">16</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] transition" href="#">
+<i class="fa-solid fa-store w-4 text-center"></i>
+<span class="">Mes Boutiques</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] transition" href="#">
+<i class="fa-solid fa-satellite-dish w-4 text-center"></i>
+<span class="">Flux de publications</span>
+</a>
+<div class="pt-4 px-3 pb-2">
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Écosystème</span>
+</div>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] transition" href="#">
+<i class="fa-solid fa-cube w-4 text-center"></i>
+<span class="">Modules MosaïX</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] transition" href="#">
+<i class="fa-solid fa-chart-pie w-4 text-center"></i>
+<span class="">Statistiques &amp; Ventes</span>
+</a>
+</nav>
+</div>
+<!-- Bottom User / Auth Status Panel -->
+<div class="p-3 border-t border-white/5 space-y-2.5 bg-black/20">
+<div class="flex items-center justify-between text-xs px-1">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+<span class="text-[11px] text-slate-400">Réseau Principal</span>
+</div>
+<span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/20">Connecté</span>
+</div>
+<button class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-brand-200 bg-brand-500/20 hover:bg-brand-500/30 border border-brand-500/30 transition shadow-sm">
+<i class="fa-solid fa-arrow-right-to-bracket text-brand-400"></i>
+<span class="">Se connecter</span>
+</button>
+</div>
+</aside>
+<!-- END: LeftSidebar -->
+<!-- BEGIN: MainContentWrapper -->
+<div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+<!-- BEGIN: TopHeaderBar -->
+<header class="h-16 sticky top-0 z-20 glass-panel border-b border-white/5 flex items-center justify-between px-4 sm:px-6">
+<!-- Breadcrumb & Mobile Menu Trigger -->
+<div class="flex items-center gap-3">
+<button class="md:hidden text-slate-400 hover:text-white p-2 rounded-lg hover:bg-white/5">
+<i class="fa-solid fa-bars"></i>
+</button>
+<nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs text-slate-400">
+<a class="hover:text-slate-200 transition flex items-center gap-1.5" href="#">
+<i class="fa-solid fa-house text-slate-500"></i>
+<span class="">Accueil</span>
+</a>
+<i class="fa-solid fa-chevron-right text-[9px] text-slate-600"></i>
+<a class="hover:text-slate-200 transition" href="#">Modules</a>
+<i class="fa-solid fa-chevron-right text-[9px] text-slate-600"></i>
+<span class="text-white font-medium flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-brand-400"></span>
+              MosaïX Spaces &amp; Modular Pages
+            </span>
+</nav>
+</div>
+<!-- Global Search Bar & Actions -->
+<div class="flex items-center gap-3 sm:gap-4">
+<!-- OmniSearch -->
+<div class="relative hidden lg:block w-72 xl:w-96">
+<i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-xs text-slate-500"></i>
+<input class="w-full bg-[#141a2b] border border-white/10 rounded-xl pl-9 pr-14 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition shadow-inner" placeholder="Rechercher un espace, @vendeur, mot-clé..." type="text"/>
+<span class="absolute right-2.5 top-2 text-[10px] font-mono text-slate-400 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded">⌘K</span>
+</div>
+<!-- Language Selector -->
+<div class="flex items-center bg-[#131929] rounded-lg border border-white/5 p-0.5 text-xs">
+<button class="px-2 py-1 rounded font-semibold text-white bg-brand-600 shadow-sm text-[11px]">FR</button>
+<button class="px-2 py-1 rounded text-slate-400 hover:text-slate-200 transition text-[11px]">EN</button>
+<button class="px-2 py-1 rounded text-slate-400 hover:text-slate-200 transition text-[11px]">AR</button>
+</div>
+<!-- Theme Mode Switcher -->
+<div class="hidden sm:flex items-center bg-[#131929] rounded-lg border border-white/5 p-0.5 text-xs">
+<button class="px-2 py-1 rounded text-slate-400 hover:text-slate-200 text-[11px]">
+<i class="fa-regular fa-sun"></i>
+</button>
+<button class="px-2 py-1 rounded bg-brand-900/60 text-brand-300 border border-brand-500/20 text-[11px]">
+<i class="fa-solid fa-moon"></i>
+</button>
+<button class="px-2 py-1 rounded text-slate-400 hover:text-slate-200 text-[11px]" title="Contraste élevé">
+<i class="fa-solid fa-circle-half-stroke"></i>
+</button>
+</div>
+<!-- Primary CTA Buttons -->
+<div class="flex items-center gap-2">
+<button class="hidden sm:inline-flex items-center justify-center text-xs font-semibold px-3.5 py-2 text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition border border-white/10">
+              Se connecter
+            </button>
+<button class="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl text-white bg-gradient-to-r from-brand-600 via-brand-500 to-indigo-600 hover:brightness-110 shadow-lg shadow-brand-500/25 transition">
+<i class="fa-solid fa-user-plus text-[11px]"></i>
+<span class="">Créer un compte</span>
+</button>
+</div>
+</div>
+</header>
+<!-- END: TopHeaderBar -->
+<!-- BEGIN: ContentArea -->
+<main class="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1750px] w-full mx-auto" data-purpose="spaces-hub-main-content">
+<!-- BEGIN: SpacesHubHeaderSection -->
+<section class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#161d31] via-[#121827] to-[#0c0f17] border border-white/10 p-5 sm:p-6 shadow-2xl" data-purpose="hub-editorial-hero">
+<div class="absolute -right-20 -top-20 w-80 h-80 bg-brand-600/15 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute right-1/4 -bottom-20 w-72 h-72 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
+<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+<div class="space-y-2 max-w-3xl">
+<div class="flex items-center gap-2.5">
+<div class="w-9 h-9 rounded-xl bg-brand-500/20 text-brand-400 border border-brand-500/30 flex items-center justify-center text-base">
+<i class="fa-solid fa-shapes"></i>
+</div>
+<div class="flex items-center gap-2.5 flex-wrap">
+<h1 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">Spaces Hub</h1>
+<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-500/20 text-brand-300 border border-brand-500/30">16 Espaces actifs</span>
+<span class="text-xs text-brand-300/80 font-medium hidden sm:inline">• Découverte des espaces publics et de leurs catalogues</span>
+</div>
+</div>
+<p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+          Explorez les Spaces MosaïX : boutiques officielles certifiées, artisans locaux, créateurs d'équipements technologiques et collectifs digitaux.
+        </p>
+<div class="flex flex-wrap items-center gap-3 text-xs text-slate-400 pt-1">
+<span class="flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-400"></i> +280 nouveaux produits</span>
+<span class="text-slate-600">•</span>
+<span class="flex items-center gap-1.5"><i class="fa-solid fa-shield-check text-emerald-400"></i> 100% Espaces modérés</span>
+<span class="text-slate-600">•</span>
+<span class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-indigo-400"></i> Hub Algérie &amp; International</span>
+</div>
+</div>
+<div class="flex items-center gap-2.5 flex-shrink-0">
+<button class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 text-xs font-semibold transition">
+<i class="fa-regular fa-id-badge text-xs"></i>
+<span>Profil de l'Espace</span>
+</button>
+<button class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/30 text-xs font-bold transition hover:scale-[1.02]">
+<i class="fa-solid fa-plus-circle text-xs"></i>
+<span>+ Créer mon Espace</span>
+</button>
+</div>
+</div>
+<!-- Quick Tabs Pills Row -->
+<div class="mt-5 pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+<div class="flex items-center gap-1.5 bg-[#101524] p-1 rounded-xl border border-white/5 text-xs">
+<button class="px-3 py-1.5 rounded-lg bg-brand-600 text-white font-semibold shadow-sm text-xs flex items-center gap-1.5">
+<i class="fa-solid fa-border-all text-[11px]"></i>
+<span>Tous les Espaces</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition text-xs flex items-center gap-1.5">
+<i class="fa-solid fa-fire text-amber-400 text-[11px]"></i>
+<span>Tendances</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition text-xs flex items-center gap-1.5">
+<i class="fa-solid fa-sparkles text-brand-300 text-[11px]"></i>
+<span>Nouveautés</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition text-xs flex items-center gap-1.5">
+<i class="fa-regular fa-heart text-rose-400 text-[11px]"></i>
+<span>Mes Espaces Suivis</span>
+</button>
+</div>
+<div class="flex items-center gap-2 text-xs text-slate-400">
+<span class="inline-flex items-center gap-1.5 bg-brand-500/10 border border-brand-500/20 px-2.5 py-1 rounded-lg text-brand-300 font-medium">
+<i class="fa-solid fa-table-cells-large text-brand-400"></i>
+          Vue Mosaïque Bento
+        </span>
+</div>
+</div>
+</section>
+<!-- END: SpacesHubHeaderSection -->
+<!-- BEGIN: ModularHybridBodyWithSidebar (74% / 26% Split) -->
+<div class="flex flex-col xl:flex-row gap-6 items-start">
+<!-- LEFT MAIN COLUMN: True Bento Grid Mosaic (approx 74%) -->
+<div class="w-full xl:w-[74%] space-y-6 flex-shrink-0">
+<!-- SECTION: BENTO GRID MOSAÏQUE -->
+<section aria-label="Mosaïque Bento des Espaces" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-[minmax(190px,auto)]" data-purpose="spaces-bento-grid">
+<!-- ==========================================
+           BENTO TILE 1: SPOTLIGHT MOSAÏQUE (2 cols x 2 rows)
+           Artisanat Kabyle - Tuile Majeure Éditoriale
+           ========================================== -->
+<article class="md:col-span-2 lg:col-span-2 md:row-span-2 relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#19253d] via-[#161f33] to-[#0e1424] border border-emerald-500/40 hover:border-emerald-400/70 transition-all duration-300 shadow-xl group card-glow flex flex-col justify-between berber-pattern" data-purpose="bento-tile-major">
+<!-- Ambient Lighting -->
+<div class="absolute -top-16 -right-16 w-56 h-56 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute -bottom-16 -left-16 w-56 h-56 bg-brand-500/15 rounded-full blur-3xl pointer-events-none"></div>
+<!-- Top Banner / Editorial Header -->
+<div class="relative p-5 pb-3 flex flex-wrap items-center justify-between gap-2 border-b border-white/5 bg-black/30 backdrop-blur-sm">
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-sm">
+<i class="fa-solid fa-gem text-emerald-400"></i> Fait main • Tradition
+            </span>
+<span class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-brand-500/20 text-brand-300 border border-brand-500/30 flex items-center gap-1">
+<i class="fa-solid fa-award"></i> Top Espace Mosaïque
+            </span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-lg flex items-center gap-1 shadow-sm">
+<i class="fa-solid fa-star text-amber-400"></i> Vedette
+            </span>
+<span class="text-[11px] text-emerald-400 font-mono bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-500/30 flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Créations 100% bio
+            </span>
+</div>
+</div>
+<!-- Central Bento Body -->
+<div class="p-5 sm:p-6 relative z-10 flex-1 flex flex-col justify-between space-y-4">
+<div class="flex items-start gap-4">
+<div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-emerald-950 via-[#1a273b] to-emerald-900 border-2 border-emerald-500/30 text-emerald-300 flex items-center justify-center font-black text-2xl sm:text-3xl shadow-xl ring-4 ring-emerald-500/10 group-hover:scale-105 group-hover:border-emerald-400 transition flex-shrink-0">
+              AK
+            </div>
+<div class="space-y-1.5 flex-1 min-w-0">
+<div class="flex items-center gap-2 flex-wrap">
+<h3 class="font-black text-lg sm:text-2xl text-white group-hover:text-emerald-300 transition">Artisanat Kabyle</h3>
+<i class="fa-solid fa-circle-check text-emerald-400 text-base" title="Boutique vérifiée"></i>
+<span class="text-xs font-mono text-emerald-400/90 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">@artisanat-kabyle</span>
+</div>
+<p class="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-2xl">
+                Bijoux berbères en argent émaillé de Beni Yenni, poteries traditionnelles de Sebt décorées de pigments naturels et tapisseries authentiques tissées à la main par nos maîtresses artisanes.
+              </p>
+</div>
+</div>
+<!-- Berber Feature Chips & Artisanal Tags -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 py-1">
+<div class="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:border-emerald-500/30 transition flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-300 flex items-center justify-center text-xs">
+<i class="fa-solid fa-ring"></i>
+</div>
+<div class="truncate">
+<p class="text-[10px] text-slate-400 uppercase font-semibold">Spécialité</p>
+<p class="text-xs font-bold text-slate-200 truncate">Bijoux berbères</p>
+</div>
+</div>
+<div class="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:border-emerald-500/30 transition flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-300 flex items-center justify-center text-xs">
+<i class="fa-solid fa-fire-burner"></i>
+</div>
+<div class="truncate">
+<p class="text-[10px] text-slate-400 uppercase font-semibold">Atelier</p>
+<p class="text-xs font-bold text-slate-200 truncate">Poteries traditionnelles</p>
+</div>
+</div>
+<div class="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:border-emerald-500/30 transition flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-purple-500/15 text-purple-300 flex items-center justify-center text-xs">
+<i class="fa-solid fa-rug"></i>
+</div>
+<div class="truncate">
+<p class="text-[10px] text-slate-400 uppercase font-semibold">Patrimoine</p>
+<p class="text-xs font-bold text-slate-200 truncate">Tissages main</p>
+</div>
+</div>
+</div>
+<!-- Location & Shipment Tags -->
+<div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+<span class="px-2.5 py-1 rounded-lg bg-white/5 text-slate-300 border border-white/10 flex items-center gap-1.5">
+<i class="fa-solid fa-location-dot text-emerald-400"></i> Kabylie &amp; Tizi Ouzou
+              </span>
+<span class="px-2.5 py-1 rounded-lg bg-white/5 text-slate-300 border border-white/10 flex items-center gap-1.5">
+<i class="fa-solid fa-box text-indigo-400"></i> Expédition Monde &amp; 58 wilayas
+              </span>
+<span class="px-2.5 py-1 rounded-lg bg-white/5 text-slate-300 border border-white/10 flex items-center gap-1.5">
+<i class="fa-solid fa-certificate text-amber-400"></i> Pièces numérotées
+              </span>
+</div>
+</div>
+<!-- Bento Bottom Stats & Actions -->
+<div class="p-4 sm:p-5 pt-3 bg-black/40 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3">
+<div class="flex items-center gap-4 text-xs text-slate-300 w-full sm:w-auto justify-between sm:justify-start">
+<div class="flex items-center gap-1.5">
+<i class="fa-solid fa-users text-emerald-400"></i>
+<span class="font-extrabold text-white text-sm">2.8k</span>
+<span class="text-slate-400">abonnés</span>
+</div>
+<div class="h-3 w-px bg-white/10"></div>
+<div class="flex items-center gap-1">
+<div class="flex text-amber-400 text-xs">
+<i class="fa-solid fa-star"></i>
+<i class="fa-solid fa-star"></i>
+<i class="fa-solid fa-star"></i>
+<i class="fa-solid fa-star"></i>
+<i class="fa-solid fa-star-half-stroke"></i>
+</div>
+<strong class="text-white font-bold ml-1">4.9/5</strong>
+<span class="text-slate-400 text-[10px]">(142 avis vérifiés)</span>
+</div>
+</div>
+<div class="flex items-center gap-2 w-full sm:w-auto">
+<button class="flex-1 sm:flex-none py-2 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-200 border border-white/10 transition flex items-center justify-center gap-1.5">
+<i class="fa-regular fa-user text-xs"></i>
+<span>Profil</span>
+</button>
+<button class="flex-1 sm:flex-none py-2 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-brand-600 hover:brightness-110 border border-emerald-400/40 text-xs font-bold text-white shadow-lg shadow-emerald-500/25 transition flex items-center justify-center gap-2">
+<i class="fa-solid fa-cart-shopping text-xs"></i>
+<span>🛍️ Visiter Boutique</span>
+</button>
+</div>
+</div>
+</article>
+<!-- ==========================================
+           BENTO TILE 2: TECH HERO (Format Vertical 1 col x 2 rows)
+           TechStore Jijel - Carte Haute Verticale
+           ========================================== -->
+<article class="md:col-span-1 lg:col-span-1 md:row-span-2 relative overflow-hidden rounded-2xl bg-gradient-to-b from-[#15233c] via-[#161e31] to-[#0c1220] border border-blue-500/40 hover:border-blue-400/70 transition-all duration-300 shadow-xl group card-glow flex flex-col justify-between circuit-pattern" data-purpose="bento-tile-vertical-hero">
+<div class="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/15 rounded-full blur-2xl pointer-events-none"></div>
+<!-- Top Tech Header -->
+<div class="p-4 border-b border-white/5 bg-black/30 backdrop-blur-sm flex items-center justify-between">
+<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/40 flex items-center gap-1">
+<i class="fa-solid fa-mobile-screen text-[9px]"></i> High-Tech &amp; Réparation
+            </span>
+<span class="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-md flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              Ouvert actuellement
+            </span>
+</div>
+<!-- Central Tech Info -->
+<div class="p-5 flex-1 flex flex-col justify-between space-y-4">
+<div class="space-y-3">
+<div class="flex items-center justify-between">
+<div class="w-14 h-14 rounded-2xl bg-blue-950/80 border-2 border-blue-500/40 text-blue-400 flex items-center justify-center font-black text-xl shadow-lg ring-2 ring-blue-500/20 group-hover:scale-105 transition">
+                TJ
+              </div>
+<div class="text-right">
+<span class="text-[11px] font-mono text-blue-300 bg-blue-950/70 px-2 py-0.5 rounded border border-blue-500/40 block">Garantie 12 mois</span>
+<span class="text-[10px] text-slate-400 mt-0.5 block">Wilaya 18 • Jijel</span>
+</div>
+</div>
+<div>
+<div class="flex items-center gap-1.5">
+<h3 class="font-extrabold text-lg text-white group-hover:text-blue-300 transition">TechStore Jijel</h3>
+<i class="fa-solid fa-circle-check text-blue-400 text-sm"></i>
+</div>
+<p class="text-xs font-mono text-blue-300/80">@techstore-jijel</p>
+<p class="text-xs text-slate-300 leading-relaxed pt-2">
+                Vente et maintenance de smartphones dernière génération, écouteurs sans fil, composants et accessoires certifiés.
+              </p>
+</div>
+<!-- Highlights vertical specs -->
+<div class="space-y-2 pt-1">
+<div class="p-2 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between text-xs">
+<span class="text-slate-400 flex items-center gap-1.5">
+<i class="fa-solid fa-shield-halved text-blue-400"></i> Composants
+                </span>
+<span class="font-bold text-white text-[11px]">Pièces originales certifiées</span>
+</div>
+<div class="p-2 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between text-xs">
+<span class="text-slate-400 flex items-center gap-1.5">
+<i class="fa-solid fa-bolt text-amber-400"></i> Réactivité
+                </span>
+<span class="font-bold text-emerald-400 text-[11px]">Réponse &lt; 15 min</span>
+</div>
+<div class="p-2 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between text-xs">
+<span class="text-slate-400 flex items-center gap-1.5">
+<i class="fa-solid fa-users text-indigo-400"></i> Communauté
+                </span>
+<span class="font-bold text-white text-[11px]">950 abonnés</span>
+</div>
+</div>
+</div>
+<!-- Tags & Location -->
+<div class="flex flex-wrap gap-1.5 text-[10px] pt-1">
+<span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20">📱 Smartphones</span>
+<span class="px-2 py-0.5 rounded bg-white/5 text-slate-300 border border-white/5">⚡ Fast Charge</span>
+<span class="px-2 py-0.5 rounded bg-white/5 text-slate-300 border border-white/5">📍 Front de mer</span>
+</div>
+</div>
+<!-- Bottom CTA button -->
+<div class="p-4 bg-black/40 border-t border-white/5 space-y-2">
+<button class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-brand-600 hover:brightness-110 border border-blue-400/40 text-xs font-bold text-white shadow-lg shadow-blue-500/25 transition flex items-center justify-center gap-2">
+<i class="fa-solid fa-tag text-xs"></i>
+<span>🏷️ Voir les Offres</span>
+</button>
+<button class="w-full py-1.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-semibold text-slate-300 transition text-center border border-white/5">
+              Profil de l'Espace
+            </button>
+</div>
+</article>
+<!-- ==========================================
+           BENTO TILE 3: TUILE MOYENNE ÉDITORIALE (1 col)
+           Librairie Numidia
+           ========================================== -->
+<article class="group rounded-2xl bg-surface-card border border-amber-500/30 hover:border-amber-400/60 transition-all duration-300 flex flex-col justify-between overflow-hidden card-glow relative" data-purpose="bento-tile-bookstore">
+<div class="p-3.5 bg-gradient-to-r from-amber-950/60 via-[#261f18] to-slate-900 border-b border-white/5 flex items-center justify-between">
+<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5">
+<i class="fa-solid fa-book-bookmark text-[10px]"></i> Culture &amp; Livres
+            </span>
+<span class="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+<i class="fa-solid fa-circle text-[5px]"></i> Actif hier
+            </span>
+</div>
+<div class="p-4 flex-1 flex flex-col justify-between space-y-3">
+<div>
+<div class="flex items-start justify-between mb-2">
+<div class="w-11 h-11 rounded-xl bg-[#251d16] border-2 border-amber-500/30 text-amber-400 flex items-center justify-center font-bold text-base shadow-md ring-1 ring-amber-500/20 group-hover:scale-105 transition">
+                LN
+              </div>
+<div class="text-right">
+<span class="text-[11px] font-mono text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-500/30 font-semibold">420 références</span>
+<p class="text-[10px] text-slate-400 mt-0.5">Constantine</p>
+</div>
+</div>
+<div class="space-y-1">
+<div class="flex items-center gap-1.5">
+<h3 class="font-bold text-sm text-white group-hover:text-amber-300 transition">Librairie Numidia</h3>
+<i class="fa-solid fa-circle-check text-amber-400 text-xs"></i>
+</div>
+<p class="text-[11px] font-mono text-slate-400">@librairie-numidia</p>
+<p class="text-xs text-slate-300 line-clamp-2 pt-1 leading-relaxed">
+                Littérature maghrébine, éditions rares, manuels universitaires et patrimoine historique.
+              </p>
+</div>
+</div>
+<div class="space-y-2.5 pt-2 border-t border-white/5">
+<div class="flex items-center justify-between text-xs text-slate-400">
+<span class="flex items-center gap-1"><i class="fa-solid fa-users text-slate-500 text-[11px]"></i> <strong class="text-slate-200">1.4k</strong> suiveurs</span>
+<span class="text-[10px] bg-white/5 px-2 py-0.5 rounded text-amber-300">Expédition 58 wilayas</span>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<button class="py-1.5 px-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-300 transition text-center">Profil</button>
+<button class="py-1.5 px-2.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-xs font-bold text-amber-300 transition text-center flex items-center justify-center gap-1">
+<i class="fa-solid fa-book-open text-[11px]"></i>
+<span>📖 Catalogue</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<!-- ==========================================
+           BENTO TILE 4: TUILE MOYENNE ATELIER (1 col)
+           MASTER PHONE
+           ========================================== -->
+<article class="group rounded-2xl bg-surface-card border border-purple-500/30 hover:border-purple-400/60 transition-all duration-300 flex flex-col justify-between overflow-hidden card-glow relative" data-purpose="bento-tile-repair-atelier">
+<div class="p-3.5 bg-gradient-to-r from-purple-950/60 via-[#231735] to-slate-900 border-b border-white/5 flex items-center justify-between">
+<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1.5">
+<i class="fa-solid fa-crown text-[10px]"></i> Badge Premium
+            </span>
+<span class="text-[10px] text-purple-300 font-mono bg-purple-950/80 px-2 py-0.5 rounded border border-purple-500/30">Atelier Express</span>
+</div>
+<div class="p-4 flex-1 flex flex-col justify-between space-y-3">
+<div>
+<div class="flex items-start justify-between mb-2">
+<div class="w-11 h-11 rounded-xl bg-[#261738] border-2 border-purple-500/30 text-purple-400 flex items-center justify-center font-bold text-base shadow-md ring-1 ring-purple-500/20 group-hover:scale-105 transition">
+                MP
+              </div>
+<div class="text-right">
+<span class="text-[10px] text-emerald-400 font-semibold flex items-center gap-1 justify-end"><i class="fa-solid fa-shield-check"></i> Certifié</span>
+<p class="text-[10px] text-slate-400 mt-0.5">Jijel Centre</p>
+</div>
+</div>
+<div class="space-y-1">
+<div class="flex items-center gap-1.5">
+<h3 class="font-bold text-sm text-white group-hover:text-purple-300 transition">MASTER PHONE</h3>
+<i class="fa-solid fa-circle-check text-purple-400 text-xs"></i>
+</div>
+<p class="text-[11px] font-mono text-slate-400">@master-phone</p>
+<p class="text-xs text-slate-300 line-clamp-2 pt-1 leading-relaxed">
+                Spécialiste Apple &amp; Android, déblocage réseau, micro-soudure de précision et écrans d'origine.
+              </p>
+</div>
+</div>
+<div class="space-y-2.5 pt-2 border-t border-white/5">
+<div class="flex items-center justify-between text-xs text-slate-400">
+<span class="flex items-center gap-1"><i class="fa-solid fa-users text-slate-500 text-[11px]"></i> <strong class="text-slate-200">3.1k</strong> suiveurs</span>
+<span class="text-[10px] text-purple-300 font-semibold">Devis immédiat</span>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<button class="py-1.5 px-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-300 transition text-center">Profil</button>
+<button class="py-1.5 px-2.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-xs font-bold text-purple-300 transition text-center flex items-center justify-center gap-1">
+<i class="fa-solid fa-screwdriver-wrench text-[11px]"></i>
+<span>Services</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<!-- ==========================================
+           BENTO TILE 5: COMPACTE RAPIDE (1 col)
+           AMIR PHONE (Cyan Theme)
+           ========================================== -->
+<article class="group rounded-2xl bg-surface-card border border-cyan-500/30 hover:border-cyan-400/60 transition-all duration-300 flex flex-col justify-between overflow-hidden card-glow relative" data-purpose="bento-tile-amir">
+<div class="p-3 bg-gradient-to-r from-cyan-950/50 via-slate-900 to-slate-900 border-b border-white/5 flex items-center justify-between">
+<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+              Télécom &amp; Antichoc
+            </span>
+<span class="text-[10px] text-cyan-300 font-mono">58 wilayas</span>
+</div>
+<div class="p-4 flex-1 flex flex-col justify-between space-y-2.5">
+<div class="flex items-start gap-3">
+<div class="w-11 h-11 rounded-xl bg-[#12242f] border-2 border-cyan-500/30 text-cyan-400 flex items-center justify-center font-bold text-base shadow-md group-hover:scale-105 transition flex-shrink-0">
+              AP
+            </div>
+<div class="space-y-0.5 flex-1 min-w-0">
+<h3 class="font-bold text-sm text-white group-hover:text-cyan-300 transition truncate">AMIR PHONE</h3>
+<p class="text-[11px] font-mono text-slate-400 truncate">@amir-phone</p>
+<p class="text-xs text-slate-300 line-clamp-2 pt-1 leading-relaxed">
+              Accessoires connectés, coques antichoc personnalisées et recharges multimédias.
+            </p>
+</div>
+</div>
+<div class="pt-2 border-t border-white/5 flex items-center justify-between text-xs">
+<span class="text-[11px] text-slate-400"><strong class="text-slate-200">512</strong> suiveurs</span>
+<button class="py-1 px-3 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-xs font-semibold text-cyan-300 transition">
+              Visiter Store
+            </button>
+</div>
+</div>
+</article>
+<!-- ==========================================
+           BENTO TILE 6: COMPACTE MODE (1 col)
+           Boutique AKN (Rose Theme)
+           ========================================== -->
+<article class="group rounded-2xl bg-surface-card border border-rose-500/30 hover:border-rose-400/60 transition-all duration-300 flex flex-col justify-between overflow-hidden card-glow relative" data-purpose="bento-tile-akn">
+<div class="p-3 bg-gradient-to-r from-rose-950/50 via-slate-900 to-slate-900 border-b border-white/5 flex items-center justify-between">
+<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/40">
+              Mode &amp; Équipement
+            </span>
+<span class="text-[10px] font-bold text-rose-400 bg-rose-950/60 px-2 py-0.5 rounded border border-rose-500/30">Promo -20%</span>
+</div>
+<div class="p-4 flex-1 flex flex-col justify-between space-y-2.5">
+<div class="flex items-start gap-3">
+<div class="w-11 h-11 rounded-xl bg-[#2c1523] border-2 border-rose-500/30 text-rose-400 flex items-center justify-center font-bold text-base shadow-md group-hover:scale-105 transition flex-shrink-0">
+              AKN
+            </div>
+<div class="space-y-0.5 flex-1 min-w-0">
+<h3 class="font-bold text-sm text-white group-hover:text-rose-300 transition truncate">Boutique AKN</h3>
+<p class="text-[11px] font-mono text-slate-400 truncate">@boutique-akn</p>
+<p class="text-xs text-slate-300 line-clamp-2 pt-1 leading-relaxed">
+              Prêt-à-porter moderne, maroquinerie stylisée et articles de mode contemporains.
+            </p>
+</div>
+</div>
+<div class="pt-2 border-t border-white/5 flex items-center justify-between text-xs">
+<span class="text-[11px] text-slate-400"><strong class="text-slate-200">1.8k</strong> abonnés • Alger</span>
+<button class="py-1 px-3 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-xs font-semibold text-rose-300 transition">
+              Catalogue Mode
+            </button>
+</div>
+</div>
+</article>
+<!-- ==========================================
+           BENTO TILE 7: DUO COMPACT BENTO (1 col)
+           Casa Phone & Virgin Mobile (Split Cards)
+           ========================================== -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
+<!-- Mini Bento: Casa Phone Jijel -->
+<article class="p-3.5 rounded-2xl bg-surface-card border border-indigo-500/30 hover:border-indigo-400/60 transition-all duration-300 flex items-center justify-between card-glow">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-indigo-950/80 border border-indigo-500/40 text-indigo-400 flex items-center justify-center font-bold text-sm">
+                CP
+              </div>
+<div class="min-w-0">
+<div class="flex items-center gap-1.5">
+<h4 class="font-bold text-xs text-white truncate">Casa Phone Jijel</h4>
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+</div>
+<p class="text-[10px] text-slate-400">Reprise Cash • Port</p>
+</div>
+</div>
+<button class="p-1.5 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/30 text-indigo-300 text-xs transition border border-indigo-500/30">
+<i class="fa-solid fa-arrow-right"></i>
+</button>
+</article>
+<!-- Mini Bento: Virgin Mobile Jijel -->
+<article class="p-3.5 rounded-2xl bg-surface-card border border-rose-500/30 hover:border-rose-400/60 transition-all duration-300 flex items-center justify-between card-glow">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-400 flex items-center justify-center font-bold text-sm">
+                VM
+              </div>
+<div class="min-w-0">
+<div class="flex items-center gap-1.5">
+<h4 class="font-bold text-xs text-white truncate">Virgin Mobile Jijel</h4>
+<span class="text-[9px] text-emerald-400 font-mono bg-emerald-950/60 px-1 rounded">Certifié</span>
+</div>
+<p class="text-[10px] text-slate-400">Audio GaN • 1.2k abonnés</p>
+</div>
+</div>
+<button class="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 text-xs transition border border-rose-500/30">
+<i class="fa-solid fa-arrow-right"></i>
+</button>
+</article>
+</div>
+<!-- ==========================================
+           BENTO TILE 8: BANDE LARGE COMPACTE (Col-span 1 ou 2)
+           TechZone Jijel & Vivre Mobile
+           ========================================== -->
+<article class="md:col-span-2 lg:col-span-2 rounded-2xl bg-surface-card border border-brand-500/30 hover:border-brand-500/50 p-4 transition-all duration-300 flex flex-col sm:flex-row items-center justify-between gap-4 card-glow" data-purpose="bento-tile-techzone-wide">
+<div class="flex items-center gap-3.5">
+<div class="w-12 h-12 rounded-xl bg-brand-950/80 border border-brand-500/40 text-brand-300 flex items-center justify-center font-black text-lg flex-shrink-0">
+              TZ
+            </div>
+<div>
+<div class="flex items-center gap-2">
+<h4 class="font-bold text-sm text-white">TechZone Jijel</h4>
+<span class="text-[10px] px-2 py-0.5 rounded-md bg-brand-500/20 text-brand-300 border border-brand-500/30 font-semibold">Hardware &amp; Gaming</span>
+<span class="text-[10px] text-emerald-400 hidden sm:inline"><i class="fa-solid fa-check"></i> Stock Garanti</span>
+</div>
+<p class="text-xs text-slate-300 pt-0.5">Composants PC gaming, disques NVMe ultra-rapides et écrans 165Hz sous garantie officielle.</p>
+</div>
+</div>
+<div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+<span class="text-xs text-slate-400 mr-2 hidden md:inline"><strong class="text-white">2.1k</strong> suiveurs</span>
+<button class="py-1.5 px-3 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold shadow transition">
+              Découvrir Stock
+            </button>
+</div>
+</article>
+</section>
+<!-- END: BENTO GRID MOSAÏQUE -->
+<!-- Bottom Pagination / Status Count -->
+<div class="pt-5 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+<p class="text-xs text-slate-400">
+        Affichage en mosaïque dynamique de <span class="text-white font-semibold">1</span> à <span class="text-white font-semibold">16</span> Espaces
+      </p>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1.5 rounded-lg bg-white/5 text-slate-400 text-xs hover:bg-white/10 hover:text-white transition disabled:opacity-30" disabled="">
+<i class="fa-solid fa-chevron-left mr-1"></i> Précédent
+        </button>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 rounded-lg bg-brand-600 text-white font-bold text-xs flex items-center justify-center">1</button>
+</div>
+<button class="px-3 py-1.5 rounded-lg bg-white/5 text-slate-400 text-xs hover:bg-white/10 hover:text-white transition disabled:opacity-30" disabled="">
+          Suivant <i class="fa-solid fa-chevron-right ml-1"></i>
+</button>
+</div>
+</div>
+</div>
+<!-- END: LEFT MAIN COLUMN -->
+<!-- RIGHT SIDEBAR: Faceted Filtering & Search Control Panel (approx 26%) -->
+<aside class="w-full xl:w-[26%] sticky top-20 flex-shrink-0 space-y-4" data-purpose="faceted-filtering-sidebar">
+<!-- Main Filter Card Container -->
+<div class="bg-surface-card border border-surface-cardBorder rounded-2xl p-5 shadow-xl space-y-5">
+<!-- Top Filter Header & Tabs -->
+<div>
+<div class="flex items-center justify-between pb-3 border-b border-white/5">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-lg bg-brand-500/20 text-brand-400 border border-brand-500/30 flex items-center justify-center text-xs">
+<i class="fa-solid fa-sliders"></i>
+</div>
+<div>
+<h3 class="text-xs font-bold text-white uppercase tracking-wider">Filtres de Recherche</h3>
+<span class="text-[10px] text-slate-400">Précisez vos critères</span>
+</div>
+</div>
+<button class="text-[11px] text-brand-400 hover:text-brand-300 font-medium transition flex items-center gap-1">
+<i class="fa-solid fa-arrow-rotate-left text-[10px]"></i>
+<span>Réinitialiser</span>
+</button>
+</div>
+<!-- Segmented Control Tabs ('Filtres' & 'Vues') -->
+<div class="mt-3 grid grid-cols-2 bg-[#101422] p-1 rounded-xl border border-white/5 text-xs">
+<button class="py-1.5 rounded-lg bg-brand-600 text-white font-bold text-center shadow-sm transition flex items-center justify-center gap-1.5">
+<i class="fa-solid fa-filter text-[10px]"></i>
+<span>Filtres</span>
+</button>
+<button class="py-1.5 rounded-lg text-slate-400 hover:text-white text-center transition flex items-center justify-center gap-1.5">
+<i class="fa-solid fa-layer-group text-[10px]"></i>
+<span>Vues &amp; Tri</span>
+</button>
+</div>
+</div>
+<!-- Quick Keyword Filter Input -->
+<div class="space-y-1.5">
+<label class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider block">Mot-clé ou @tag</label>
+<div class="relative">
+<i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-500"></i>
+<input class="w-full bg-[#101422] text-xs text-slate-200 placeholder-slate-500 pl-8 pr-3 py-2 rounded-xl border border-white/10 focus:outline-none focus:border-brand-500 transition" placeholder="Ex: réparation, artisanat..." type="text"/>
+</div>
+</div>
+<!-- Category Hierarchy Filter Pills with Counts -->
+<div class="space-y-2">
+<div class="flex items-center justify-between text-xs">
+<label class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Catégorie</label>
+<span class="text-[10px] text-brand-400 font-medium">5 disponibles</span>
+</div>
+<div class="flex flex-col gap-1.5">
+<button class="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-brand-500/15 border border-brand-500/30 text-xs text-brand-300 font-semibold group transition">
+<span class="flex items-center gap-2">
+<i class="fa-solid fa-circle-dot text-[10px] text-brand-400"></i>
+<span>Toutes catégories</span>
+</span>
+<span class="text-[10px] bg-brand-500 text-white px-2 py-0.5 rounded-full font-bold">16</span>
+</button>
+<button class="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 text-xs text-slate-300 transition">
+<span class="flex items-center gap-2">
+<span>📱</span>
+<span>Tech &amp; Téléphonie</span>
+</span>
+<span class="text-[10px] bg-white/10 text-slate-400 px-2 py-0.5 rounded-full">11</span>
+</button>
+<button class="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 text-xs text-slate-300 transition">
+<span class="flex items-center gap-2">
+<span>🏺</span>
+<span>Artisanat &amp; Culture</span>
+</span>
+<span class="text-[10px] bg-white/10 text-slate-400 px-2 py-0.5 rounded-full">2</span>
+</button>
+<button class="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 text-xs text-slate-300 transition">
+<span class="flex items-center gap-2">
+<span>📚</span>
+<span>Librairies &amp; Édition</span>
+</span>
+<span class="text-[10px] bg-white/10 text-slate-400 px-2 py-0.5 rounded-full">1</span>
+</button>
+<button class="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 text-xs text-slate-300 transition">
+<span class="flex items-center gap-2">
+<span>🛍️</span>
+<span>Boutiques Diverses</span>
+</span>
+<span class="text-[10px] bg-white/10 text-slate-400 px-2 py-0.5 rounded-full">2</span>
+</button>
+</div>
+</div>
+<!-- Status Check Toggles -->
+<div class="space-y-2 pt-2 border-t border-white/5">
+<label class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider block">Statut de l'Espace</label>
+<div class="space-y-2 text-xs">
+<label class="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 cursor-pointer transition">
+<span class="flex items-center gap-2 text-slate-300">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+<span>Ouvert / En ligne maintenant</span>
+</span>
+<input checked="" class="rounded border-white/20 bg-surface-base text-brand-500 focus:ring-brand-500/30" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 cursor-pointer transition">
+<span class="flex items-center gap-2 text-slate-300">
+<i class="fa-solid fa-circle-check text-brand-400 text-xs"></i>
+<span>Boutique Certifiée &amp; Vérifiée</span>
+</span>
+<input checked="" class="rounded border-white/20 bg-surface-base text-brand-500 focus:ring-brand-500/30" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 cursor-pointer transition">
+<span class="flex items-center gap-2 text-slate-300">
+<i class="fa-solid fa-bolt text-amber-400 text-xs"></i>
+<span>Avec offres ou promos actives</span>
+</span>
+<input class="rounded border-white/20 bg-surface-base text-brand-500 focus:ring-brand-500/30" type="checkbox"/>
+</label>
+</div>
+</div>
+<!-- Wilaya / Region Quick Tags -->
+<div class="space-y-2 pt-2 border-t border-white/5">
+<div class="flex items-center justify-between text-xs">
+<label class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Wilaya &amp; Région</label>
+<span class="text-[10px] text-slate-400">58 Wilayas</span>
+</div>
+<div class="flex flex-wrap gap-1.5">
+<button class="px-2.5 py-1 rounded-lg text-[11px] bg-brand-500/20 text-brand-300 border border-brand-500/40 font-semibold">Toutes</button>
+<button class="px-2.5 py-1 rounded-lg text-[11px] bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/10 border border-white/5 transition">18 - Jijel (9)</button>
+<button class="px-2.5 py-1 rounded-lg text-[11px] bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/10 border border-white/5 transition">16 - Alger (3)</button>
+<button class="px-2.5 py-1 rounded-lg text-[11px] bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/10 border border-white/5 transition">15 - Tizi Ouzou (2)</button>
+<button class="px-2.5 py-1 rounded-lg text-[11px] bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/10 border border-white/5 transition">25 - Constantine (1)</button>
+<button class="px-2.5 py-1 rounded-lg text-[11px] bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/10 border border-white/5 transition">31 - Oran (1)</button>
+</div>
+</div>
+<!-- Activity Frequency Selector -->
+<div class="space-y-2 pt-2 border-t border-white/5">
+<label class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider block">Activité récente</label>
+<select class="w-full bg-[#101422] text-xs text-slate-200 border border-white/10 rounded-xl px-3 py-2 focus:outline-none focus:border-brand-500">
+<option>N'importe quand</option>
+<option selected="">Actif ces dernières 24h</option>
+<option>Actif cette semaine</option>
+<option>Actif ce mois-ci</option>
+</select>
+</div>
+<!-- Floating Reset / Save Filter Buttons -->
+<div class="pt-3 border-t border-white/5 space-y-2">
+<button class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-brand-600 to-indigo-600 hover:brightness-110 shadow-lg shadow-brand-500/25 transition flex items-center justify-center gap-2">
+<i class="fa-solid fa-check text-xs"></i>
+<span>Appliquer les Filtres (16)</span>
+</button>
+<button class="w-full py-2 px-3 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-white/5 transition flex items-center justify-center gap-1.5">
+<i class="fa-regular fa-bookmark text-xs"></i>
+<span>Enregistrer cette recherche</span>
+</button>
+</div>
+</div>
+<!-- Secondary Sidebar Promo / Space Creation Card -->
+<div class="rounded-2xl bg-gradient-to-br from-[#151c30] to-[#0d1222] border border-brand-500/20 p-4 shadow-lg space-y-3">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-brand-500/20 text-brand-300 flex items-center justify-center text-xs border border-brand-500/30">
+<i class="fa-solid fa-store"></i>
+</div>
+<div>
+<h4 class="text-xs font-bold text-white">Vous êtes commerçant ?</h4>
+<p class="text-[10px] text-slate-400">Ouvrez votre Espace MosaïX gratuit</p>
+</div>
+</div>
+<p class="text-[11px] text-slate-300 leading-relaxed">
+      Publiez vos catalogues, synchronisez vos stocks et vendez directement dans les 58 wilayas.
+    </p>
+<button class="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-brand-300 transition text-center flex items-center justify-center gap-1.5">
+<i class="fa-solid fa-rocket text-[11px]"></i>
+<span>Démarrer un Espace</span>
+</button>
+</div>
+</aside>
+<!-- END: RIGHT SIDEBAR -->
+</div>
+<!-- END: ModularHybridBodyWithSidebar -->
+</main>
+<!-- END: ContentArea -->
+<!-- BEGIN: CompactFooter -->
+<footer class="mt-auto border-t border-white/5 px-6 py-4 bg-surface-sidebar/50 text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-3">
+<div class="flex items-center gap-2">
+<span class="font-semibold text-slate-300">MosaïX Modular Pages</span>
+<span class="text-slate-600">•</span>
+<span class="">Variante Mosaïque Bento Grid</span>
+</div>
+<div class="flex items-center gap-4 text-[11px]">
+<a class="hover:text-white transition" href="#">Documentation</a>
+<a class="hover:text-white transition" href="#">API Développeurs</a>
+<a class="hover:text-white transition" href="#">Règlement des Espaces</a>
+<a class="hover:text-white transition" href="#">Support 24/7</a>
+</div>
+</footer>
+<!-- END: CompactFooter -->
+</div>
+<!-- END: MainContentWrapper -->
+</div>
+<!-- END: ApplicationLayout -->
+</body></html>

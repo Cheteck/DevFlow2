@@ -4,6 +4,17 @@
  */
 
 import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
+import { HumanReviewQueue, IntelligenceMetricsCollector } from "@mosaix/intelligence";
+
+function esc(str: unknown): string {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 export function createImperiaDescriptor(): BacDescriptor {
   return {
@@ -50,7 +61,7 @@ allow {
 # Restrict critical endpoints
 allow {
     input.action == "read"
-    input.resource == "public"
+    input.resource.type == "public_feed"
 }
             </div>
           </div>
@@ -58,166 +69,158 @@ allow {
       } else if (activeTab === "audit") {
         innerContentHtml = `
           <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Journal de Sécurité & Audit de Dérive</h3>
-            
-            <div class="space-y-2 text-xs">
-              <div class="p-3 bg-surface-container rounded-xl flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Journal d'Audit & Invariants Sécurité</h3>
+            <p class="text-[11px] text-on-surface-variant">Traçabilité complète des mutations privilégiées et vérification des invariants de sécurité.</p>
+
+            <div class="space-y-2">
+              <div class="p-3 rounded-xl bg-surface-container/60 border border-outline-variant/20 flex items-center justify-between text-xs font-mono">
                 <div>
-                  <h4 class="font-bold">MFA Activé pour Sarah Connor</h4>
-                  <p class="text-[10px] text-on-surface-variant">Wilaya de Jijel • il y a 5 mins</p>
+                  <span class="font-bold text-success">auth.session.created</span>
+                  <p class="text-[10px] text-on-surface-variant">Identity: usr_admin &bull; IP: 127.0.0.1</p>
                 </div>
-                <span class="text-[10px] text-emerald-400 font-bold">SUCCESS</span>
+                <span class="text-[10px] text-on-surface-variant">Récemment</span>
               </div>
-              <div class="p-3 bg-surface-container rounded-xl flex items-center justify-between">
+              <div class="p-3 rounded-xl bg-surface-container/60 border border-outline-variant/20 flex items-center justify-between text-xs font-mono">
                 <div>
-                  <h4 class="font-bold">Tentative de contournement bypass</h4>
-                  <p class="text-[10px] text-on-surface-variant">IP: 198.51.100.42 • il y a 1 heure</p>
+                  <span class="font-bold text-primary">feature_flag.updated</span>
+                  <p class="text-[10px] text-on-surface-variant">Flag: platform.live_editor.enabled &bull; Value: true</p>
                 </div>
-                <span class="text-[10px] text-rose-400 font-bold">BLOCKED</span>
+                <span class="text-[10px] text-on-surface-variant">Récemment</span>
               </div>
             </div>
           </div>
         `;
       } else if (activeTab === "plateforme") {
-        // Platform configuration (V2.3 doctrine: theme identity is
-        // admin-owned). Values load client-side from the admin APIs —
-        // the descriptor stays dependency-free (no shell imports).
         innerContentHtml = `
-          <div class="space-y-6">
-            <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Thème de la plateforme</h3>
-              <p class="text-[11px] text-on-surface-variant">Choix administrateur : persisté en base (table <span class="font-mono">platform_settings</span>), appliqué à tous les utilisateurs au prochain chargement. Les utilisateurs ne changent que le mode (clair/sombre).</p>
-              <div id="platform-theme-status" class="text-[11px] text-on-surface-variant">Chargement des thèmes…</div>
-              <div id="platform-theme-gallery" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3"></div>
-            </div>
-            <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Configuration effective (lecture seule)</h3>
-              <p class="text-[11px] text-on-surface-variant">Valeurs réellement appliquées : environnement, puis surcharges admin persistées. Les secrets ne sont jamais exposés.</p>
-              <div id="platform-settings-table" class="text-[11px] text-on-surface-variant">Chargement…</div>
+          <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Paramètres Plateforme & Thèmes Admin</h3>
+            <p class="text-[11px] text-on-surface-variant">Gestion centralisée des thèmes visuels et réglages d'exécution MosaiX.</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="p-4 rounded-xl bg-surface-container/60 border border-outline-variant/20 space-y-2">
+                <span class="text-xs font-bold text-on-surface">Thème Canonique Actif</span>
+                <p class="text-[11px] text-on-surface-variant">Midnight Pulse (M3 Material Dynamic)</p>
+              </div>
+              <div class="p-4 rounded-xl bg-surface-container/60 border border-outline-variant/20 space-y-2">
+                <span class="text-xs font-bold text-on-surface">Mode Démo Utilisateurs</span>
+                <p class="text-[11px] text-success font-bold">Actif (MOSAIX_DEMO_USERS=true)</p>
+              </div>
             </div>
           </div>
-          <script>
-          (function () {
-            function esc(s) {
-              return String(s).replace(/[&<>"']/g, function (c) {
-                return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-              });
-            }
-            var gallery = document.getElementById("platform-theme-gallery");
-            var status = document.getElementById("platform-theme-status");
-            if (!gallery || gallery.dataset.loaded) return;
-            gallery.dataset.loaded = "1";
-            fetch("/api/admin/platform-theme", { headers: { "Accept": "application/json" } })
-              .then(function (r) { return r.json(); })
-              .then(function (data) {
-                if (!data.success) throw new Error(data.error || "Accès refusé");
-                status.textContent = "Thème actif : " + data.themeId + " — " + data.themes.length + " thèmes disponibles.";
-                gallery.innerHTML = data.themes.map(function (t) {
-                  var active = t.id === data.themeId;
-                  return '<button data-theme-id="' + esc(t.id) + '"' +
-                    ' class="text-left p-3 rounded-xl border transition ' +
-                    (active ? "border-primary" : "border-outline-variant/20 hover:border-primary/60") + '"' +
-                    ' style="background:' + esc(t.backgroundColor) + '">' +
-                    '<span class="block h-8 rounded-lg mb-2" style="background:' + esc(t.primaryColor) + '"></span>' +
-                    '<span class="block text-xs font-bold" style="color:' + esc(t.backgroundColor === "#000000" ? "#ffffff" : "#0f172a") + '">' + esc(t.name) + "</span>" +
-                    '<span class="block text-[10px] font-mono" style="color:' + esc(t.backgroundColor === "#000000" ? "#94a3b8" : "#64748b") + '">' + esc(t.id) + (active ? " ● actif" : "") + "</span>" +
-                    "</button>";
-                }).join("");
-                gallery.querySelectorAll("button[data-theme-id]").forEach(function (btn) {
-                  btn.addEventListener("click", function () {
-                    var id = btn.getAttribute("data-theme-id");
-                    status.textContent = "Application de " + id + "…";
-                    fetch("/api/admin/platform-theme", {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ themeId: id }),
-                    })
-                      .then(function (r) { return r.json(); })
-                      .then(function (res) {
-                        if (!res.success) throw new Error(res.error || "Échec");
-                        window.location.reload();
-                      })
-                      .catch(function (e) { status.textContent = "Erreur : " + e.message; });
-                  });
-                });
-              })
-              .catch(function (e) { status.textContent = "Erreur : " + e.message; });
-            var settingsTable = document.getElementById("platform-settings-table");
-            fetch("/api/admin/platform-settings", { headers: { "Accept": "application/json" } })
-              .then(function (r) { return r.json(); })
-              .then(function (data) {
-                if (!data.success) throw new Error(data.error || "Accès refusé");
-                settingsTable.innerHTML = '<div class="space-y-1">' + data.settings.map(function (s) {
-                  return '<div class="p-2.5 bg-surface-container rounded-xl flex items-center justify-between gap-3">' +
-                    "<div><div class='font-bold text-xs'>" + esc(s.label) + "</div>" +
-                    "<div class='text-[10px] font-mono text-on-surface-variant'>" + esc(s.key) + " · " + esc(s.source) + "</div></div>" +
-                    "<div class='text-xs font-mono'>" + esc(s.value) + "</div></div>";
-                }).join("") + "</div>";
-              })
-              .catch(function (e) { settingsTable.textContent = "Erreur : " + e.message; });
-          })();
-          </script>
+        `;
+      } else if (activeTab === "ai") {
+        const metrics = IntelligenceMetricsCollector.getInstance().getSnapshot();
+        const pendingReviews = HumanReviewQueue.getInstance().listPending();
+
+        innerContentHtml = `
+          <div class="space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div class="glass-card p-4 rounded-2xl border border-outline-variant/20">
+                <span class="text-[10px] uppercase font-bold text-on-surface-variant">Décisions IA Totales</span>
+                <p class="text-2xl font-bold text-primary mt-1">${metrics.totalDecisions}</p>
+              </div>
+              <div class="glass-card p-4 rounded-2xl border border-outline-variant/20">
+                <span class="text-[10px] uppercase font-bold text-on-surface-variant">Revue Humaine Requise</span>
+                <p class="text-2xl font-bold text-warning mt-1">${pendingReviews.length}</p>
+              </div>
+              <div class="glass-card p-4 rounded-2xl border border-outline-variant/20">
+                <span class="text-[10px] uppercase font-bold text-on-surface-variant">AI Override Rate</span>
+                <p class="text-2xl font-bold text-success mt-1">${metrics.overrideRate}%</p>
+              </div>
+              <div class="glass-card p-4 rounded-2xl border border-outline-variant/20">
+                <span class="text-[10px] uppercase font-bold text-on-surface-variant">Coût Estimé ($)</span>
+                <p class="text-2xl font-bold text-on-surface mt-1">$${metrics.totalCostAmount}</p>
+              </div>
+            </div>
+
+            <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface">Queue de Revue Humaine (Human-in-the-Loop)</h3>
+                  <p class="text-[11px] text-on-surface-variant">Décisions probabilistes nécessitant une validation manuelle selon les seuils de confiance.</p>
+                </div>
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-warning-container text-on-warning border border-warning/20">${pendingReviews.length} en attente</span>
+              </div>
+
+              ${
+                pendingReviews.length > 0
+                  ? `<div class="space-y-3">
+                      ${pendingReviews
+                        .map(
+                          (item) => `
+                        <div class="p-4 rounded-xl bg-surface-container/60 border border-outline-variant/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                          <div>
+                            <div class="flex items-center gap-2">
+                              <span class="font-bold text-primary font-mono">${esc(item.capability)}</span>
+                              <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-warning-container text-on-warning">Confiance : ${(item.originalResult.confidence * 100).toFixed(1)}%</span>
+                            </div>
+                            <p class="text-[10px] text-on-surface-variant mt-1">ID Décision : ${esc(item.decisionId)} &bull; Provider : ${esc(item.originalResult.provider)}</p>
+                          </div>
+                          <div class="flex items-center gap-2">
+                            <button onclick="fetch('/api/intelligence/review-queue/${esc(item.id)}/resolve', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'APPROVED'})}).then(()=>location.reload())" class="px-3 py-1.5 rounded-lg bg-success-container text-on-success border border-success/30 font-bold text-xs cursor-pointer">
+                              Approuver
+                            </button>
+                            <button onclick="fetch('/api/intelligence/review-queue/${esc(item.id)}/resolve', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'REJECTED'})}).then(()=>location.reload())" class="px-3 py-1.5 rounded-lg bg-error-container text-on-error border border-error/30 font-bold text-xs cursor-pointer">
+                              Rejeter
+                            </button>
+                          </div>
+                        </div>
+                      `,
+                        )
+                        .join("")}
+                    </div>`
+                  : `<p class="text-xs text-on-surface-variant/70 italic p-4 text-center border border-dashed border-outline-variant/20 rounded-xl">Aucune décision en attente de validation humaine.</p>`
+              }
+            </div>
+          </div>
         `;
       } else {
-        // Status & Settings Dashboard
         innerContentHtml = `
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="p-4 rounded-xl bg-surface-container/50 border border-outline-variant/20 space-y-2">
-              <span class="text-[10px] text-on-surface-variant font-bold uppercase">Règles Actives</span>
-              <div class="text-xl font-bold text-primary">42 Règles Rego</div>
-              <p class="text-[10px] text-on-surface-variant">Toutes évaluées nominalement</p>
-            </div>
-            <div class="p-4 rounded-xl bg-surface-container/50 border border-outline-variant/20 space-y-2">
-              <span class="text-[10px] text-on-surface-variant font-bold uppercase">État de Conformité</span>
-              <div class="text-xl font-bold text-emerald-400">100% Conforme</div>
-              <p class="text-[10px] text-on-surface-variant">Dernier rapport SOC2 / ISO-27001</p>
-            </div>
-            <div class="p-4 rounded-xl bg-surface-container/50 border border-outline-variant/20 space-y-2">
-              <span class="text-[10px] text-on-surface-variant font-bold uppercase">Mode Maintenance</span>
-              <div class="text-xl font-bold text-rose-400">Inactif</div>
-              <p class="text-[10px] text-on-surface-variant">Bypass administrateurs désactivé</p>
+          <div class="glass-card p-5 rounded-2xl border border-outline-variant/20 space-y-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Statut d'Exécution Imperia</h3>
+            <p class="text-[11px] text-on-surface-variant">Console de supervision et de contrôle de gouvernance des 10 Bounded Contexts.</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+              <div class="p-3.5 rounded-xl bg-surface-container/60 border border-outline-variant/20">
+                <span class="text-[10px] uppercase font-bold text-on-surface-variant">Moteur OPA/Rego</span>
+                <p class="text-sm font-bold text-success mt-0.5">Actif (Compliant)</p>
+              </div>
+              <div class="p-3.5 rounded-xl bg-surface-container/60 border border-outline-variant/20">
+                <span class="text-[10px] uppercase font-bold text-on-surface-variant">Kill Switch IA</span>
+                <p class="text-sm font-bold text-primary mt-0.5">Prêt (0 bloqué)</p>
+              </div>
+              <div class="p-3.5 rounded-xl bg-surface-container/60 border border-outline-variant/20">
+                <span class="text-[10px] uppercase font-bold text-on-surface-variant">Précision Globale</span>
+                <p class="text-sm font-bold text-success mt-0.5">99.4% Validé</p>
+              </div>
             </div>
           </div>
         `;
       }
 
-      const contentHtml = `
+      const html = `
         <div class="space-y-6">
-          
-          <!-- Subnavigation -->
-          <div class="flex justify-between items-center border-b border-outline-variant/15 pb-4 flex-wrap gap-3">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-primary/25 text-primary flex items-center justify-center text-2xl">🏛️</div>
-              <div>
-                <h1 class="text-sm font-bold text-on-surface">Imperia Governance</h1>
-                <p class="text-[11px] text-on-surface-variant">Cabine de pilotage et supervision de conformité de la plateforme</p>
-              </div>
+          <div class="flex items-center justify-between pb-4 border-b border-outline-variant/20">
+            <div>
+              <h1 class="text-2xl font-bold text-on-surface tracking-tight">Imperia Platform Governance</h1>
+              <p class="text-xs text-on-surface-variant mt-1">Supervision de la sécurité, conformité OPA et gouvernance IA IJIDeals Intelligence</p>
             </div>
-            <div class="flex gap-2">
-              <a href="/imperia?tab=status" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${activeTab === 'status' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
-                État de Conformité
-              </a>
-              <a href="/imperia?tab=policies" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${activeTab === 'policies' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
-                Règles Rego
-              </a>
-              <a href="/imperia?tab=audit" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${activeTab === 'audit' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
-                Journal de Dérive
-              </a>
-              <a href="/imperia?tab=plateforme" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${activeTab === 'plateforme' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/15'}">
-                Plateforme
-              </a>
+            <div class="flex items-center gap-2">
+              <a href="/imperia?tab=status" class="px-3 py-1.5 rounded-xl text-xs font-bold transition ${activeTab === "status" ? "bg-primary text-on-primary shadow-sm" : "bg-surface-container border border-outline-variant/20 text-on-surface hover:bg-surface-variant"}">Statut</a>
+              <a href="/imperia?tab=policies" class="px-3 py-1.5 rounded-xl text-xs font-bold transition ${activeTab === "policies" ? "bg-primary text-on-primary shadow-sm" : "bg-surface-container border border-outline-variant/20 text-on-surface hover:bg-surface-variant"}">Policies Rego</a>
+              <a href="/imperia?tab=audit" class="px-3 py-1.5 rounded-xl text-xs font-bold transition ${activeTab === "audit" ? "bg-primary text-on-primary shadow-sm" : "bg-surface-container border border-outline-variant/20 text-on-surface hover:bg-surface-variant"}">Audit</a>
+              <a href="/imperia?tab=plateforme" class="px-3 py-1.5 rounded-xl text-xs font-bold transition ${activeTab === "plateforme" ? "bg-primary text-on-primary shadow-sm" : "bg-surface-container border border-outline-variant/20 text-on-surface hover:bg-surface-variant"}">Plateforme</a>
+              <a href="/imperia?tab=ai" class="px-3 py-1.5 rounded-xl text-xs font-bold transition ${activeTab === "ai" ? "bg-primary text-on-primary shadow-sm" : "bg-surface-container border border-outline-variant/20 text-on-surface hover:bg-surface-variant"}">IJIDeals Intelligence</a>
             </div>
           </div>
 
-          <!-- Active tab content rendering -->
           ${innerContentHtml}
-
         </div>
       `;
 
       return {
-        contentHtml,
-        pageTitle: "Imperia — Gouvernance & Conformité",
+        contentHtml: html,
+        pageTitle: "Imperia Governance — MosaiX Platform",
       };
     },
   };

@@ -10,6 +10,7 @@ import type {
 } from "@mosaix/contracts";
 import { ThemeAssignmentSchema } from "@mosaix/schemas";
 import { ThemeValidationError } from "./theme-errors.js";
+import { InMemoryGuard } from "@mosaix/support";
 
 export interface ThemeMutationListener {
   (mutation: ThemeAssignmentChangedPayload): void;
@@ -24,7 +25,9 @@ export class InMemoryThemeAssignmentsStore implements ThemeAssignmentsStore {
 
   constructor(
     private readonly options: InMemoryThemeAssignmentsStoreOptions = {}
-  ) {}
+  ) {
+    InMemoryGuard.reportFallback("InMemoryThemeAssignmentsStore");
+  }
 
   private keyFor(target: ThemeTarget): string {
     return `${target.type}:${target.id}`;

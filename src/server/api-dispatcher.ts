@@ -17,13 +17,26 @@ import { sendProblemResponse } from "../shell/http-errors.js";
 import { handleMaintenanceRoutes } from "./routes/maintenance-routes.js";
 import { handleThemeRoutes } from "./routes/theme-routes.js";
 import { handlePlatformThemeRoutes } from "./routes/platform-theme-routes.js";
+import { handleSpaceThemeRoutes } from "./routes/space-theme-routes.js";
 import { handleUserAndSpaceRoutes } from "./routes/user-routes.js";
 import { handleFeatureFlagRoutes } from "./routes/feature-flag-routes.js";
 import { handleCompositionRoutes } from "./routes/composition-routes.js";
 import { handleAuthRoutes } from "./routes/auth-routes.js";
+import { handleSpacesProposalRoutes, type ProposalDraftService } from "./routes/spaces-routes.js";
+import { handleMcpRoutes } from "./routes/mcp-routes.js";
 import { handleFeedRoutes } from "./routes/feed-routes.js";
 import { handleComplianceAndSystemRoutes } from "./routes/compliance-routes.js";
 import { handleMobileRoutes } from "./routes/mobile-routes.js";
+import { handleMetricsRoute } from "./routes/metrics-route.js";
+
+/* AUDIT-RESET a055b8e (2026-10-13) — PERTE CONFIRMÉE PUIS RESTAURÉE (V1.3, voir git log).
+ * Le wiring SELL-FLOW-02 manquait (spaces-routes.ts + test inexistants) ; route recréée,
+ * enregistrée ci-dessus (6b) et couverte par tests/spaces-proposals-route.test.ts. */
+
+export interface ProposalServices {
+  portfolioService: unknown;
+  proposalService: ProposalDraftService;
+}
 
 export interface ApiDispatcherContext {
   // Per-request theme resolved from the mosaix_theme_mode cookie.
@@ -35,6 +48,8 @@ export interface ApiDispatcherContext {
   eventBackplane: DistributedEventBackplane;
   anonymizationOrchestrator: AnonymizationOrchestrator;
   db: DatabasePort;
+  // Injected factory (OCP): avoids concrete imports in the dispatcher.
+  buildProposalServices?: (db: DatabasePort) => ProposalServices;
 }
 
 export type ApiRouteHandler = (
@@ -58,6 +73,23 @@ export class ApiRouteRegistry {
 
 export const apiRouteRegistry = new ApiRouteRegistry();
 
+// System route registry (OCP): endpoints handled before the /api/ gate.
+export type SystemRouteMatch = (pathname: string) => boolean;
+
+export class SystemRouteRegistry {
+  private handlers: Array<{ match: SystemRouteMatch; handler: ApiRouteHandler }> = [];
+
+  register(match: SystemRouteMatch, handler: ApiRouteHandler): void {
+    this.handlers.push({ match, handler });
+  }
+
+  getHandlers(): Array<{ match: SystemRouteMatch; handler: ApiRouteHandler }> {
+    return [...this.handlers];
+  }
+}
+
+export const systemRouteRegistry = new SystemRouteRegistry();
+
 // 1. Maintenance API (FEAT-01)
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   handleMaintenanceRoutes(req, res, parsedUrl, ctx.currentUser),
@@ -78,6 +110,11 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
 // 2b. Platform theme administration (V2.3: admin-owned identity, persisted).
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
   handlePlatformThemeRoutes(req, res, parsedUrl, ctx.currentUser.role),
+);
+
+// 2c. Space-level theme management (per-space theme selection, admin/owner only).
+apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
+  handleSpaceThemeRoutes(req, res, parsedUrl, ctx.currentUser, ctx.db),
 );
 
 // 3. User Role & Space switching API
@@ -105,6 +142,23 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
 apiRouteRegistry.register((req, res, parsedUrl) =>
   handleAuthRoutes(req, res, parsedUrl),
 );
+
+// 6b. Space seller proposals — POST /api/spaces/:spaceId/proposals (SELL-FLOW-02).
+// Restored after the a055b8e loss (V1.3): repositories are thin wrappers over the
+// shared DatabasePort, so per-match construction is cheap and keeps the module testable.
+apiRouteRegistry.register((req, res, parsedUrl, ctx) => {
+  if (!/^\/api\/spaces\/[^/]+\/proposals$/.test(parsedUrl.pathname)) {
+    return false;
+  }
+  if (!ctx.buildProposalServices) {
+    return false;
+  }
+  const { proposalService } = ctx.buildProposalServices(ctx.db);
+  return handleSpacesProposalRoutes(req, res, parsedUrl, {
+    currentUserId: ctx.currentUser.id,
+    proposalService,
+  });
+});
 
 // 7. Feed & Realtime Posts API
 apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
@@ -135,6 +189,95 @@ apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
     handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.feedService, ctx.db),
   );
 
+// 10. MCP over Streamable HTTP (remote MCP clients)
+apiRouteRegistry.register((req, res, parsedUrl, ctx) =>
+  handleMcpRoutes(req, res, parsedUrl, ctx.db),
+);
+
+// Register built-in system routes (OCP: extensible via systemRouteRegistry.register)
+systemRouteRegistry.register(
+  (p) => p === "/healthz" || p === "/health" || p === "/health/live",
+  async (req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ status: "alive", timestamp: new Date().toISOString() }));
+    return true;
+  },
+);
+
+systemRouteRegistry.register(
+  (p) => p === "/readyz" || p === "/health/ready",
+  async (req, res, _parsedUrl, ctx) => {
+    const services: Record<string, { status: "up" | "down"; latencyMs?: number }> = {};
+    let allHealthy = true;
+
+    const isProduction = process.env.NODE_ENV === "production" || process.env.NODE_ENV === "prod" || process.env.MOSAIX_ENV === "production";
+
+    // Check database
+    if (ctx.db) {
+      const start = Date.now();
+      try {
+        await ctx.db.query("SELECT 1 AS health_check");
+        const latency = Date.now() - start;
+        services.database = { status: "up", latencyMs: latency };
+      } catch {
+        services.database = { status: "down" };
+        allHealthy = false;
+      }
+    } else {
+      services.database = { status: "down" };
+      if (isProduction) allHealthy = false;
+    }
+
+    // Cache check — Redis is optional (env schema: MOSAIX_REDIS_URL / REDIS_URL
+    // are optional). Only required for readiness when actually configured.
+    const redisConfigured =
+      Boolean(process.env.MOSAIX_REDIS_URL) || Boolean(process.env.REDIS_URL);
+    if (redisConfigured) {
+      // TODO: P0-2 — wire CachePort ping once the Redis adapter is boot-wired.
+      services.cache = { status: "down" };
+      allHealthy = false;
+    }
+
+    const status = allHealthy ? "healthy" : "unhealthy";
+    const statusCode = allHealthy ? 200 : 503;
+
+    res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({
+      status,
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version ?? "1.0.0",
+      services,
+    }));
+    return true;
+  },
+);
+
+systemRouteRegistry.register(
+  (p) => p === "/health/startup",
+  async (req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ status: "healthy", timestamp: new Date().toISOString() }));
+    return true;
+  },
+);
+
+systemRouteRegistry.register(
+  (p) => p === "/metrics",
+  async (req, res, parsedUrl) => handleMetricsRoute(req, res, parsedUrl),
+);
+
+systemRouteRegistry.register(
+  (p) => p === "/.well-known/assetlinks.json",
+  async (req, res, parsedUrl, ctx) =>
+    handleMobileRoutes(req, res, parsedUrl, ctx.currentUser, ctx.feedService, ctx.db),
+);
+
+systemRouteRegistry.register(
+  (p) => p === "/__mosaix",
+  async (req, res, parsedUrl, ctx) =>
+    handleComplianceAndSystemRoutes(req, res, parsedUrl, ctx.currentUser, ctx.anonymizationOrchestrator, ctx.eventBackplane),
+);
+
 export async function dispatchApiRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -143,56 +286,11 @@ export async function dispatchApiRequest(
 ): Promise<boolean> {
   const pathname = parsedUrl.pathname;
 
-  // Standard Container Liveness Probe (Kubernetes / Cloud Run)
-  if (pathname === "/healthz") {
-    res.writeHead(200, {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    });
-    res.end(
-      JSON.stringify({ status: "alive", timestamp: new Date().toISOString() }),
-    );
-    return true;
-  }
-
-  // Standard Container Readiness Probe (Kubernetes / Cloud Run)
-  if (pathname === "/readyz") {
-    const isReady = true; // All 10 apps and modules loaded
-    res.writeHead(isReady ? 200 : 503, {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    });
-    res.end(
-      JSON.stringify({
-        status: isReady ? "ready" : "not_ready",
-        timestamp: new Date().toISOString(),
-      }),
-    );
-    return true;
-  }
-
-  // Android App Links verification standard endpoint
-  if (pathname === "/.well-known/assetlinks.json") {
-    return await handleMobileRoutes(
-      req,
-      res,
-      parsedUrl,
-      context.currentUser,
-      context.feedService,
-      context.db,
-    );
-  }
-
-  // System diagnostic endpoint is at /__mosaix
-  if (pathname === "/__mosaix") {
-    return await handleComplianceAndSystemRoutes(
-      req,
-      res,
-      parsedUrl,
-      context.currentUser,
-      context.anonymizationOrchestrator,
-      context.eventBackplane,
-    );
+  // System routes (registered, extensible) — handled before the /api/ gate.
+  for (const { match, handler } of systemRouteRegistry.getHandlers()) {
+    if (match(pathname)) {
+      return await handler(req, res, parsedUrl, context);
+    }
   }
 
   if (!pathname.startsWith("/api/")) {

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { ChallengeManager } from "./challenge-manager";
+import { ChallengeManager } from "./challenge-manager.js";
 
 describe("ChallengeManager", () => {
   it("creates a challenge with default TTL", () => {

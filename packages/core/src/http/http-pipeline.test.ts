@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { HttpContext } from "./http-context";
-import { MiddlewarePipeline } from "./middleware-pipeline";
-import { ExceptionHandler, type HttpError } from "./exception-handler";
+import { HttpContext } from "./http-context.js";
+import { MiddlewarePipeline } from "./middleware-pipeline.js";
+import { ExceptionHandler, type HttpError } from "./exception-handler.js";
 import { Container } from "@mosaix/container";
 
 describe("AdonisJS-inspired HTTP stack in MosaiX", () => {

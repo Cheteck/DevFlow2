@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import type { AuthenticationProvider } from "@mosaix/contracts";
-import { ProviderRegistry } from "./provider-registry";
+import { ProviderRegistry } from "./provider-registry.js";
 
 function provider(id: string): AuthenticationProvider {
   return {

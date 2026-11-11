@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { WorkflowEngine } from "./orchestration";
+import { WorkflowEngine } from "./orchestration.js";
 
 describe("WorkflowEngine (Saga Orchestration)", () => {
   it("executes all steps when no failure occurs", async () => {

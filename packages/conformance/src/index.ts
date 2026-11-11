@@ -15,3 +15,4 @@ export * from "./suites/auth.js";
 export * from "./suites/theme.js";
 export * from "./suites/kernel.js";
 export * from "./suites/integrity.js";
+export * from "./suites/slop/index.js";

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { QueryBuilder } from "./query-builder";
-import { Model, Repository } from "./repository";
+import { QueryBuilder } from "./query-builder.js";
+import { Model, Repository } from "./repository.js";
 import type { DatabasePort } from "@mosaix/ports-database";
 
 describe("QueryBuilder", () => {

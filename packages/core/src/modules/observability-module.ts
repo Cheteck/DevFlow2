@@ -7,15 +7,9 @@
  * pino, OTel) can substitute the seams without modifying the core.
  */
 
-import { defaultObservability } from "../observability";
-import type {
-  Logger,
-  LogLevel,
-  Metrics,
-  ObservabilitySet,
-  Trace,
-} from "../observability";
-import type { KernelContext, KernelModule } from "../kernel-module";
+import { InMemoryGuard } from "@mosaix/support";
+import { ConsoleLogger, InMemoryMetrics, InMemoryTracer, type Logger, type LogLevel, type Metrics, type Trace } from "../observability.js";
+import type { KernelContext, KernelModule } from "../kernel-module.js";
 
 export interface ObservabilityModuleOptions {
   /** Substitute the logger (default: ConsoleLogger). */
@@ -39,16 +33,24 @@ export class ObservabilityModule implements KernelModule {
   }
 
   register(ctx: KernelContext): void {
-    const defaults = defaultObservability(
-      this.logLevel ?? ctx.config.logLevel ?? "info",
-    );
-    const set: ObservabilitySet = {
-      logger: this.options.logger ?? defaults.logger,
-      metrics: this.options.metrics ?? defaults.metrics,
-      tracer: this.options.tracer ?? defaults.tracer,
-    };
-    ctx.setService("logger", set.logger);
-    ctx.setService("metrics", set.metrics);
-    ctx.setService("tracer", set.tracer);
+    const logLevel = this.logLevel ?? ctx.config.logLevel ?? "info";
+
+    const logger = this.options.logger ?? new ConsoleLogger(logLevel);
+
+    let metrics = this.options.metrics;
+    if (!metrics) {
+      InMemoryGuard.reportFallback("Metrics");
+      metrics = new InMemoryMetrics();
+    }
+
+    let tracer = this.options.tracer;
+    if (!tracer) {
+      InMemoryGuard.reportFallback("Tracer");
+      tracer = new InMemoryTracer();
+    }
+
+    ctx.setService("logger", logger);
+    ctx.setService("metrics", metrics);
+    ctx.setService("tracer", tracer);
   }
 }

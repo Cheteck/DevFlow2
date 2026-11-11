@@ -71,17 +71,6 @@
         "textMuted": "#94a3b8",
         "border": "#3b4a6b"
       }
-    },
-    "high-contrast": {
-      "colors": {
-        "primary": "#00ffff",
-        "primaryHover": "#80ffff",
-        "background": "#000000",
-        "surface": "#000000",
-        "text": "#ffffff",
-        "textMuted": "#ffffff",
-        "border": "#ffffff"
-      }
     }
   }
 }

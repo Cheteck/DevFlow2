@@ -98,56 +98,76 @@ export const MosaixEventEnvelopeSchema = z.object({
   security: z.record(z.unknown()).optional(),
 });
 
-export const VendableCharacteristicsSchema = z.object({
-  attributes: z.record(z.union([z.string(), z.number(), z.boolean(), z.array(z.string())])).optional(),
-  specifications: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
-}).passthrough();
-
-export const MediaItemMetadataSchema = z.object({
-  alt: z.string().optional(),
-  width: z.number().optional(),
-  height: z.number().optional(),
-  format: z.string().optional(),
-}).passthrough();
-
-export const CommerceOfferMetadataSchema = z.object({
-  sku: z.string().optional(),
-  notes: z.string().optional(),
-  taxCode: z.string().optional(),
-}).passthrough();
-
-export const PostMetadataSchema = z.object({
-  options: z.array(z.string()).optional(),
-  vendableId: z.string().optional(),
-  pollType: z.string().optional(),
-}).passthrough();
-
-export const AuditLogMetadataSchema = z.object({
-  ip: z.string().optional(),
-  userAgent: z.string().optional(),
-  action: z.string().optional(),
-}).passthrough();
-
-
 export const ThemeTargetSchema = z.object({
   type: z.string().min(1),
   id: z.string().min(1),
 });
 
+export const ThemeModeSchema = z.enum(["light", "dark", "system"]);
+
+export const ColorTokensSchema = z.object({
+  primary: z.string().min(1),
+  primaryHover: z.string().optional(),
+  onPrimary: z.string().optional(),
+  secondary: z.string().optional(),
+  onSecondary: z.string().optional(),
+  background: z.string().optional(),
+  surface: z.string().optional(),
+  text: z.string().optional(),
+  textMuted: z.string().optional(),
+  muted: z.string().optional(),
+  border: z.string().optional(),
+  accent: z.string().optional(),
+  danger: z.string().optional(),
+  error: z.string().optional(),
+  warning: z.string().optional(),
+  success: z.string().optional(),
+}).passthrough();
+
+export const PartialColorTokensSchema = ColorTokensSchema.partial();
+
+export const DesignTokensSchema = z.object({
+  colors: ColorTokensSchema,
+  typography: z.record(z.unknown()).optional(),
+  spacing: z.record(z.unknown()).optional(),
+  radius: z.record(z.unknown()).optional(),
+  shadows: z.record(z.unknown()).optional(),
+  motion: z.record(z.unknown()).optional(),
+  tailwind: z.record(z.string()).optional(),
+}).passthrough();
+
+export const PartialDesignTokensSchema = z.object({
+  colors: PartialColorTokensSchema.optional(),
+  typography: z.record(z.unknown()).optional(),
+  spacing: z.record(z.unknown()).optional(),
+  radius: z.record(z.unknown()).optional(),
+  shadows: z.record(z.unknown()).optional(),
+  motion: z.record(z.unknown()).optional(),
+  tailwind: z.record(z.string()).optional(),
+}).passthrough();
+
+export const ThemeManifestModesSchema = z.object({
+  light: PartialDesignTokensSchema.optional(),
+  dark: PartialDesignTokensSchema.optional(),
+}).strict();
+
 export const ThemeManifestSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   version: z.string().regex(/^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$/, "Version must be a valid SemVer"),
-  tokens: z.record(z.unknown()).optional(),
-  modes: z.record(z.unknown()).optional(),
+  contractVersion: z.string().optional(),
+  tokens: DesignTokensSchema.optional(),
+  modes: ThemeManifestModesSchema.optional(),
   assets: z.record(z.unknown()).optional(),
+  extends: z.string().optional(),
+  accessibility: z.record(z.unknown()).optional(),
 }).passthrough();
 
 export const ThemeAssignmentSchema = z.object({
   target: ThemeTargetSchema,
   themeId: z.string().min(1),
   version: z.string().optional(),
-  mode: z.enum(["light", "dark", "system"]).or(z.string()).optional(),
+  mode: ThemeModeSchema.optional(),
   source: z.enum(["platform", "admin", "user", "application"]).or(z.string()),
   updatedAt: z.string().optional(),
   updatedBy: z.string().optional(),
@@ -160,6 +180,8 @@ export const ThemeChangedPayloadSchema = z.object({
   appliedAt: z.string(),
   target: ThemeTargetSchema.optional(),
 }).passthrough();
+
+
 
 export const ThemeAssignmentChangedPayloadSchema = z.object({
   target: ThemeTargetSchema,

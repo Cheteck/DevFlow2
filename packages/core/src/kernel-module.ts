@@ -8,14 +8,14 @@
  */
 
 import { Container } from "@mosaix/container";
-import type { LogLevel, Logger, Metrics, Trace } from "./observability";
-import { ApplicationRegistry, type AppRegistry } from "./app-registry";
-import type { DomainEventBus, EventStore } from "./event-bus";
-import type { EventSchemaRegistry } from "./event-schema-registry";
-import type { PermissionRegistry, AuthorizationEngine } from "./permission";
-import type { CapabilityRegistry } from "./capability-registry";
+import type { LogLevel, Logger, Metrics, Trace } from "./observability.js";
+import { ApplicationRegistry, type AppRegistry } from "./app-registry.js";
+import type { DomainEventBus, EventStore } from "./event-bus.js";
+import type { EventSchemaRegistry } from "./event-schema-registry.js";
+import type { PermissionRegistry, AuthorizationEngine } from "./permission.js";
+import type { CapabilityRegistry } from "./capability-registry.js";
 import type { PermissionString, TenantIdentity } from "@mosaix/types";
-import { RegistrationError, ServiceNotInstalledError } from "./kernel-errors";
+import { RegistrationError, ServiceNotInstalledError } from "./kernel-errors.js";
 
 export interface PermissionGrant {
   app: string;

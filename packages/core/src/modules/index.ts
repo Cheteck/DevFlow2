@@ -17,6 +17,8 @@ export { PermissionsModule } from "./permissions-module.js";
 export { ObservabilityModule } from "./observability-module.js";
 export type { ObservabilityModuleOptions } from "./observability-module.js";
 export { PluginModule, PLUGIN_SERVICE } from "./plugin-module.js";
+export { ThemeModule, THEME_SERVICE } from "./theme-module.js";
+export type { ThemeModuleOptions } from "./theme-module.js";
 export { MaintenanceModule, MaintenanceService, maintenanceService, MAINTENANCE_SERVICE, type MaintenanceStatus } from "./maintenance-module.js";
 export { InfrastructureModule } from "./infrastructure-module.js";
 export type { InfrastructureModuleOptions } from "./infrastructure-module.js";

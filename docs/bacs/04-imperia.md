@@ -8,7 +8,7 @@ Le BAC **Imperia** (`@apps/imperia`) est le centre de gouvernance, de supervisio
 - **`ControlPlaneSupervisor`** : Gestion des files DLQ et ré-envoi (`replay`), surveillance des disjoncteurs (`circuit breakers`).
 - **`PluginManager`** : Installation, activation, désactivation et mise à jour dynamique des plugins.
 
-## 3. Modèle de Données & Tables SQL
+## 3. Modèle de Données & Tables SQL (schéma isolé `imperia.*` depuis v1.002, préfixes débruités)
 - `imperia_audit_logs` : `(id, tenant_id, action, actor, details JSONB, created_at)`
 - `imperia_dlq` : `(id, event_type, payload JSONB, error_reason, attempts, status, created_at)`
 - `imperia_circuit_breakers` : `(id, service_name, state, failure_count, updated_at)`

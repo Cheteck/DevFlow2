@@ -1,5 +1,5 @@
 import { Controller, type HttpRequest, type HttpResponse } from "@mosaix/sdk";
-import { BeamMessagingService } from "../domain/messaging.model";
+import { BeamMessagingService } from "../domain/messaging.model.js";
 
 export class BeamMessagingController extends Controller {
   constructor(private messagingService: BeamMessagingService = new BeamMessagingService()) {

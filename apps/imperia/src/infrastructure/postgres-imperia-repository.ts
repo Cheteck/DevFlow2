@@ -81,7 +81,7 @@ export class PostgresImperiaRepository {
     const id = entry.id ?? `audit_${Date.now()}`;
     const now = entry.createdAt ?? new Date();
     await this.db.query(
-      `INSERT INTO imperia_audit_logs (id, "actorId", action, resource, status, metadata, "createdAt", "tenantId", "resourceId", severity)
+      `INSERT INTO "imperia"."audit_logs" (id, "actorId", action, resource, status, metadata, "createdAt", "tenantId", "resourceId", severity)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         id,
@@ -102,7 +102,7 @@ export class PostgresImperiaRepository {
     const safeLimit = Math.min(Math.max(limit, 1), 1000);
     const rows = await this.db.query<Record<string, unknown>>(
       `SELECT id, "actorId", action, resource, status, metadata, "createdAt", "tenantId", "resourceId", severity
-       FROM imperia_audit_logs ORDER BY "createdAt" DESC LIMIT $1`,
+       FROM "imperia"."audit_logs" ORDER BY "createdAt" DESC LIMIT $1`,
       [safeLimit],
     );
     return rows.map((r): ImperiaAuditLog => ({
@@ -123,7 +123,7 @@ export class PostgresImperiaRepository {
 
   async savePolicy(policy: ImperiaPolicy): Promise<void> {
     await this.db.query(
-      `INSERT INTO imperia_policies (id, name, description, rules, "createdAt", "updatedAt")
+      `INSERT INTO "imperia"."policies" (id, name, description, rules, "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (id) DO UPDATE SET
          name = $2, description = $3, rules = $4, "updatedAt" = $6`,
@@ -140,7 +140,7 @@ export class PostgresImperiaRepository {
 
   async listPolicies(): Promise<ImperiaPolicy[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT id, name, description, rules, "createdAt", "updatedAt" FROM imperia_policies ORDER BY "createdAt" DESC`,
+      `SELECT id, name, description, rules, "createdAt", "updatedAt" FROM "imperia"."policies" ORDER BY "createdAt" DESC`,
     );
     return rows.map((r): ImperiaPolicy => ({
       id: asString(r["id"]),
@@ -154,7 +154,7 @@ export class PostgresImperiaRepository {
 
   async saveDLQItem(item: Omit<ImperiaDLQItem, "payload"> & { payload: unknown }): Promise<void> {
     await this.db.query(
-      `INSERT INTO imperia_dlq (id, topic, payload, "errorMessage", "failedAt")
+      `INSERT INTO "imperia"."dlq" (id, topic, payload, "errorMessage", "failedAt")
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (id) DO UPDATE SET
          topic = $2, payload = $3, "errorMessage" = $4`,
@@ -164,7 +164,7 @@ export class PostgresImperiaRepository {
 
   async listDLQItems(): Promise<ImperiaDLQItem[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT id, topic, payload, "errorMessage", "failedAt" FROM imperia_dlq ORDER BY "failedAt" DESC`,
+      `SELECT id, topic, payload, "errorMessage", "failedAt" FROM "imperia"."dlq" ORDER BY "failedAt" DESC`,
     );
     return rows.map((r): ImperiaDLQItem => ({
       id: asString(r["id"]),
@@ -179,7 +179,7 @@ export class PostgresImperiaRepository {
 
   async replayDLQItem(id: string): Promise<ImperiaDLQItem | null> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT id, topic, payload, "errorMessage", "failedAt" FROM imperia_dlq WHERE id = $1`,
+      `SELECT id, topic, payload, "errorMessage", "failedAt" FROM "imperia"."dlq" WHERE id = $1`,
       [id],
     );
     if (rows.length === 0) return null;
@@ -197,12 +197,12 @@ export class PostgresImperiaRepository {
   }
 
   async deleteDLQItem(id: string): Promise<void> {
-    await this.db.execute(`DELETE FROM imperia_dlq WHERE id = $1`, [id]);
+    await this.db.execute(`DELETE FROM "imperia"."dlq" WHERE id = $1`, [id]);
   }
 
   async setCircuitBreaker(status: ImperiaCircuitBreaker): Promise<void> {
     await this.db.query(
-      `INSERT INTO imperia_circuit_breakers (name, state, failures, "lastFailureAt")
+      `INSERT INTO "imperia"."circuit_breakers" (name, state, failures, "lastFailureAt")
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (name) DO UPDATE SET
          state = $2, failures = $3, "lastFailureAt" = $4`,
@@ -212,7 +212,7 @@ export class PostgresImperiaRepository {
 
   async getCircuitBreakers(): Promise<ImperiaCircuitBreaker[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT name, state, failures, "lastFailureAt" FROM imperia_circuit_breakers`,
+      `SELECT name, state, failures, "lastFailureAt" FROM "imperia"."circuit_breakers"`,
     );
     return rows.map((r): ImperiaCircuitBreaker => {
       const state = asString(r["state"], "closed");
@@ -227,14 +227,14 @@ export class PostgresImperiaRepository {
 
   async resetCircuitBreaker(name: string): Promise<void> {
     await this.db.query(
-      `UPDATE imperia_circuit_breakers SET state = 'closed', failures = 0 WHERE name = $1`,
+      `UPDATE "imperia"."circuit_breakers" SET state = 'closed', failures = 0 WHERE name = $1`,
       [name],
     );
   }
 
   async setSetting(key: string, value: string): Promise<void> {
     await this.db.query(
-      `INSERT INTO imperia_settings (key, value, "updatedAt")
+      `INSERT INTO "imperia"."settings" (key, value, "updatedAt")
        VALUES ($1, $2, $3)
        ON CONFLICT (key) DO UPDATE SET value = $2, "updatedAt" = $3`,
       [key, value, new Date().toISOString()],
@@ -242,7 +242,7 @@ export class PostgresImperiaRepository {
   }
 
   async getSettings(): Promise<Record<string, string>> {
-    const rows = await this.db.query<Record<string, unknown>>(`SELECT key, value FROM imperia_settings`);
+    const rows = await this.db.query<Record<string, unknown>>(`SELECT key, value FROM "imperia"."settings"`);
     const result: Record<string, string> = {};
     for (const row of rows) {
       const key = row["key"];

@@ -35,6 +35,14 @@
       "version": "1.0.0"
     },
     {
+      "id": "solidarity.allocation.confirm",
+      "version": "1.0.0"
+    },
+    {
+      "id": "solidarity.matching.propose",
+      "version": "1.0.0"
+    },
+    {
       "id": "solidarity.distribution.confirm",
       "version": "1.0.0"
     }
@@ -45,6 +53,8 @@
     "solidarity:donation:submit",
     "solidarity:hub:register",
     "solidarity:mission:manage",
+    "solidarity:allocation:confirm",
+    "solidarity:matching:propose",
     "solidarity:distribution:confirm"
   ],
   "events": [
@@ -55,6 +65,7 @@
     "solidarity.resource.available",
     "solidarity.mission.created",
     "solidarity.mission.completed",
+    "solidarity.allocation.confirmed",
     "solidarity.distribution.confirmed"
   ],
   "experience": {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { AppIsolationManager } from "./app-isolation";
+import { AppIsolationManager } from "./app-isolation.js";
 
 describe("AppIsolationManager (Phase 8)", () => {
   it("resolves execution modes based on isolation and engine", () => {

@@ -25,15 +25,9 @@ export async function handleThemeRoutes(
   const pathname = parsedUrl.pathname;
 
   // 1. GET / POST /api/theme
-  if (
-    pathname === "/api/theme" &&
-    (req.method === "POST" || req.method === "GET")
-  ) {
+  if (pathname === "/api/theme" && req.method === "GET") {
     const requestedMode = parsedUrl.searchParams.get("mode");
-    if (
-      requestedMode &&
-      ["light", "dark", "high-contrast", "system"].includes(requestedMode)
-    ) {
+    if (requestedMode && ["light", "dark", "system"].includes(requestedMode)) {
       const mode = requestedMode as ThemeMode;
       await applyThemeMode(mode);
       res.writeHead(200, {
@@ -45,6 +39,23 @@ export async function handleThemeRoutes(
     }
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ success: true, mode: activeMode }));
+    return true;
+  }
+
+  if (pathname === "/api/theme" && req.method === "POST") {
+    const requestedMode = parsedUrl.searchParams.get("mode");
+    if (requestedMode && ["light", "dark", "system"].includes(requestedMode)) {
+      const mode = requestedMode as ThemeMode;
+      await applyThemeMode(mode);
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Set-Cookie": `mosaix_theme_mode=${mode}; Path=/; Max-Age=31536000; SameSite=Lax`,
+      });
+      res.end(JSON.stringify({ success: true, mode }));
+      return true;
+    }
+    res.writeHead(400, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "mode parameter required" }));
     return true;
   }
 

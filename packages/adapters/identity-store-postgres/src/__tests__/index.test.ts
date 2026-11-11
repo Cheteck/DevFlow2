@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PostgresIdentityStoreAdapter } from "../index.ts";
+import { PostgresIdentityStoreAdapter } from "../index.js";
 import type { DatabaseConnection } from "@mosaix/ports-database";
 
 const createMockDbPort = () => {

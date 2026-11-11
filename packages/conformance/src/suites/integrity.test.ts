@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { IntegrityConformanceSuite, type IntegrityRule } from "./integrity";
+import { IntegrityConformanceSuite, type IntegrityRule } from "./integrity.js";
 
 function fixtureRoot(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mosaix-integrity-"));
@@ -133,7 +133,7 @@ describe("IntegrityConformanceSuite", () => {
     write(
       root,
       "apps/commerce/src/domain/commerce-service.ts",
-      `import { CitadelleService } from "../../citadelle/src/domain/citadelle-service";\n`,
+      `import { CitadelleService } from "../../citadelle/src/domain/citadelle-service.js";\n`,
     );
     const findings = IntegrityConformanceSuite.scan({ rootDir: root });
     expect(findings.map((f) => f.ruleId)).toContain("CONF-BOUNDARY-001");

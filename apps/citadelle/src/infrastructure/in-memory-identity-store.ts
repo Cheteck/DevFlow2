@@ -4,9 +4,14 @@ import type {
   IdentityStore,
   LinkExternalIdentityInput,
 } from "@mosaix/ports-identity-store";
+import { InMemoryGuard } from "@mosaix/support";
 
 export class InMemoryIdentityStore implements IdentityStore {
   private users = new Map<string, Identity>();
+
+  constructor() {
+    InMemoryGuard.reportFallback("InMemoryIdentityStore");
+  }
 
   async findById(id: string): Promise<Identity | null> {
     return this.users.get(id) ?? null;

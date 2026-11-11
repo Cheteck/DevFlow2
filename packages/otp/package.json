@@ -1,0 +1,40 @@
+{
+  "name": "@mosaix/otp",
+  "version": "0.1.0",
+  "description": "Multi-channel OTP system for MosaiX — email, SMS, WhatsApp",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsc --build --watch",
+    "build": "tsc --build",
+    "clean": "rimraf dist"
+  },
+  "files": ["dist"],
+  "eslintBoundaries": { "type": "core" },
+  "dependencies": {
+    "@mosaix/contracts": "workspace:*",
+    "@mosaix/ports-crypto": "workspace:*",
+    "@mosaix/ports-cache": "workspace:*",
+    "@mosaix/ports-clock": "workspace:*",
+    "@mosaix/ports-id": "workspace:*",
+    "@mosaix/ports-secrets": "workspace:*",
+    "@mosaix/ports-logging": "workspace:*",
+    "@mosaix/ports-config": "workspace:*",
+    "@mosaix/ports-email": "workspace:*",
+    "@mosaix/ports-sms": "workspace:*",
+    "@mosaix/ports-whatsapp": "workspace:*",
+    "@mosaix/ports-database": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}

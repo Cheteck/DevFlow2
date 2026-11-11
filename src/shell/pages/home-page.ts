@@ -11,11 +11,13 @@ import {
   renderSecondarySidebar,
   renderMobileDrawer,
   renderMobileBottomNav,
+  renderAuthButtons,
   renderUserSwitcherWidget,
   renderHeaderSearchAndDevControls,
   renderShellToastContainer,
   renderShellConfirmModal,
 } from "../renderer.js";
+import type { SsrAuthContext } from "../ssr-auth-context.js";
 import { renderHeadBlock } from "../ssr-engine.js";
 import { renderThemeStyleTag } from "../theme/theme-bridge.js";
 import { getShellClientScripts } from "../client/shell-client-scripts.js";
@@ -28,6 +30,16 @@ export interface HomePageOptions {
   feedPosts: FeedPost[];
   widgetsHtml: string;
   requestUrl?: string;
+  /**
+   * Discriminated request identity (AUTH-07). Missing = anonymous
+   * (fail closed): auth buttons render, never the user menu.
+   */
+  auth?: SsrAuthContext;
+  /**
+   * Policy-derived navigation profile (see `buildNavProfile()`). Display
+   * only — the route guard stays the enforcement point.
+   */
+  navProfile?: UserProfile;
 }
 
 export function renderHomePage(opts: HomePageOptions): string {
@@ -40,24 +52,43 @@ export function renderHomePage(opts: HomePageOptions): string {
     widgetsHtml,
     requestUrl,
   } = opts;
+  const navbarAuth: SsrAuthContext = opts.auth ?? { kind: "anonymous" };
+  const nav = opts.navProfile ?? currentUser;
 
   return `<!DOCTYPE html>
-<html class="${activeMode === "dark" ? "dark" : activeMode === "high-contrast" ? "high-contrast" : ""}" lang="fr" data-theme-mode="${activeMode}">
+<html class="${activeMode === "dark" ? "dark" : ""}" lang="fr" data-theme-mode="${activeMode}">
+<head>
+<!-- Fragments de confiance internes : style compilé themes/*.json + CSS partagé renderer (jamais de données utilisateur brutes). -->
 ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode), sharedStyles)}
   ${getShellClientScripts()}
+  <script>
+    (function() {
+      try {
+        const savedTheme = localStorage.getItem('mosaix_theme_mode');
+        if (savedTheme) {
+          document.documentElement.setAttribute('data-theme-mode', savedTheme);
+          document.documentElement.classList.remove('dark');
+          if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+        }
+        if (localStorage.getItem('mosaix_secondary_sidebar_collapsed') === 'true') {
+          document.documentElement.classList.add('sidebar-collapsed');
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body class="bg-background text-on-surface min-h-screen font-sans antialiased selection:bg-primary/30 selection:text-primary">
 
   <div class="flex min-h-screen">
 
     <!-- 1. PRIMARY SIDEBAR (RBAC FILTERED) -->
-    ${renderPrimarySidebar(currentUser, "/", currentSpace)}
+    ${renderPrimarySidebar(nav, "/", currentSpace)}
 
     <!-- 2. SECONDARY CONTEXTUAL SIDEBAR (PERMISSION FILTERED) -->
-    ${renderSecondarySidebar(currentUser, "shell_home", requestUrl || "/", currentSpace)}
+    ${renderSecondarySidebar(nav, "shell_home", requestUrl || "/", currentSpace)}
 
     <!-- MOBILE NAVIGATION DRAWER -->
-    ${renderMobileDrawer(currentUser, "/", activeMode)}
+    ${renderMobileDrawer(nav, "/", activeMode)}
 
     <!-- 3. MAIN CONTENT CONTAINER -->
     <div class="main-workspace flex-1 flex flex-col min-w-0 md:ml-[72px] lg:ml-[336px]">
@@ -109,19 +140,20 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
           <div class="hidden lg:flex items-center gap-0.5 bg-surface-container-low border border-outline-variant/20 p-0.5 rounded-xl text-xs">
             <button onclick="setTheme('light')" class="px-2 py-1 rounded-lg transition ${activeMode === "light" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Clair">Light</button>
             <button onclick="setTheme('dark')" class="px-2 py-1 rounded-lg transition ${activeMode === "dark" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Sombre">Dark</button>
-            <button onclick="setTheme('high-contrast')" class="px-2 py-1 rounded-lg transition ${activeMode === "high-contrast" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Contraste Élevé">Contrast</button>
+            <button onclick="setTheme('system')" class="px-2 py-1 rounded-lg transition ${activeMode === "system" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Automatique">Auto</button>
+
           </div>
 
           <div class="hidden lg:block h-5 w-px bg-outline-variant/20"></div>
 
-          <!-- USER SWITCHER WIDGET -->
-          ${renderUserSwitcherWidget(currentUser, currentSpace)}
+          <!-- USER SWITCHER WIDGET (authenticated/demo) or AUTH BUTTONS (anonymous) -->
+          ${navbarAuth.kind === "anonymous" ? renderAuthButtons(requestUrl || "/") : renderUserSwitcherWidget(navbarAuth.profile, currentSpace)}
         </div>
 
       </header>
 
       <!-- MAIN SCROLLABLE DASHBOARD -->
-      <main class="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <main class="flex-1 p-4 sm:p-6 lg:p-8 w-full mx-auto grid grid-cols-1 xl:grid-cols-3 gap-6">
 
         <!-- LEFT & CENTER FEED COLUMNS (SPAN 2) -->
         <div class="xl:col-span-2 space-y-6">
@@ -192,12 +224,12 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
                 </div>
               </a>
 
-              <button onclick="const c = document.getElementById('composer-text'); if(c){ c.focus(); window.scrollTo({top: 250, behavior: 'smooth'}); }" class="p-3.5 rounded-2xl bg-surface-container/50 hover:bg-surface-container border border-outline-variant/15 hover:border-indigo-500/40 transition group cursor-pointer flex items-center gap-3 text-left">
-                <div class="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition-transform">
+              <button onclick="const c = document.getElementById('composer-text'); if(c){ c.focus(); window.scrollTo({top: 250, behavior: 'smooth'}); }" class="p-3.5 rounded-2xl bg-surface-container/50 hover:bg-surface-container border border-outline-variant/15 hover:border-primary/40 transition group cursor-pointer flex items-center gap-3 text-left">
+                <div class="w-10 h-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center text-primary-hover group-hover:scale-105 transition-transform">
                   <span class="material-symbols-outlined text-xl">edit_square</span>
                 </div>
                 <div class="min-w-0">
-                  <h4 class="text-xs font-bold text-on-surface group-hover:text-indigo-400 transition-colors">Publier un message</h4>
+                  <h4 class="text-xs font-bold text-on-surface group-hover:text-primary-hover transition-colors">Publier un message</h4>
                   <p class="text-[10px] text-on-surface-variant/80 truncate">Échanger avec le réseau</p>
                 </div>
               </button>
@@ -229,7 +261,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
                   <span class="text-[11px] hidden sm:inline">Média</span>
                 </button>
                 <button class="p-2 rounded-lg hover:bg-surface-variant/40 transition flex items-center gap-1.5 cursor-pointer" title="Créer un sondage">
-                  <span class="material-symbols-outlined text-base text-indigo-400">how_to_vote</span>
+                  <span class="material-symbols-outlined text-base text-primary-hover">how_to_vote</span>
                   <span class="text-[11px] hidden sm:inline">Sondage</span>
                 </button>
                 <button class="p-2 rounded-lg hover:bg-surface-variant/40 transition flex items-center gap-1.5 cursor-pointer" title="Rédiger un article">
@@ -364,7 +396,7 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
               <div class="flex items-start justify-between group cursor-pointer hover:bg-surface-variant/20 p-2 -mx-2 rounded-lg transition-colors">
                 <div class="flex flex-col gap-0.5">
                   <span class="text-[10px] font-bold text-on-surface-variant/70 uppercase tracking-wider flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span> Gouvernance
+                    <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span> Gouvernance
                   </span>
                   <span class="font-semibold text-xs text-on-surface group-hover:text-primary transition-colors">#ImperiaVote</span>
                   <span class="text-[10px] text-on-surface-variant/70">12.5k pulses</span>
@@ -392,18 +424,12 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
     </div>
   </div>
 
-  ${renderMobileBottomNav("/", currentUser, currentSpace)}
+  ${renderMobileBottomNav("/", nav, currentSpace)}
   ${renderShellToastContainer()}
   ${renderShellConfirmModal()}
 
   <script>
-    async function setTheme(mode) {
-      document.documentElement.setAttribute('data-theme-mode', mode);
-      try {
-        await fetch('/api/theme?mode=' + mode, { method: 'POST' });
-      } catch (e) {}
-      window.location.reload();
-    }
+    function setTheme(mode) { if (window.setTheme) window.setTheme(mode); }
 
     function toggleSecondarySidebar() {
       const isCollapsed = document.documentElement.classList.toggle('sidebar-collapsed');

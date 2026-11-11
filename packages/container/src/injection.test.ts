@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Container } from "./container";
+import { Container } from "./container.js";
 
 class DependencyService {
   name = "dep";

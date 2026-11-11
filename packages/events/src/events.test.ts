@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { EventDispatcher } from "./dispatcher";
+import { EventDispatcher } from "./dispatcher.js";
 
 describe("EventDispatcher", () => {
   it("should register a listener and dispatch events correctly", async () => {

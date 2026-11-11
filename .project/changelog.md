@@ -1,5 +1,272 @@
 # Changelog
 
+## 2026-11-01 — Pages auth Citadelle : tokens Tailwind sémantiques
+
+### Fixed
+- **Ayants droit aux tokens du projet** : les pages auth n'utilisent plus de
+  couleurs de palette codées en dur (`indigo-500`/`indigo-600` remplacés par
+  `primary-hover`).
+- **Palette sémantique complète** : `renderThemeStyleTag` émet désormais
+  `--color-{success,warning,error,info}` + variantes `-hover`, `-container`,
+  `on-*` pour les modes clair et sombre, adossées aux tokens compilés
+  `--mx-color-*` (alias legacy `danger` conservé). Le config Tailwind du shell
+  mappe ces mêmes tokens, ce qui rend `bg-*-container`, `text-*` et
+  `border-*` effectifs.
+- **Source de vérité** : `themes/mosaix-default/theme.json` déclare les
+  tokens sémantiques dans `tokens.colors` + `tokens.tailwind` et leurs
+  overlays `modes.dark`.
+
+### Changed
+- `src/shell/ssr-engine.ts` : suppression d'un import et d'un helper morts
+  signalés par ESLint, en-tête de module aligné sur la réalité.
+
+### Validation
+- `npx vitest run src/shell apps/citadelle/src/presentation/citadelle-view.test.ts`
+  → 111 tests passants.
+- `check-themes` (19), `validate-manifests` (17), `validate-ui-contracts` (11),
+  `validate-conformance` (11) → OK.
+- `npx eslint` sur les fichiers modifiés → 0 erreur.
+
+## 2026-10-14 — COMMAND CENTER : cockpit multi-panneaux (grille 3/2/1, palette Ctrl+K)
+
+### Added
+- **Grille adaptative** (`layout.ts` + `renderer.ts` compositeur) : 3 colonnes
+  ≥120, 2 ≥85, 1 empilée sinon ; colonnes asymétriques (centre 42 %) ;
+  budgets hauteur réduits sur écrans courts (incidents/services prioritaires).
+- **8 panneaux à bordures fines colorées, titres intégrés** (`cockpit.ts`) :
+  barre système, INFRASTRUCTURE (cyan), PROCESS FLEET (violet), VITALS
+  (bleu), SESSIONS (violet), DIAGNOSTICS (rouge/ambre, triés, horodatés),
+  LIVE LOGS (bleu, repliés par défaut), RESTART TIME MACHINE (ambre, barres
+  sur durées mesurées + comparaison médiane).
+- **Palette `theme.ts`** centralisée (cyan/bleu/violet/vert/ambre/rouge/gris,
+  NO_COLOR safe) ; `format.ts` (`textBar` réel, `formatClock` anti-NaN).
+- **Ctrl+K** : palette fonctionnelle (12 commandes réelles, filtre
+  sous-séquence, `↑↓`/`Entrée`/`Échap`, saisie isolée des raccourcis).
+- **Scroll logs** (`↑/↓`, ancre live, clampé) ; **port API** affiché seulement
+  si connu de l'env (`resolveKnownPort`, jamais deviné) ; **stats hôte
+  mesurées** (CPU/RSS/heap superviseur, portée étiquetée).
+- **Diagnostics** : `API_PORT_CONFLICT` (1 incident/cause),
+  `ENV_WATCHER_UNAVAILABLE` (erreur), `RESTART_LOOP_DETECTED` (≥6),
+  `at` horodaté, tri critical-first.
+- **Moteur P0 conservé** : TerminalRenderer inchangé (en place, coalescé,
+  VT-gaté, cleanup) ; aucun console.log en TUI ; MCP stdout intact.
+- **Tests** : 53 vitest (+layout/palette/bars/port/palette-overlay/scroll/
+  shrink/host) — grille, souhaits §8 (hors 60 s CMD réel, dit explicitement).
+- **Validation** : 53/53 verts, eslint/tsc-strict/prettier propres, rendus
+  150/100/70/22-lignes inspectés, smoke `--no-tui` nominal.
+- Aucune dépendance ; supervision/watchers/backoff/signaux inchangés.
+
+## 2026-10-14 — P0 duplication dashboard : TerminalRenderer à cycle de vie propre
+
+### Fixed (cause racine)
+- **Cause** : `render()` écrivait `\x1b[2J\x1b[H` + frame complète à chaque
+  événement ET chaque seconde, en supposant ED supporté. Sur CMD sans VT,
+  ces séquences sont ignorées → chaque frame S'AJOUTAIT sous la précédente.
+  Contributeurs : aucun gate de capacité, pas d'adressage curseur, listeners
+  `keypress`/`resize` jamais retirés.
+- **Solution** (`terminal-renderer.ts`, zéro dépendance) : UNE instance par
+  session, repaint en place (`\x1b[{n}A` + `\x1b[K`, ré-ancrage unique si
+  resize/dépasse-viewport), rafales coalescées (zéro timer par refresh),
+  heartbeat unique 1 Hz, gate `vtSupported()` (Win10+/WT/ConEmu/ANSICON,
+  jamais `TERM=dumb`/CI/non-TTY → repli texte), `dispose()` restaure curseur
+  et retire les listeners. Logs enfants → buffer seul, jamais d'écriture
+  directe sur le dashboard.
+- **Tests** : 7 nouveaux (`terminal-renderer.test.ts` : gate VT, 1re frame
+  verbatim + repaint curseur, coalescence ×10→1, rétrécissement avec
+  effacement, resize/oversize, idempotence + cleanup).
+- **Validation** : 44/44 verts, eslint/tsc-strict/prettier propres, smoke
+  `--no-tui` nominal (READY ~2,8 s) + cas EADDRINUSE réel toujours détecté.
+- Non touchés : supervision, readiness, watchers, MCP (sauf câblage rendu).
+
+## 2026-10-14 — MOSAIX // DEVELOPER COCKPIT : refonte rendu + état FAILED explicite
+
+### Fixed (incohérence EADDRINUSE affichée RUNNING)
+- **Nouvel état `FAILED`** : un processus vivant n'est plus jamais présenté
+  comme opérationnel. Scan des chunks stdout/stderr (`EADDRINUSE`, `address
+  already in use`, `listen EACCES…`) → `FAILED` + résumé (`port 3000 in use
+  (EADDRINUSE)`), même si le wrapper tsx reste vivant. Validé en conditions
+  réelles (port occupé par des orphelins → `Startup failure` immédiate).
+- **Cohérence globale** (`computeOverall`, pur + testé) : `OPERATIONAL` exige
+  API READY ; `FAILED/CRASHED` → `DOWN` ; API vivante non confirmée →
+  `DEGRADED` (ambre). Compteur `n/n up` = READY seuls (+ MCP RUNNING).
+- `waitForReady` résout `false` sur FAILED/CRASHED (cycles restart honnêtes).
+
+### Changed (refonte visuelle, zéro ASCII-box)
+- **DEVELOPER COCKPIT** (`renderer.ts` réécrit) : header 2 lignes, panneaux
+  API/MCP côte à côte (≥96 cols, `│` unique), incidents résumés avec code +
+  hint, timeline 6 lignes, logs secondaires masqués par défaut (`L`),
+  restart en une ligne, troncature ANSI-safe (couleurs préservées en étroit).
+- Diagnostics : `API_STARTUP_FAILED` (hint port/MOSAIX_PORT),
+  `API_READINESS_UNCONFIRMED`.
+- **Tests** : 37 vitest (FAILED vivant, échec tardif post-RUNNING,
+  `summarizeFailureLine`, `computeOverall` ×4, panneau incident, 2-colonnes,
+  logs repliés/dépliés, troncature couleurs, cohérence `isUp`).
+- **Validation** : 37/37 verts, eslint/tsc-strict/prettier propres, smoke
+  `pnpm dev --no-tui` nominal (READY ~3,3 s) + cas EADDRINUSE réel détecté.
+- Aucune fonctionnalité supprimée, aucun raccourci changé, aucune dépendance.
+
+## 2026-10-14 — MOSAIX // COMMAND CENTER : `pnpm dev` devient une console TUI
+
+### Added (`@mosaix/dev-server/src/command-center/`, zéro nouvelle dépendance)
+- **Superviseur réécrit** (`scripts/dev.ts` → `DevSupervisor`) : platform + MCP
+  supervisés indépendamment, restarts sérialisés (mutex + génération, stop
+  attendu avant respawn), backoff plafonné 500 ms → 8 s (max 5/min).
+- **Readiness honnête** : API confirmée par motif `/listening on/i`, MCP en
+  `RUNNING` + `readiness unknown` (aucune métrique inventée) ; stdout MCP
+  pipé + drainé, jamais rendu (protocole stdio intact).
+- **TUI ANSI maison** (pas d'Ink/React — voir `docs/dev-command-center.md`) :
+  header global réel, cartes processus, diagnostics factuels, Restart Time
+  Machine (durées mesurées), timeline 300 évts, logs 800 lignes, fallback
+  texte en non-TTY/CI, mode compact.
+- **Raccourcis réels** : R restart sûr, L logs, E erreurs, C clear vue,
+  P pause watch, 1/2 filtres, ? aide, Q/Ctrl+C arrêt gracieux.
+- **Sécurité** : `secret-guard.ts` (point unique, `KEY=<redacted>`, Bearer
+  masqués, .env jamais lus) ; kill arbre Windows (`taskkill /T /F`, pas
+  d'orphelins) ; spawn sans `shell:true` superflu (DEP0190 éliminé).
+- **Tests** : 23 vitest (démarrage/arrêt, crash api+mcp, spawn error, backoff,
+  debounce, création/suppression/recréation `.env.local`, orphelins, SIGINT/
+  SIGTERM, bornes, secrets, fallback texte, cycle restart mesuré).
+- **Validation** : 23/23 verts, eslint propre, tsc strict propre sur le
+  périmètre, smoke `pnpm dev --no-tui` 60 s stables (READY réel ~4 s).
+- **Limites** : SIGKILL externe = orphelins possibles (inhérent) ; pas de
+  persistance disque des cycles (mémoire seule, volontaire).
+
+## 2026-10-14 — « Fais le nécessaire » : 5 rouges → 0, `/metrics`, suite 990/990
+
+### Fixed (causes prouvées par repro, pas d'hypothèses)
+- **CLI `database is not open`** (3 tests) : `manager.close()` ne vidait pas le `cachedBootstrap` module → 2ᵉ commande = handle fermé (prouvé : même objet adapter, stack `NodeSQLiteDriver.query`). Nouveau `closeCliDatabase()` dans les 8 `finally` CLI. Effet collatéral élucidé : le seed `[]` venait du même handle (COUNT qui jette → catch → skip) — seeder non touché.
+- **FEAT-04** : test appelait le service async sans `await` (Promise.status = undefined). 3 `await` ajoutés, contrat service inchangé.
+- **plugin-e2e** : (1) devDep `@mosaix-plugin/solara-content-moderator` manquante (dépendance test-only, pas runtime — l'architecture plugin l'interdit) ; (2) assertion `.rejects` contraire au contrat moteur (erreurs collectées, `stopOnError: false`) → assertion sur `errors[]`/`results` vides.
+- **Suite http** : clone PG embarquait les offres Jijel → `TRUNCATE` des tables d'offres **dans le clone jetable uniquement** (+ commentaire d'en-tête corrigé : clone postgres, pas copie sqlite).
+- **Flaky auction-wiring** (5 s timeout sous charge suite, 4,16 s isolé) : timeout 30 s sur le test d'import composition réelle.
+- **`/metrics`** (OBS-METRICS-01) : exposition Prometheus minimale (3 jauges process, sans auth, sans couplage DB), 4 tests, live 200 `text/plain; version=0.0.4`.
+
+### Verified
+- **Suite complète : 990/990 (172 fichiers)** — contre 979/984 la veille. ESLint 0 erreur fichiers touchés (4 erreurs `api-dispatcher.ts` prouvées pré-existantes par stash). tsc : aucune erreur nouvelle (familles CONF-DETTE inchangées ; 1 annotation mienne corrigée). Prettier : 8 fichiers déjà sales à HEAD (vérifié par stash), mes lignes rendues conformes, 2 nouveaux fichiers 100 % propres.
+- Backlog : CLI-MIGRATE-01, OBS-METRICS-01, TEST-RED-01 → DONE.
+- Résidus assumés : `tableCount` catch→skip silencieux (wart, sans test rouge) ; `./ui` dangling dans exports plugin-engine ; tsc global + CSP (CONF-DETTE, chantiers dédiés).
+
+## 2026-10-13 — Évaluation préparation production (CLI + live + différentiel)
+
+### Verdict : NO-GO exposition publique / GO pré-prod (règle du gate : 1 ligne P0 rouge = pas d'exposition)
+
+### Vert (preuves CLI)
+- `doctor` 4/4 (workspace, tsc refs, kernel/SDK, 11 apps) ; `check:env` 53 clés ; `check:manifests` 17/17 + tri topo ; `check:contracts`, `check:themes` 19/19, `check:conformance` 11/11, `check:ui-contracts` 11/11, `app:validate` 11/11, `check:architecture` (0 deps directes) ; `check:integrity` exit 0 (warns connus : i18n FR + `CREATE TABLE` dont commentaires) ; `runtime:health` online 12 modules.
+- Live : `/` `/commerce` `/login` 200 + 4 headers OWASP ; `/healthz` JSON alive ; `/api/auth/session` fail-closed propre ; `/__mosaix` running 11 BACs.
+- Tests : **979/984 (99,5 %)**. Les 5 rouges sont **prouvés pré-existants par différentiel stash** (rejoués sans mes changements : mêmes échecs).
+
+### Rouge (bloquant prod)
+- **P0 auth réelle** : login non câblé sur ce nœud (503 honnête by-design, AUTH-E2E toujours VERIFY).
+- **P1 CLI migrations** : `migrate`/`rollback` sqlite → `database is not open`, seed vide (chemin serveur PG OK) → CLI-MIGRATE-01.
+- **tsc global** rouge systémique (CONF-DETTE) ; **CSP prod** non durcie (CDN Tailwind, onclick inline).
+- **5 tests rouges** : FEAT-04 enchères (contredit AUCTION-PERSIST DONE), http suite (dépend des données Jijel du dev-PG + boot >150 s), `plugin-e2e` (`@mosaix-plugin/*` non liés comme `plugin-engine` avant fix), CLI ×3 → TEST-RED-01.
+
+### Jaune (réserves)
+- `/metrics` Prometheus **inexistant** (prétention `project_state.md` fausse ; seul `/api/intelligence/metrics`) → OBS-METRICS-01. Inconnu → login 200 (soft-404 assumé à documenter).
+- P0 MCP/paiements/concurrence : statuts backlog (MCP-03c DONE, BOUND-02 partiel, DATA-07c VERIFY) non re-testés ce soir — non réaffirmés.
+
+## 2026-10-13 — Boot dev : `@mosaix/plugin-engine` non résolu (3 symptômes, 1 cause)
+
+### Root cause
+- Double défaut : (1) `node_modules/@mosaix/plugin-engine` inexistant (racine `package.json` sans la dép, donc pnpm ne lie rien) ; (2) ses `exports` ne pointaient que vers `dist/` non buildé. Sous tsx (sans l'alias vitest), l'import de `plugin-engine-bootstrap.ts` échouait → `[bac-wiring] commerce descriptor not wired (static fallback)` + `[mcp-server] commerce tools unwired` (même chaîne causale).
+
+### Fixed (convention repo, précédent `@mosaix/core`)
+- `packages/plugin-engine/package.json` : exports `.`/`./core`/`./runtime`/`./management` → `src/` (`./ui` laissé tel quel : sans pendant `src/`, rien ne l'importe).
+- Racine `package.json` : `+ "@mosaix/plugin-engine": "workspace:*"` puis `pnpm install` (lien créé, `pnpm-lock.yaml` +3 lignes).
+
+### Verified
+- Boot `tsx src/start.ts` : log propre (ni `ERR_MODULE_NOT_FOUND`, ni `not wired`/`unwired`), `listening on http://0.0.0.0:3000`.
+- Serveur live (watcher) : `/` `/commerce` `/login` → 200 (70/70/35 ko), `/__mosaix` → `running`, 11 BACs actives dont `@apps/commerce` ; head servi contient les correctifs SSR (viewport sans maximum-scale, JSON neutre, commentaires de confiance).
+- `packages/plugin-engine/src/index.test.ts` 17/17 verts. Non régression : vitest aliasait déjà vers `src/`, comportement tests inchangé.
+
+## 2026-10-13 — Incident boot dev : `MigrationChecksumError` commerce v1.001 (résolu)
+
+### Root cause
+- `a04e055` a édité en place la migration **déjà appliquée** `commerce.shop.v1.001` (+1 ligne `PendingPayment` dans l'enum `commerce_orders.status`) → checksum `28c911d68c35eea2` (ledger PG `mosaix_dev`, appliquée 2026-09-27) vs `8a6989f5ec73bd17` (code) → garde ADR-0006 bloque le boot. Le même commit avait correctement ajouté la migration avant `v1.004` (ALTER défensif du CHECK), rendant l'édition en place inutile ET fautive.
+
+### Fixed
+- **1 ligne revertée** (`apps/commerce/src/infrastructure/migrations.ts`) : v1.001 regelée sur son contenu appliqué ; `v1.004` reste le seul véhicule du changement de vocabulaire (frais : v1.001 ancien + v1.004 ; existants : v1.004 seule).
+
+### Verified (preuves, pas d'affirmations)
+- Checksum recalculé via le provider réel = `28c911d68c35eea2` = ledger, avant de booter.
+- Boot `tsx src/start.ts` : plus de `MigrationChecksumError`, `listening on http://0.0.0.0:3000`.
+- Ledger PG : `v1.004_order_pending_payment` appliquée ; contrainte live `orders_status_check` contient `PendingPayment`.
+- `commerce.test.ts` 13/13 verts après revert.
+- Avertissements restants non bloquants (pré-existants, fail-soft) : `@mosaix/plugin-engine` non résolu (exports `dist/` sans build) + `Cannot find package` mcp-server ; tâche backlog MIG-IMMUT-01 créée (snapshot checksums en CI).
+
+## 2026-10-13 — SSR suite : clé JSON, garde-fou drawer, benchmark froid/chaud, ADR-0022
+
+### Fixed
+- **Clé de cache anti-ambiguïté** (`src/shell/ssr-engine.ts`) : clé sérialisée en JSON au lieu de concaténation à `:` (deux tuples d'entrées distincts ne peuvent plus produire la même chaîne). Condition d'isolation documentée : tout contenu variant par tenant/contexte DOIT transiter par les fragments hachés.
+- **Provenance des fragments** : commentaire de confiance aux 4 sites d'injection (`home-page.ts`, `auth-pages.ts`, `maintenance-gate.ts`, head manuel `bac-page.ts`). Piège évité : backticks interdits dans les commentaires HTML embarqués en template literal (terminent la chaîne).
+- **Garde-fou anti-double-drawer** (`src/shell/drawer-exclusivity.test.ts`, 6 tests, ADR-0022 Proposed) : home + bac servies avec un seul `id="mobile-drawer"`, zéro `mobile-drawer-container`, un seul global `toggleMobileDrawer`.
+
+### Measured (bench `renderHeadBlock`, fragments réels theme 3811B + shared 1066B, head 7705B)
+- froid (miss) : avg 0,029ms · chaud (hit) : avg 0,031ms · mixte 10 pages : avg 0,029ms · hash FNV seul : 0,019ms.
+- **Conclusion honnête** : le cache LRU est à coût quasi nul mais sans gain mesurable ici — chaque appel (hit inclus) paie le hash des fragments (~65% du temps) et l'interpolation évitée ne coûte que ~0,01ms. La valeur du correctif est la justesse (plus de stale), pas la vitesse. Piste si le head grossit : cacher le squelette statique seul (fragments dynamiques hors cache).
+
+### Diagnosed (non corrigé, hors périmètre — voir CONF-DETTE au backlog)
+- **`maintenanceService` absent de `@mosaix/core` (tsc)** : cause racine = `packages/core/src/index.ts` (et sœurs) utilisent des `export *` relatifs SANS extension (`"./modules/index"`, …), invisibles sous `moduleResolution: NodeNext`. Même famille que `container`, `BacDescriptor`, `Router` manquants. Correctif systémique (~500 imports, 758 fichiers) déjà suivi par CONF-DETTE — pas de rustine locale.
+- Correction de formulation de l'entrée précédente : fichiers touchés sans erreur tsc **propre**, à l'exception de `maintenance-gate.ts:7` (ligne d'import pré-existante non touchée).
+
+### Verified
+- 21/21 verts (`ssr-engine` 15 + `drawer-exclusivity` 6). ESLint propre sur les fichiers touchés.
+
+## 2026-10-13 — SSR `ssr-engine.ts` : clé cache complète, head valide, drawer accessible
+
+### Fixed
+- **P1 — Clé de cache incomplète** (`src/shell/ssr-engine.ts`) : `renderHeadBlock()` clée désormais sur titre + mode pont + theme id actif + hash FNV-1a des deux fragments (`themeStyleTagHtml`, `sharedStylesHtml`). Fini le `<head>` obsolète quand les styles changent à titre/mode constants.
+- **Bug réel — arguments inversés** (`src/server/middleware/maintenance-gate.ts`) : appelait `renderHeadBlock` avec `sharedStyles` et `renderThemeStyleTag()` permutés. Ordre canonique restauré + commentaire d'alerte.
+- **HTML invalide** : `renderHeadBlock()` retourne désormais le contenu INTÉRIEUR du `<head>` (plus de `<head>…</head>` imbriqués en maintenance ni de `</head>` orphelin en home/auth). Appelants `home-page.ts`/`auth-pages.ts` recomposés en `<head>…${getShellClientScripts()}</head>`.
+- **P1 — Drawer modal accessible** (`renderMobileDrawer`) : focus initial sur fermeture, confinement Tab, Échap, retour focus déclencheur, fond `inert` + scroll verrouillé, `prefers-reduced-motion`, jeton de génération anti-race, `toggleMobileDrawer()` sans argument = bascule (compat triggers existants). Zéro `onclick` inline dans le fragment.
+- **Accessibilité viewport** : `maximum-scale=5.0` supprimé (zoom non restreint).
+- **Sécurité `<script>`** : couleurs Tailwind sérialisées via `safeJsonForScript()` (`<` → `\u003c`, anti-`</script>`), appliqué aussi au head manuel de `bac-page.ts`.
+- **Contrats de confiance documentés** en en-tête de module (texte vs HTML fiable vs CSS/JS) + note Tailwind CDN dev → build prod + note de non-duplication avec le bottom-sheet de `renderer.ts` (aucune page n'inclut encore ce tiroir).
+
+### Tests
+- **`src/shell/ssr-engine.test.ts`** (15 tests) : non-régression cache (styles différents, ordre permuté, hit), échappement titre, viewport, 2×`</script>` légitimes uniquement, dialog ARIA + cycle modal complet, pas de `onclick`, version échappée / état hors-ligne.
+
+### Verified
+- 15/15 verts (`ssr-engine.test.ts`) + 43/43 verts voisins (`guest-surfaces`, `ssr-auth-context`, `bac-access`). ESLint propre sur les 6 fichiers touchés. `ssr-engine.ts`/`home-page.ts`/`auth-pages.ts`/`bac-page.ts` sans erreur tsc (le `tsc -p tsconfig.json` global reste rouge sur du pré-existant hors scope). Alertes Prettier sur 3 fichiers pré-existantes à HEAD (vérifié via `git show HEAD`), laissées intactes (Minimal Sufficient Change).
+
+## 2026-10-11 — Fix pré-existant : rail primaire minimisé (scroll horizontal + zone vide)
+
+### Fixed
+- **Rail primaire 76px** (`src/shell/renderer.ts`) : les tooltips absolus de chaque icône (positionnés au-delà du bord droit du rail) débordaient dans le conteneur `overflow-y-auto` (axe X → `auto`) → scroll horizontal + zone vide à côté des icônes de BACs. Remplacés par `[data-rail-tip]`/`[data-rail-sub]` + `aria-label`, rendus par le conteneur fixed unique `#rail-tooltip` (`role="tooltip"`). Nav verrouillée `overflow-x-hidden` (scroll Y conservé).
+- **`.no-scrollbar` absent des pages BAC** (`src/start.ts` + `PRIMARY_RAIL_SHARED_CSS` exporté de `renderer.ts`) : `renderBacPage` n'inclut pas `renderHeadBlock` ; le CSS partagé (scrollbars masquées + `.rail-tip` en variables `--color-*` adaptatives light/dark/contraste, `prefers-reduced-motion` respecté) est désormais servi sur toutes les pages.
+- **Pilotage centralisé** (`getShellClientScripts`) : `initRailTip` (mouseover/focus, `textContent` anti-XSS, clamp viewport, masquage scroll/resize/Escape, rail masqué sur mobile ignoré).
+
+### Verified
+- 74 tests verts (`src/shell`, dont 5 nouveaux verrous `guest-surfaces.test.ts`).
+- Serveur réel booté (PG `mosaix_dev`) : `/` et `/commerce` → zéro `84px`, `#rail-tooltip` + `overflow-x-hidden` + `.no-scrollbar` présents dans le HTML servi.
+- ESLint propre sur les 4 fichiers touchés.
+
+## 2026-10-11 — Import annuaire Jijel (téléphonie) via tools MCP Spaces persistés
+
+### Added
+- **Tools MCP Spaces persistés** (`packages/mcp/src/providers/spaces.ts`, pattern `portfolio.ts`) : `spaces_space_create`, `spaces_space_read`, `spaces_space_search`, `spaces_space_bulk_import` (dedup par slug, 50 max/lot). Permissions alignées manifest (`spaces:space:create`/`read`, verrou `permission-alignment.test.ts`). Resources `spaces://directory` + prompt `spaces_shop_import_brief`. Wirés HTTP (`mcp-routes.ts`, Postgres via contrat public `index.ts`) + stdio (in-memory honnête).
+- **`Space.metadata` optionnel** (`space.model.ts` + `hydrate` Postgres) : adresse, téléphone, lat/lng, note, source — jamais inventés (validation rejette geo/rating hors bornes). `createSpaceFromTemplate` accepte `metadata` + slug unicode-safe (NFD).
+- **Seed Jijel** (`scripts/seed-jijel-spaces.ts`) : 13 magasins de téléphonie (Digital Store, Mobizone, Phone World, Mobilay, Dimo, TechZone, RTL, Vivre Mobile, Virgin, Casa Phone, AKN, AMIR, MASTER), `tenantId=jijel-dz`, `template=store`, via `tools/call` MCP. Idempotent (re-run : 0 créés / 13 ignorés).
+- **Tests** : `spaces-tools.test.ts` (4 tests : absence honnête, create+metadata, bulk dedup, validation geo).
+
+### Verified
+- 43 tests verts (`packages/mcp/src` + `apps/spaces/src`), ESLint propre sur les 10 fichiers touchés, 13 lignes `spaces.spaces` en Postgres `mosaix_dev`.
+
+## 2026-10-09 — Wiring BAC : priorité explicite + contrats publics de composition
+
+### Fixed
+- **P1 — `BacOrchestrator.registerDynamicLoader()` évince le descripteur caché** (`src/shell/orchestrator/bac-orchestrator.ts`) : politique last-registration-wins documentée — le wiring Postgres de `wireBacDescriptors()` remplace le fallback statique même si celui-ci a été résolu (et caché) avant. Fini le gel silencieux d'un descripteur non wiré. Divergence assumée vs suppression pure des built-ins : ils restent le mode dégradé (boot jamais bloqué, vitrine honnête) et le chemin des tests/orchestrateur standalone.
+- **Test** : `bac-orchestrator.test.ts` — « late wired loader replaces cached fallback » (load fallback → re-register → load retourne le wiré).
+
+### Added
+- **P2 — Contrats publics de composition** : `apps/commerce/src/composition-root.ts` (`createCommerceWiredDescriptor(db)` / `createCommerceFallbackDescriptor()`), `apps/spaces/src/composition-root.ts` (idem). `src/server/bac-wiring.ts` n'importe plus que ces 2 contrats (2 dynamic imports au lieu de 8 imports profonds `domain/`/`infrastructure/`/`presentation/`). Suit la convention existante (`solara`, `portfolio`, `solidarity`, `beam` ont déjà leur `composition-root.ts`) et le pattern `app-composition-root` d'ESLint.
+- **Tests** : `commerce-composition-root.test.ts`, `spaces-composition-root.test.ts` (fallback + wired, basenames uniques selon la règle du repo).
+- **P4 — Frontières ESLint exécutoires pour `src/server/**`** (`eslint.config.mjs`) : type `server` + `no-restricted-imports` (imports statiques) + `no-restricted-syntax` sur `ImportExpression` (dynamic `import()`). Sondes négatives vérifiées : chaque règle mord sur un import profond et reste verte sur les contrats publics. Constat documenté : `boundaries/element-types` est aveugle aux specifiers ESM `.js` non résolvables (sonde `app-domain → app-infrastructure` silencieuse, ne mord qu'en `.ts` résolvable) — `app-composition-root` autorise désormais `app-general` (présentation) en connaissance de cause.
+
+### Deferred (backlog)
+- **P3 — Observabilité du wiring** : garder le fail-soft (`console.error` + fallback, cohérent avec `start.ts`/orchestrateur qui n'ont pas de logger injecté au boot) ; décider quels BACs sont critiques (fail-fast) vs dégradables, distinguer module-absent vs init-error. Pas de changement de comportement dans cette passe.
+- **Durcir `src/shell/**`** (orchestrateur + migrations en imports profonds legacy) — hors scope, scopeé `src/server/**` uniquement.
+
 ## 2026-09-25 — Feed Engine unifié (branche stateful + couche ranking main)
 
 ### Added

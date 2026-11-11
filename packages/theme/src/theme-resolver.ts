@@ -24,6 +24,7 @@ import {
   InMemoryThemeAssignmentsStore,
   type ThemeMutationListener,
 } from "./in-memory-theme-assignments-store.js";
+import { InMemoryGuard } from "@mosaix/support";
 
 export const DEFAULT_THEME_PRECEDENCE: readonly ThemeResolutionSource[] = [
   "entity",
@@ -205,7 +206,9 @@ export function createThemeResolver(
         "createThemeResolver: onMutation requires an InMemoryThemeAssignmentsStore (or a pre-wired store)",
       );
     }
+    // eslint-disable-next-line no-restricted-syntax -- mecanique onMutation exigeant l'implementation memoire (invariant verifie ci-dessus) ; pas un stockage metier persistant.
     const seededStore = new InMemoryThemeAssignmentsStore({ onMutation });
+    InMemoryGuard.reportFallback("ThemeResolver:seededStore");
     seededStore.seed(store.list());
     wiredStore = seededStore;
   }

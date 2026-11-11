@@ -11,7 +11,9 @@ import type {
   PermissionString,
   TenantIdentity,
 } from "@mosaix/types";
-import { EventError } from "./kernel-errors";
+import { EventError } from "./kernel-errors.js";
+import type { Logger } from "./observability.js";
+import { ConsoleLogger } from "./observability.js";
 
 // ─── Event Store (tenant-scoped, in-memory) ────────────────────
 
@@ -122,6 +124,7 @@ export class DomainEventBus {
     ((envelope: MosaixEventEnvelope) => boolean) | undefined;
   private readonly retryPolicies = new Map<string, RetryPolicy>();
   private deadLetterQueue: DeadLetterEntry[] = [];
+  private readonly logger: Logger;
 
   constructor(
     store: EventStore,
@@ -132,11 +135,15 @@ export class DomainEventBus {
     ) => boolean,
     schemaCheck?: (envelope: MosaixEventEnvelope) => boolean,
     payloadCheck?: (envelope: MosaixEventEnvelope) => boolean,
+    logger?: Logger,
   ) {
     this.store = store;
     this.permissionCheck = permissionCheck;
     this.schemaCheck = schemaCheck;
     this.payloadCheck = payloadCheck;
+    // Logger garanti en production : aucun événement ne peut rejoindre la
+    // dead-letter queue sans produire une trace structurée.
+    this.logger = logger ?? new ConsoleLogger("warn");
   }
 
   subscribe(
@@ -237,6 +244,14 @@ export class DomainEventBus {
       event: envelope,
       subscriber,
       error: toError(lastError),
+      attempts: policy.retries + 1,
+      failedAt: new Date().toISOString(),
+    });
+
+    this.logger.warn("Event moved to dead-letter queue", {
+      eventId: envelope.id,
+      subscriber,
+      error: toError(lastError).message,
       attempts: policy.retries + 1,
       failedAt: new Date().toISOString(),
     });

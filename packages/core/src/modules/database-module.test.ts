@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { RuntimeKernel } from "../kernel";
-import { DatabaseModule, type DatabaseService } from "./database-module";
+import { RuntimeKernel } from "../kernel.js";
+import { DatabaseModule, type DatabaseService } from "./database-module.js";
 
 describe("DatabaseModule", () => {
   it("should register database service onto KernelContext and resolve per-app adapters", () => {

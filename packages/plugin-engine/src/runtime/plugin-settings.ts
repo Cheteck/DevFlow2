@@ -26,7 +26,7 @@ export class PluginSettingsValidator {
     const sanitized: Record<string, unknown> = {};
 
     // 1. Check required fields
-    if (schema.required) {
+    if (schema.required && schema.properties) {
       for (const requiredKey of schema.required) {
         if (rawSettings[requiredKey] === undefined && schema.properties[requiredKey]?.default === undefined) {
           errors.push(`Missing required setting: "${requiredKey}"`);
@@ -35,23 +35,26 @@ export class PluginSettingsValidator {
     }
 
     // 2. Validate individual properties
-    for (const [key, propDef] of Object.entries(schema.properties)) {
-      const val = rawSettings[key] !== undefined ? rawSettings[key] : propDef.default;
+    if (schema.properties) {
+      for (const [key, propDef] of Object.entries(schema.properties)) {
+        const val = rawSettings[key] !== undefined ? rawSettings[key] : propDef.default;
 
-      if (val !== undefined) {
-        const propErrors = this.validateProperty(key, val, propDef);
-        if (propErrors.length > 0) {
-          errors.push(...propErrors);
-        } else {
-          sanitized[key] = val;
+        if (val !== undefined) {
+          const propErrors = this.validateProperty(key, val, propDef);
+          if (propErrors.length > 0) {
+            errors.push(...propErrors);
+          } else {
+            sanitized[key] = val;
+          }
         }
       }
     }
 
     // 3. Additional properties check if explicitly disabled
     if (schema.additionalProperties === false) {
+      const props = schema.properties ?? {};
       for (const key of Object.keys(rawSettings)) {
-        if (!schema.properties[key]) {
+        if (!props[key]) {
           errors.push(`Unknown setting "${key}" is not permitted by schema.`);
         }
       }

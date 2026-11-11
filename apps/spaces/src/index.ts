@@ -160,5 +160,6 @@ export * from "./domain/space-usage-audit.js";
 export * from "./domain/spaces-analytics-scim.js";
 export * from "./domain/business-registry.service.js";
 export * from "./infrastructure/space-controller.js";
+export { PostgresSpaceRepository } from "./infrastructure/postgres-space-repository.js";
 
 

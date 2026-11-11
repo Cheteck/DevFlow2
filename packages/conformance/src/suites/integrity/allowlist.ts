@@ -2,7 +2,6 @@
  * @mosaix/conformance — Glob & Allowlist matching.
  */
 import * as path from "node:path";
-import type { IntegrityRule } from "./rules.js";
 
 export function toPosix(p: string): string {
   return p.split(path.sep).join("/");
@@ -32,7 +31,7 @@ export const ALWAYS_SKIP = [
 
 export function isAllowed(
   relPath: string,
-  rule: IntegrityRule,
+  rule: { allow?: string[] },
   globalAllow: string[] = []
 ): boolean {
   if (isAlwaysSkipped(relPath)) return true;

@@ -3,7 +3,7 @@
  * Defines where a Contribution is projected (surface + slot couple).
  */
 
-import type { BlockWrapperConfig, BlockWrapperType } from "./block-wrapper-contract";
+import type { BlockWrapperConfig, BlockWrapperType } from "./block-wrapper-contract.js";
 
 export interface PlacementContract {
   id: string;

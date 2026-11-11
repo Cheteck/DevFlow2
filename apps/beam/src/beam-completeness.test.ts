@@ -25,7 +25,7 @@ function makeFakeDb() {
     },
     async query<T>(sql: string, params: readonly unknown[] = []): Promise<T[]> {
       db.queries.push(sql);
-      if (sql.startsWith("INSERT INTO beam_messages")) {
+      if (sql.startsWith("INSERT INTO \"beam\".\"messages\"")) {
         const c = colsOf(sql);
         const row: Record<string, unknown> = {};
         c.forEach((k, i) => {
@@ -38,7 +38,7 @@ function makeFakeDb() {
         tables.set("beam_messages", arr);
         return [];
       }
-      if (sql.startsWith("SELECT") && sql.includes("FROM beam_messages")) {
+      if (sql.startsWith("SELECT") && sql.includes("FROM \"beam\".\"messages\"")) {
         const arr = tables.get("beam_messages") ?? [];
         const conv = params[0] as string;
         const lim = Number(params[1] ?? 50);
@@ -47,7 +47,7 @@ function makeFakeDb() {
           .slice(-lim)
           .reverse() as T[];
       }
-      if (sql.startsWith("INSERT INTO beam_conversations")) {
+      if (sql.startsWith("INSERT INTO \"beam\".\"conversations\"")) {
         const arr = tables.get("beam_conversations") ?? [];
         const row = { id: params[0], type: params[1], participants: params[2], createdAt: params[3], data: params[4] };
         const ix = arr.findIndex((r) => r["id"] === row.id);
@@ -56,10 +56,10 @@ function makeFakeDb() {
         tables.set("beam_conversations", arr);
         return [];
       }
-      if (sql.includes("FROM beam_conversations")) {
+      if (sql.includes("FROM \"beam\".\"conversations\"")) {
         return (tables.get("beam_conversations") ?? []) as T[];
       }
-      if (sql.startsWith("INSERT INTO beam_notifications")) {
+      if (sql.startsWith("INSERT INTO \"beam\".\"notifications\"")) {
         const arr = tables.get("beam_notifications") ?? [];
         const row = {
           id: params[0], userId: params[1], title: params[2], body: params[3],
@@ -71,15 +71,15 @@ function makeFakeDb() {
         tables.set("beam_notifications", arr);
         return [];
       }
-      if (sql.includes("FROM beam_notifications")) {
+      if (sql.includes("FROM \"beam\".\"notifications\"")) {
         return (tables.get("beam_notifications") ?? []).filter((r) => r["userId"] === params[0]) as T[];
       }
-      if (sql.startsWith("UPDATE beam_notifications")) {
+      if (sql.startsWith("UPDATE \"beam\".\"notifications\"")) {
         const row = (tables.get("beam_notifications") ?? []).find((r) => r["id"] === params[0]);
         if (row) row["isRead"] = true;
         return [];
       }
-      if (sql.startsWith("INSERT INTO beam_push_subscriptions")) {
+      if (sql.startsWith("INSERT INTO \"beam\".\"push_subscriptions\"")) {
         const arr = tables.get("beam_push_subscriptions") ?? [];
         const row = {
           id: params[0], userId: params[1], endpoint: params[2],
@@ -91,14 +91,14 @@ function makeFakeDb() {
         tables.set("beam_push_subscriptions", arr);
         return [];
       }
-      if (sql.startsWith("DELETE FROM beam_push_subscriptions")) {
+      if (sql.startsWith("DELETE FROM \"beam\".\"push_subscriptions\"")) {
         tables.set(
           "beam_push_subscriptions",
           (tables.get("beam_push_subscriptions") ?? []).filter((r) => r["id"] !== params[0]),
         );
         return [];
       }
-      if (sql.includes("FROM beam_push_subscriptions")) {
+      if (sql.includes("FROM \"beam\".\"push_subscriptions\"")) {
         return (tables.get("beam_push_subscriptions") ?? []).filter((r) => r["userId"] === params[0]) as T[];
       }
       throw new Error(`SQL non mocké: ${sql.slice(0, 80)}`);

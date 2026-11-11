@@ -21,27 +21,6 @@ export interface VendableIdentity {
   status: WorkflowStatus;
 }
 
-export interface VendableDiscount {
-  code: string;
-  percent?: number;
-  amount?: number;
-  validUntil?: string;
-}
-
-export interface VendablePricing {
-  basePrice: number;
-  currency: string;
-  taxClass?: string;
-  discounts?: VendableDiscount[];
-}
-
-export interface VendableInventory {
-  sku: string;
-  stock: number;
-  reserved: number;
-  reorderPoint: number;
-}
-
 export interface VendableSeo {
   slug: string;
   metaTitle?: string;
@@ -83,8 +62,6 @@ export interface VariantItem {
   content?: VendableContent | undefined;
   characteristics?: VendableCharacteristics | undefined;
   media?: VendableMedia | undefined;
-  pricing?: VendablePricing | undefined;
-  inventory?: VendableInventory | undefined;
 }
 
 export type VendableVariants = VariantItem[];
@@ -117,8 +94,6 @@ export interface Vendable {
   media: VendableMedia;
   variants: VendableVariants;
   relations: VendableRelations;
-  pricing?: VendablePricing | undefined;
-  inventory?: VendableInventory | undefined;
   seo?: VendableSeo | undefined;
   quality?: InformationQuality | undefined;
 }

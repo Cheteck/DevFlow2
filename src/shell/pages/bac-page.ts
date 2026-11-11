@@ -10,11 +10,13 @@ import {
   renderSecondarySidebar,
   renderMobileDrawer,
   renderMobileBottomNav,
+  renderAuthButtons,
   renderUserSwitcherWidget,
   renderHeaderSearchAndDevControls,
   renderShellToastContainer,
   renderShellConfirmModal,
 } from "../renderer.js";
+import type { SsrAuthContext } from "../ssr-auth-context.js";
 import { getShellClientScripts } from "../client/shell-client-scripts.js";
 import { getTailwindThemeColors } from "../theme/theme-bridge.js";
 
@@ -31,8 +33,17 @@ export interface BacPageOptions {
   currentUser: UserProfile;
   currentSpace: string | null;
   renderedContent: string;
-  contributionsCount: number;
   requestUrl?: string;
+  /**
+   * Discriminated request identity (AUTH-07). Missing = anonymous
+   * (fail closed): auth buttons render, never the user menu.
+   */
+  auth?: SsrAuthContext;
+  /**
+   * Policy-derived navigation profile (see `buildNavProfile()`). Display
+   * only — the route guard stays the enforcement point.
+   */
+  navProfile?: UserProfile;
 }
 
 export function renderBacPage(opts: BacPageOptions): string {
@@ -44,23 +55,25 @@ export function renderBacPage(opts: BacPageOptions): string {
     currentUser,
     currentSpace,
     renderedContent,
-    contributionsCount,
     requestUrl,
   } = opts;
+  const navbarAuth: SsrAuthContext = opts.auth ?? { kind: "anonymous" };
+  const nav = opts.navProfile ?? currentUser;
 
   return `<!DOCTYPE html>
-<html class="${activeMode === "dark" ? "dark" : activeMode === "high-contrast" ? "high-contrast" : ""}" lang="fr" data-theme-mode="${activeMode}">
+<html class="${activeMode === "dark" ? "dark" : ""}" lang="fr" data-theme-mode="${activeMode}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(matchedApp.name)} — MosaiX Experience</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <!-- Couleurs issues de themes/*.json (< neutralisé, pas de breakout script). sharedStyles/themeStyle : fragments internes, jamais de données utilisateur brutes. -->
   <script id="tailwind-config">
     tailwind.config = {
       darkMode: "class",
       theme: {
         extend: {
-          colors: ${JSON.stringify(getTailwindThemeColors(activeMode), null, 10)}
+          colors: ${JSON.stringify(getTailwindThemeColors(activeMode)).replace(/</g, "\\u003c")}
         }
       }
     };
@@ -74,19 +87,38 @@ export function renderBacPage(opts: BacPageOptions): string {
   ${themeStyle}
 
   ${getShellClientScripts()}
+  <script>
+    (function() {
+      try {
+        const savedTheme = localStorage.getItem('mosaix_theme_mode');
+        if (savedTheme) {
+          document.documentElement.setAttribute('data-theme-mode', savedTheme);
+          if (savedTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        }
+        const sidebarCollapsed = localStorage.getItem('mosaix_secondary_sidebar_collapsed') === 'true';
+        if (sidebarCollapsed) {
+          document.documentElement.classList.add('sidebar-collapsed');
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body class="bg-background text-on-surface min-h-screen font-sans antialiased">
   
   <div class="flex min-h-screen">
     
     <!-- PRIMARY SIDEBAR (RBAC FILTERED) -->
-    ${renderPrimarySidebar(currentUser, matchedApp.route, currentSpace)}
+    ${renderPrimarySidebar(nav, matchedApp.route, currentSpace)}
 
     <!-- SECONDARY CONTEXTUAL SIDEBAR (PERMISSION FILTERED) -->
-    ${renderSecondarySidebar(currentUser, matchedApp.id, requestUrl || matchedApp.route, currentSpace)}
+    ${renderSecondarySidebar(nav, matchedApp.id, requestUrl || matchedApp.route, currentSpace)}
 
     <!-- MOBILE NAVIGATION DRAWER -->
-    ${renderMobileDrawer(currentUser, matchedApp.route, activeMode)}
+    ${renderMobileDrawer(nav, matchedApp.route, activeMode)}
 
     <!-- MAIN WORKSPACE AREA -->
     <div class="main-workspace flex-1 flex flex-col min-w-0 md:ml-[72px] lg:ml-[336px]">
@@ -133,26 +165,22 @@ export function renderBacPage(opts: BacPageOptions): string {
           <div class="hidden lg:flex items-center gap-0.5 bg-surface-container-low border border-outline-variant/20 p-0.5 rounded-xl text-xs">
             <button onclick="setTheme('light')" class="px-2 py-1 rounded-lg transition ${activeMode === "light" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Clair">Light</button>
             <button onclick="setTheme('dark')" class="px-2 py-1 rounded-lg transition ${activeMode === "dark" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Sombre">Dark</button>
-            <button onclick="setTheme('high-contrast')" class="px-2 py-1 rounded-lg transition ${activeMode === "high-contrast" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Contraste Élevé">Contrast</button>
+            <button onclick="setTheme('system')" class="px-2 py-1 rounded-lg transition ${activeMode === "system" ? "bg-primary text-on-primary font-bold shadow-sm" : "text-on-surface-variant hover:bg-surface-variant/30"}" title="Thème Automatique">Auto</button>
+            
           </div>
 
           <div class="hidden lg:block h-5 w-px bg-outline-variant/20"></div>
 
-          <!-- USER SWITCHER WIDGET -->
-          ${renderUserSwitcherWidget(currentUser, currentSpace)}
+          <!-- USER SWITCHER WIDGET (authenticated/demo) or AUTH BUTTONS (anonymous) -->
+          ${navbarAuth.kind === "anonymous" ? renderAuthButtons(requestUrl || "/") : renderUserSwitcherWidget(navbarAuth.profile, currentSpace)}
         </div>
       </header>
 
       <!-- CONTENT AREA -->
-      <main class="p-6 max-w-7xl w-full mx-auto space-y-6">
+      <main class="p-6 w-full mx-auto space-y-6">
         <div class="glass-card rounded-2xl p-6 space-y-6">
           <div class="bac-content-section">
             ${renderedContent}
-          </div>
-
-          <div class="pt-4 border-t border-outline-variant/20 flex justify-between items-center text-xs text-on-surface-variant">
-            <span>Contrats enregistrés : <strong class="text-on-surface">${contributionsCount} contributions</strong></span>
-            <a href="/" class="text-primary hover:underline font-semibold">&larr; Retour au réseau MosaiX</a>
           </div>
         </div>
       </main>
@@ -160,18 +188,12 @@ export function renderBacPage(opts: BacPageOptions): string {
     </div>
   </div>
 
-  ${renderMobileBottomNav(matchedApp.route, currentUser, currentSpace)}
+  ${renderMobileBottomNav(matchedApp.route, nav, currentSpace)}
   ${renderShellToastContainer()}
   ${renderShellConfirmModal()}
 
   <script>
-    async function setTheme(mode) {
-      document.documentElement.setAttribute('data-theme-mode', mode);
-      try {
-        await fetch('/api/theme?mode=' + mode, { method: 'POST' });
-      } catch (e) {}
-      window.location.reload();
-    }
+    function setTheme(mode) { if (window.setTheme) window.setTheme(mode); }
 
     function toggleSecondarySidebar() {
       const isCollapsed = document.documentElement.classList.toggle('sidebar-collapsed');

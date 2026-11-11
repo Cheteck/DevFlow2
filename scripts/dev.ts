@@ -1,126 +1,125 @@
 /**
- * @scripts/dev — dev supervisor: runs the platform with code watch and
- * restarts it when dotenv files change.
+ * @scripts/dev — MOSAIX // COMMAND CENTER entry point (`pnpm dev`).
  *
- * Why: `tsx --watch` only watches imported source files, never `.env`.
- * Since secrets now load from `.env` at boot (see `loadEnvFile`), editing
- * `.env` without a restart silently keeps stale config. This supervisor
- * respawns the child so the new env is picked up.
+ * Supervises the platform server (`tsx --watch src/start.ts`) and the MCP
+ * stdio server (`packages/mcp/src/stdio-server.ts`) with independent
+ * lifecycle management, .env watching, a live event timeline, bounded logs,
+ * keyboard shortcuts and graceful shutdown.
+ *
+ * TUI choice: hand-rolled ANSI renderer (zero new deps) instead of Ink/React —
+ * deterministic in tests/CI, safe on Windows, and keeps the MCP stdio
+ * protocol isolated (MCP stdout is piped + drained, never rendered).
+ * Flags: --no-tui (plain text), --debounce <ms>.
  *
  * Dev-only. Production (`pnpm start`) boots once and never watches.
  */
-import { spawn, type ChildProcess } from "node:child_process";
-import * as fs from "node:fs";
 import * as path from "node:path";
+import * as fs from "node:fs";
+import { DevSupervisor } from "@mosaix/command-center";
+import { FileLogger } from "@mosaix/core";
 
 const ROOT = process.cwd();
-// Keep in sync with `loadEnvFile()` defaults in @mosaix/core.
-const WATCHED_ENV_FILES = [".env", ".env.local"];
-const RESTART_DEBOUNCE_MS = 300;
 
-let child: ChildProcess | null = null;
-let mcpChild: ChildProcess | null = null;
-let restarting = false;
-let stopped = false;
+// ─── Logs du dev server vers fichier (dogfooding: FileLogger,
+// zéro dépendance externe, réutilise l'interface Logger du projet) ─────
+const logDir = path.join(ROOT, ".mosaix", "logs");
+const fileLogger = new FileLogger("info", { component: "DevSupervisor" }, { logDir, fileName: "supervisor.log" });
 
-function startChild(): void {
-  if (stopped) return;
-  // Static command (no user input) — shell:true resolves the tsx bin
-  // on Windows (.cmd) and POSIX alike.
-  child = spawn("tsx --watch src/start.ts", {
-    stdio: "inherit",
-    shell: true,
-    cwd: ROOT,
-    env: process.env,
-  });
-  child.on("exit", (code, signal) => {
-    child = null;
-    if (stopped || restarting) return;
-    console.log(
-      `[dev] server exited (code=${code ?? "?"} signal=${signal ?? "?"}). Waiting for changes… (Ctrl+C to quit)`,
-    );
-  });
+const args = process.argv.slice(2);
+const noTui = args.includes("--no-tui") || process.env.NO_TUI !== undefined;
+const debounceIdx = args.indexOf("--debounce");
+const debounceMs =
+  debounceIdx >= 0 ? Number(args[debounceIdx + 1]) || 300 : 300;
+
+// --- Flags d'export (Lot 08) ---
+const exportLogsIdx = args.indexOf("--export-logs");
+const exportDiagnosticsIdx = args.indexOf("--export-diagnostics");
+const exportLogsPath =
+  exportLogsIdx >= 0 ? args[exportLogsIdx + 1] : undefined;
+const exportDiagnosticsPath =
+  exportDiagnosticsIdx >= 0 ? args[exportDiagnosticsIdx + 1] : undefined;
+const doExport = exportLogsPath !== undefined || exportDiagnosticsPath !== undefined;
+
+const shouldWait = doExport ? 3000 : 0; // laisser le temps au boot de remplir l'historique
+
+// Marque le démarrage du supervisor dans le fichier de log.
+fileLogger.info("DevSupervisor starting", { root: ROOT, noTui, debounceMs, doExport });
+
+const supervisor = new DevSupervisor({
+  root: ROOT,
+  apiCommand: process.platform === "win32" ? "npx.cmd" : "npx",
+  apiArgs: ["tsx", "--watch", "src/start.ts"],
+  mcpCommand: process.platform === "win32" ? "npx.cmd" : "npx",
+  mcpArgs: ["tsx", "packages/mcp/src/stdio-server.ts"],
+  watchedFiles: [".env", ".env.local"],
+  debounceMs,
+  noTui,
+  // Le boot (createApplication + connexion DB + compilation tsx) peut
+  // dépasser 25s sur une première exécution ou après modification.
+  // On relève le budget de readiness pour éviter un faux RUNNING.
+  readinessTimeoutMs: 120_000,
+  shutdownTimeoutMs: 8000,
+});
+
+async function runExport(): Promise<void> {
+  const h = supervisor.history;
+  const data = h.toJSON();
+
+  if (exportLogsPath) {
+    const logsText = data.logs
+      .map((l) => `[${new Date(l.at).toISOString()}] [${l.service}] [${l.stream}] ${l.text}`)
+      .join("\n");
+    fs.writeFileSync(exportLogsPath, logsText + "\n", { encoding: "utf8" });
+    fileLogger.info(`Logs exportés vers ${exportLogsPath} (${data.logs.length} lignes)`);
+  }
+
+  if (exportDiagnosticsPath) {
+    const snap = supervisor.snapshot();
+    const diag = {
+      generatedAt: new Date(snap.now).toISOString(),
+      overall: snap.overall,
+      services: snap.services.map((s) => ({
+        name: s.name,
+        label: s.label,
+        state: s.state,
+        readinessState: s.readinessState,
+        readiness: s.readiness,
+        pid: s.pid,
+        uptimeMs: s.uptimeMs,
+        restarts: s.restarts,
+        lastExitCode: s.lastExitCode,
+        lastSignal: s.lastSignal,
+        lastBootMs: s.lastBootMs,
+        lastError: s.lastError,
+        startupFailure: s.startupFailure,
+      })),
+      diagnostics: snap.diagnostics,
+      restarts: snap.restarts,
+      cycles: snap.cycles,
+    };
+    fs.writeFileSync(exportDiagnosticsPath, JSON.stringify(diag, null, 2), { encoding: "utf8" });
+    fileLogger.info(`Diagnostics exportés vers ${exportDiagnosticsPath}`);
+  }
+
+  console.log("Export terminé.");
+  process.exit(0);
 }
 
-function startMcpServer(): void {
-  if (stopped) return;
-  mcpChild = spawn("pnpm tsx packages/mcp/src/stdio-server.ts", {
-    stdio: ["pipe", "pipe", "inherit"],
-    shell: true,
-    cwd: ROOT,
-    env: process.env,
-  });
-  mcpChild.on("exit", (code, signal) => {
-    mcpChild = null;
-    if (stopped || restarting) return;
-    console.log(
-      `[dev] mcp server exited (code=${code ?? "?"} signal=${signal ?? "?"})`,
-    );
-  });
-}
+async function main(): Promise<void> {
+  await supervisor.start();
 
-function restart(reason: string): void {
-  if (stopped || restarting || !child) {
-    if (!child && !stopped) startChild();
+  if (doExport) {
+    // Attendre que le boot ait rempli un peu l'historique.
+    await new Promise((resolve) => setTimeout(resolve, shouldWait));
+    await runExport();
     return;
   }
-  restarting = true;
-  console.log(`[dev] ${reason} — restarting server…`);
-  child.once("exit", () => {
-    restarting = false;
-    startChild();
-    startMcpServer();
-  });
-  child.kill();
+
+  // Mode interactif normal (TUI ou texte).
+  // Le supervisor tourne jusqu'à interruption (SIGINT/SIGTERM géré en interne).
 }
 
-let debounce: NodeJS.Timeout | null = null;
-function scheduleRestart(file: string): void {
-  if (debounce) clearTimeout(debounce);
-  debounce = setTimeout(() => restart(`${file} changed`), RESTART_DEBOUNCE_MS);
-}
-
-for (const file of WATCHED_ENV_FILES) {
-  const filePath = path.join(ROOT, file);
-  // fs.watch throws when the file doesn't exist yet — poll for it instead
-  // so a later-created `.env.local` is still picked up.
-  try {
-    if (fs.existsSync(filePath)) {
-      fs.watch(filePath, () => scheduleRestart(file));
-      console.log(`[dev] watching ${file} for changes`);
-    } else {
-      const watcher = fs.watch(path.dirname(filePath), (event, name) => {
-        if (name === path.basename(filePath)) {
-          watcher.close();
-          scheduleRestart(file);
-          try {
-            fs.watch(filePath, () => scheduleRestart(file));
-          } catch {
-            /* deleted before we could watch — next save re-triggers via restart */
-          }
-        }
-      });
-    }
-  } catch (err) {
-    console.warn(`[dev] cannot watch ${file}: ${String(err)}`);
-  }
-}
-
-function shutdown(signal: string): void {
-  stopped = true;
-  if (debounce) clearTimeout(debounce);
-  if (child) {
-    child.kill(signal as NodeJS.Signals);
-  }
-  if (mcpChild) {
-    mcpChild.kill(signal as NodeJS.Signals);
-  }
-  // Give the child a moment, then exit even if it hangs (dev-only).
-  setTimeout(() => process.exit(0), 1000).unref();
-}
-
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-
-startChild();
-startMcpServer();
+main().catch((err) => {
+  console.error("Erreur fatale du dev server:", err);
+  process.exit(1);
+});

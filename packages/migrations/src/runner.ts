@@ -3,19 +3,23 @@
  * `DatabasePort` and records the applied state in a `MigrationStore`
  * (ADR-0006 §8, §9, §12).
  *
- * The Runner never computes an upgrade itself: it only executes the validated
- * plan. Concurrency is delegated to the adapter via
+ * The Runner never computes an upgrade itself: it only executes the
+ * validated plan. Concurrency is delegated to the adapter via
  * `DatabasePort.acquireMigrationLock()` (R3). Each operation runs inside a
  * transaction (per-migration atomicity, PRD §26) when the adapter supports
  * it, and every migration executed by one invocation belongs to the same
  * batch (PRD §30).
+ *
+ * The statements executed are the ones carried by the plan (compiled by the
+ * Planner): the Runner never re-compiles and never re-interprets a
+ * migration. Preview and execution therefore share the exact same SQL.
  */
 
 import type { DatabasePort } from "@mosaix/ports-database";
-import { MigrationExecutionError, MigrationLockError } from "./errors";
-import type { MigrationPlan } from "./planner";
-import { parseMigrationId } from "./migration";
-import type { MigrationStore } from "./store";
+import { MigrationExecutionError, MigrationLockError } from "./errors.js";
+import type { MigrationPlan, PlannedMigration } from "./planner.js";
+import { parseMigrationId } from "./migration.js";
+import type { MigrationStore } from "./store.js";
 
 export interface RunResult {
   readonly applied: readonly string[];
@@ -42,8 +46,8 @@ export class MigrationRunner {
 
   /**
    * Executes the plan under the adapter-provided migration lock. Applies `up`
-   * operations (content) and `down` operations (rollback), recording each
-   * applied migration in the Store with its checksum, owner and batch id.
+   * operations and `down` operations (rollback), recording each applied
+   * migration in the Store with its checksum, owner and batch id.
    *
    * If `dryRun: true` (Phase 7), SQL statements are pre-visualised and logged
    * without acquiring any lock or modifying any database state.
@@ -80,14 +84,14 @@ export class MigrationRunner {
         const start = Date.now();
         if (op.operation === "up") {
           logs.push(`Applying migration: ${op.migration.id}`);
-          await this.applyUp(op.migration, batchId);
+          await this.applyUp(op, batchId);
           applied.push(op.migration.id);
           logs.push(
             `Successfully applied "${op.migration.id}" in ${Date.now() - start}ms`,
           );
         } else {
           logs.push(`Rolling back migration: ${op.migration.id}`);
-          await this.applyDown(op.migration);
+          await this.applyDown(op);
           rolledBack.push(op.migration.id);
           logs.push(
             `Successfully rolled back "${op.migration.id}" in ${Date.now() - start}ms`,
@@ -105,21 +109,17 @@ export class MigrationRunner {
 
   /**
    * Compiles the plan operations to pre-installation SQL statements (previsualisation SQL, Phase 7).
+   *
+   * The preview is built from the compiled statements of the plan: the
+   * previewed SQL is exactly the SQL that would be executed.
    */
   async previewSQL(
     plan: MigrationPlan,
   ): Promise<readonly { id: string; sql: string }[]> {
-    const previews: { id: string; sql: string }[] = [];
-    for (const op of plan.operations) {
-      if (op.operation === "up") {
-        previews.push({ id: op.migration.id, sql: op.migration.content });
-      } else {
-        if (op.migration.down) {
-          previews.push({ id: op.migration.id, sql: op.migration.down });
-        }
-      }
-    }
-    return previews;
+    return plan.operations.map((op) => ({
+      id: op.migration.id,
+      sql: op.statements.map((s) => s.sql).join("\n"),
+    }));
   }
 
   private async acquireLock() {
@@ -133,13 +133,18 @@ export class MigrationRunner {
     }
   }
 
+  /**
+   * Executes the compiled statements of an upgrade operation, then records
+   * the migration in the Store — both inside the same transaction (PRD §26).
+   */
   private async applyUp(
-    migration: { id: string; content: string; checksum: string },
+    operation: PlannedMigration,
     batchId: string,
   ): Promise<void> {
+    const migration = operation.migration;
     try {
       await this.db.transaction(async (tx) => {
-        await tx.execute(migration.content);
+        await this.executeStatements(tx, operation);
         await this.store.save({
           id: migration.id,
           owner: parseMigrationId(migration.id).owner,
@@ -157,19 +162,15 @@ export class MigrationRunner {
     }
   }
 
-  private async applyDown(migration: {
-    id: string;
-    down?: string;
-  }): Promise<void> {
-    const down = migration.down;
-    if (down === undefined) {
-      throw new Error(
-        `Migration "${migration.id}" has no down() body for rollback`,
-      );
-    }
+  /**
+   * Executes the compiled statements of a rollback operation, then removes
+   * the migration from the Store — both inside the same transaction.
+   */
+  private async applyDown(operation: PlannedMigration): Promise<void> {
+    const migration = operation.migration;
     try {
       await this.db.transaction(async (tx) => {
-        await tx.execute(down);
+        await this.executeStatements(tx, operation);
         await this.store.remove(migration.id);
       });
     } catch (cause) {
@@ -178,6 +179,23 @@ export class MigrationRunner {
         migration.id,
         cause,
       );
+    }
+  }
+
+  /**
+   * Executes the compiled statements in order.
+   *
+   * Parameters are only forwarded when the statement actually has some:
+   * adapters use the simple-query protocol for parameterless statements,
+   * which is what allows a statement to carry several SQL commands.
+   */
+  private async executeStatements(
+    tx: { execute(sql: string, params?: readonly unknown[]): Promise<number> },
+    operation: PlannedMigration,
+  ): Promise<void> {
+    for (const statement of operation.statements) {
+      const params = statement.params.length > 0 ? statement.params : undefined;
+      await tx.execute(statement.sql, params);
     }
   }
 }

@@ -2,6 +2,7 @@
  * @mosaix/auth — Central Social Auth Service & Orchestrator
  */
 
+import type { ReadonlyAppConfig } from "@mosaix/core";
 import type {
   SocialProviderType,
   SocialProviderConfig,
@@ -41,58 +42,128 @@ export class SocialAuthService {
   private readonly userAccounts = new Map<string, Array<string>>(); // key: userId, value: array of account keys
   private readonly userPasswordRegistry = new Set<string>(); // userIds that have local password
   private readonly stateTtlMs: number;
+  private config?: ReadonlyAppConfig;
 
-  constructor(options: SocialAuthServiceOptions = {}) {
+  constructor(options: SocialAuthServiceOptions = {}, config?: ReadonlyAppConfig) {
     this.stateTtlMs = options.stateTtlMs || 10 * 60 * 1000; // 10 minutes TTL
+    this.config = config;
+    console.log("DEBUG SocialAuthService constructor config:", JSON.stringify(config));
 
     if (options.providers) {
       for (const provider of options.providers) {
         this.registerProvider(provider);
       }
     } else {
-      this.initDefaultProvidersFromEnv();
+      this.initDefaultProviders();
     }
   }
 
+
   /**
-   * Initializes standard providers from environment variables.
+   * Initializes standard providers from configuration (centralized) with
+   * fallback to process.env for backward compatibility during migration.
+   *
+   * Security rule: a provider is considered enabled only when its clientId
+   * is present. When enabled, its clientSecret MUST be present and valid;
+   * otherwise the provider registration fails fast. When disabled
+   * (no clientId), missing secrets are tolerated.
    */
-  private initDefaultProvidersFromEnv(): void {
-    const googleConfig: SocialProviderConfig = {
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-      enabled: Boolean(process.env.GOOGLE_CLIENT_ID),
-    };
-    const appleConfig: SocialProviderConfig = {
-      clientId: process.env.APPLE_CLIENT_ID || "",
-      clientSecret: process.env.APPLE_CLIENT_SECRET || "",
-      teamId: process.env.APPLE_TEAM_ID,
-      keyId: process.env.APPLE_KEY_ID,
-      privateKey: process.env.APPLE_PRIVATE_KEY,
-      enabled: Boolean(process.env.APPLE_CLIENT_ID),
-    };
-    const msConfig: SocialProviderConfig = {
-      clientId: process.env.MICROSOFT_CLIENT_ID || "",
-      clientSecret: process.env.MICROSOFT_CLIENT_SECRET || "",
-      tenant: process.env.MICROSOFT_TENANT || "common",
-      enabled: Boolean(process.env.MICROSOFT_CLIENT_ID),
-    };
-    const ghConfig: SocialProviderConfig = {
-      clientId: process.env.GITHUB_CLIENT_ID || "",
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
-      enabled: Boolean(process.env.GITHUB_CLIENT_ID),
-    };
-    const fbConfig: SocialProviderConfig = {
-      clientId: process.env.FACEBOOK_CLIENT_ID || "",
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET || "",
-      enabled: Boolean(process.env.FACEBOOK_CLIENT_ID),
+  private initDefaultProviders(): void {
+    console.log("DEBUG SocialAuthService.config:", JSON.stringify(this.config));
+    const read = (key: string): string | undefined =>
+      (this.config as any)?.security?.oauth?.[key] ?? process.env[key];
+
+    const registerProviderWithSecret = (
+      id: string,
+      clientId: string,
+      clientSecret: string,
+      factory: (cfg: SocialProviderConfig) => SocialAuthProvider,
+      extra: Record<string, string> = {},
+    ): void => {
+      if (clientId && !clientSecret) {
+        throw new Error(
+          `OAuth provider '${id}' is enabled (clientId present) but clientSecret is missing`,
+        );
+      }
+      this.registerProvider(
+        factory({
+          clientId,
+          clientSecret,
+          enabled: Boolean(clientId),
+          ...extra,
+        }),
+      );
     };
 
-    this.registerProvider(new GoogleProvider(googleConfig));
-    this.registerProvider(new AppleProvider(appleConfig));
-    this.registerProvider(new MicrosoftProvider(msConfig));
-    this.registerProvider(new GitHubProvider(ghConfig));
-    this.registerProvider(new FacebookProvider(fbConfig));
+    // Google
+    {
+      const clientId = read("GOOGLE_CLIENT_ID") || "";
+      const clientSecret = read("GOOGLE_CLIENT_SECRET") || "";
+      registerProviderWithSecret(
+        "google",
+        clientId,
+        clientSecret,
+        (cfg) => new GoogleProvider(cfg),
+      );
+    }
+
+    // Apple
+    {
+      const clientId = read("APPLE_CLIENT_ID") || "";
+      const clientSecret = read("APPLE_CLIENT_SECRET") || "";
+      registerProviderWithSecret(
+        "apple",
+        clientId,
+        clientSecret,
+        (cfg) =>
+          new AppleProvider({
+            ...cfg,
+            teamId: read("APPLE_TEAM_ID") || "",
+            keyId: read("APPLE_KEY_ID") || "",
+            privateKey: read("APPLE_PRIVATE_KEY") || "",
+          }),
+      );
+    }
+
+    // Microsoft
+    {
+      const clientId = read("MICROSOFT_CLIENT_ID") || "";
+      const clientSecret = read("MICROSOFT_CLIENT_SECRET") || "";
+      registerProviderWithSecret(
+        "microsoft",
+        clientId,
+        clientSecret,
+        (cfg) =>
+          new MicrosoftProvider({
+            ...cfg,
+            tenant: read("MICROSOFT_TENANT") || "common",
+          }),
+      );
+    }
+
+    // GitHub
+    {
+      const clientId = read("GITHUB_CLIENT_ID") || "";
+      const clientSecret = read("GITHUB_CLIENT_SECRET") || "";
+      registerProviderWithSecret(
+        "github",
+        clientId,
+        clientSecret,
+        (cfg) => new GitHubProvider(cfg),
+      );
+    }
+
+    // Facebook
+    {
+      const clientId = read("FACEBOOK_CLIENT_ID") || "";
+      const clientSecret = read("FACEBOOK_CLIENT_SECRET") || "";
+      registerProviderWithSecret(
+        "facebook",
+        clientId,
+        clientSecret,
+        (cfg) => new FacebookProvider(cfg),
+      );
+    }
   }
 
   registerProvider(provider: SocialAuthProvider): void {

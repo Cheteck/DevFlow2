@@ -1,5 +1,5 @@
-import type { AuthenticatedPrincipal } from "./authenticated-principal";
-import type { Session } from "./session";
+import type { AuthenticatedPrincipal } from "./authenticated-principal.js";
+import type { Session } from "./session.js";
 
 export interface AuthRedirect {
   url: string;

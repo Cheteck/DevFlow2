@@ -532,3 +532,28 @@ export class BookingService {
       .sort((a, b) => new Date(a.triggerTime).getTime() - new Date(b.triggerTime).getTime());
   }
 }
+
+export async function seedDefaultSlots(service: BookingService): Promise<void> {
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+  await service.createSlot({
+    providerId: "usr_host_1",
+    serviceName: "Session Démo 1",
+    startTime: `${tomorrow}T10:00:00Z`,
+    endTime: `${tomorrow}T11:00:00Z`,
+    capacity: 5,
+  });
+  await service.createSlot({
+    providerId: "usr_host_1",
+    serviceName: "Session Démo 2",
+    startTime: `${tomorrow}T14:00:00Z`,
+    endTime: `${tomorrow}T15:00:00Z`,
+    capacity: 3,
+  });
+  await service.createSlot({
+    providerId: "usr_host_2",
+    serviceName: "Session Démo 3",
+    startTime: `${tomorrow}T16:00:00Z`,
+    endTime: `${tomorrow}T17:00:00Z`,
+    capacity: 10,
+  });
+}

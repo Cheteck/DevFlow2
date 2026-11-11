@@ -5,7 +5,7 @@
 import type { IdGeneratorPort } from "@mosaix/ports-id";
 
 import { describe, it, expect, vi } from "vitest";
-import { AuthManager } from "./auth-manager";
+import { AuthManager } from "./auth-manager.js";
 
 function makeIdentityStore(
   overrides: {

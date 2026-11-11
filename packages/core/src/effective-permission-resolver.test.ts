@@ -3,7 +3,7 @@ import {
   EffectivePermissionResolver,
   matchPermissionPattern,
   type RolePermissionRule,
-} from "./effective-permission-resolver";
+} from "./effective-permission-resolver.js";
 
 describe("EffectivePermissionResolver & UserAuthorizationContext", () => {
   it("correctly matches permission patterns including wildcards", () => {

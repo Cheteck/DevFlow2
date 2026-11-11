@@ -14,9 +14,9 @@
  * Consumers: theme resolver (Phase 2), ThemeResolutionSchema.
  */
 
-import type { ThemeMode } from "./theme-mode";
-import type { ThemePreference } from "./theme-preference";
-import type { ThemeTarget } from "./theme-target";
+import type { ThemeMode } from "./theme-mode.js";
+import type { ThemePreference } from "./theme-preference.js";
+import type { ThemeTarget } from "./theme-target.js";
 
 export type ThemeResolutionSource =
   "entity" | "user" | "application" | "platform";

@@ -3,8 +3,8 @@ import type {
   InformationQuality,
   WorkflowStatus,
   VendableType,
-} from "./vendable";
-import type { VendableRepository } from "./vendable-repository";
+} from "./vendable.js";
+import type { VendableRepository } from "./vendable-repository.js";
 import {
   VendableNotFoundError,
   DuplicateVendableReferenceError,
@@ -12,7 +12,13 @@ import {
   SelfRelationError,
   DuplicateVariantReferenceError,
   OperationalKeyForbiddenError,
-} from "./portfolio-errors";
+} from "./portfolio-errors.js";
+import {
+  normalizeProductOptions,
+  validateProductOptions,
+  groupsToOptionsBlock,
+  type ProductOptionGroupInput,
+} from "./product-options.js";
 
 export interface SearchCriteria {
   id?: string | undefined;
@@ -45,6 +51,11 @@ export interface UpdateVendableInput {
     | undefined;
 }
 
+export interface CsvImportReport {
+  imported: number;
+  failed: Array<{ line: number; reference?: string; reason: string }>;
+}
+
 const ALLOWED_CSV_STATUSES: WorkflowStatus[] = [
   "Draft",
   "In Review",
@@ -63,19 +74,19 @@ export class PortfolioService {
     "pricing",
     "stock",
     "inventory",
+    "reorder",
     "seller",
     "available",
     "availability",
     "booking",
     "order",
     "transaction",
-    "pricing_period",
   ];
 
   private static ALLOWED_WORKFLOW_TRANSITIONS: Partial<
     Record<WorkflowStatus, WorkflowStatus[]>
   > = {
-    Draft: ["In Review", "Draft"],
+    Draft: ["In Review", "Published", "Draft"],
     "In Review": ["Validated", "Draft"],
     Validated: ["Published", "Draft"],
     Published: ["Archived", "Draft"],
@@ -111,17 +122,30 @@ export class PortfolioService {
   }
 
   /**
-   * Reject any transactional/operational keys inside attributes, specifications, or metadata.
+   * Reject any transactional/operational keys inside attributes, specifications, or metadata,
+   * as well as top-level commercial fields (pricing/inventory) that the PIM model forbids.
+   * Runtime probing (not type-level) : callers may pass plain JSON carrying removed fields.
    */
   private validateNoOperationalKeys(vendable: Vendable): void {
     const checkKey = (key: string) => {
-      const lower = key.toLowerCase();
+      // Token-based matching (camelCase / snake / kebab / spaces) : "stockage"
+      // (descriptive, FR) must not match forbidden token "stock".
+      const tokens = key
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .split(/[^A-Za-z0-9]+/)
+        .map((t) => t.toLowerCase())
+        .filter((t) => t.length > 0);
       for (const forbidden of PortfolioService.FORBIDDEN_OPERATIONAL_KEYS) {
-        if (lower.includes(forbidden)) {
+        if (tokens.includes(forbidden)) {
           throw new OperationalKeyForbiddenError(key);
         }
       }
     };
+
+    const raw = vendable as unknown as Record<string, unknown>;
+    if (raw["pricing"] !== undefined || raw["inventory"] !== undefined) {
+      throw new OperationalKeyForbiddenError("pricing/inventory");
+    }
 
     if (vendable.characteristics.attributes) {
       Object.keys(vendable.characteristics.attributes).forEach(checkKey);
@@ -140,6 +164,13 @@ export class PortfolioService {
 
     if (vendable.variants) {
       vendable.variants.forEach((v) => {
+        const rawVariant = v as unknown as Record<string, unknown>;
+        if (
+          rawVariant["pricing"] !== undefined ||
+          rawVariant["inventory"] !== undefined
+        ) {
+          throw new OperationalKeyForbiddenError("variant.pricing/inventory");
+        }
         if (v.characteristics?.attributes) {
           Object.keys(v.characteristics.attributes).forEach(checkKey);
         }
@@ -168,8 +199,8 @@ export class PortfolioService {
   /**
    * Create a new vendable.
    */
-  async createVendable(vendable: Vendable): Promise<Vendable> {
-    const existingById = await this.repository.findById(vendable.identity.id);
+  async createVendable(vendable: Vendable, tenantId: string): Promise<Vendable> {
+    const existingById = await this.repository.findById(vendable.identity.id, tenantId);
     if (existingById) {
       throw new Error(
         `Vendable with ID [${vendable.identity.id}] already exists.`,
@@ -178,6 +209,7 @@ export class PortfolioService {
 
     const existingByRef = await this.repository.findByReference(
       vendable.identity.reference,
+      tenantId,
     );
     if (existingByRef) {
       throw new DuplicateVendableReferenceError(vendable.identity.reference);
@@ -190,15 +222,18 @@ export class PortfolioService {
       quality: this.calculateCompleteness(vendable),
     };
 
-    await this.repository.save(withQuality);
+    await this.repository.save(withQuality, tenantId);
     return withQuality;
   }
 
   /**
    * Find a vendable by ID.
+   * Quality is computed on read (ADR-0018: never stored).
    */
-  async findVendable(id: string): Promise<Vendable | undefined> {
-    return this.repository.findById(id);
+  async findVendable(id: string, tenantId: string): Promise<Vendable | undefined> {
+    const found = await this.repository.findById(id, tenantId);
+    if (!found) return undefined;
+    return { ...found, quality: this.calculateCompleteness(found) };
   }
 
   /**
@@ -207,8 +242,9 @@ export class PortfolioService {
   async updateVendable(
     id: string,
     updates: UpdateVendableInput,
+    tenantId: string,
   ): Promise<Vendable> {
-    const existing = await this.repository.findById(id);
+    const existing = await this.repository.findById(id, tenantId);
     if (!existing) {
       throw new VendableNotFoundError(id);
     }
@@ -224,6 +260,7 @@ export class PortfolioService {
     if (updates.identity?.reference !== undefined) {
       const existingRef = await this.repository.findByReference(
         updates.identity.reference,
+        tenantId,
       );
       if (existingRef && existingRef.identity.id !== id) {
         throw new DuplicateVendableReferenceError(updates.identity.reference);
@@ -255,26 +292,82 @@ export class PortfolioService {
     this.validateDomainInvariants(updated);
 
     updated.quality = this.calculateCompleteness(updated);
-    await this.repository.save(updated);
+    await this.repository.save(updated, tenantId);
     return updated;
   }
 
   /**
    * Delete a vendable by ID.
    */
-  async deleteVendable(id: string): Promise<void> {
-    const existing = await this.repository.findById(id);
+  async deleteVendable(id: string, tenantId: string): Promise<void> {
+    const existing = await this.repository.findById(id, tenantId);
     if (!existing) {
       throw new VendableNotFoundError(id);
     }
-    await this.repository.delete(id);
+    await this.repository.delete(id, tenantId);
   }
 
   /**
-   * List all vendables.
+   * List all vendables (quality computed on read, ADR-0018).
    */
-  async listVendables(): Promise<Vendable[]> {
-    return this.repository.findAll();
+  async listVendables(tenantId: string): Promise<Vendable[]> {
+    const all = await this.repository.findAll(tenantId);
+    return all.map((v) => ({ ...v, quality: this.calculateCompleteness(v) }));
+  }
+
+  /**
+   * Options statuses autorises a la modification : jamais sur une fiche
+   * publiee/archivée (passer par une revision), jamais d'options montantes
+   * vers un statut sans revue.
+   */
+  private static readonly OPTIONS_EDITABLE_STATUSES: WorkflowStatus[] = [
+    "Draft",
+    "In Review",
+    "Validated",
+  ];
+
+  /**
+   * Definit (remplace) le bloc d'options d'un vendable : normalise, valide
+   * (codes, valeurs, incompatibilites, cles commerciales interdites) puis
+   * persiste via `updateVendable` (invariants + complétude recalcules).
+   */
+  async setProductOptions(
+    id: string,
+    groups: ProductOptionGroupInput[],
+    tenantId: string,
+  ): Promise<Vendable> {
+    const existing = await this.repository.findById(id, tenantId);
+    if (!existing) {
+      throw new VendableNotFoundError(id);
+    }
+    if (
+      !PortfolioService.OPTIONS_EDITABLE_STATUSES.includes(
+        existing.identity.status,
+      )
+    ) {
+      throw new Error(
+        `Options non modifiables au statut [${existing.identity.status}] : repassez la fiche en Draft.`,
+      );
+    }
+    const normalized = normalizeProductOptions(groups);
+    const errors = validateProductOptions(normalized);
+    if (errors.length > 0) {
+      throw new Error(`Options produit invalides : ${errors.join("; ")}`);
+    }
+    const attributes = {
+      ...(existing.characteristics.attributes ?? {}),
+    };
+    if (normalized.length === 0) {
+      delete attributes["options"];
+    } else {
+      attributes["options"] = groupsToOptionsBlock(normalized);
+    }
+    return this.updateVendable(id, {
+      characteristics: {
+        attributes,
+        specifications: existing.characteristics.specifications,
+      },
+    }, tenantId);
   }
 
   /**
@@ -283,8 +376,9 @@ export class PortfolioService {
   async updateWorkflowStatus(
     id: string,
     targetStatus: WorkflowStatus,
+    tenantId: string,
   ): Promise<Vendable> {
-    const existing = await this.repository.findById(id);
+    const existing = await this.repository.findById(id, tenantId);
     if (!existing) {
       throw new VendableNotFoundError(id);
     }
@@ -296,7 +390,7 @@ export class PortfolioService {
       identity: { ...existing.identity, status: targetStatus },
       quality: this.calculateCompleteness({ ...existing, identity: { ...existing.identity, status: targetStatus } }),
     };
-    await this.repository.save(next);
+    await this.repository.save(next, tenantId);
     return next;
   }
 
@@ -318,8 +412,8 @@ export class PortfolioService {
   /**
    * Search vendables by criteria.
    */
-  async search(criteria: SearchCriteria): Promise<Vendable[]> {
-    const all = await this.repository.findAll();
+  async search(criteria: SearchCriteria, tenantId: string): Promise<Vendable[]> {
+    const all = await this.repository.findAll(tenantId);
     const filtered = all.filter((v) => {
       if (criteria.id !== undefined && v.identity.id !== criteria.id)
         return false;
@@ -381,8 +475,12 @@ export class PortfolioService {
 
     const offset = Math.max(0, criteria.offset ?? 0);
     const limit = criteria.limit ?? filtered.length;
-    if (offset === 0 && limit >= filtered.length) return filtered;
-    return filtered.slice(offset, offset + Math.max(0, limit));
+    const withQuality = filtered.map((v) => ({
+      ...v,
+      quality: this.calculateCompleteness(v),
+    }));
+    if (offset === 0 && limit >= filtered.length) return withQuality;
+    return withQuality.slice(offset, offset + Math.max(0, limit));
   }
 
   /**
@@ -485,25 +583,49 @@ export class PortfolioService {
 
   /**
    * Export vendables to a simple CSV string.
+   * Properly escapes quotes, commas, and newlines. Protects against CSV injection.
    */
-  async exportCsv(): Promise<string> {
-    const all = await this.repository.findAll();
+  async exportCsv(tenantId: string): Promise<string> {
+    const all = await this.repository.findAll(tenantId);
     const header =
       "id,reference,type,status,name,description,categories,attributes\n";
+    
+    const escapeCsvField = (val: string): string => {
+      let str = String(val);
+      // Neutralize formula injection: spreadsheet apps execute values starting
+      // with =, +, -, @, or with leading whitespace/tab/CR/LF before them.
+      if (/^[=\t\r\n+-]/.test(str) || /^[ \t]+[=+@-]/.test(str)) {
+        str = "'" + str;
+      }
+      const escaped = str.replace(/"/g, '""');
+      return `"${escaped}"`;
+    };
+
     const rows = all.map((v) => {
       const content = v.content["fr"] ||
         Object.values(v.content)[0] || { name: "", description: "" };
-      const name = content.name.replace(/"/g, '""');
-      const desc = (content.description || "").replace(/"/g, '""');
-      const cats = (v.classification.categories || []).join(";");
+      const name = escapeCsvField(content.name);
+      const desc = escapeCsvField(content.description || "");
+      const cats = escapeCsvField((v.classification.categories || []).join(";"));
 
       const attrsList: string[] = [];
       for (const [key, val] of Object.entries(v.characteristics.attributes)) {
-        attrsList.push(`${key}=${val}`);
+        if (isSafeAttributeKey(key)) {
+          attrsList.push(`${key}=${val}`);
+        }
       }
-      const attrs = attrsList.join(";");
+      const attrs = escapeCsvField(attrsList.join(";"));
 
-      return `"${v.identity.id}","${v.identity.reference}","${v.identity.type}","${v.identity.status}","${name}","${desc}","${cats}","${attrs}"`;
+      return [
+        escapeCsvField(v.identity.id),
+        escapeCsvField(v.identity.reference),
+        escapeCsvField(v.identity.type),
+        escapeCsvField(v.identity.status),
+        name,
+        desc,
+        cats,
+        attrs,
+      ].join(",");
     });
 
     return header + rows.join("\n");
@@ -511,81 +633,107 @@ export class PortfolioService {
 
   /**
    * Import vendables from a simple CSV string.
+   * Returns a report with imported count and per-line failures.
+   * Partial import: successful rows are committed, failures are reported.
    */
-  async importCsv(csvContent: string): Promise<Vendable[]> {
+  async importCsv(csvContent: string, tenantId: string): Promise<CsvImportReport> {
     const lines = csvContent.trim().split("\n");
-    if (lines.length <= 1) return [];
+    const report: CsvImportReport = { imported: 0, failed: [] };
 
-    const imported: Vendable[] = [];
+    if (lines.length <= 1) return report;
+
     for (let i = 1; i < lines.length; i++) {
+      const lineNum = i + 1; // 1-indexed, header is line 1
       const line = lines[i]!.trim();
       if (!line) continue;
 
-      const parts = parseCsvRecord(line);
+        let parts: string[] = [];
+        try {
+          parts = parseCsvRecord(line);
 
-      if (parts.length < 5) continue;
-
-      const [
-        id,
-        reference,
-        type,
-        statusStr,
-        name,
-        description,
-        categoriesStr,
-        attributesStr,
-      ] = parts;
-      if (!id || !reference || !type) continue;
-
-      const status: WorkflowStatus = ALLOWED_CSV_STATUSES.includes(
-        statusStr as WorkflowStatus,
-      )
-        ? (statusStr as WorkflowStatus)
-        : "Draft";
-      const categories = categoriesStr ? categoriesStr.split(";") : [];
-      const attributes: Record<string, unknown> = {};
-
-      if (attributesStr) {
-        const pairs = attributesStr.split(";");
-        for (const pair of pairs) {
-          const eqIndex = pair.indexOf("=");
-          if (eqIndex > 0) {
-            const key = pair.substring(0, eqIndex).trim();
-            if (!key || !isSafeAttributeKey(key)) continue;
-            const val = pair.substring(eqIndex + 1);
-            attributes[key] = val;
-          }
+          if (parts.length < 5) {
+          report.failed.push({ line: lineNum, reason: "Champs insuffisants (minimum 5 requis)" });
+          continue;
         }
-      }
 
-      const vendable: Vendable = {
-        identity: {
+        const [
           id,
           reference,
-          type: type as VendableType,
-          status,
-        },
-        content: {
-          fr: {
-            name: name || "",
-            description: description || "",
-          },
-        },
-        characteristics: {
-          attributes,
-        },
-        classification: {
-          categories,
-        },
-        media: [],
-        variants: [],
-        relations: [],
-      };
+          type,
+          statusStr,
+          name,
+          description,
+          categoriesStr,
+          attributesStr,
+        ] = parts;
 
-      await this.createVendable(vendable);
-      imported.push(vendable);
+        if (!id || !reference || !type) {
+          report.failed.push({ line: lineNum, reason: "ID, référence ou type manquant" });
+          continue;
+        }
+
+        const status: WorkflowStatus = ALLOWED_CSV_STATUSES.includes(
+          statusStr as WorkflowStatus,
+        )
+          ? (statusStr as WorkflowStatus)
+          : "Draft";
+
+        // Check for duplicate reference before import (tenant-scoped)
+        const existingByRef = await this.repository.findByReference(reference, tenantId);
+        if (existingByRef) {
+          report.failed.push({ line: lineNum, reference, reason: `Référence dupliquée : ${reference}` });
+          continue;
+        }
+
+        const categories = categoriesStr ? categoriesStr.split(";") : [];
+        const attributes: Record<string, unknown> = {};
+
+        if (attributesStr) {
+          const pairs = attributesStr.split(";");
+          for (const pair of pairs) {
+            const eqIndex = pair.indexOf("=");
+            if (eqIndex > 0) {
+              const key = pair.substring(0, eqIndex).trim();
+              if (!key || !isSafeAttributeKey(key)) continue;
+              const val = pair.substring(eqIndex + 1);
+              attributes[key] = val;
+            }
+          }
+        }
+
+        const vendable: Vendable = {
+          identity: {
+            id,
+            reference,
+            type: type as VendableType,
+            status,
+          },
+          content: {
+            fr: {
+              name: name || "",
+              description: description || "",
+            },
+          },
+          characteristics: {
+            attributes,
+          },
+          classification: {
+            categories,
+          },
+          media: [],
+          variants: [],
+          relations: [],
+        };
+
+        await this.createVendable(vendable, tenantId);
+        report.imported++;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const reference = parts?.[1] || undefined;
+        report.failed.push({ line: lineNum, reference, reason: message });
+      }
     }
 
-    return imported;
+    return report;
   }
 }

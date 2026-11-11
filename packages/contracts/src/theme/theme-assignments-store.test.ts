@@ -13,9 +13,9 @@
 
 import { describe, expectTypeOf, it } from "vitest";
 
-import type { ThemeAssignmentsStore } from "../index";
-import type { ThemeAssignment } from "./theme-assignment";
-import type { ThemeTarget } from "./theme-target";
+import type { ThemeAssignmentsStore } from "../index.js";
+import type { ThemeAssignment } from "./theme-assignment.js";
+import type { ThemeTarget } from "./theme-target.js";
 
 describe("ThemeAssignmentsStore (D-18 port surface)", () => {
   it("declares exactly the 4-method D-18 port", () => {

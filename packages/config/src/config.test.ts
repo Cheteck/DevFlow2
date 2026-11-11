@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Config, config, createEnvHelper } from "./index";
+import { Config, config, createEnvHelper } from "./index.js";
 
 describe("env helper", () => {
   it("parses typed values with fallback", () => {

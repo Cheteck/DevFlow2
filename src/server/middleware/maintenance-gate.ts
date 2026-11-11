@@ -4,7 +4,7 @@
  */
 
 import type * as http from "node:http";
-import { maintenanceService } from "@mosaix/core";
+import { maintenanceService as maintenanceServiceImport } from "@mosaix/core";
 import { renderMaintenancePage } from "../../shell/renderer.js";
 import { renderHeadBlock } from "../../shell/ssr-engine.js";
 import { renderThemeStyleTag } from "../../shell/theme/theme-bridge.js";
@@ -16,7 +16,8 @@ export function handleMaintenanceGate(
   pathname: string,
   userRole: string,
   activeMode: ThemeMode,
-  sharedStyles: string
+  sharedStyles: string,
+  maintenanceService: { isMaintenanceActive(): boolean; isUserBypassed(role: string): boolean; getMaintenanceStatus(): { reason?: string; estimatedDurationMinutes?: number } } = maintenanceServiceImport,
 ): boolean {
   if (!maintenanceService.isMaintenanceActive()) {
     return false; // Not in maintenance, continue normal request processing
@@ -52,11 +53,15 @@ export function handleMaintenanceGate(
   }
 
   // HTML page requests return full SSR maintenance layout
+  // Ordre canonique : (titre, mode, themeStyleTag, sharedStyles) — les deux
+  // fragments sont des HTML de confiance internes (voir ssr-engine) :
+  // style compilé themes/*.json + CSS partagé getSharedStyles(), jamais
+  // de données utilisateur brutes.
   const headHtml = renderHeadBlock(
     "Mode Maintenance — MosaiX Platform",
     activeMode,
+    renderThemeStyleTag(activeMode),
     sharedStyles,
-    renderThemeStyleTag(activeMode)
   );
 
   const html = `<!DOCTYPE html>

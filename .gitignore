@@ -9,6 +9,7 @@ coverage/
 *.js.map
 *.d.ts.map
 !eslint.config.mjs
+chatgpt-web-mcp/
 
 # Mosaix
 .mosaix/
@@ -25,7 +26,6 @@ tsc*.txt
 tsc_*.txt
 
 # Audit logs
-.agents/
 .ua/
 .kilo/
 
@@ -42,6 +42,13 @@ prompt (2).txt
 
 # Environment variables
 .env
+.opencode.json
+opencode.json
+checksum.cjs
+analyses/
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
 .env.local
 .env.*.local
 .env.test
@@ -60,3 +67,4 @@ apps/*/src/**/*.js
 apps/*/src/**/*.d.ts
 apps/*/src/**/*.js.map
 apps/*/src/**/*.d.ts.map
+remotion/

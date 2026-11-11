@@ -1,6 +1,7 @@
 import type { Container, ServiceProvider, Router, HttpRequest, HttpResponse } from "@mosaix/sdk";
 import type { DatabasePort } from "@mosaix/ports-database";
 import { SolidarityService } from "./solidarity-service.js";
+import { SolidarityController } from "./solidarity-controller.js";
 import { PostgresSolidarityRepository } from "./postgres-solidarity-repository.js";
 
 export interface SolidarityAppServiceProviderOptions {
@@ -56,5 +57,7 @@ export class SolidarityAppServiceProvider implements ServiceProvider {
       const data = await service.getDistributionsAsync();
       return { statusCode: 200, body: data };
     });
+
+    new SolidarityController(service).registerRoutes(router);
   }
 }

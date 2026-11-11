@@ -24,7 +24,7 @@
 
 import type { PluginManifest } from "@mosaix/contracts";
 import { PluginManifestSchema } from "@mosaix/schemas";
-import { PluginLifecycleError, PluginRegistrationError } from "./plugin-errors";
+import { PluginLifecycleError, PluginRegistrationError } from "./plugin-errors.js";
 
 /** A registered plugin together with its lifecycle state. */
 export interface PluginEntry {

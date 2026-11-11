@@ -4,7 +4,7 @@
  */
 
 import type { ApplicationDefinition, ContextManifest } from "@mosaix/contracts";
-import type { ContextRegistry } from "./context-registry";
+import type { ContextRegistry } from "./context-registry.js";
 
 export interface CompositionResolutionResult {
   valid: boolean;

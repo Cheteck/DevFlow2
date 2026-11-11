@@ -12,8 +12,8 @@
  *       └── PluginLifecycleError      (unknown plugin, activation state)
  */
 
-import { KernelError } from "../kernel-errors";
-import type { KernelErrorDetails } from "../kernel-errors";
+import { KernelError } from "../kernel-errors.js";
+import type { KernelErrorDetails } from "../kernel-errors.js";
 
 export class PluginError extends KernelError {
   constructor(code: string, message: string, details: KernelErrorDetails = {}) {

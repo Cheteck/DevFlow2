@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { OidcTokenBridge } from "./oidc-bridge";
+import { OidcTokenBridge } from "./oidc-bridge.js";
 
 describe("Auth Pipeline Integration Suite", () => {
   it("rejects any token if no secret is configured on the bridge", async () => {

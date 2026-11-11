@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as path from "node:path";
-import { DatabaseManager, resolveDatabaseConfig } from "./database-manager";
+import { DatabaseManager, resolveDatabaseConfig } from "./database-manager.js";
 import type { DatabasePort } from "@mosaix/ports-database";
 
 function fakePort(): DatabasePort {

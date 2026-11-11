@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { OtelMetricsAdapter } from "./index";
+import { OtelMetricsAdapter } from "./index.js";
 
 describe("OtelMetricsAdapter", () => {
   it("registers meters and logs values", () => {

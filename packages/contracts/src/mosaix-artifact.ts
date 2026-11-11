@@ -8,9 +8,9 @@
  * Every concrete artifact (application, plugin, theme) extends this root.
  */
 
-import type { CapabilityContract } from "./capability/capability-contract";
-import type { PermissionContract } from "./security/permission-contract";
-import type { ArtifactSignature } from "./security/signature";
+import type { CapabilityContract } from "./capability/capability-contract.js";
+import type { PermissionContract } from "./security/permission-contract.js";
+import type { ArtifactSignature } from "./security/signature.js";
 
 export type MosaixArtifactType = "application" | "plugin" | "theme";
 

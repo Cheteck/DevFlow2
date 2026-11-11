@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveSlot } from "./resolve-slot";
+import { resolveSlot } from "./resolve-slot.js";
 
 describe("resolveSlot (TH-003 / TH-004)", () => {
   it("resolves from parent up to theme", () => {

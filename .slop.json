@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "scopes": ["code"],
+  "strict": false,
+  "base": "origin/main",
+  "rules": {
+    "SLOP-P0-01": "error",
+    "SLOP-P0-02": "error",
+    "SLOP-P0-03": "error",
+    "SLOP-P0-04": "error",
+    "SLOP-P0-05": "error",
+    "SLOP-P0-06": "error",
+    "SLOP-P0-07": "error",
+    "SLOP-P1-01": "warn",
+    "SLOP-P1-02": "warn",
+    "SLOP-P1-03": "warn",
+    "SLOP-P1-04": "warn"
+  },
+  "allow": [
+    {
+      "ruleId": "SLOP-P0-04",
+      "path": "packages/cli/src/run.ts",
+      "reason": "CLI runner output"
+    },
+    {
+      "ruleId": "SLOP-P0-04",
+      "path": "packages/cli/src/command-router.ts",
+      "reason": "CLI router output"
+    },
+    {
+      "ruleId": "SLOP-P0-04",
+      "path": "packages/cli/src/commands/slop-commands.ts",
+      "reason": "CLI slop command formatting output"
+    },
+    {
+      "ruleId": "SLOP-P0-04",
+      "path": "src/start.ts",
+      "reason": "Server startup boot console info"
+    }
+  ]
+}

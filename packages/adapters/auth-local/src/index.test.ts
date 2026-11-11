@@ -9,7 +9,7 @@ import type {
   SecretsPort,
 } from "@mosaix/contracts";
 import type { SessionCreationPort } from "@mosaix/ports-session-creation";
-import { LocalPasswordProvider } from "./index";
+import { LocalPasswordProvider } from "./index.js";
 
 function makeIdentityStore(
   overrides: Partial<IdentityStore> = {},

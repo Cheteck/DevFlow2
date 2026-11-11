@@ -2,6 +2,12 @@
  * @apps/beam — Autonomous BAC View & Descriptor
  * Self-contained SSR presentation layer for MosaiX Beam Messaging.
  */
+/* AUDIT-RESET a055b8e (2026-10-13) — AUCUNE PERTE DÉTECTÉE.
+ * Le diff de a055b8e (suppression du param channelCreated, de la notification "Demande transmise" et du
+ * faux lien "Créer un salon", remplacés par un bouton désactivé honnête) correspond à l'étape "UI honnêtes"
+ * annoncée par la session ; aucune référence channelCreated ne subsiste dans le repo et le test associé
+ * a été mis à jour en cohérence. Vérification restante : confirmer qu'aucune capability de création de
+ * salon n'était attendue côté domaine avant toute restauration d'un parcours de création. */
 
 import type { BacDescriptor, BacExecutionContext, BacRenderResult } from "@mosaix/contracts";
 import { escapeHtml } from "@mosaix/support";
@@ -121,8 +127,8 @@ export function createBeamDescriptor(messagingService?: BeamMessagingService): B
                 <div class="p-4 rounded-xl bg-surface-container/40 border border-outline-variant/15 text-center space-y-3">
                   <span class="text-xl">📢</span>
                   <h4 class="text-xs font-bold text-on-surface">Salons publics</h4>
-                  <p class="text-[11px] text-on-surface-variant">Les salons thématiques sont configurés par l'équipe de modération.</p>
-                  <button onclick="alert('Demande de creation de salon envoyee')" class="px-3 py-1 rounded-lg bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/30 text-on-surface text-[10px] font-semibold transition cursor-pointer">Créer un salon</button>
+                  <p class="text-[11px] text-on-surface-variant">La création en libre-service de salons publics n'est pas encore activée. Les canaux thématiques sont configurés par l'équipe de modération.</p>
+                  <button disabled class="px-3 py-1.5 rounded-lg bg-surface-container border border-outline-variant/20 text-on-surface-variant/60 text-[10px] font-semibold cursor-not-allowed">Création via modération (bientôt disponible)</button>
                 </div>
               ` : convListHtml}
             </div>
@@ -139,8 +145,8 @@ export function createBeamDescriptor(messagingService?: BeamMessagingService): B
                 </div>
                 <div>
                   <h3 class="text-xs font-bold text-on-surface">${escapeHtml(activeConvTitle)}</h3>
-                  <span class="text-[9px] text-emerald-400 font-semibold flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span class="text-[9px] text-success font-semibold flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span>
                     Sécurisé par chiffrement E2E
                   </span>
                 </div>

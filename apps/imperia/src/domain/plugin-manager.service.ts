@@ -1,3 +1,6 @@
+import { createTypedRegistry } from "@mosaix/support";
+import { getGlobalPluginEngine } from "../../../../src/shell/plugin-engine-bootstrap.js";
+
 export type PrestaPluginCategory =
   | "commerce"
   | "security"
@@ -20,6 +23,34 @@ export interface ImperiaPluginModule {
   configurationValues?: Record<string, unknown>;
   tabs?: Array<{ id: string; label: string; icon?: string }>;
 }
+
+export type PluginActionHandler = (
+  pluginId: string,
+  manager: ImperiaPluginManagerService,
+  values?: Record<string, unknown>,
+) => ImperiaPluginModule;
+
+const pluginActionRegistry = createTypedRegistry<string, PluginActionHandler>([], { name: "PluginActionRegistry" });
+
+export function registerPluginAction(action: string, handler: PluginActionHandler): void {
+  pluginActionRegistry.register(action.toLowerCase(), handler);
+}
+
+export function overridePluginAction(action: string, handler: PluginActionHandler): void {
+  pluginActionRegistry.override(action.toLowerCase(), handler);
+}
+
+export function getPluginActionHandler(action: string): PluginActionHandler | undefined {
+  return pluginActionRegistry.get(action.toLowerCase());
+}
+
+// Register built-in actions
+registerPluginAction("install", (id, mgr) => mgr.install(id));
+registerPluginAction("enable", (id, mgr) => mgr.enable(id));
+registerPluginAction("disable", (id, mgr) => mgr.disable(id));
+registerPluginAction("reset", (id, mgr) => mgr.reset(id));
+registerPluginAction("uninstall", (id, mgr) => mgr.uninstall(id));
+registerPluginAction("configure", (id, mgr, vals) => mgr.configure(id, vals ?? {}));
 
 export class ImperiaPluginManagerService {
   private plugins = new Map<string, ImperiaPluginModule>();
@@ -90,6 +121,30 @@ export class ImperiaPluginManagerService {
   }
 
   listPlugins(category?: PrestaPluginCategory): ImperiaPluginModule[] {
+    const engine = getGlobalPluginEngine();
+    const runtimePlugins = engine.registry.list();
+
+    // Sync runtime state into catalog
+    for (const rp of runtimePlugins) {
+      const existing = this.getPlugin(rp.manifest.id);
+      if (existing) {
+        existing.enabled = rp.state === "ACTIVE";
+        existing.installed = rp.state !== "UNLOADED";
+      } else {
+        this.registerPlugin({
+          id: rp.manifest.id,
+          name: rp.manifest.name || rp.manifest.id,
+          author: rp.manifest.metadata?.author || "Developer",
+          version: rp.manifest.version || "1.0.0",
+          category: (rp.manifest.extension?.target as PrestaPluginCategory) || "commerce",
+          description: rp.manifest.metadata?.description || "Plugin MosaiX",
+          installed: rp.state !== "UNLOADED",
+          enabled: rp.state === "ACTIVE",
+          configurable: Boolean(rp.manifest.settingsSchema),
+        });
+      }
+    }
+
     const list = Array.from(this.plugins.values());
     if (category) {
       return list.filter((p) => p.category === category);
@@ -106,6 +161,10 @@ export class ImperiaPluginManagerService {
     if (!plugin) throw new Error(`Module plugin [${id}] non trouvé.`);
     plugin.installed = true;
     plugin.enabled = true;
+    const engine = getGlobalPluginEngine();
+    if (engine.registry.has(id)) {
+      engine.registry.updateState(id, "ACTIVE");
+    }
     return plugin;
   }
 
@@ -114,6 +173,10 @@ export class ImperiaPluginManagerService {
     if (!plugin) throw new Error(`Module plugin [${id}] non trouvé.`);
     if (!plugin.installed) throw new Error(`Impossible d'activer un module non installé.`);
     plugin.enabled = true;
+    const engine = getGlobalPluginEngine();
+    if (engine.registry.has(id)) {
+      engine.registry.updateState(id, "ACTIVE");
+    }
     return plugin;
   }
 
@@ -121,6 +184,10 @@ export class ImperiaPluginManagerService {
     const plugin = this.getPlugin(id);
     if (!plugin) throw new Error(`Module plugin [${id}] non trouvé.`);
     plugin.enabled = false;
+    const engine = getGlobalPluginEngine();
+    if (engine.registry.has(id)) {
+      engine.registry.updateState(id, "DISABLED");
+    }
     return plugin;
   }
 
@@ -137,6 +204,10 @@ export class ImperiaPluginManagerService {
     if (!plugin) throw new Error(`Module plugin [${id}] non trouvé.`);
     plugin.installed = false;
     plugin.enabled = false;
+    const engine = getGlobalPluginEngine();
+    if (engine.registry.has(id)) {
+      engine.registry.updateState(id, "DISABLED");
+    }
     return plugin;
   }
 

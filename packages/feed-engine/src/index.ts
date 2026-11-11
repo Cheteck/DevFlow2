@@ -1,3 +1,4 @@
+import { createTypedRegistry } from "@mosaix/support";
 /**
  * @mosaix/feed-engine ÔÇö Shared Extensible Feed & Publication Pipeline
  * Decoupled from any specific BAC, provides ActivityStreams-like structures,
@@ -107,7 +108,7 @@ export interface GroupedActivityCard {
 
 export interface FeedCardContext {
   currentUser: { id: string; roles?: string[] };
-  theme?: "light" | "dark" | "high-contrast";
+  theme?: "light" | "dark" | "system";
   locale?: string;
   capabilities?: Record<string, boolean>;
 }
@@ -449,6 +450,90 @@ export interface FeedAggregationOptions {
   now?: Date;
 }
 
+export type FeedSortStrategy = (
+  a: FeedPost,
+  b: FeedPost,
+  context: { referenceDate: Date },
+) => number;
+
+const feedSortStrategyRegistry = createTypedRegistry<string, FeedSortStrategy>(
+  [],
+  { name: "FeedSortStrategyRegistry" },
+);
+
+export function registerFeedSortStrategy(
+  name: string,
+  strategy: FeedSortStrategy,
+): void {
+  feedSortStrategyRegistry.register(name, strategy);
+}
+
+export function overrideFeedSortStrategy(
+  name: string,
+  strategy: FeedSortStrategy,
+): void {
+  feedSortStrategyRegistry.override(name, strategy);
+}
+
+registerFeedSortStrategy(
+  "chronological",
+  (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+);
+registerFeedSortStrategy(
+  "reverse_chronological",
+  (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+);
+registerFeedSortStrategy("engagement", (a, b) => {
+  const scoreA = a.likeCount + a.commentsCount * 2 + (a.repostCount || 0) * 3;
+  const scoreB = b.likeCount + b.commentsCount * 2 + (b.repostCount || 0) * 3;
+  return scoreB - scoreA;
+});
+registerFeedSortStrategy("score", (a, b, ctx) => {
+  const scoreA = FeedScorer.calculateScore(a, ctx.referenceDate);
+  const scoreB = FeedScorer.calculateScore(b, ctx.referenceDate);
+  return scoreB - scoreA;
+});
+
+export type FeedTargetFilter = (
+  post: FeedPost,
+  ctx: {
+    spaceIds: Set<string>;
+    groupIds: Set<string>;
+    eventIds: Set<string>;
+    options: FeedAggregationOptions;
+  },
+) => boolean;
+
+const feedTargetFilterRegistry = createTypedRegistry<string, FeedTargetFilter>(
+  [],
+  { name: "FeedTargetFilterRegistry" },
+);
+
+export function registerFeedTargetFilter(
+  targetType: string,
+  filter: FeedTargetFilter,
+): void {
+  feedTargetFilterRegistry.register(targetType, filter);
+}
+
+export function overrideFeedTargetFilter(
+  targetType: string,
+  filter: FeedTargetFilter,
+): void {
+  feedTargetFilterRegistry.override(targetType, filter);
+}
+
+registerFeedTargetFilter("feed", () => true);
+registerFeedTargetFilter("space", (post, ctx) =>
+  ctx.spaceIds.has(post.targetId),
+);
+registerFeedTargetFilter("group", (post, ctx) =>
+  ctx.groupIds.has(post.targetId),
+);
+registerFeedTargetFilter("event", (post, ctx) =>
+  ctx.eventIds.has(post.targetId),
+);
+
 export class FeedAggregator {
   public static aggregate(
     allPosts: FeedPost[],
@@ -496,46 +581,24 @@ export class FeedAggregator {
         return false;
       }
 
-      switch (post.targetType) {
-        case "feed":
-          return true;
-        case "space":
-          return spaceIds.has(post.targetId);
-        case "group":
-          return groupIds.has(post.targetId);
-        case "event":
-          return eventIds.has(post.targetId);
-        default:
-          return false;
-      }
+      const targetFilter = feedTargetFilterRegistry.get(post.targetType);
+      if (!targetFilter) return false;
+
+      return targetFilter(post, { spaceIds, groupIds, eventIds, options });
     });
 
     const sortBy = options.sortBy || "reverse_chronological";
     const referenceDate = options.now || new Date();
 
+    const strategy =
+      feedSortStrategyRegistry.get(sortBy) ??
+      feedSortStrategyRegistry.get("reverse_chronological")!;
+
     return filtered.sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
 
-      switch (sortBy) {
-        case "chronological":
-          return a.createdAt.getTime() - b.createdAt.getTime();
-        case "engagement": {
-          const scoreA =
-            a.likeCount + a.commentsCount * 2 + (a.repostCount || 0) * 3;
-          const scoreB =
-            b.likeCount + b.commentsCount * 2 + (b.repostCount || 0) * 3;
-          return scoreB - scoreA;
-        }
-        case "score": {
-          const scoreA = FeedScorer.calculateScore(a, referenceDate);
-          const scoreB = FeedScorer.calculateScore(b, referenceDate);
-          return scoreB - scoreA;
-        }
-        case "reverse_chronological":
-        default:
-          return b.createdAt.getTime() - a.createdAt.getTime();
-      }
+      return strategy(a, b, { referenceDate });
     });
   }
 

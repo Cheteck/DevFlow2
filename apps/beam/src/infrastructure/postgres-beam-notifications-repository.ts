@@ -2,8 +2,8 @@
  * @apps/beam — PostgreSQL adapters for the orphan tables of
  * `beam.messaging.v1.001_create_messaging_tables`.
  *
- * - `beam_notifications` : save / markRead / listByUser
- * - `beam_push_subscriptions` : save / remove / listByUser
+ * - `"beam"."notifications"` : save / markRead / listByUser
+ * - `"beam"."push_subscriptions"` : save / remove / listByUser
  *
  * Volontairement découplé de `BeamPushDispatcher` (Map en mémoire) : le
  * pontage dispatcher → persistance est au backlog (BEAM-PUSH-BRIDGE).
@@ -64,7 +64,7 @@ export class PostgresBeamNotificationRepository {
 
   async save(notification: BeamNotificationModel): Promise<void> {
     await this.db.query(
-      `INSERT INTO beam_notifications (id, "userId", title, body, type, "isRead", data, "createdAt")
+      `INSERT INTO "beam"."notifications" (id, "userId", title, body, type, "isRead", data, "createdAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (id) DO UPDATE SET
          "userId" = $2, title = $3, body = $4, type = $5, "isRead" = $6, data = $7`,
@@ -82,14 +82,14 @@ export class PostgresBeamNotificationRepository {
   }
 
   async markRead(id: string): Promise<void> {
-    await this.db.query(`UPDATE beam_notifications SET "isRead" = TRUE WHERE id = $1`, [id]);
+    await this.db.query(`UPDATE "beam"."notifications" SET "isRead" = TRUE WHERE id = $1`, [id]);
   }
 
   async listByUser(userId: string, limit = 50): Promise<BeamNotificationModel[]> {
     const safeLimit = Math.min(Math.max(limit, 1), 500);
     const rows = await this.db.query<Record<string, unknown>>(
       `SELECT id, "userId", title, body, type, "isRead", data, "createdAt"
-       FROM beam_notifications WHERE "userId" = $1 ORDER BY "createdAt" DESC LIMIT $2`,
+       FROM "beam"."notifications" WHERE "userId" = $1 ORDER BY "createdAt" DESC LIMIT $2`,
       [userId, safeLimit],
     );
     return rows.map(
@@ -121,7 +121,7 @@ export class PostgresBeamPushSubscriptionRepository {
 
   async save(subscription: BeamPushSubscriptionModel): Promise<void> {
     await this.db.query(
-      `INSERT INTO beam_push_subscriptions (id, "userId", endpoint, "p256dh", auth, "createdAt")
+      `INSERT INTO "beam"."push_subscriptions" (id, "userId", endpoint, "p256dh", auth, "createdAt")
        VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (id) DO UPDATE SET
          "userId" = $2, endpoint = $3, "p256dh" = $4, auth = $5`,
@@ -137,14 +137,14 @@ export class PostgresBeamPushSubscriptionRepository {
   }
 
   async remove(id: string): Promise<void> {
-    await this.db.query(`DELETE FROM beam_push_subscriptions WHERE id = $1`, [id]);
+    await this.db.query(`DELETE FROM "beam"."push_subscriptions" WHERE id = $1`, [id]);
   }
 
   async listByUser(userId: string, limit = 100): Promise<BeamPushSubscriptionModel[]> {
     const safeLimit = Math.min(Math.max(limit, 1), 500);
     const rows = await this.db.query<Record<string, unknown>>(
       `SELECT id, "userId", endpoint, "p256dh", auth, "createdAt"
-       FROM beam_push_subscriptions WHERE "userId" = $1 ORDER BY "createdAt" DESC LIMIT $2`,
+       FROM "beam"."push_subscriptions" WHERE "userId" = $1 ORDER BY "createdAt" DESC LIMIT $2`,
       [userId, safeLimit],
     );
     return rows.map(

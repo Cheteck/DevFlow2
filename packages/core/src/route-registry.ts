@@ -3,7 +3,7 @@
  */
 
 import type { RouteContract } from "@mosaix/contracts";
-import { RegistrationError } from "./kernel-errors";
+import { RegistrationError } from "./kernel-errors.js";
 
 export class RouteRegistry {
   private readonly routes = new Map<string, RouteContract>();

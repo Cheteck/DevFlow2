@@ -2,7 +2,7 @@ import type { DatabasePort } from "@mosaix/ports-database";
 import type { Coupon } from "../domain/subscription-billing-engine.js";
 
 /**
- * Writer/reader minimal pour la table BAC `coupons`.
+ * Writer/reader minimal pour la table BAC `"subscription"."coupons"`.
  * Volontairement restreint à INSERT + SELECT par code : pas de repo
  * complet (backlog si le besoin s'étend aux invoices/metering).
  */
@@ -19,7 +19,7 @@ export class CouponRepository {
 
   async insert(coupon: Coupon): Promise<void> {
     const query = this.formatQuery(
-      `INSERT INTO coupons (id, code, discountPercent, discountAmountInCents, maxRedemptions, redemptionsCount, expiresAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO "subscription"."coupons" (id, code, discountPercent, discountAmountInCents, maxRedemptions, redemptionsCount, expiresAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     await this.db.execute(query, [
       coupon.id,
@@ -34,7 +34,7 @@ export class CouponRepository {
   }
 
   async findByCode(code: string): Promise<Coupon | null> {
-    const query = this.formatQuery(`SELECT * FROM coupons WHERE code = ? LIMIT 1`);
+    const query = this.formatQuery(`SELECT * FROM "subscription"."coupons" WHERE code = ? LIMIT 1`);
     const rows = await this.db.query<Record<string, unknown>>(query, [code]);
     const row = rows[0];
     if (!row) return null;

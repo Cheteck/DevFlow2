@@ -1,0 +1,10 @@
+{
+  "id": "@mosaix-plugin/commerce-badge",
+  "name": "Commerce Badge Plugin",
+  "version": "0.1.0",
+  "entrypoint": "./src/index.ts",
+  "extension": {
+    "target": "commerce",
+    "point": "commerce.checkout.calculateDiscount"
+  }
+}

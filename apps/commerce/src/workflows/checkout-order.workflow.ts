@@ -21,22 +21,56 @@ export interface InventoryPort {
   release(orderId: string, idempotenceKey: string): Promise<void>;
 }
 
-/** Explicit demo ports — replace with real PSP/IMS adapters in production. */
-class DemoPaymentPort implements PaymentPort {
+/**
+ * Test-only doubles — explicit opt-in for unit tests (ex.
+ * `new CheckoutOrderWorkflow(new DemoPaymentPort(), new DemoInventoryPort())`).
+ * They perform no external call and succeed. NEVER rely on them outside
+ * tests: production wiring must inject real adapters (BOUND-02).
+ */
+export class DemoPaymentPort implements PaymentPort {
   async authorize(): Promise<void> {
-    // Demo only: no external call. Production must inject a real PSP adapter.
+    // Test only: no external call.
   }
   async void(): Promise<void> {
-    // Demo only.
+    // Test only.
   }
 }
 
-class DemoInventoryPort implements InventoryPort {
+export class DemoInventoryPort implements InventoryPort {
   async reserve(): Promise<void> {
-    // Demo only.
+    // Test only.
   }
   async release(): Promise<void> {
-    // Demo only.
+    // Test only.
+  }
+}
+
+/**
+ * Fail-closed defaults — the workflow refuses to run without explicitly
+ * injected ports. Rationale (BOUND-02): silent no-op defaults previously
+ * settled orders to `Paid` without any payment or reservation, including
+ * on production wiring paths. A missing port now throws loudly instead
+ * of faking success.
+ */
+const MISSING_PORT_MESSAGE =
+  "[CheckoutOrderWorkflow] port non câblé : injection explicite requise " +
+  "(ex. SatimPaymentPort en production, DemoPaymentPort en tests — voir BOUND-02).";
+
+class UnwiredPaymentPort implements PaymentPort {
+  async authorize(): Promise<void> {
+    throw new Error(MISSING_PORT_MESSAGE);
+  }
+  async void(): Promise<void> {
+    throw new Error(MISSING_PORT_MESSAGE);
+  }
+}
+
+class UnwiredInventoryPort implements InventoryPort {
+  async reserve(): Promise<void> {
+    throw new Error(MISSING_PORT_MESSAGE);
+  }
+  async release(): Promise<void> {
+    throw new Error(MISSING_PORT_MESSAGE);
   }
 }
 
@@ -54,8 +88,8 @@ export class CheckoutOrderWorkflow {
   private engine: WorkflowEngine<CheckoutOrderState>;
 
   constructor(
-    private readonly payment: PaymentPort = new DemoPaymentPort(),
-    private readonly inventory: InventoryPort = new DemoInventoryPort(),
+    private readonly payment: PaymentPort = new UnwiredPaymentPort(),
+    private readonly inventory: InventoryPort = new UnwiredInventoryPort(),
     private readonly stepTimeoutMs = 5000,
   ) {
     this.engine = new WorkflowEngine<CheckoutOrderState>();

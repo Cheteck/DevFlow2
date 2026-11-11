@@ -1,8 +1,8 @@
 import { Container, Router } from "@mosaix/sdk";
 import type { DatabasePort } from "@mosaix/ports-database";
-import { BeamAppServiceProvider } from "./infrastructure/beam-service-provider";
-import { BeamMessagingService } from "./domain/messaging.model";
-import { BeamMessagingController } from "./infrastructure/beam-controller";
+import { BeamAppServiceProvider } from "./infrastructure/beam-service-provider.js";
+import { BeamMessagingService } from "./domain/messaging.model.js";
+import { BeamMessagingController } from "./infrastructure/beam-controller.js";
 
 export interface BeamAppComposition {
   container: Container;

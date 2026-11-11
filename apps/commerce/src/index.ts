@@ -9,6 +9,7 @@ import type { ApplicationManifest } from "@mosaix/contracts";
 
 import { InMemoryOrderRepository } from "./infrastructure/postgres-order-repository.js";
 import { OrderService, type OrderRepositoryPort } from "./domain/order.service.js";
+import { DemoPaymentPort, DemoInventoryPort } from "./workflows/checkout-order.workflow.js";
 import type { DatabasePort } from "@mosaix/ports-database";
 import { CommerceController } from "./infrastructure/commerce-controller.js";
 import { CommerceAppServiceProvider } from "./infrastructure/commerce-service-provider.js";
@@ -28,10 +29,14 @@ export const MANIFEST = {
   capabilities: [
     { id: "commerce.order.create", version: "1.0.0" },
     { id: "commerce.order.read", version: "1.0.0" },
+    { id: "commerce.offer.publish", version: "1.0.0" },
+    { id: "commerce.offer.read", version: "1.0.0" },
   ],
   permissions: [
     "commerce:order:create:tenant",
     "commerce:order:read:tenant",
+    "commerce:offer:publish:tenant",
+    "commerce:offer:read:tenant",
   ],
   events: [
     "commerce.order.created",
@@ -112,11 +117,21 @@ export async function createCommerceApp(
   });
 }
 
-// Legacy Composition Root compatibility
-export function createCommerceComposition(parentContainer?: Container) {
+// Legacy Composition Root compatibility (tests uniquement : exiger un
+// repository explicite, jamais de stockage en memoire implicite).
+// Les ports saga sont les doubles de test explicites (aucun appel externe).
+export function createCommerceComposition(
+  parentContainer?: Container,
+  orderRepository?: OrderRepositoryPort,
+) {
+  if (!orderRepository) {
+    throw new Error(
+      "[createCommerceComposition] orderRepository requis (tests uniquement, ex. new InMemoryOrderRepository()).",
+    );
+  }
   const container = parentContainer ? parentContainer.createChild() : new Container();
-  const repository = new InMemoryOrderRepository();
-  const service = new OrderService(repository);
+  const repository = orderRepository;
+  const service = new OrderService(repository, new DemoPaymentPort(), new DemoInventoryPort());
   const controller = new CommerceController(service);
 
   container.instance(InMemoryOrderRepository, repository);
@@ -139,5 +154,5 @@ export * from "./domain/commerce-offer.model.js";
 export * from "./domain/auction.service.js";
 export * from "./domain/delivery-partner.service.js";
 export * from "./infrastructure/postgres-order-repository.js";
-
+export * from "./infrastructure/postgres-offer-repository.js";
 

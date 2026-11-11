@@ -10,7 +10,8 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true
+    "noEmit": false,
+    "outDir": "./.mosaix/build",
   },
   "include": [
     "src/**/*.ts",

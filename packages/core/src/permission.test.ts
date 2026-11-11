@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PermissionRegistry } from "./permission";
+import { PermissionRegistry } from "./permission.js";
 
 describe("PermissionRegistry (ROLE-P1-01)", () => {
   it("registers valid atomic permission definitions and checks registration", () => {

@@ -7,6 +7,7 @@ import { SolaraController } from "./solara-controller.js";
 import { PostgresSocialRepository } from "../domain/postgres-social-repository.js";
 import { SolaraContentModeratorPlugin } from "@mosaix-plugin/solara-content-moderator";
 import { CreatePostHandler, CreatePostCommand } from "../commands/create-post.command.js";
+import { getGlobalPluginEngine } from "../../../../src/shell/plugin-engine-bootstrap.js";
 
 export interface SolaraAppServiceProviderOptions {
   databasePort?: DatabasePort;
@@ -28,6 +29,10 @@ export class SolaraAppServiceProvider implements ServiceProvider {
     const moderationEnabled = await featureAsync("solara.moderation.ai_filter", true);
     if (moderationEnabled) {
       container.singleton(SolaraContentModeratorPlugin, () => new SolaraContentModeratorPlugin());
+      const engine = getGlobalPluginEngine();
+      engine.registerHook("solara.post.beforeCreate", SolaraContentModeratorPlugin.hookHandler, {
+        pluginId: "@mosaix-plugin/solara-content-moderator",
+      });
     }
 
     container.singleton(SolaraController, () => new SolaraController(container.resolve(SolaraSocialService)));

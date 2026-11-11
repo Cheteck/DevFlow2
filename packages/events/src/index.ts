@@ -1,12 +1,12 @@
-export * from "./dispatcher";
+export * from "./dispatcher.js";
 
-export * from "./outbox";
+export * from "./outbox.js";
 
-export * from "./outbox-worker";
+export * from "./outbox-worker.js";
 
-export * from "./outbox-daemon";
+export * from "./outbox-daemon.js";
 
-export * from "./messaging-publisher";
+export * from "./messaging-publisher.js";
 
-export * from "./event";
-export * from "./listener";
+export * from "./event.js";
+export * from "./listener.js";

@@ -10,36 +10,33 @@
  * and the CLI both resolve the registry from the live adapter dialect.
  */
 import {
-  computeChecksum,
   type Migration,
+  type MigrationContext,
   type MigrationProvider,
 } from "@mosaix/migrations";
 
-export const SHELL_PG_PATCH_MIGRATION_ID = "shell.pg.v1.001_bigint_epoch_columns";
+export const SHELL_PG_PATCH_MIGRATION_ID =
+  "shell.pg.v1.001_bigint_epoch_columns";
 
-const UP = `
-ALTER TABLE shell_feed ALTER COLUMN timestamp TYPE BIGINT;
-ALTER TABLE beam_messages ALTER COLUMN timestamp TYPE BIGINT;
-ALTER TABLE solidarity_contributions ALTER COLUMN timestamp TYPE BIGINT;
-ALTER TABLE user_subscriptions ALTER COLUMN current_period_start TYPE BIGINT;
-ALTER TABLE user_subscriptions ALTER COLUMN current_period_end TYPE BIGINT;
-ALTER TABLE user_subscriptions ALTER COLUMN cancel_at_period_end TYPE BIGINT;
-ALTER TABLE user_subscriptions ALTER COLUMN metered_usage_units TYPE BIGINT;
-ALTER TABLE user_subscriptions ALTER COLUMN created_at TYPE BIGINT;
-ALTER TABLE user_subscriptions ALTER COLUMN updated_at TYPE BIGINT;
-`;
+/* checksum:begin */
+export const MIGRATION_CHECKSUM = "410620bbbe2979b69b08766ae4e24d1da42c56eb51f9e2ec3412599145501b4b";
+/* checksum:end */
 
-const DOWN = `
-ALTER TABLE shell_feed ALTER COLUMN timestamp TYPE INTEGER;
-ALTER TABLE beam_messages ALTER COLUMN timestamp TYPE INTEGER;
-ALTER TABLE solidarity_contributions ALTER COLUMN timestamp TYPE INTEGER;
-ALTER TABLE user_subscriptions ALTER COLUMN current_period_start TYPE INTEGER;
-ALTER TABLE user_subscriptions ALTER COLUMN current_period_end TYPE INTEGER;
-ALTER TABLE user_subscriptions ALTER COLUMN cancel_at_period_end TYPE INTEGER;
-ALTER TABLE user_subscriptions ALTER COLUMN metered_usage_units TYPE INTEGER;
-ALTER TABLE user_subscriptions ALTER COLUMN created_at TYPE INTEGER;
-ALTER TABLE user_subscriptions ALTER COLUMN updated_at TYPE INTEGER;
-`;
+/** The columns widened to `BIGINT`, in declaration order. */
+const EPOCH_COLUMNS: readonly {
+  readonly table: string;
+  readonly column: string;
+}[] = [
+  { table: "shell_feed", column: "timestamp" },
+  { table: "beam_messages", column: "timestamp" },
+  { table: "solidarity_contributions", column: "timestamp" },
+  { table: "user_subscriptions", column: "current_period_start" },
+  { table: "user_subscriptions", column: "current_period_end" },
+  { table: "user_subscriptions", column: "cancel_at_period_end" },
+  { table: "user_subscriptions", column: "metered_usage_units" },
+  { table: "user_subscriptions", column: "created_at" },
+  { table: "user_subscriptions", column: "updated_at" },
+];
 
 export class ShellPostgresPatchProvider implements MigrationProvider {
   ownerId(): string {
@@ -50,9 +47,24 @@ export class ShellPostgresPatchProvider implements MigrationProvider {
     return [
       {
         id: SHELL_PG_PATCH_MIGRATION_ID,
-        content: UP,
-        down: DOWN,
-        checksum: computeChecksum(UP),
+        checksum: MIGRATION_CHECKSUM,
+        up: (context: MigrationContext) => {
+          // `alterColumnType` is the SchemaBuilder blueprint of
+          // `ALTER TABLE ... ALTER COLUMN ... TYPE ...` — PostgreSQL only
+          // (the SQLite grammar refuses it explicitly).
+          for (const { table, column } of EPOCH_COLUMNS) {
+            context.schema.alterColumnType(
+              { name: table },
+              column,
+              "bigInteger",
+            );
+          }
+        },
+        downMigration: (context: MigrationContext) => {
+          for (const { table, column } of EPOCH_COLUMNS) {
+            context.schema.alterColumnType({ name: table }, column, "integer");
+          }
+        },
         resources: [
           "column:shell_feed.timestamp",
           "column:beam_messages.timestamp",

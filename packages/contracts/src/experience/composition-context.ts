@@ -3,8 +3,8 @@
  * Explicit, immutable context required for composition resolution.
  */
 
-import type { ThemeTarget } from "../theme/theme-target";
-import type { ThemePreference } from "../theme/theme-preference";
+import type { ThemeTarget } from "../theme/theme-target.js";
+import type { ThemePreference } from "../theme/theme-preference.js";
 
 export interface CompositionContext {
   tenant: { id: string };

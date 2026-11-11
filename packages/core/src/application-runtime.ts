@@ -7,10 +7,10 @@
 import type { Container } from "@mosaix/container";
 import type { Router } from "@mosaix/http";
 import type { ApplicationDefinition } from "@mosaix/contracts";
-import { ContextRegistry, contextRegistry } from "./context-registry";
-import { ApplicationCompositionResolver } from "./composition-resolver";
-import { capabilityRegistry } from "./capability";
-import { runtimeLifecycleEngine } from "./component-lifecycle";
+import { ContextRegistry, contextRegistry } from "./context-registry.js";
+import { ApplicationCompositionResolver } from "./composition-resolver.js";
+import { capabilityRegistry } from "./capability.js";
+import { runtimeLifecycleEngine } from "./component-lifecycle.js";
 
 /**
  * @deprecated Use `RuntimeKernel` instead. `RuntimeKernel` is the authoritative kernel engine.
