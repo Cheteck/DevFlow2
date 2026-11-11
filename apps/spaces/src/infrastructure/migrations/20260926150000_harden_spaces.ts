@@ -1,4 +1,16 @@
-import { computeChecksum, type Migration } from "@mosaix/migrations";
+import {
+  equals,
+  func,
+  isNotNull,
+  isNull,
+  value,
+  type Migration,
+  type MigrationContext,
+} from "@mosaix/migrations";
+
+/* checksum:begin */
+export const MIGRATION_CHECKSUM = "7ac9a20b36781255c4269dfdab255327132c061343c192d8f8da3f6c41bc87fa";
+/* checksum:end */
 
 /**
  * spaces.membership.v1.003 — harden RBAC integrity (critique schéma).
@@ -32,68 +44,21 @@ import { computeChecksum, type Migration } from "@mosaix/migrations";
  * writers (currently only spaces_spaces is managed).
  *
  * Postgres-only.
+ *
+ * The schema is declared with the SchemaBuilder DSL: the engine compiles the
+ * blueprints with the PostgreSQL grammar and executes the resulting
+ * statements. No SQL string is carried by the migration.
+ *
+ * Historical note: this migration was previously declared as a raw SQL
+ * string (SQL legacy mode, removed from the engine). Its historical
+ * checksum is kept in `legacyChecksums` so that databases where it is
+ * already applied are not rejected by the Planner.
  */
 
-const upStatements: string[] = [
-  // 1. Roles: scope coherence + self-referenced inheritance.
-  `ALTER TABLE "spaces"."roles" ADD CONSTRAINT "roles_scope_check" CHECK (("scopeType" = 'GLOBAL' AND "scopeId" IS NULL) OR ("scopeType" = 'SPACE' AND "scopeId" IS NOT NULL));`,
-  `ALTER TABLE "spaces"."roles" ADD CONSTRAINT "fk_roles_inheritsFrom" FOREIGN KEY ("inheritsFrom") REFERENCES "spaces"."roles" ("id");`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "uniq_roles_key_global" ON "spaces"."roles" ("key") WHERE "scopeType" = 'GLOBAL';`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "uniq_roles_key_scope" ON "spaces"."roles" ("key", "scopeId") WHERE "scopeType" = 'SPACE';`,
-
-  // 2. Overrides: NULL-aware uniqueness per scope.
-  `ALTER TABLE "spaces"."permission_overrides" DROP CONSTRAINT IF EXISTS "uniq_permission_overrides";`,
-  `DROP INDEX IF EXISTS "spaces"."uniq_permission_overrides";`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "permission_overrides_global_unique" ON "spaces"."permission_overrides" ("userId", "permissionKey") WHERE "spaceId" IS NULL;`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "permission_overrides_space_unique" ON "spaces"."permission_overrides" ("userId", "spaceId", "permissionKey") WHERE "spaceId" IS NOT NULL;`,
-
-  // 3. Spaces: non-negative audience counter.
-  `ALTER TABLE "spaces"."spaces" ADD CONSTRAINT "spaces_followers_check" CHECK ("followersCount" >= 0);`,
-
-  // 4. Audit tables: append-only (no UPDATE/DELETE from application roles).
-  `CREATE OR REPLACE FUNCTION "spaces"."prevent_audit_mutation"() RETURNS TRIGGER AS $$ BEGIN RAISE EXCEPTION 'Audit table % is append-only', TG_TABLE_NAME; RETURN NULL; END; $$ LANGUAGE plpgsql;`,
-  `DROP TRIGGER IF EXISTS "trg_acting_audit_immutable" ON "spaces"."acting_as_audit_events";`,
-  `CREATE TRIGGER "trg_acting_audit_immutable" BEFORE UPDATE OR DELETE ON "spaces"."acting_as_audit_events" FOR EACH ROW EXECUTE FUNCTION "spaces"."prevent_audit_mutation"();`,
-  `DROP TRIGGER IF EXISTS "trg_role_audit_immutable" ON "spaces"."role_audit_events";`,
-  `CREATE TRIGGER "trg_role_audit_immutable" BEFORE UPDATE OR DELETE ON "spaces"."role_audit_events" FOR EACH ROW EXECUTE FUNCTION "spaces"."prevent_audit_mutation"();`,
-
-  // 5. Timestamp defaults (repos keep writing them explicitly).
-  `ALTER TABLE "spaces"."spaces" ALTER COLUMN "createdAt" SET DEFAULT now();`,
-  `ALTER TABLE "spaces"."spaces" ALTER COLUMN "updatedAt" SET DEFAULT now();`,
-  `ALTER TABLE "spaces"."roles" ALTER COLUMN "createdAt" SET DEFAULT now();`,
-  `ALTER TABLE "spaces"."roles" ALTER COLUMN "updatedAt" SET DEFAULT now();`,
-  `ALTER TABLE "spaces"."space_members" ALTER COLUMN "createdAt" SET DEFAULT now();`,
-  `ALTER TABLE "spaces"."space_members" ALTER COLUMN "updatedAt" SET DEFAULT now();`,
-];
-
-const downStatements: string[] = [
-  `ALTER TABLE "spaces"."space_members" ALTER COLUMN "updatedAt" DROP DEFAULT;`,
-  `ALTER TABLE "spaces"."space_members" ALTER COLUMN "createdAt" DROP DEFAULT;`,
-  `ALTER TABLE "spaces"."roles" ALTER COLUMN "updatedAt" DROP DEFAULT;`,
-  `ALTER TABLE "spaces"."roles" ALTER COLUMN "createdAt" DROP DEFAULT;`,
-  `ALTER TABLE "spaces"."spaces" ALTER COLUMN "updatedAt" DROP DEFAULT;`,
-  `ALTER TABLE "spaces"."spaces" ALTER COLUMN "createdAt" DROP DEFAULT;`,
-  `DROP TRIGGER IF EXISTS "trg_role_audit_immutable" ON "spaces"."role_audit_events";`,
-  `DROP TRIGGER IF EXISTS "trg_acting_audit_immutable" ON "spaces"."acting_as_audit_events";`,
-  `DROP FUNCTION IF EXISTS "spaces"."prevent_audit_mutation"();`,
-  `ALTER TABLE "spaces"."spaces" DROP CONSTRAINT IF EXISTS "spaces_followers_check";`,
-  `DROP INDEX IF EXISTS "spaces"."permission_overrides_space_unique";`,
-  `DROP INDEX IF EXISTS "spaces"."permission_overrides_global_unique";`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "uniq_permission_overrides" ON "spaces"."permission_overrides" ("userId", "spaceId", "permissionKey");`,
-  `DROP INDEX IF EXISTS "spaces"."uniq_roles_key_scope";`,
-  `DROP INDEX IF EXISTS "spaces"."uniq_roles_key_global";`,
-  `ALTER TABLE "spaces"."roles" DROP CONSTRAINT IF EXISTS "fk_roles_inheritsFrom";`,
-  `ALTER TABLE "spaces"."roles" DROP CONSTRAINT IF EXISTS "roles_scope_check";`,
-];
-
-const sqlContent = upStatements.join("\n");
-const sqlDown = downStatements.join("\n");
-
 export const migration: Migration = {
-  id: "20260926150000_harden_spaces",
-  content: sqlContent,
-  down: sqlDown,
-  checksum: computeChecksum(sqlContent),
+  id: "spaces.membership.v1.003_harden_rbac",
+  checksum: MIGRATION_CHECKSUM,
+  legacyChecksums: ["203ac7c5dfa7611c"],
   resources: [
     // v1.003_harden_spaces AJOUTE des contraintes/index a des tables existantes
     // (roles, permission_overrides, spaces, acting_as_audit_events,
@@ -106,4 +71,183 @@ export const migration: Migration = {
     "table:spaces.role_audit_events",
     "table:spaces.space_members",
   ],
+  up: (context: MigrationContext) => {
+    context.schema.addConstraint(
+      { schema: "spaces", name: "roles" },
+      "roles_scope_check",
+      'CHECK (("scopeType" = \'GLOBAL\' AND "scopeId" IS NULL) OR ("scopeType" = \'SPACE\' AND "scopeId" IS NOT NULL))',
+    );
+    context.schema.addConstraint(
+      { schema: "spaces", name: "roles" },
+      "fk_roles_inheritsFrom",
+      'FOREIGN KEY ("inheritsFrom") REFERENCES "spaces"."roles" ("id")',
+    );
+    context.schema.createIndex(
+      { schema: "spaces", name: "roles" },
+      "uniq_roles_key_global",
+      [{ name: "key" }],
+      {
+        unique: true,
+        ifNotExists: true,
+        where: [equals("scopeType", value("GLOBAL"))],
+      },
+    );
+    context.schema.createIndex(
+      { schema: "spaces", name: "roles" },
+      "uniq_roles_key_scope",
+      [{ name: "key" }, { name: "scopeId" }],
+      {
+        unique: true,
+        ifNotExists: true,
+        where: [equals("scopeType", value("SPACE"))],
+      },
+    );
+    context.schema.dropConstraint(
+      { schema: "spaces", name: "permission_overrides" },
+      "uniq_permission_overrides",
+    );
+    context.schema.dropIndex("uniq_permission_overrides", "spaces");
+    context.schema.createIndex(
+      { schema: "spaces", name: "permission_overrides" },
+      "permission_overrides_global_unique",
+      [{ name: "userId" }, { name: "permissionKey" }],
+      { unique: true, ifNotExists: true, where: [isNull("spaceId")] },
+    );
+    context.schema.createIndex(
+      { schema: "spaces", name: "permission_overrides" },
+      "permission_overrides_space_unique",
+      [{ name: "userId" }, { name: "spaceId" }, { name: "permissionKey" }],
+      { unique: true, ifNotExists: true, where: [isNotNull("spaceId")] },
+    );
+    context.schema.addConstraint(
+      { schema: "spaces", name: "spaces" },
+      "spaces_followers_check",
+      'CHECK ("followersCount" >= 0)',
+    );
+    context.schema.createFunction(
+      "prevent_audit_mutation",
+      " BEGIN RAISE EXCEPTION 'Audit table % is append-only', TG_TABLE_NAME; RETURN NULL; END; ",
+      {
+        schema: "spaces",
+        returns: "TRIGGER",
+        language: "plpgsql",
+        replace: true,
+      },
+    );
+    context.schema.dropTrigger(
+      "trg_acting_audit_immutable",
+      "acting_as_audit_events",
+      { schema: "spaces" },
+    );
+    context.schema.createTrigger(
+      "trg_acting_audit_immutable",
+      "acting_as_audit_events",
+      ["update", "delete"],
+      "before",
+      "prevent_audit_mutation",
+      { schema: "spaces", functionSchema: "spaces" },
+    );
+    context.schema.dropTrigger(
+      "trg_role_audit_immutable",
+      "role_audit_events",
+      { schema: "spaces" },
+    );
+    context.schema.createTrigger(
+      "trg_role_audit_immutable",
+      "role_audit_events",
+      ["update", "delete"],
+      "before",
+      "prevent_audit_mutation",
+      { schema: "spaces", functionSchema: "spaces" },
+    );
+    context.schema.alterColumnDefault(
+      { schema: "spaces", name: "spaces" },
+      "createdAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "spaces", name: "spaces" },
+      "updatedAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "spaces", name: "roles" },
+      "createdAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "spaces", name: "roles" },
+      "updatedAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "spaces", name: "space_members" },
+      "createdAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "spaces", name: "space_members" },
+      "updatedAt",
+      func("now"),
+    );
+  },
+  downMigration: (context: MigrationContext) => {
+    context.schema.alterColumnDefault(
+      { schema: "spaces", name: "space_members" },
+      "updatedAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "spaces", name: "space_members" },
+      "createdAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "spaces", name: "roles" },
+      "updatedAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "spaces", name: "roles" },
+      "createdAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "spaces", name: "spaces" },
+      "updatedAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "spaces", name: "spaces" },
+      "createdAt",
+    );
+    context.schema.dropTrigger(
+      "trg_role_audit_immutable",
+      "role_audit_events",
+      { schema: "spaces" },
+    );
+    context.schema.dropTrigger(
+      "trg_acting_audit_immutable",
+      "acting_as_audit_events",
+      { schema: "spaces" },
+    );
+    context.schema.dropFunction("prevent_audit_mutation", { schema: "spaces" });
+    context.schema.dropConstraint(
+      { schema: "spaces", name: "spaces" },
+      "spaces_followers_check",
+    );
+    context.schema.dropIndex("permission_overrides_space_unique", "spaces");
+    context.schema.dropIndex("permission_overrides_global_unique", "spaces");
+    context.schema.createIndex(
+      { schema: "spaces", name: "permission_overrides" },
+      "uniq_permission_overrides",
+      [{ name: "userId" }, { name: "spaceId" }, { name: "permissionKey" }],
+      { unique: true, ifNotExists: true },
+    );
+    context.schema.dropIndex("uniq_roles_key_scope", "spaces");
+    context.schema.dropIndex("uniq_roles_key_global", "spaces");
+    context.schema.dropConstraint(
+      { schema: "spaces", name: "roles" },
+      "fk_roles_inheritsFrom",
+    );
+    context.schema.dropConstraint(
+      { schema: "spaces", name: "roles" },
+      "roles_scope_check",
+    );
+  },
 };

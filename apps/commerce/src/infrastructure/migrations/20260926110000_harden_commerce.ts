@@ -1,4 +1,13 @@
-import { computeChecksum, type Migration } from "@mosaix/migrations";
+import {
+  func,
+  isNotNull,
+  type Migration,
+  type MigrationContext,
+} from "@mosaix/migrations";
+
+/* checksum:begin */
+export const MIGRATION_CHECKSUM = "3b14a53929ed6276d2f44fb17f45d368cbe12933efc7b25129c8bd2646734c6e";
+/* checksum:end */
 
 /**
  * commerce.shop.v1.003 — harden transactional integrity (critique schéma).
@@ -33,130 +42,21 @@ import { computeChecksum, type Migration } from "@mosaix/migrations";
  * follow-up), no cross-BAC FKs to portfolio.vendables.
  *
  * Postgres-only (like v1.001/v1.002).
+ *
+ * The schema is declared with the SchemaBuilder DSL: the engine compiles the
+ * blueprints with the PostgreSQL grammar and executes the resulting
+ * statements. No SQL string is carried by the migration.
+ *
+ * Historical note: this migration was previously declared as a raw SQL
+ * string (SQL legacy mode, removed from the engine). Its historical
+ * checksum is kept in `legacyChecksums` so that databases where it is
+ * already applied are not rejected by the Planner.
  */
 
-const upStatements: string[] = [
-  // v1.001 declared UNIQUE(userId) as a standalone unique INDEX (verified
-  // live): only the redundant plain idx_carts_user (same leftmost column)
-  // is dropped here.
-  `DROP INDEX IF EXISTS "commerce"."idx_carts_user";`,
-
-  // 2. Offer value guards.
-  `ALTER TABLE "commerce"."offers" ADD CONSTRAINT "offers_values_check" CHECK ("priceInCents" > 0 AND "stockQuantity" >= 0 AND "commissionRateBps" BETWEEN 0 AND 10000);`,
-  `ALTER TABLE "commerce"."offers" ADD CONSTRAINT "offers_currency_check" CHECK ("currency" ~ '^[A-Z]{3}$');`,
-
-  // 3. Auction price/time guards.
-  `ALTER TABLE "commerce"."auctions" ADD CONSTRAINT "auctions_price_check" CHECK ("startingPriceInCents" > 0 AND ("reservePriceInCents" IS NULL OR "reservePriceInCents" >= "startingPriceInCents") AND "currentHighBidInCents" >= 0);`,
-  `ALTER TABLE "commerce"."auctions" ADD CONSTRAINT "auctions_time_check" CHECK ("endTime" > "startTime");`,
-  `ALTER TABLE "commerce"."auction_bids" ADD CONSTRAINT "auction_bids_amount_check" CHECK ("amountInCents" > 0);`,
-
-  // 4. Cart guards.
-  `ALTER TABLE "commerce"."cart_items" ADD CONSTRAINT "cart_items_quantity_check" CHECK ("quantity" > 0);`,
-  `ALTER TABLE "commerce"."cart_items" ADD CONSTRAINT "cart_items_price_check" CHECK ("unitPriceInCents" >= 0);`,
-  `ALTER TABLE "commerce"."cart_items" ADD CONSTRAINT "fk_commerce_cart_items_offerId" FOREIGN KEY ("offerId") REFERENCES "commerce"."offers" ("id");`,
-
-  // 5. Payment hardening: provider refs + idempotency, drop unused secret.
-  `ALTER TABLE "commerce"."payment_intents" ADD COLUMN IF NOT EXISTS "provider" VARCHAR(64);`,
-  `ALTER TABLE "commerce"."payment_intents" ADD COLUMN IF NOT EXISTS "providerPaymentId" VARCHAR(255);`,
-  `ALTER TABLE "commerce"."payment_intents" ADD CONSTRAINT "uniq_payment_provider_id" UNIQUE ("provider", "providerPaymentId");`,
-  `ALTER TABLE "commerce"."payment_intents" ADD COLUMN IF NOT EXISTS "idempotencyKey" VARCHAR(255);`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "uniq_payment_intents_idempotency" ON "commerce"."payment_intents" ("idempotencyKey") WHERE "idempotencyKey" IS NOT NULL;`,
-  `ALTER TABLE "commerce"."payment_intents" ADD CONSTRAINT "payment_intents_amounts_check" CHECK ("amountInCents" > 0 AND "amountReceivedInCents" >= 0 AND "amountRefundedInCents" >= 0 AND "amountReceivedInCents" <= "amountInCents" AND "amountRefundedInCents" <= "amountReceivedInCents");`,
-  `ALTER TABLE "commerce"."payment_intents" ADD CONSTRAINT "payment_intents_status_check" CHECK ("status" IN ('requires_payment_method', 'requires_confirmation', 'processing', 'succeeded', 'canceled', 'partially_refunded', 'refunded'));`,
-  `ALTER TABLE "commerce"."payment_intents" DROP COLUMN IF EXISTS "clientSecret";`,
-
-  // 6. Refunds ledger (one row per refund; replaces the bare aggregate).
-  `CREATE TABLE IF NOT EXISTS "commerce"."payment_refunds" ("id" VARCHAR(255) PRIMARY KEY, "paymentIntentId" VARCHAR(255) NOT NULL, "providerRefundId" VARCHAR(255), "amountInCents" INTEGER NOT NULL, "status" VARCHAR(32) NOT NULL DEFAULT 'pending', "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(), "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now(), CONSTRAINT "payment_refunds_amount_check" CHECK ("amountInCents" > 0), CONSTRAINT "fk_payment_refunds_intent" FOREIGN KEY ("paymentIntentId") REFERENCES "commerce"."payment_intents" ("id"));`,
-  `CREATE INDEX IF NOT EXISTS "idx_payment_refunds_intent" ON "commerce"."payment_refunds" ("paymentIntentId");`,
-
-  // 7. Orders: non-negative totals + idempotency column + history index.
-  `ALTER TABLE "commerce"."orders" ADD CONSTRAINT "orders_amounts_check" CHECK ("totalAmount" >= 0 AND "taxAmount" >= 0);`,
-  `ALTER TABLE "commerce"."orders" ADD CONSTRAINT "orders_currency_check" CHECK ("currency" ~ '^[A-Z]{3}$');`,
-  `ALTER TABLE "commerce"."orders" ADD COLUMN IF NOT EXISTS "idempotencyKey" VARCHAR(255);`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "uniq_orders_idempotency" ON "commerce"."orders" ("idempotencyKey") WHERE "idempotencyKey" IS NOT NULL;`,
-  `CREATE INDEX IF NOT EXISTS "idx_orders_user_created" ON "commerce"."orders" ("userId", "createdAt" DESC);`,
-
-  // 8. Timestamp defaults (repos keep writing them explicitly).
-  `ALTER TABLE "commerce"."orders" ALTER COLUMN "createdAt" SET DEFAULT now();`,
-  `ALTER TABLE "commerce"."orders" ALTER COLUMN "updatedAt" SET DEFAULT now();`,
-  `ALTER TABLE "commerce"."offers" ALTER COLUMN "createdAt" SET DEFAULT now();`,
-  `ALTER TABLE "commerce"."offers" ALTER COLUMN "updatedAt" SET DEFAULT now();`,
-  `ALTER TABLE "commerce"."payment_intents" ALTER COLUMN "createdAt" SET DEFAULT now();`,
-  `ALTER TABLE "commerce"."payment_intents" ALTER COLUMN "updatedAt" SET DEFAULT now();`,
-  `ALTER TABLE "commerce"."auctions" ALTER COLUMN "createdAt" SET DEFAULT now();`,
-  `ALTER TABLE "commerce"."auctions" ALTER COLUMN "updatedAt" SET DEFAULT now();`,
-  `ALTER TABLE "commerce"."carts" ALTER COLUMN "createdAt" SET DEFAULT now();`,
-  `ALTER TABLE "commerce"."carts" ALTER COLUMN "updatedAt" SET DEFAULT now();`,
-  `ALTER TABLE "commerce"."cart_items" ALTER COLUMN "createdAt" SET DEFAULT now();`,
-  `ALTER TABLE "commerce"."auction_bids" ALTER COLUMN "createdAt" SET DEFAULT now();`,
-
-  // 9. updatedAt auto-touch.
-  `CREATE OR REPLACE FUNCTION "commerce"."set_updated_at"() RETURNS TRIGGER AS $$ BEGIN NEW."updatedAt" = now(); RETURN NEW; END; $$ LANGUAGE plpgsql;`,
-  `DROP TRIGGER IF EXISTS "trg_orders_updated_at" ON "commerce"."orders";`,
-  `CREATE TRIGGER "trg_orders_updated_at" BEFORE UPDATE ON "commerce"."orders" FOR EACH ROW EXECUTE FUNCTION "commerce"."set_updated_at"();`,
-  `DROP TRIGGER IF EXISTS "trg_offers_updated_at" ON "commerce"."offers";`,
-  `CREATE TRIGGER "trg_offers_updated_at" BEFORE UPDATE ON "commerce"."offers" FOR EACH ROW EXECUTE FUNCTION "commerce"."set_updated_at"();`,
-  `DROP TRIGGER IF EXISTS "trg_payment_intents_updated_at" ON "commerce"."payment_intents";`,
-  `CREATE TRIGGER "trg_payment_intents_updated_at" BEFORE UPDATE ON "commerce"."payment_intents" FOR EACH ROW EXECUTE FUNCTION "commerce"."set_updated_at"();`,
-  `DROP TRIGGER IF EXISTS "trg_auctions_updated_at" ON "commerce"."auctions";`,
-  `CREATE TRIGGER "trg_auctions_updated_at" BEFORE UPDATE ON "commerce"."auctions" FOR EACH ROW EXECUTE FUNCTION "commerce"."set_updated_at"();`,
-  `DROP TRIGGER IF EXISTS "trg_carts_updated_at" ON "commerce"."carts";`,
-  `CREATE TRIGGER "trg_carts_updated_at" BEFORE UPDATE ON "commerce"."carts" FOR EACH ROW EXECUTE FUNCTION "commerce"."set_updated_at"();`,
-];
-
-const downStatements: string[] = [
-  `DROP TRIGGER IF EXISTS "trg_carts_updated_at" ON "commerce"."carts";`,
-  `DROP TRIGGER IF EXISTS "trg_auctions_updated_at" ON "commerce"."auctions";`,
-  `DROP TRIGGER IF EXISTS "trg_payment_intents_updated_at" ON "commerce"."payment_intents";`,
-  `DROP TRIGGER IF EXISTS "trg_offers_updated_at" ON "commerce"."offers";`,
-  `DROP TRIGGER IF EXISTS "trg_orders_updated_at" ON "commerce"."orders";`,
-  `DROP FUNCTION IF EXISTS "commerce"."set_updated_at"();`,
-  `ALTER TABLE "commerce"."carts" ALTER COLUMN "createdAt" DROP DEFAULT;`,
-  `ALTER TABLE "commerce"."carts" ALTER COLUMN "updatedAt" DROP DEFAULT;`,
-  `ALTER TABLE "commerce"."cart_items" ALTER COLUMN "createdAt" DROP DEFAULT;`,
-  `ALTER TABLE "commerce"."auction_bids" ALTER COLUMN "createdAt" DROP DEFAULT;`,
-  `ALTER TABLE "commerce"."auctions" ALTER COLUMN "createdAt" DROP DEFAULT;`,
-  `ALTER TABLE "commerce"."auctions" ALTER COLUMN "updatedAt" DROP DEFAULT;`,
-  `ALTER TABLE "commerce"."payment_intents" ALTER COLUMN "createdAt" DROP DEFAULT;`,
-  `ALTER TABLE "commerce"."payment_intents" ALTER COLUMN "updatedAt" DROP DEFAULT;`,
-  `ALTER TABLE "commerce"."offers" ALTER COLUMN "createdAt" DROP DEFAULT;`,
-  `ALTER TABLE "commerce"."offers" ALTER COLUMN "updatedAt" DROP DEFAULT;`,
-  `ALTER TABLE "commerce"."orders" ALTER COLUMN "createdAt" DROP DEFAULT;`,
-  `ALTER TABLE "commerce"."orders" ALTER COLUMN "updatedAt" DROP DEFAULT;`,
-  `DROP INDEX IF EXISTS "commerce"."idx_orders_user_created";`,
-  `DROP INDEX IF EXISTS "commerce"."uniq_orders_idempotency";`,
-  `ALTER TABLE "commerce"."orders" DROP COLUMN IF EXISTS "idempotencyKey";`,
-  `ALTER TABLE "commerce"."orders" DROP CONSTRAINT IF EXISTS "orders_currency_check";`,
-  `ALTER TABLE "commerce"."orders" DROP CONSTRAINT IF EXISTS "orders_amounts_check";`,
-  `DROP INDEX IF EXISTS "commerce"."idx_payment_refunds_intent";`,
-  `DROP TABLE IF EXISTS "commerce"."payment_refunds";`,
-  `ALTER TABLE "commerce"."payment_intents" DROP CONSTRAINT IF EXISTS "payment_intents_status_check";`,
-  `ALTER TABLE "commerce"."payment_intents" DROP CONSTRAINT IF EXISTS "payment_intents_amounts_check";`,
-  `DROP INDEX IF EXISTS "commerce"."uniq_payment_intents_idempotency";`,
-  `ALTER TABLE "commerce"."payment_intents" DROP CONSTRAINT IF EXISTS "uniq_payment_provider_id";`,
-  `ALTER TABLE "commerce"."payment_intents" DROP COLUMN IF EXISTS "idempotencyKey";`,
-  `ALTER TABLE "commerce"."payment_intents" DROP COLUMN IF EXISTS "providerPaymentId";`,
-  `ALTER TABLE "commerce"."payment_intents" DROP COLUMN IF EXISTS "provider";`,
-  `ALTER TABLE "commerce"."payment_intents" ADD COLUMN IF NOT EXISTS "clientSecret" VARCHAR(255);`,
-  `ALTER TABLE "commerce"."cart_items" DROP CONSTRAINT IF EXISTS "fk_commerce_cart_items_offerId";`,
-  `ALTER TABLE "commerce"."cart_items" DROP CONSTRAINT IF EXISTS "cart_items_price_check";`,
-  `ALTER TABLE "commerce"."cart_items" DROP CONSTRAINT IF EXISTS "cart_items_quantity_check";`,
-  `ALTER TABLE "commerce"."auction_bids" DROP CONSTRAINT IF EXISTS "auction_bids_amount_check";`,
-  `ALTER TABLE "commerce"."auctions" DROP CONSTRAINT IF EXISTS "auctions_time_check";`,
-  `ALTER TABLE "commerce"."auctions" DROP CONSTRAINT IF EXISTS "auctions_price_check";`,
-  `ALTER TABLE "commerce"."offers" DROP CONSTRAINT IF EXISTS "offers_currency_check";`,
-  `ALTER TABLE "commerce"."offers" DROP CONSTRAINT IF EXISTS "offers_values_check";`,
-  `CREATE INDEX IF NOT EXISTS "idx_carts_user" ON "commerce"."carts" ("userId");`,
-];
-
-const sqlContent = upStatements.join("\n");
-const sqlDown = downStatements.join("\n");
-
 export const migration: Migration = {
-  id: "20260926110000_harden_commerce",
-  content: sqlContent,
-  down: sqlDown,
-  checksum: computeChecksum(sqlContent),
+  id: "commerce.shop.v1.003_harden_commerce",
+  checksum: MIGRATION_CHECKSUM,
+  legacyChecksums: ["cb883bf41326700b"],
   resources: [
     // v1.003_harden_commerce MODIFIE ces tables existantes et CREATE payment_refunds.
     // R9 exige au moins une ressource déclarée pour la détection de collisions.
@@ -169,4 +69,445 @@ export const migration: Migration = {
     "table:commerce.payment_refunds",
     "table:commerce.orders",
   ],
+  up: (context: MigrationContext) => {
+    context.schema.dropIndex("idx_carts_user", "commerce");
+    context.schema.addConstraint(
+      { schema: "commerce", name: "offers" },
+      "offers_values_check",
+      'CHECK ("priceInCents" > 0 AND "stockQuantity" >= 0 AND "commissionRateBps" BETWEEN 0 AND 10000)',
+    );
+    context.schema.addConstraint(
+      { schema: "commerce", name: "offers" },
+      "offers_currency_check",
+      "CHECK (\"currency\" ~ '^[A-Z]{3}$')",
+    );
+    context.schema.addConstraint(
+      { schema: "commerce", name: "auctions" },
+      "auctions_price_check",
+      'CHECK ("startingPriceInCents" > 0 AND ("reservePriceInCents" IS NULL OR "reservePriceInCents" >= "startingPriceInCents") AND "currentHighBidInCents" >= 0)',
+    );
+    context.schema.addConstraint(
+      { schema: "commerce", name: "auctions" },
+      "auctions_time_check",
+      'CHECK ("endTime" > "startTime")',
+    );
+    context.schema.addConstraint(
+      { schema: "commerce", name: "auction_bids" },
+      "auction_bids_amount_check",
+      'CHECK ("amountInCents" > 0)',
+    );
+    context.schema.addConstraint(
+      { schema: "commerce", name: "cart_items" },
+      "cart_items_quantity_check",
+      'CHECK ("quantity" > 0)',
+    );
+    context.schema.addConstraint(
+      { schema: "commerce", name: "cart_items" },
+      "cart_items_price_check",
+      'CHECK ("unitPriceInCents" >= 0)',
+    );
+    context.schema.addConstraint(
+      { schema: "commerce", name: "cart_items" },
+      "fk_commerce_cart_items_offerId",
+      'FOREIGN KEY ("offerId") REFERENCES "commerce"."offers" ("id")',
+    );
+    context.schema.addColumn(
+      { schema: "commerce", name: "payment_intents" },
+      "provider",
+      "string",
+      (col) => {
+        col.nullable();
+      },
+      { ifNotExists: true, length: 64 },
+    );
+    context.schema.addColumn(
+      { schema: "commerce", name: "payment_intents" },
+      "providerPaymentId",
+      "string",
+      (col) => {
+        col.nullable();
+      },
+      { ifNotExists: true, length: 255 },
+    );
+    context.schema.addConstraint(
+      { schema: "commerce", name: "payment_intents" },
+      "uniq_payment_provider_id",
+      'UNIQUE ("provider", "providerPaymentId")',
+    );
+    context.schema.addColumn(
+      { schema: "commerce", name: "payment_intents" },
+      "idempotencyKey",
+      "string",
+      (col) => {
+        col.nullable();
+      },
+      { ifNotExists: true, length: 255 },
+    );
+    context.schema.createIndex(
+      { schema: "commerce", name: "payment_intents" },
+      "uniq_payment_intents_idempotency",
+      [{ name: "idempotencyKey" }],
+      { unique: true, ifNotExists: true, where: [isNotNull("idempotencyKey")] },
+    );
+    context.schema.addConstraint(
+      { schema: "commerce", name: "payment_intents" },
+      "payment_intents_amounts_check",
+      'CHECK ("amountInCents" > 0 AND "amountReceivedInCents" >= 0 AND "amountRefundedInCents" >= 0 AND "amountReceivedInCents" <= "amountInCents" AND "amountRefundedInCents" <= "amountReceivedInCents")',
+    );
+    context.schema.addConstraint(
+      { schema: "commerce", name: "payment_intents" },
+      "payment_intents_status_check",
+      "CHECK (\"status\" IN ('requires_payment_method', 'requires_confirmation', 'processing', 'succeeded', 'canceled', 'partially_refunded', 'refunded'))",
+    );
+    context.schema.dropColumn(
+      { schema: "commerce", name: "payment_intents" },
+      "clientSecret",
+      { ifExists: true },
+    );
+    context.schema.createTable(
+      "payment_refunds",
+      (table) => {
+        table.string("id", 255).primary();
+        table.string("paymentIntentId", 255);
+        table.string("providerRefundId", 255).nullable();
+        table.integer("amountInCents");
+        table.string("status", 32).default("pending");
+        table.timestamp("createdAt").default(func("now"));
+        table.timestamp("updatedAt").default(func("now"));
+        table.check("payment_refunds_amount_check", '"amountInCents" > 0');
+        table.constraint(
+          "fk_payment_refunds_intent",
+          'FOREIGN KEY ("paymentIntentId") REFERENCES "commerce"."payment_intents" ("id")',
+        );
+      },
+      { ifNotExists: true, schema: "commerce" },
+    );
+    context.schema.createIndex(
+      { schema: "commerce", name: "payment_refunds" },
+      "idx_payment_refunds_intent",
+      [{ name: "paymentIntentId" }],
+      { ifNotExists: true },
+    );
+    context.schema.addConstraint(
+      { schema: "commerce", name: "orders" },
+      "orders_amounts_check",
+      'CHECK ("totalAmount" >= 0 AND "taxAmount" >= 0)',
+    );
+    context.schema.addConstraint(
+      { schema: "commerce", name: "orders" },
+      "orders_currency_check",
+      "CHECK (\"currency\" ~ '^[A-Z]{3}$')",
+    );
+    context.schema.addColumn(
+      { schema: "commerce", name: "orders" },
+      "idempotencyKey",
+      "string",
+      (col) => {
+        col.nullable();
+      },
+      { ifNotExists: true, length: 255 },
+    );
+    context.schema.createIndex(
+      { schema: "commerce", name: "orders" },
+      "uniq_orders_idempotency",
+      [{ name: "idempotencyKey" }],
+      { unique: true, ifNotExists: true, where: [isNotNull("idempotencyKey")] },
+    );
+    context.schema.createIndex(
+      { schema: "commerce", name: "orders" },
+      "idx_orders_user_created",
+      [{ name: "userId" }, { name: "createdAt", direction: "desc" }],
+      { ifNotExists: true },
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "orders" },
+      "createdAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "orders" },
+      "updatedAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "offers" },
+      "createdAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "offers" },
+      "updatedAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "payment_intents" },
+      "createdAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "payment_intents" },
+      "updatedAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "auctions" },
+      "createdAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "auctions" },
+      "updatedAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "carts" },
+      "createdAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "carts" },
+      "updatedAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "cart_items" },
+      "createdAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "auction_bids" },
+      "createdAt",
+      func("now"),
+    );
+    context.schema.createFunction(
+      "set_updated_at",
+      ' BEGIN NEW."updatedAt" = now(); RETURN NEW; END; ',
+      {
+        schema: "commerce",
+        returns: "TRIGGER",
+        language: "plpgsql",
+        replace: true,
+      },
+    );
+    context.schema.dropTrigger("trg_orders_updated_at", "orders", {
+      schema: "commerce",
+    });
+    context.schema.createTrigger(
+      "trg_orders_updated_at",
+      "orders",
+      ["update"],
+      "before",
+      "set_updated_at",
+      { schema: "commerce", functionSchema: "commerce" },
+    );
+    context.schema.dropTrigger("trg_offers_updated_at", "offers", {
+      schema: "commerce",
+    });
+    context.schema.createTrigger(
+      "trg_offers_updated_at",
+      "offers",
+      ["update"],
+      "before",
+      "set_updated_at",
+      { schema: "commerce", functionSchema: "commerce" },
+    );
+    context.schema.dropTrigger(
+      "trg_payment_intents_updated_at",
+      "payment_intents",
+      { schema: "commerce" },
+    );
+    context.schema.createTrigger(
+      "trg_payment_intents_updated_at",
+      "payment_intents",
+      ["update"],
+      "before",
+      "set_updated_at",
+      { schema: "commerce", functionSchema: "commerce" },
+    );
+    context.schema.dropTrigger("trg_auctions_updated_at", "auctions", {
+      schema: "commerce",
+    });
+    context.schema.createTrigger(
+      "trg_auctions_updated_at",
+      "auctions",
+      ["update"],
+      "before",
+      "set_updated_at",
+      { schema: "commerce", functionSchema: "commerce" },
+    );
+    context.schema.dropTrigger("trg_carts_updated_at", "carts", {
+      schema: "commerce",
+    });
+    context.schema.createTrigger(
+      "trg_carts_updated_at",
+      "carts",
+      ["update"],
+      "before",
+      "set_updated_at",
+      { schema: "commerce", functionSchema: "commerce" },
+    );
+  },
+  downMigration: (context: MigrationContext) => {
+    context.schema.dropTrigger("trg_carts_updated_at", "carts", {
+      schema: "commerce",
+    });
+    context.schema.dropTrigger("trg_auctions_updated_at", "auctions", {
+      schema: "commerce",
+    });
+    context.schema.dropTrigger(
+      "trg_payment_intents_updated_at",
+      "payment_intents",
+      { schema: "commerce" },
+    );
+    context.schema.dropTrigger("trg_offers_updated_at", "offers", {
+      schema: "commerce",
+    });
+    context.schema.dropTrigger("trg_orders_updated_at", "orders", {
+      schema: "commerce",
+    });
+    context.schema.dropFunction("set_updated_at", { schema: "commerce" });
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "carts" },
+      "createdAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "carts" },
+      "updatedAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "cart_items" },
+      "createdAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "auction_bids" },
+      "createdAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "auctions" },
+      "createdAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "auctions" },
+      "updatedAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "payment_intents" },
+      "createdAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "payment_intents" },
+      "updatedAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "offers" },
+      "createdAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "offers" },
+      "updatedAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "orders" },
+      "createdAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "commerce", name: "orders" },
+      "updatedAt",
+    );
+    context.schema.dropIndex("idx_orders_user_created", "commerce");
+    context.schema.dropIndex("uniq_orders_idempotency", "commerce");
+    context.schema.dropColumn(
+      { schema: "commerce", name: "orders" },
+      "idempotencyKey",
+      { ifExists: true },
+    );
+    context.schema.dropConstraint(
+      { schema: "commerce", name: "orders" },
+      "orders_currency_check",
+    );
+    context.schema.dropConstraint(
+      { schema: "commerce", name: "orders" },
+      "orders_amounts_check",
+    );
+    context.schema.dropIndex("idx_payment_refunds_intent", "commerce");
+    context.schema.dropTable(
+      { schema: "commerce", name: "payment_refunds" },
+      { ifExists: true, schema: "commerce" },
+    );
+    context.schema.dropConstraint(
+      { schema: "commerce", name: "payment_intents" },
+      "payment_intents_status_check",
+    );
+    context.schema.dropConstraint(
+      { schema: "commerce", name: "payment_intents" },
+      "payment_intents_amounts_check",
+    );
+    context.schema.dropIndex("uniq_payment_intents_idempotency", "commerce");
+    context.schema.dropConstraint(
+      { schema: "commerce", name: "payment_intents" },
+      "uniq_payment_provider_id",
+    );
+    context.schema.dropColumn(
+      { schema: "commerce", name: "payment_intents" },
+      "idempotencyKey",
+      { ifExists: true },
+    );
+    context.schema.dropColumn(
+      { schema: "commerce", name: "payment_intents" },
+      "providerPaymentId",
+      { ifExists: true },
+    );
+    context.schema.dropColumn(
+      { schema: "commerce", name: "payment_intents" },
+      "provider",
+      { ifExists: true },
+    );
+    context.schema.addColumn(
+      { schema: "commerce", name: "payment_intents" },
+      "clientSecret",
+      "string",
+      (col) => {
+        col.nullable();
+      },
+      { ifNotExists: true, length: 255 },
+    );
+    context.schema.dropConstraint(
+      { schema: "commerce", name: "cart_items" },
+      "fk_commerce_cart_items_offerId",
+    );
+    context.schema.dropConstraint(
+      { schema: "commerce", name: "cart_items" },
+      "cart_items_price_check",
+    );
+    context.schema.dropConstraint(
+      { schema: "commerce", name: "cart_items" },
+      "cart_items_quantity_check",
+    );
+    context.schema.dropConstraint(
+      { schema: "commerce", name: "auction_bids" },
+      "auction_bids_amount_check",
+    );
+    context.schema.dropConstraint(
+      { schema: "commerce", name: "auctions" },
+      "auctions_time_check",
+    );
+    context.schema.dropConstraint(
+      { schema: "commerce", name: "auctions" },
+      "auctions_price_check",
+    );
+    context.schema.dropConstraint(
+      { schema: "commerce", name: "offers" },
+      "offers_currency_check",
+    );
+    context.schema.dropConstraint(
+      { schema: "commerce", name: "offers" },
+      "offers_values_check",
+    );
+    context.schema.createIndex(
+      { schema: "commerce", name: "carts" },
+      "idx_carts_user",
+      [{ name: "userId" }],
+      { ifNotExists: true },
+    );
+  },
 };

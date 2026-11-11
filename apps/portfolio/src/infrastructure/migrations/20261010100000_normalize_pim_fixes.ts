@@ -1,4 +1,20 @@
-import { computeChecksum, type Migration } from "@mosaix/migrations";
+import {
+  column,
+  constant,
+  equals,
+  inSubquery,
+  inValues,
+  notExists,
+  select,
+  subquery,
+  value,
+  type Migration,
+  type MigrationContext,
+} from "@mosaix/migrations";
+
+/* checksum:begin */
+export const MIGRATION_CHECKSUM = "7c13659bcedd9487ea7cdf7be77980aa4d5fdc8095b0db3a438151c0a870681a";
+/* checksum:end */
 
 /**
  * portfolio.catalog.v1.006 — correctifs de la bascule normalisee (ADR-0018).
@@ -18,36 +34,182 @@ import { computeChecksum, type Migration } from "@mosaix/migrations";
  *    v1.005 : `NOT EXISTS` sans le tagId).
  *
  * Postgres-only. Idempotent (rejouable sans effet).
+ *
+ * The data statements are declared with the `context.data` API (structured
+ * inserts, updates and deletes): the engine compiles them with the grammar of
+ * the target dialect and binds the values as statement parameters. No SQL
+ * string is carried by the migration.
+ *
+ * Historical note: this migration was previously declared as a raw SQL
+ * string (SQL legacy mode, removed from the engine). Its historical
+ * checksum is kept in `legacyChecksums` so that databases where it is
+ * already applied are not rejected by the Planner.
  */
 
-const upStatements: string[] = [
-  `UPDATE "portfolio"."features" SET "purpose" = $$multivalue$$ WHERE "code" IN ($$options.storage_ram.values$$, $$options.color.values$$, $$options.weight.values$$, $$misc.colors$$, $$memory.options$$, $$misc.models$$);`,
-  `UPDATE "portfolio"."features" SET "featureType" = $$T$$ WHERE "code" IN ($$storage_gb$$, $$ram_gb$$);`,
-  `UPDATE "portfolio"."vendable_features" SET "variantId" = NULL, "valueText" = $$2611FPNFAG$$ WHERE "featureId" = (SELECT "id" FROM "portfolio"."features" WHERE "code" = $$misc.models$$);`,
-  `INSERT INTO "portfolio"."vendable_tags" ("vendableId", "tagId") SELECT v."id", (SELECT "id" FROM "portfolio"."tags" WHERE "slug" = $$smartphone$$) FROM "portfolio"."vendables" AS v WHERE v."reference" = $$XIAOMI-18-PRO-MAX-5G$$ AND NOT EXISTS (SELECT 1 FROM "portfolio"."vendable_tags" AS x WHERE x."vendableId" = v."id" AND x."tagId" = (SELECT "id" FROM "portfolio"."tags" WHERE "slug" = $$smartphone$$));`,
-  `INSERT INTO "portfolio"."vendable_tags" ("vendableId", "tagId") SELECT v."id", (SELECT "id" FROM "portfolio"."tags" WHERE "slug" = $$5g$$) FROM "portfolio"."vendables" AS v WHERE v."reference" = $$XIAOMI-18-PRO-MAX-5G$$ AND NOT EXISTS (SELECT 1 FROM "portfolio"."vendable_tags" AS x WHERE x."vendableId" = v."id" AND x."tagId" = (SELECT "id" FROM "portfolio"."tags" WHERE "slug" = $$5g$$));`,
-  `INSERT INTO "portfolio"."vendable_tags" ("vendableId", "tagId") SELECT v."id", (SELECT "id" FROM "portfolio"."tags" WHERE "slug" = $$amoled$$) FROM "portfolio"."vendables" AS v WHERE v."reference" = $$XIAOMI-18-PRO-MAX-5G$$ AND NOT EXISTS (SELECT 1 FROM "portfolio"."vendable_tags" AS x WHERE x."vendableId" = v."id" AND x."tagId" = (SELECT "id" FROM "portfolio"."tags" WHERE "slug" = $$amoled$$));`,
-  `INSERT INTO "portfolio"."vendable_tags" ("vendableId", "tagId") SELECT v."id", (SELECT "id" FROM "portfolio"."tags" WHERE "slug" = $$snapdragon-8-elite$$) FROM "portfolio"."vendables" AS v WHERE v."reference" = $$XIAOMI-18-PRO-MAX-5G$$ AND NOT EXISTS (SELECT 1 FROM "portfolio"."vendable_tags" AS x WHERE x."vendableId" = v."id" AND x."tagId" = (SELECT "id" FROM "portfolio"."tags" WHERE "slug" = $$snapdragon-8-elite$$));`,
-  `INSERT INTO "portfolio"."vendable_tags" ("vendableId", "tagId") SELECT v."id", (SELECT "id" FROM "portfolio"."tags" WHERE "slug" = $$ip68$$) FROM "portfolio"."vendables" AS v WHERE v."reference" = $$XIAOMI-18-PRO-MAX-5G$$ AND NOT EXISTS (SELECT 1 FROM "portfolio"."vendable_tags" AS x WHERE x."vendableId" = v."id" AND x."tagId" = (SELECT "id" FROM "portfolio"."tags" WHERE "slug" = $$ip68$$));`,
-  `INSERT INTO "portfolio"."vendable_tags" ("vendableId", "tagId") SELECT v."id", (SELECT "id" FROM "portfolio"."tags" WHERE "slug" = $$flagship$$) FROM "portfolio"."vendables" AS v WHERE v."reference" = $$XIAOMI-18-PRO-MAX-5G$$ AND NOT EXISTS (SELECT 1 FROM "portfolio"."vendable_tags" AS x WHERE x."vendableId" = v."id" AND x."tagId" = (SELECT "id" FROM "portfolio"."tags" WHERE "slug" = $$flagship$$));`,
-  `INSERT INTO "portfolio"."vendable_tags" ("vendableId", "tagId") SELECT v."id", (SELECT "id" FROM "portfolio"."tags" WHERE "slug" = $$leica$$) FROM "portfolio"."vendables" AS v WHERE v."reference" = $$XIAOMI-18-PRO-MAX-5G$$ AND NOT EXISTS (SELECT 1 FROM "portfolio"."vendable_tags" AS x WHERE x."vendableId" = v."id" AND x."tagId" = (SELECT "id" FROM "portfolio"."tags" WHERE "slug" = $$leica$$));`,
+/** The features whose purpose is normalized to `multivalue`. */
+const MULTIVALUE_CODES = [
+  "options.storage_ram.values",
+  "options.color.values",
+  "options.weight.values",
+  "misc.colors",
+  "memory.options",
+  "misc.models",
 ];
 
-const downStatements: string[] = [
-  `UPDATE "portfolio"."features" SET "purpose" = $$additional$$ WHERE "code" IN ($$options.storage_ram.values$$, $$options.color.values$$, $$options.weight.values$$, $$misc.colors$$, $$memory.options$$, $$misc.models$$);`,
-  `UPDATE "portfolio"."features" SET "featureType" = $$N$$ WHERE "code" IN ($$storage_gb$$, $$ram_gb$$);`,
-  `UPDATE "portfolio"."vendable_features" SET "variantId" = (SELECT "id" FROM "portfolio"."feature_variants" WHERE "featureId" = (SELECT "id" FROM "portfolio"."features" WHERE "code" = $$misc.models$$) AND "variant" = $$2611FPNFAG$$), "valueText" = NULL WHERE "featureId" = (SELECT "id" FROM "portfolio"."features" WHERE "code" = $$misc.models$$);`,
-  `DELETE FROM "portfolio"."vendable_tags" WHERE "tagId" IN (SELECT "id" FROM "portfolio"."tags" WHERE "slug" IN ($$smartphone$$, $$5g$$, $$amoled$$, $$snapdragon-8-elite$$, $$ip68$$, $$flagship$$, $$leica$$));`,
+/** The features whose variant attributes are normalized to the `T` type. */
+const TYPE_T_CODES = ["storage_gb", "ram_gb"];
+
+/** The tags backfilled on the `XIAOMI-18-PRO-MAX-5G` vendable. */
+const BACKFILLED_TAGS = [
+  "smartphone",
+  "5g",
+  "amoled",
+  "snapdragon-8-elite",
+  "ip68",
+  "flagship",
+  "leica",
 ];
 
-const sqlContent = upStatements.join("\n");
-const sqlDown = downStatements.join("\n");
+/** The vendable reference the tags are attached to. */
+const VENDABLE_REFERENCE = "XIAOMI-18-PRO-MAX-5G";
 
 export const migration: Migration = {
-  id: "20261010100000_normalize_pim_fixes",
-  content: sqlContent,
-  down: sqlDown,
-  checksum: computeChecksum(sqlContent),
+  id: "portfolio.catalog.v1.006_normalize_fixes",
+  checksum: MIGRATION_CHECKSUM,
+  legacyChecksums: ["b1aec560b11d23c4"],
+  up: (context: MigrationContext) => {
+    context.data.update(
+      { schema: "portfolio", name: "features" },
+      { purpose: value("multivalue") },
+      [inValues("code", MULTIVALUE_CODES)],
+    );
+    context.data.update(
+      { schema: "portfolio", name: "features" },
+      { featureType: value("T") },
+      [inValues("code", TYPE_T_CODES)],
+    );
+    context.data.update(
+      { schema: "portfolio", name: "vendable_features" },
+      { variantId: null, valueText: value("2611FPNFAG") },
+      [
+        equals(
+          "featureId",
+          subquery(
+            select({
+              columns: ["id"],
+              from: { schema: "portfolio", name: "features" },
+              where: [equals("code", value("misc.models"))],
+            }),
+          ),
+        ),
+      ],
+    );
+
+    for (const slug of BACKFILLED_TAGS) {
+      context.data.insertSelect(
+        { schema: "portfolio", name: "vendable_tags" },
+        ["vendableId", "tagId"],
+        select({
+          columns: [
+            column("v.id"),
+            subquery(
+              select({
+                columns: ["id"],
+                from: { schema: "portfolio", name: "tags" },
+                where: [equals("slug", value(slug))],
+              }),
+            ),
+          ],
+          from: { schema: "portfolio", name: "vendables", alias: "v" },
+          where: [
+            equals("v.reference", value(VENDABLE_REFERENCE)),
+            notExists(
+              select({
+                columns: [constant(1)],
+                from: {
+                  schema: "portfolio",
+                  name: "vendable_tags",
+                  alias: "x",
+                },
+                where: [
+                  equals("x.vendableId", column("v.id")),
+                  equals(
+                    "x.tagId",
+                    subquery(
+                      select({
+                        columns: ["id"],
+                        from: { schema: "portfolio", name: "tags" },
+                        where: [equals("slug", value(slug))],
+                      }),
+                    ),
+                  ),
+                ],
+              }),
+            ),
+          ],
+        }),
+      );
+    }
+  },
+  downMigration: (context: MigrationContext) => {
+    context.data.update(
+      { schema: "portfolio", name: "features" },
+      { purpose: value("additional") },
+      [inValues("code", MULTIVALUE_CODES)],
+    );
+    context.data.update(
+      { schema: "portfolio", name: "features" },
+      { featureType: value("N") },
+      [inValues("code", TYPE_T_CODES)],
+    );
+    context.data.update(
+      { schema: "portfolio", name: "vendable_features" },
+      {
+        variantId: subquery(
+          select({
+            columns: ["id"],
+            from: { schema: "portfolio", name: "feature_variants" },
+            where: [
+              equals(
+                "featureId",
+                subquery(
+                  select({
+                    columns: ["id"],
+                    from: { schema: "portfolio", name: "features" },
+                    where: [equals("code", value("misc.models"))],
+                  }),
+                ),
+              ),
+              equals("variant", value("2611FPNFAG")),
+            ],
+          }),
+        ),
+        valueText: null,
+      },
+      [
+        equals(
+          "featureId",
+          subquery(
+            select({
+              columns: ["id"],
+              from: { schema: "portfolio", name: "features" },
+              where: [equals("code", value("misc.models"))],
+            }),
+          ),
+        ),
+      ],
+    );
+    context.data.delete({ schema: "portfolio", name: "vendable_tags" }, [
+      inSubquery(
+        "tagId",
+        select({
+          columns: ["id"],
+          from: { schema: "portfolio", name: "tags" },
+          where: [inValues("slug", BACKFILLED_TAGS)],
+        }),
+      ),
+    ]);
+  },
   resources: [
     // v1.006_normalize_pim_fixes MODIFIE des tables existantes (UPDATE features,
     // UPDATE vendable_features, INSERT vendable_tags). R9 exige au moins une

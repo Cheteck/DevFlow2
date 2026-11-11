@@ -1,4 +1,18 @@
-import { computeChecksum, type Migration } from "@mosaix/migrations";
+import {
+  cast,
+  equals,
+  func,
+  jsonPath,
+  matchesPattern,
+  nullIf,
+  value,
+  type Migration,
+  type MigrationContext,
+} from "@mosaix/migrations";
+
+/* checksum:begin */
+export const MIGRATION_CHECKSUM = "3096f045d1dc34cd1c95e7bc35fa26176d39956c5af71ac7db02eea2b97672da";
+/* checksum:end */
 
 /**
  * booking.scheduling.v1.003 — harden reservation integrity (critique schéma).
@@ -24,80 +38,21 @@ import { computeChecksum, type Migration } from "@mosaix/migrations";
  * The atomic hold itself (UPDATE ... WHERE bookedCount + qty <= capacity)
  * lives in PostgresBookingRepository.holdSlot; the DB columns make it
  * expressible. Postgres-only.
+ *
+ * The schema is declared with the SchemaBuilder DSL: the engine compiles the
+ * blueprints with the PostgreSQL grammar and executes the resulting
+ * statements. No SQL string is carried by the migration.
+ *
+ * Historical note: this migration was previously declared as a raw SQL
+ * string (SQL legacy mode, removed from the engine). Its historical
+ * checksum is kept in `legacyChecksums` so that databases where it is
+ * already applied are not rejected by the Planner.
  */
 
-const upStatements: string[] = [
-  // 1. Slots: temporal + capacity columns out of JSONB.
-  `ALTER TABLE "booking"."slots" ADD COLUMN IF NOT EXISTS "startAt" TIMESTAMPTZ;`,
-  `ALTER TABLE "booking"."slots" ADD COLUMN IF NOT EXISTS "endAt" TIMESTAMPTZ;`,
-  `ALTER TABLE "booking"."slots" ADD COLUMN IF NOT EXISTS "capacity" INTEGER DEFAULT 1;`,
-  `ALTER TABLE "booking"."slots" ADD COLUMN IF NOT EXISTS "bookedCount" INTEGER DEFAULT 0;`,
-  `UPDATE "booking"."slots" SET "startAt" = NULLIF("data"->>'startTime', '')::timestamptz WHERE ("data"->>'startTime') ~ '^\\d{4}-\\d{2}-\\d{2}';`,
-  `UPDATE "booking"."slots" SET "endAt" = NULLIF("data"->>'endTime', '')::timestamptz WHERE ("data"->>'endTime') ~ '^\\d{4}-\\d{2}-\\d{2}';`,
-  `UPDATE "booking"."slots" SET "capacity" = (("data"->>'capacity')::int) WHERE ("data"->>'capacity') ~ '^\\d+$';`,
-  `ALTER TABLE "booking"."slots" ADD CONSTRAINT "slots_time_check" CHECK ("endAt" IS NULL OR "startAt" IS NULL OR "endAt" > "startAt");`,
-  `ALTER TABLE "booking"."slots" ADD CONSTRAINT "slots_capacity_check" CHECK ("capacity" >= 1 AND "bookedCount" >= 0 AND "bookedCount" <= "capacity");`,
-  `CREATE INDEX IF NOT EXISTS "idx_slots_start_end" ON "booking"."slots" ("startAt", "endAt");`,
-
-  // 2. Reservations survive their slot (history for audits/disputes/billing).
-  `ALTER TABLE "booking"."reservations" DROP CONSTRAINT IF EXISTS "fk_booking_reservations_slotId";`,
-  `ALTER TABLE "booking"."reservations" ADD CONSTRAINT "fk_booking_reservations_slotId" FOREIGN KEY ("slotId") REFERENCES "booking"."slots" ("id") ON DELETE RESTRICT;`,
-
-  // 3. Waitlists: one active entry per customer and slot; positive rank.
-  `CREATE UNIQUE INDEX IF NOT EXISTS "uniq_waitlist_active" ON "booking"."waitlists" ("slotId", "customerId") WHERE "status" = 'waiting';`,
-  `ALTER TABLE "booking"."waitlists" ADD CONSTRAINT "waitlists_position_check" CHECK ("position" > 0);`,
-
-  // 4. Reminders: async-worker bookkeeping.
-  `ALTER TABLE "booking"."reminders" ADD COLUMN IF NOT EXISTS "sentAt" TIMESTAMPTZ;`,
-  `ALTER TABLE "booking"."reminders" ADD COLUMN IF NOT EXISTS "attempts" INTEGER DEFAULT 0;`,
-  `ALTER TABLE "booking"."reminders" ADD COLUMN IF NOT EXISTS "lastError" TEXT;`,
-  `ALTER TABLE "booking"."reminders" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ;`,
-  `ALTER TABLE "booking"."reminders" ADD COLUMN IF NOT EXISTS "provider" VARCHAR(64);`,
-  `ALTER TABLE "booking"."reminders" ADD CONSTRAINT "reminders_attempts_check" CHECK ("attempts" >= 0);`,
-
-  // 5. Timestamp defaults (repos keep writing them explicitly).
-  `ALTER TABLE "booking"."slots" ALTER COLUMN "createdAt" SET DEFAULT now();`,
-  `ALTER TABLE "booking"."slots" ALTER COLUMN "updatedAt" SET DEFAULT now();`,
-  `ALTER TABLE "booking"."reservations" ALTER COLUMN "createdAt" SET DEFAULT now();`,
-  `ALTER TABLE "booking"."reservations" ALTER COLUMN "updatedAt" SET DEFAULT now();`,
-  `ALTER TABLE "booking"."waitlists" ALTER COLUMN "createdAt" SET DEFAULT now();`,
-  `ALTER TABLE "booking"."reminders" ALTER COLUMN "createdAt" SET DEFAULT now();`,
-];
-
-const downStatements: string[] = [
-  `ALTER TABLE "booking"."reminders" ALTER COLUMN "createdAt" DROP DEFAULT;`,
-  `ALTER TABLE "booking"."waitlists" ALTER COLUMN "createdAt" DROP DEFAULT;`,
-  `ALTER TABLE "booking"."reservations" ALTER COLUMN "updatedAt" DROP DEFAULT;`,
-  `ALTER TABLE "booking"."reservations" ALTER COLUMN "createdAt" DROP DEFAULT;`,
-  `ALTER TABLE "booking"."slots" ALTER COLUMN "updatedAt" DROP DEFAULT;`,
-  `ALTER TABLE "booking"."slots" ALTER COLUMN "createdAt" DROP DEFAULT;`,
-  `ALTER TABLE "booking"."reminders" DROP CONSTRAINT IF EXISTS "reminders_attempts_check";`,
-  `ALTER TABLE "booking"."reminders" DROP COLUMN IF EXISTS "provider";`,
-  `ALTER TABLE "booking"."reminders" DROP COLUMN IF EXISTS "updatedAt";`,
-  `ALTER TABLE "booking"."reminders" DROP COLUMN IF EXISTS "lastError";`,
-  `ALTER TABLE "booking"."reminders" DROP COLUMN IF EXISTS "attempts";`,
-  `ALTER TABLE "booking"."reminders" DROP COLUMN IF EXISTS "sentAt";`,
-  `ALTER TABLE "booking"."waitlists" DROP CONSTRAINT IF EXISTS "waitlists_position_check";`,
-  `DROP INDEX IF EXISTS "booking"."uniq_waitlist_active";`,
-  `ALTER TABLE "booking"."reservations" DROP CONSTRAINT IF EXISTS "fk_booking_reservations_slotId";`,
-  `ALTER TABLE "booking"."reservations" ADD CONSTRAINT "fk_booking_reservations_slotId" FOREIGN KEY ("slotId") REFERENCES "booking"."slots" ("id") ON DELETE CASCADE;`,
-  `DROP INDEX IF EXISTS "booking"."idx_slots_start_end";`,
-  `ALTER TABLE "booking"."slots" DROP CONSTRAINT IF EXISTS "slots_capacity_check";`,
-  `ALTER TABLE "booking"."slots" DROP CONSTRAINT IF EXISTS "slots_time_check";`,
-  `ALTER TABLE "booking"."slots" DROP COLUMN IF EXISTS "bookedCount";`,
-  `ALTER TABLE "booking"."slots" DROP COLUMN IF EXISTS "capacity";`,
-  `ALTER TABLE "booking"."slots" DROP COLUMN IF EXISTS "endAt";`,
-  `ALTER TABLE "booking"."slots" DROP COLUMN IF EXISTS "startAt";`,
-];
-
-const sqlContent = upStatements.join("\n");
-const sqlDown = downStatements.join("\n");
-
 export const migration: Migration = {
-  id: "20260926140000_harden_booking",
-  content: sqlContent,
-  down: sqlDown,
-  checksum: computeChecksum(sqlContent),
+  id: "booking.scheduling.v1.003_harden_booking",
+  checksum: MIGRATION_CHECKSUM,
+  legacyChecksums: ["fb178f45345fa87d"],
   resources: [
     // v1.003_harden_booking MODIFIE (ne CREATE pas) ces tables existantes.
     // R9 exige au moins une ressource déclarée pour la détection de collisions.
@@ -106,4 +61,294 @@ export const migration: Migration = {
     "table:booking.waitlists",
     "table:booking.reminders",
   ],
+  up: (context: MigrationContext) => {
+    context.schema.addColumn(
+      { schema: "booking", name: "slots" },
+      "startAt",
+      "timestamp",
+      (col) => {
+        col.nullable();
+      },
+      { ifNotExists: true },
+    );
+    context.schema.addColumn(
+      { schema: "booking", name: "slots" },
+      "endAt",
+      "timestamp",
+      (col) => {
+        col.nullable();
+      },
+      { ifNotExists: true },
+    );
+    context.schema.addColumn(
+      { schema: "booking", name: "slots" },
+      "capacity",
+      "integer",
+      (col) => {
+        col.nullable();
+        col.default(1);
+      },
+      { ifNotExists: true },
+    );
+    context.schema.addColumn(
+      { schema: "booking", name: "slots" },
+      "bookedCount",
+      "integer",
+      (col) => {
+        col.nullable();
+        col.default(0);
+      },
+      { ifNotExists: true },
+    );
+    context.data.update(
+      { schema: "booking", name: "slots" },
+      {
+        startAt: cast(
+          nullIf(jsonPath("data", "startTime"), value("")),
+          "timestamptz",
+        ),
+      },
+      [
+        matchesPattern(
+          jsonPath("data", "startTime"),
+          value("^\\d{4}-\\d{2}-\\d{2}"),
+        ),
+      ],
+    );
+    context.data.update(
+      { schema: "booking", name: "slots" },
+      {
+        endAt: cast(
+          nullIf(jsonPath("data", "endTime"), value("")),
+          "timestamptz",
+        ),
+      },
+      [
+        matchesPattern(
+          jsonPath("data", "endTime"),
+          value("^\\d{4}-\\d{2}-\\d{2}"),
+        ),
+      ],
+    );
+    context.data.update(
+      { schema: "booking", name: "slots" },
+      { capacity: cast(jsonPath("data", "capacity"), "int") },
+      [matchesPattern(jsonPath("data", "capacity"), value("^\\d+$"))],
+    );
+    context.schema.addConstraint(
+      { schema: "booking", name: "slots" },
+      "slots_time_check",
+      'CHECK ("endAt" IS NULL OR "startAt" IS NULL OR "endAt" > "startAt")',
+    );
+    context.schema.addConstraint(
+      { schema: "booking", name: "slots" },
+      "slots_capacity_check",
+      'CHECK ("capacity" >= 1 AND "bookedCount" >= 0 AND "bookedCount" <= "capacity")',
+    );
+    context.schema.createIndex(
+      { schema: "booking", name: "slots" },
+      "idx_slots_start_end",
+      [{ name: "startAt" }, { name: "endAt" }],
+      { ifNotExists: true },
+    );
+    context.schema.dropConstraint(
+      { schema: "booking", name: "reservations" },
+      "fk_booking_reservations_slotId",
+    );
+    context.schema.addConstraint(
+      { schema: "booking", name: "reservations" },
+      "fk_booking_reservations_slotId",
+      'FOREIGN KEY ("slotId") REFERENCES "booking"."slots" ("id") ON DELETE RESTRICT',
+    );
+    context.schema.createIndex(
+      { schema: "booking", name: "waitlists" },
+      "uniq_waitlist_active",
+      [{ name: "slotId" }, { name: "customerId" }],
+      {
+        unique: true,
+        ifNotExists: true,
+        where: [equals("status", value("waiting"))],
+      },
+    );
+    context.schema.addConstraint(
+      { schema: "booking", name: "waitlists" },
+      "waitlists_position_check",
+      'CHECK ("position" > 0)',
+    );
+    context.schema.addColumn(
+      { schema: "booking", name: "reminders" },
+      "sentAt",
+      "timestamp",
+      (col) => {
+        col.nullable();
+      },
+      { ifNotExists: true },
+    );
+    context.schema.addColumn(
+      { schema: "booking", name: "reminders" },
+      "attempts",
+      "integer",
+      (col) => {
+        col.nullable();
+        col.default(0);
+      },
+      { ifNotExists: true },
+    );
+    context.schema.addColumn(
+      { schema: "booking", name: "reminders" },
+      "lastError",
+      "text",
+      (col) => {
+        col.nullable();
+      },
+      { ifNotExists: true },
+    );
+    context.schema.addColumn(
+      { schema: "booking", name: "reminders" },
+      "updatedAt",
+      "timestamp",
+      (col) => {
+        col.nullable();
+      },
+      { ifNotExists: true },
+    );
+    context.schema.addColumn(
+      { schema: "booking", name: "reminders" },
+      "provider",
+      "string",
+      (col) => {
+        col.nullable();
+      },
+      { ifNotExists: true, length: 64 },
+    );
+    context.schema.addConstraint(
+      { schema: "booking", name: "reminders" },
+      "reminders_attempts_check",
+      'CHECK ("attempts" >= 0)',
+    );
+    context.schema.alterColumnDefault(
+      { schema: "booking", name: "slots" },
+      "createdAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "booking", name: "slots" },
+      "updatedAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "booking", name: "reservations" },
+      "createdAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "booking", name: "reservations" },
+      "updatedAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "booking", name: "waitlists" },
+      "createdAt",
+      func("now"),
+    );
+    context.schema.alterColumnDefault(
+      { schema: "booking", name: "reminders" },
+      "createdAt",
+      func("now"),
+    );
+  },
+  downMigration: (context: MigrationContext) => {
+    context.schema.alterColumnDefault(
+      { schema: "booking", name: "reminders" },
+      "createdAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "booking", name: "waitlists" },
+      "createdAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "booking", name: "reservations" },
+      "updatedAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "booking", name: "reservations" },
+      "createdAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "booking", name: "slots" },
+      "updatedAt",
+    );
+    context.schema.alterColumnDefault(
+      { schema: "booking", name: "slots" },
+      "createdAt",
+    );
+    context.schema.dropConstraint(
+      { schema: "booking", name: "reminders" },
+      "reminders_attempts_check",
+    );
+    context.schema.dropColumn(
+      { schema: "booking", name: "reminders" },
+      "provider",
+      { ifExists: true },
+    );
+    context.schema.dropColumn(
+      { schema: "booking", name: "reminders" },
+      "updatedAt",
+      { ifExists: true },
+    );
+    context.schema.dropColumn(
+      { schema: "booking", name: "reminders" },
+      "lastError",
+      { ifExists: true },
+    );
+    context.schema.dropColumn(
+      { schema: "booking", name: "reminders" },
+      "attempts",
+      { ifExists: true },
+    );
+    context.schema.dropColumn(
+      { schema: "booking", name: "reminders" },
+      "sentAt",
+      { ifExists: true },
+    );
+    context.schema.dropConstraint(
+      { schema: "booking", name: "waitlists" },
+      "waitlists_position_check",
+    );
+    context.schema.dropIndex("uniq_waitlist_active", "booking");
+    context.schema.dropConstraint(
+      { schema: "booking", name: "reservations" },
+      "fk_booking_reservations_slotId",
+    );
+    context.schema.addConstraint(
+      { schema: "booking", name: "reservations" },
+      "fk_booking_reservations_slotId",
+      'FOREIGN KEY ("slotId") REFERENCES "booking"."slots" ("id") ON DELETE CASCADE',
+    );
+    context.schema.dropIndex("idx_slots_start_end", "booking");
+    context.schema.dropConstraint(
+      { schema: "booking", name: "slots" },
+      "slots_capacity_check",
+    );
+    context.schema.dropConstraint(
+      { schema: "booking", name: "slots" },
+      "slots_time_check",
+    );
+    context.schema.dropColumn(
+      { schema: "booking", name: "slots" },
+      "bookedCount",
+      { ifExists: true },
+    );
+    context.schema.dropColumn(
+      { schema: "booking", name: "slots" },
+      "capacity",
+      { ifExists: true },
+    );
+    context.schema.dropColumn({ schema: "booking", name: "slots" }, "endAt", {
+      ifExists: true,
+    });
+    context.schema.dropColumn({ schema: "booking", name: "slots" }, "startAt", {
+      ifExists: true,
+    });
+  },
 };

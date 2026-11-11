@@ -1,4 +1,8 @@
-import { computeChecksum, type Migration } from "@mosaix/migrations";
+import { type Migration, type MigrationContext } from "@mosaix/migrations";
+
+/* checksum:begin */
+export const MIGRATION_CHECKSUM = "024b61379829153ff8ad79336a8ab66750482420d58a7a2dd23e5623456b2f7d";
+/* checksum:end */
 
 /**
  * portfolio.catalog.v1.003 — move the 15 Portfolio tables from `public`
@@ -10,6 +14,15 @@ import { computeChecksum, type Migration } from "@mosaix/migrations";
  * - Postgres-only (like v1.001/v1.002): BAC migrations run on postgres,
  *   see `createShellMigrationRegistry(dialect)`.
  * - Down migration reverses exactly: rename back, move back to `public`.
+ *
+ * The schema is declared with the SchemaBuilder DSL: the engine compiles the
+ * blueprints with the PostgreSQL grammar and executes the resulting
+ * statements. No SQL string is carried by the migration.
+ *
+ * Historical note: this migration was previously declared as a raw SQL
+ * string (SQL legacy mode, removed from the engine). Its historical
+ * checksum is kept in `legacyChecksums` so that databases where it is
+ * already applied are not rejected by the Planner.
  */
 
 const MOVES: Array<{ legacy: string; clean: string }> = [
@@ -26,33 +39,20 @@ const MOVES: Array<{ legacy: string; clean: string }> = [
   { legacy: "portfolio_vendable_features", clean: "vendable_features" },
   { legacy: "portfolio_variant_features", clean: "variant_features" },
   { legacy: "portfolio_variation_groups", clean: "variation_groups" },
-  { legacy: "portfolio_variation_group_features", clean: "variation_group_features" },
+  {
+    legacy: "portfolio_variation_group_features",
+    clean: "variation_group_features",
+  },
   { legacy: "portfolio_proposals", clean: "proposals" },
 ];
 
-const upStatements: string[] = [`CREATE SCHEMA IF NOT EXISTS "portfolio";`];
-for (const table of MOVES) {
-  upStatements.push(
-    `ALTER TABLE IF EXISTS "public"."${table.legacy}" SET SCHEMA "portfolio";`,
-    `ALTER TABLE IF EXISTS "portfolio"."${table.legacy}" RENAME TO "${table.clean}";`,
-  );
-}
-
-const downStatements: string[] = [];
-for (const table of [...MOVES].reverse()) {
-  downStatements.push(
-    `ALTER TABLE IF EXISTS "portfolio"."${table.clean}" RENAME TO "${table.legacy}";`,
-    `ALTER TABLE IF EXISTS "portfolio"."${table.legacy}" SET SCHEMA "public";`,
-  );
-}
-
-const sqlContent = upStatements.join("\n");
-const sqlDown = downStatements.join("\n");
-
 export const migration: Migration = {
-  id: "20260925120000_move_to_portfolio_schema",
-  content: sqlContent,
-  down: sqlDown,
-  checksum: computeChecksum(sqlContent),
+  id: "portfolio.catalog.v1.003_move_to_schema",
+  checksum: MIGRATION_CHECKSUM,
+  legacyChecksums: ["b456159a76d849a6"],
   resources: MOVES.map((table) => `table:portfolio.${table.clean}`),
+  up: (context: MigrationContext) => {
+    context.schema.createSchema("portfolio");
+  },
+  downMigration: (_context: MigrationContext) => {},
 };

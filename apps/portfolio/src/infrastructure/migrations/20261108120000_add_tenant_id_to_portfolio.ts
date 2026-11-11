@@ -1,4 +1,13 @@
-import { computeChecksum, type Migration } from "@mosaix/migrations";
+import {
+  column,
+  isNull,
+  type Migration,
+  type MigrationContext,
+} from "@mosaix/migrations";
+
+/* checksum:begin */
+export const MIGRATION_CHECKSUM = "48dea81e5284cd1a78b34556173384a33b03dba54b0fa8eca1dda268425a28b6";
+/* checksum:end */
 
 /**
  * portfolio.catalog.v1.008 — add tenant_id column to portfolio.vendables
@@ -17,55 +26,21 @@ import { computeChecksum, type Migration } from "@mosaix/migrations";
  *
  * The 'legacy' placeholder ensures existing data isn't lost; operators must
  * update it to the correct tenant before relying on isolation.
+ *
+ * The schema is declared with the SchemaBuilder DSL: the engine compiles the
+ * blueprints with the PostgreSQL grammar and executes the resulting
+ * statements. No SQL string is carried by the migration.
+ *
+ * Historical note: this migration was previously declared as a raw SQL
+ * string (SQL legacy mode, removed from the engine). Its historical
+ * checksum is kept in `legacyChecksums` so that databases where it is
+ * already applied are not rejected by the Planner.
  */
-
-const upStatements = [
-  // Step 1: Add nullable column
-  `ALTER TABLE "portfolio"."vendables" ADD COLUMN "tenant_id" text NULL;`,
-
-  // Step 2: Backfill with 'legacy' placeholder
-  `UPDATE "portfolio"."vendables" SET "tenant_id" = id WHERE "tenant_id" IS NULL;`,
-
-  // Step 3: Enforce NOT NULL
-  `ALTER TABLE "portfolio"."vendables" ALTER COLUMN "tenant_id" SET NOT NULL;`,
-
-  // Step 4: Replace global UNIQUE(reference) with composite UNIQUE(tenant_id, reference).
-  // The base migration created `uniq_vendable_reference` as a bare UNIQUE INDEX
-  // (ORM `table.unique(...)`), NOT a named table constraint — so it must be
-  // dropped with DROP INDEX, not DROP CONSTRAINT. Leaving it in place would keep
-  // `reference` globally unique and silently defeat multi-tenant isolation.
-  `DROP INDEX IF EXISTS "portfolio"."uniq_vendable_reference";`,
-  `ALTER TABLE "portfolio"."vendables" ADD CONSTRAINT "uniq_vendable_tenant_reference" UNIQUE ("tenant_id", "reference");`,
-
-  // Step 5: Add index for tenant filtering
-  `CREATE INDEX "idx_vendables_tenant" ON "portfolio"."vendables"("tenant_id");`,
-
-  // Repeat for proposals table
-  `ALTER TABLE "portfolio"."proposals" ADD COLUMN "tenant_id" text NULL;`,
-  `UPDATE "portfolio"."proposals" SET "tenant_id" = id WHERE "tenant_id" IS NULL;`,
-  `ALTER TABLE "portfolio"."proposals" ALTER COLUMN "tenant_id" SET NOT NULL;`,
-  `CREATE INDEX "idx_proposals_tenant" ON "portfolio"."proposals"("tenant_id");`,
-]
-  .join("\n");
-
-const downStatements = [
-  // Reverse proposals
-  `DROP INDEX IF EXISTS "portfolio"."idx_proposals_tenant";`,
-  `ALTER TABLE "portfolio"."proposals" DROP COLUMN IF EXISTS "tenant_id";`,
-
-  // Reverse vendables
-  `DROP INDEX IF EXISTS "portfolio"."idx_vendables_tenant";`,
-  `ALTER TABLE "portfolio"."vendables" DROP CONSTRAINT IF EXISTS "uniq_vendable_tenant_reference";`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "uniq_vendable_reference" ON "portfolio"."vendables"("reference");`,
-  `ALTER TABLE "portfolio"."vendables" DROP COLUMN IF EXISTS "tenant_id";`,
-]
-  .join("\n");
 
 export const migration: Migration = {
   id: "portfolio.catalog.v1.008_tenant_id",
-  content: upStatements,
-  down: downStatements,
-  checksum: computeChecksum(upStatements),
+  checksum: MIGRATION_CHECKSUM,
+  legacyChecksums: ["f1ffd4ef8f86c1f0"],
   resources: [
     // v1.008_tenant_id MODIFIE portfolio.vendables et portfolio.proposals
     // (ADD COLUMN tenant_id, ALTER COLUMN, ADD CONSTRAINT, CREATE INDEX).
@@ -73,4 +48,82 @@ export const migration: Migration = {
     "table:portfolio.vendables",
     "table:portfolio.proposals",
   ],
+  up: (context: MigrationContext) => {
+    context.schema.addColumn(
+      { schema: "portfolio", name: "vendables" },
+      "tenant_id",
+      "text",
+      (col) => {
+        col.nullable();
+      },
+    );
+    context.data.update(
+      { schema: "portfolio", name: "vendables" },
+      { tenant_id: column("id") },
+      [isNull("tenant_id")],
+    );
+    context.schema.alterColumnNullable(
+      { schema: "portfolio", name: "vendables" },
+      "tenant_id",
+      false,
+    );
+    context.schema.dropIndex("uniq_vendable_reference", "portfolio");
+    context.schema.addConstraint(
+      { schema: "portfolio", name: "vendables" },
+      "uniq_vendable_tenant_reference",
+      'UNIQUE ("tenant_id", "reference")',
+    );
+    context.schema.createIndex(
+      { schema: "portfolio", name: "vendables" },
+      "idx_vendables_tenant",
+      [{ name: "tenant_id" }],
+    );
+    context.schema.addColumn(
+      { schema: "portfolio", name: "proposals" },
+      "tenant_id",
+      "text",
+      (col) => {
+        col.nullable();
+      },
+    );
+    context.data.update(
+      { schema: "portfolio", name: "proposals" },
+      { tenant_id: column("id") },
+      [isNull("tenant_id")],
+    );
+    context.schema.alterColumnNullable(
+      { schema: "portfolio", name: "proposals" },
+      "tenant_id",
+      false,
+    );
+    context.schema.createIndex(
+      { schema: "portfolio", name: "proposals" },
+      "idx_proposals_tenant",
+      [{ name: "tenant_id" }],
+    );
+  },
+  downMigration: (context: MigrationContext) => {
+    context.schema.dropIndex("idx_proposals_tenant", "portfolio");
+    context.schema.dropColumn(
+      { schema: "portfolio", name: "proposals" },
+      "tenant_id",
+      { ifExists: true },
+    );
+    context.schema.dropIndex("idx_vendables_tenant", "portfolio");
+    context.schema.dropConstraint(
+      { schema: "portfolio", name: "vendables" },
+      "uniq_vendable_tenant_reference",
+    );
+    context.schema.createIndex(
+      { schema: "portfolio", name: "vendables" },
+      "uniq_vendable_reference",
+      [{ name: "reference" }],
+      { unique: true, ifNotExists: true },
+    );
+    context.schema.dropColumn(
+      { schema: "portfolio", name: "vendables" },
+      "tenant_id",
+      { ifExists: true },
+    );
+  },
 };

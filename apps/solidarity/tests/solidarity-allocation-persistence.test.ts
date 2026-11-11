@@ -4,9 +4,13 @@ import type {
   DatabasePort,
   MigrationLock,
 } from "@mosaix/ports-database";
+import { MigrationCompiler, PostgresGrammar } from "@mosaix/migrations";
 import { migration as allocationsMigration } from "../src/infrastructure/migrations/20261010090000_add_solidarity_allocations.js";
 import { PostgresSolidarityRepository } from "../src/infrastructure/postgres-solidarity-repository.js";
-import { SolidarityService, type SolidarityRepositoryPort } from "../src/infrastructure/solidarity-service.js";
+import {
+  SolidarityService,
+  type SolidarityRepositoryPort,
+} from "../src/infrastructure/solidarity-service.js";
 import type { NeedAllocation } from "../src/domain/solidarity-operational-rules.js";
 
 function makeCapabilities(): DatabaseCapabilities {
@@ -26,7 +30,10 @@ class FakeAllocDb implements DatabasePort {
     return 0;
   }
 
-  async query<T = Record<string, unknown>>(sql: string, params?: readonly unknown[]): Promise<T[]> {
+  async query<T = Record<string, unknown>>(
+    sql: string,
+    params?: readonly unknown[],
+  ): Promise<T[]> {
     if (sql.includes('INSERT INTO "solidarity"."allocations"')) {
       const key = String(params?.[1]);
       if (!this.byKey.has(key)) {
@@ -65,14 +72,39 @@ function allocation(key: string): NeedAllocation {
 }
 
 describe("solidarity allocations persistence (§8)", () => {
-  it("ships a migration creating a unique-keyed allocations ledger", () => {
-    expect(allocationsMigration.id).toBe("20261010090000_add_solidarity_allocations");
+  it("ships a migration creating a unique-keyed allocations ledger", async () => {
+    expect(allocationsMigration.id).toBe(
+      "solidarity.relief.v1.003_allocations",
+    );
     expect(allocationsMigration.checksum).toBeTruthy();
-    expect(allocationsMigration.content).toContain('CREATE TABLE IF NOT EXISTS "solidarity"."allocations"');
-    expect(allocationsMigration.content).toContain("UNIQUE");
-    expect(allocationsMigration.content).toContain("idempotencyKey");
-    expect(allocationsMigration.down).toContain('DROP TABLE IF EXISTS "solidarity"."allocations"');
-    expect(allocationsMigration.resources).toContain("table:solidarity.allocations");
+
+    // The migration declares its DDL with the SchemaBuilder DSL: the engine
+    // compiles it, no SQL string is carried by the migration.
+    const compiler = new MigrationCompiler(new PostgresGrammar(), "postgres", {
+      dialect: "postgres",
+      capabilities: {
+        transactions: true,
+        lock: { distributed: false, processSafe: true, runtimeSafe: true },
+      },
+    });
+    const up = await compiler.compileUpAsync(allocationsMigration);
+    const upSql = up.statements.map((statement) => statement.sql).join("\n");
+    expect(upSql).toContain(
+      'CREATE TABLE IF NOT EXISTS "solidarity"."allocations"',
+    );
+    expect(upSql).toContain("UNIQUE");
+    expect(upSql).toContain("idempotencyKey");
+
+    const down = await compiler.compileDownAsync(allocationsMigration);
+    const downSql = (down?.statements ?? [])
+      .map((statement) => statement.sql)
+      .join("\n");
+    expect(downSql).toContain(
+      'DROP TABLE IF EXISTS "solidarity"."allocations"',
+    );
+    expect(allocationsMigration.resources).toContain(
+      "table:solidarity.allocations",
+    );
   });
 
   it("round-trips allocations and converges replays on the stored row", async () => {
@@ -81,7 +113,10 @@ describe("solidarity allocations persistence (§8)", () => {
     const found = await repo.getAllocationByKey("persist-key-1");
     expect(found?.id).toBe("alloc-persist-key-1");
 
-    await repo.saveAllocation({ ...allocation("persist-key-1"), id: "alloc-other" });
+    await repo.saveAllocation({
+      ...allocation("persist-key-1"),
+      id: "alloc-other",
+    });
     const converged = await repo.getAllocationByKey("persist-key-1");
     expect(converged?.id).toBe("alloc-persist-key-1");
 
@@ -120,15 +155,27 @@ describe("solidarity allocations persistence (§8)", () => {
       quantity: 500,
       geoZone: "Algiers",
     });
-    const resource = first.getResources().find((r) => r.donationId === donation.id)!;
+    const resource = first
+      .getResources()
+      .find((r) => r.donationId === donation.id)!;
 
-    const confirmed = await first.allocateResource(resource.id, need.id, 200, "persist-alloc-key");
+    const confirmed = await first.allocateResource(
+      resource.id,
+      need.id,
+      200,
+      "persist-alloc-key",
+    );
     expect(confirmed.success).toBe(true);
     expect(db.byKey.has("persist-alloc-key")).toBe(true);
 
     // Fresh instance (empty memory) with the same repository: replay from ledger.
     const restarted = new SolidarityService(port);
-    const replay = await restarted.allocateResource(resource.id, need.id, 200, "persist-alloc-key");
+    const replay = await restarted.allocateResource(
+      resource.id,
+      need.id,
+      200,
+      "persist-alloc-key",
+    );
     expect(replay.success).toBe(true);
     expect(replay.alreadyProcessed).toBe(true);
     expect(replay.allocation?.id).toBe(confirmed.allocation?.id);
