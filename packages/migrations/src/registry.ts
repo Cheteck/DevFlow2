@@ -4,50 +4,41 @@
  *
  * Simplified Laravel-like Multi-App Migration Architecture.
  *
- * Phase 03: `RawMigration` accepts both the historical SQL format
- * (`content`/`down` as strings) and the new TypeScript native format
- * (`up`/`downMigration` as functions, `kind: "typescript"`).
+ * The engine accepts TypeScript native migrations ONLY: `loadMigration`
+ * rejects any declaration carrying the retired SQL legacy fields
+ * (`content`, `down`, `kind`) — the rule is enforced in code.
  */
 
-import { computeChecksum } from "./checksum.js";
-import {
-  MigrationChecksumError,
-  MigrationConflictError,
-} from "./errors.js";
-import {
-  MigrationValidator,
-  MigrationValidationError,
-} from "./validator.js";
+import { MigrationConflictError, MigrationError } from "./errors.js";
+import { MigrationValidator, MigrationValidationError } from "./validator.js";
 import type { Migration, MigrationProvider } from "./migration.js";
-import type { RawSqlStatement } from "./migration-context.js";
+import { assertTypeScriptNativeMigration } from "./migration.js";
 import { compareMigrationIds } from "./migration.js";
 
 export interface RawMigration {
   readonly id: string;
-  /** SQL executed on upgrade (legacy mode). Optional when kind === "typescript". */
-  readonly content?: string;
-  /** Optional SQL executed on rollback (legacy mode). */
-  readonly down?: string;
-  /** Execution mode discriminant. Defaults to "sql" for backward compatibility. */
-  readonly kind?: "sql" | "typescript";
   /**
-   * Upgrade function (TypeScript native mode). Required when kind === "typescript".
+   * Upgrade body (TypeScript native). Mandatory.
    */
-  readonly up?: (context: unknown) => Promise<void> | void;
+  readonly up: (context: unknown) => Promise<void> | void;
   /**
-   * Optional rollback function (TypeScript native mode). Required when kind === "typescript" and reversible.
+   * Optional rollback body (TypeScript native).
    */
   readonly downMigration?: (context: unknown) => Promise<void> | void;
-  /** Optional raw SQL statement declared explicitly. */
-  readonly rawSql?: RawSqlStatement;
+  /**
+   * Checksums previously recorded in the ledger for this migration id.
+   * Accepted by the Planner as equivalent to `checksum` (historical identity
+   * preserved when a migration is reworked).
+   */
+  readonly legacyChecksums?: readonly string[];
   readonly resources?: readonly string[];
   readonly dependencies?: readonly string[];
   /**
-   * Explicit checksum generated at build time from the migration source content.
-   * When provided, it is used as-is instead of being recomputed. This guarantees
-   * that two migrations with the same declared structure but different up()
-   * bodies produce different checksums. Generation is the responsibility of the
-   * build tooling (e.g. a hash of the migration module source).
+   * Explicit checksum generated at build time from the migration source
+   * content. When provided, it is used as-is instead of being recomputed.
+   * This guarantees that two migrations with the same declared structure but
+   * different up() bodies produce different checksums. Generation is the
+   * responsibility of the build tooling (`scripts/migration-checksums.ts`).
    */
   readonly checksum?: string;
 }
@@ -55,61 +46,41 @@ export interface RawMigration {
 /**
  * Loads a raw migration declaration into a typed `Migration`.
  *
- * Checksum strategy:
- * - Legacy SQL migrations: checksum of `content` (historical behavior, R2).
- * - TypeScript native migrations without `content`: checksum of the declared
- *   structure (id, resources, dependencies, kind, rawSql) — never the function
- *   body itself, as `Function.toString()` is not a stable content hash
- *   (reserve B from architectural review).
+ * Checksum strategy: the checksum is always explicit and provided at build
+ * time from the migration source. It is mandatory: a migration without a
+ * declared checksum is rejected (`MigrationChecksumError`), because a
+ * checksum computed from the function body (`Function.toString()`) is not
+ * stable across transpilation.
  */
-function stableStructureChecksum(raw: RawMigration): string {
-  return computeChecksum(
-    JSON.stringify({
-      id: raw.id,
-      kind: raw.kind,
-      resources: raw.resources ?? [],
-      dependencies: raw.dependencies ?? [],
-      rawSql: raw.rawSql,
-    }),
-  );
-}
-
 export function loadMigration(raw: RawMigration): Migration {
-  const kind = raw.kind ?? "sql";
+  // The engine only accepts TypeScript native migrations.
+  assertTypeScriptNativeMigration(raw, raw?.id ?? "<unknown>");
 
-  // Checksum resolution order:
-  // 1. Explicit checksum provided at build time (required for TypeScript
-  //    native migrations; covers the actual source content).
-  // 2. Legacy SQL: checksum of content (historical behavior, R2).
-  // 3. TypeScript native without explicit checksum: ERROR — a build-time
-  //    checksum is mandatory for TypeScript migrations.
-  let checksum: string;
-  if (raw.checksum !== undefined && raw.checksum.length > 0) {
-    checksum = raw.checksum;
-  } else if (kind === "sql" && raw.content !== undefined) {
-    checksum = computeChecksum(raw.content);
-  } else if (kind === "typescript") {
-    throw new MigrationChecksumError(
-      raw.id,
-      "explicit build-time checksum",
-      "missing",
+  if (typeof raw.up !== "function") {
+    throw new MigrationError(
+      `Migration "${raw.id}" must declare an up(context) function: the engine only accepts ` +
+        `TypeScript native migrations.`,
     );
-  } else {
-    checksum = stableStructureChecksum(raw);
+  }
+
+  if (raw.checksum === undefined || raw.checksum.length === 0) {
+    throw new MigrationError(
+      `Migration "${raw.id}" must declare an explicit build-time checksum. ` +
+        `Run \`pnpm migration:checksums\` to compute it from the migration source.`,
+    );
   }
 
   const migration: Migration = {
     id: raw.id,
-    checksum,
-    kind,
+    checksum: raw.checksum,
     resources: raw.resources ?? [],
-    ...(raw.content !== undefined ? { content: raw.content } : {}),
-    ...(raw.down !== undefined ? { down: raw.down } : {}),
-    ...(raw.up !== undefined ? { up: raw.up as Migration["up"] } : {}),
+    up: raw.up as Migration["up"],
     ...(raw.downMigration !== undefined
       ? { downMigration: raw.downMigration as Migration["downMigration"] }
       : {}),
-    ...(raw.rawSql !== undefined ? { rawSql: raw.rawSql } : {}),
+    ...(raw.legacyChecksums !== undefined
+      ? { legacyChecksums: raw.legacyChecksums }
+      : {}),
     ...(raw.dependencies !== undefined
       ? { dependencies: raw.dependencies }
       : {}),
@@ -138,10 +109,7 @@ export class MigrationRegistry {
     const validator = new MigrationValidator();
     const batchResult = validator.validateBatch(pending);
     if (batchResult !== undefined) {
-      throw new MigrationValidationError(
-        pending[0]!.id,
-        batchResult.errors,
-      );
+      throw new MigrationValidationError(pending[0]!.id, batchResult.errors);
     }
 
     // Phase 3 : Vérifier les collisions d'identité avant l'enregistrement.

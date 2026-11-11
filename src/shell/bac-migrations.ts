@@ -7,35 +7,28 @@
  * BAC SQL content — each wave afterwards owns its schema (backlog
  * DB-BAC-OWNERSHIP).
  *
- * Phase-0 adaptations (envelope only, SQL bytes preserved):
+ * Phase-07 adaptations:
  *
- * 1. Canonical ids — the engine sorts the registry with `compareMigrationIds`,
+ * 1. TypeScript native migrations only — the engine no longer accepts the
+ *    SQL legacy mode (`content`/`down` strings). Every BAC provider now
+ *    declares `up(context)` / `downMigration(context)`; the engine compiles
+ *    the blueprints and the Runner executes the compiled statements.
+ * 2. Canonical ids — the engine sorts the registry with `compareMigrationIds`,
  *    which requires `owner.module.version.sequence_name` (4 dot-parts). The
- *    BAC providers ship 3-part ids (`citadelle.v1.001_…`) and the standalone
- *    files ship timestamp ids (`20260922161700_…`): registering them raw
- *    throws `Invalid migration id` from `registry.all()` as soon as 2+
- *    migrations are compared (verified by execution). Each migration is
- *    therefore re-exposed under a canonical id; checksums are recomputed from
- *    content at registration by `loadMigration`, so ledger integrity holds.
- * 2. `export const migration` files (beam, spaces, portfolio ×2) are wrapped
- *    in providers carrying their `ownerId` — same uniformisation, no SQL
- *    change.
- * 3. Subscription collision — `shell.core.v1.002` (already applied on
- *    `mosaix_dev`) owns `user_subscriptions` with an INTEGER-based schema
- *    while `subscription.v1.001` declares the same table with a divergent
- *    schema (BOOLEAN `cancel_at_period_end`), and `PostgresGrammar`
- *    emits plain `CREATE TABLE` (no `IF NOT EXISTS`): applying both would
- *    crash and risk data loss. Minimal decision, no data loss: the shell
- *    stays the temporary owner (see DB-BAC-OWNERSHIP note in
- *    `src/shell/database/core-migration.ts`), so the Phase-0 subscription
- *    migration ships every statement EXCEPT those creating
- *    `user_subscriptions` (its `CREATE TABLE`, its `CREATE INDEX … ON`, its
- *    `DROP TABLE` in `down` — a rollback must never drop the shell-owned
- *    table). Foreign keys FROM `invoices`/`metering_buckets` TO
- *    `user_subscriptions` are preserved: the shell creates that table first
- *    (rank 0 before rank 1), so the references resolve. Full ownership
- *    transfer (including the table) is the subscription wave's job.
- * 4. Postgres-only gating is decided by the caller
+ *    BAC migrations now carry that id in the module itself: the shell
+ *    registers them as they are and never re-invents their metadata
+ *    (`CanonicalIdProvider` / `StaticMigrationProvider` are gone).
+ * 3. Checksum continuity — the migrations converted from SQL strings keep
+ *    their historical checksum in `legacyChecksums`: the Planner accepts an
+ *    already-applied migration whose ledger checksum belongs to that list,
+ *    so existing databases are not rejected (`MigrationChecksumError`).
+ * 4. Subscription ownership — `shell.core.v1.002` owns `user_subscriptions`
+ *    (already applied on `mosaix_dev`) while the subscription BAC declares
+ *    a divergent schema (BOOLEAN `cancel_at_period_end` against INTEGER).
+ *    The exclusion is now effective by construction in the BAC itself
+ *    (`apps/subscription` never declares the table); the shell-side SQL
+ *    filter (`SubscriptionPhase0Provider`) is gone.
+ * 5. Postgres-only gating is decided by the caller
  *    (`createShellMigrationRegistry` registers BAC providers only for
  *    `dialect === "postgres"`): all 10 providers emit `PostgresGrammar` SQL
  *    (`JSONB`, `TIMESTAMP WITH TIME ZONE`, `ON DELETE CASCADE`) that was
@@ -63,6 +56,7 @@ import type {
   MigrationProvider,
   MigrationRegistry,
 } from "@mosaix/migrations";
+import { ManifestMigrationProvider } from "@mosaix/migrations";
 import { CitadellePostgresMigrationProvider } from "../../apps/citadelle/src/infrastructure/migrations.js";
 import { CommercePostgresMigrationProvider } from "../../apps/commerce/src/infrastructure/migrations.js";
 import { BookingPostgresMigrationProvider } from "../../apps/booking/src/infrastructure/migrations.js";
@@ -71,7 +65,10 @@ import { SolaraPostgresMigrationProvider } from "../../apps/solara/src/infrastru
 import { SolidarityPostgresMigrationProvider } from "../../apps/solidarity/src/infrastructure/migrations.js";
 import { SubscriptionPostgresMigrationProvider } from "../../apps/subscription/src/infrastructure/migrations.js";
 import { migration as beamMessagingMigration } from "../../apps/beam/src/infrastructure/migrations/20260922161700_create_beam_messaging_tables.js";
+import { migration as beamSchemaMigration } from "../../apps/beam/src/infrastructure/migrations/20260926090000_move_to_beam_schema.js";
 import { migration as spacesMigration } from "../../apps/spaces/src/infrastructure/migrations/20260922162100_create_spaces_tables.js";
+import { migration as spacesSchemaMigration } from "../../apps/spaces/src/infrastructure/migrations/20260926096000_move_to_spaces_schema.js";
+import { migration as spacesHardeningMigration } from "../../apps/spaces/src/infrastructure/migrations/20260926150000_harden_spaces.js";
 import { migration as portfolioTablesMigration } from "../../apps/portfolio/src/infrastructure/migrations/20260922162000_create_portfolio_tables.js";
 import { migration as portfolioProposalsMigration } from "../../apps/portfolio/src/infrastructure/migrations/20260924120000_create_portfolio_proposals.js";
 import { migration as portfolioSchemaMigration } from "../../apps/portfolio/src/infrastructure/migrations/20260925120000_move_to_portfolio_schema.js";
@@ -80,24 +77,23 @@ import { migration as portfolioNormalizeMigration } from "../../apps/portfolio/s
 import { migration as portfolioNormalizeFixesMigration } from "../../apps/portfolio/src/infrastructure/migrations/20261010100000_normalize_pim_fixes.js";
 import { migration as portfolioApprovalFieldsMigration } from "../../apps/portfolio/src/infrastructure/migrations/20261013010000_proposal_approval_fields.js";
 import { migration as portfolioTenantIdMigration } from "../../apps/portfolio/src/infrastructure/migrations/20261108120000_add_tenant_id_to_portfolio.js";
-import { migration as portfolioTenantIdMigration2 } from "../../apps/citadelle/src/infrastructure/migrations/20261108130000_create_mfa_secrets.js";
-import { migration as beamSchemaMigration } from "../../apps/beam/src/infrastructure/migrations/20260926090000_move_to_beam_schema.js";
 import { migration as bookingSchemaMigration } from "../../apps/booking/src/infrastructure/migrations/20260926091000_move_to_booking_schema.js";
 import { migration as bookingHardeningMigration } from "../../apps/booking/src/infrastructure/migrations/20260926140000_harden_booking.js";
 import { migration as commerceSchemaMigration } from "../../apps/commerce/src/infrastructure/migrations/20260926092000_move_to_commerce_schema.js";
 import { migration as commerceHardeningMigration } from "../../apps/commerce/src/infrastructure/migrations/20260926110000_harden_commerce.js";
 import { migration as commerceOrderStatusMigration } from "../../apps/commerce/src/infrastructure/migrations/20261013000000_order_pending_payment.js";
 import { migration as imperiaSchemaMigration } from "../../apps/imperia/src/infrastructure/migrations/20260926093000_move_to_imperia_schema.js";
-import { migration as solaraSchemaMigration } from "../../apps/solara/src/infrastructure/migrations/20260926094000_move_to_solara_schema.js";
-import { migration as solaraHardeningMigration } from "../../apps/solara/src/infrastructure/migrations/20260926130000_harden_solara.js";
 import { migration as solidaritySchemaMigration } from "../../apps/solidarity/src/infrastructure/migrations/20260926095000_move_to_solidarity_schema.js";
 import { migration as solidarityAllocationsMigration } from "../../apps/solidarity/src/infrastructure/migrations/20261010090000_add_solidarity_allocations.js";
-import { migration as spacesSchemaMigration } from "../../apps/spaces/src/infrastructure/migrations/20260926096000_move_to_spaces_schema.js";
-import { migration as spacesHardeningMigration } from "../../apps/spaces/src/infrastructure/migrations/20260926150000_harden_spaces.js";
 import { migration as subscriptionSchemaMigration } from "../../apps/subscription/src/infrastructure/migrations/20260926097000_move_to_subscription_schema.js";
 import { migration as subscriptionHardeningMigration } from "../../apps/subscription/src/infrastructure/migrations/20260926160000_harden_subscription.js";
 
-/** Canonical Phase-0 ids (`owner.module.version.sequence_name`). */
+/**
+ * Reference of the canonical ids (`owner.module.version.sequence_name`) of
+ * the BAC migrations. The ids are declared by the migration modules
+ * themselves — this map is the shell-side index used by the tests to detect
+ * any drift between the shell and the applications.
+ */
 export const BAC_CANONICAL_IDS = {
   beam: "beam.messaging.v1.001_create_messaging_tables",
   beamSchema: "beam.messaging.v1.002_move_to_schema",
@@ -137,276 +133,64 @@ export const BAC_CANONICAL_IDS = {
 /** Registration rank for every BAC provider: after shell-core (rank 0). */
 export const BAC_MIGRATION_RANK = 1;
 
-/**
- * Re-exposes an inner provider's migrations under canonical ids.
- * Length guard: if a BAC wave adds a migration to the inner provider, this
- * throws loudly instead of silently mis-mapping ids.
- */
-class CanonicalIdProvider implements MigrationProvider {
-  constructor(
-    private readonly inner: MigrationProvider,
-    private readonly ids: readonly string[],
-  ) {}
-
-  ownerId(): string {
-    return this.inner.ownerId();
-  }
-
-  migrations(): readonly Migration[] {
-    const inner = this.inner.migrations();
-    if (inner.length !== this.ids.length) {
-      throw new Error(
-        `[bac-migrations] provider "${this.ownerId()}" now ships ${inner.length} migration(s), ` +
-          `Phase-0 mapping declares ${this.ids.length}: update the canonical id mapping.`,
-      );
-    }
-    return inner.map((migration, index) => ({
-      ...migration,
-      id: this.ids[index] as string,
-    }));
-  }
-}
-
-/** Wraps a standalone `export const migration` under an owner + canonical id. */
-class StaticMigrationProvider implements MigrationProvider {
-  constructor(
-    private readonly owner: string,
-    private readonly canonicalId: string,
-    private readonly migration: Migration,
-  ) {}
-
-  ownerId(): string {
-    return this.owner;
-  }
-
-  migrations(): readonly Migration[] {
-    return [{ ...this.migration, id: this.canonicalId }];
-  }
-}
-
-/**
- * True for statements that CREATE/INDEX/DROP the shell-owned
- * `user_subscriptions` table. Narrow on purpose: `CREATE TABLE "invoices"`
- * and `CREATE TABLE "metering_buckets"` reference `"user_subscriptions"` in
- * a `REFERENCES` clause and MUST be kept (the shell table exists first, so
- * those foreign keys resolve).
- */
-function isShellOwnedUserSubscriptionsStatement(statement: string): boolean {
-  return (
-    statement.includes('TABLE "user_subscriptions"') ||
-    statement.includes('ON "user_subscriptions"')
-  );
-}
-
-function withoutStatements(
-  sql: string,
-  exclude: (statement: string) => boolean,
-): string {
-  return sql
-    .split(";")
-    .map((statement) => statement.trim())
-    .filter((statement) => statement.length > 0 && !exclude(statement))
-    .map((statement) => `${statement};`)
-    .join("\n");
-}
-
-/**
- * Phase-0 subscription view: same provider, same SQL bytes for the kept
- * statements, minus every statement that would recreate the shell-owned
- * `user_subscriptions` table (up AND down — a rollback must never drop the
- * shell table). See module header §3 for the ownership decision.
- */
-class SubscriptionPhase0Provider implements MigrationProvider {
-  private readonly inner = new SubscriptionPostgresMigrationProvider();
-
-  ownerId(): string {
-    return "subscription";
-  }
-
-  migrations(): readonly Migration[] {
-    const inner = this.inner.migrations();
-    if (inner.length !== 1 || inner[0] === undefined) {
-      throw new Error(
-        `[bac-migrations] subscription provider shape changed (${inner.length} migration(s)): ` +
-          `update the Phase-0 user_subscriptions filter.`,
-      );
-    }
-    const migration = inner[0];
-    return [
-      {
-        ...migration,
-        id: BAC_CANONICAL_IDS.subscription,
-        content:
-          migration.content === undefined
-            ? undefined
-            : withoutStatements(
-                migration.content,
-                isShellOwnedUserSubscriptionsStatement,
-              ),
-        down:
-          migration.down === undefined
-            ? undefined
-            : withoutStatements(
-                migration.down,
-                isShellOwnedUserSubscriptionsStatement,
-              ),
-        resources: migration.resources.filter(
-          (resource) => resource !== "table:user_subscriptions",
-        ),
-      },
-    ];
-  }
-}
-
 /** The 10 BAC providers in deterministic (owner-alphabetical) order. */
 export function createBacMigrationProviders(): readonly MigrationProvider[] {
   return [
-    new StaticMigrationProvider(
-      "beam",
-      BAC_CANONICAL_IDS.beam,
+    new ManifestMigrationProvider("beam", [
       beamMessagingMigration,
-    ),
-    new StaticMigrationProvider(
-      "beam",
-      BAC_CANONICAL_IDS.beamSchema,
       beamSchemaMigration,
-    ),
-    new CanonicalIdProvider(new BookingPostgresMigrationProvider(), [
-      BAC_CANONICAL_IDS.booking,
     ]),
-    new StaticMigrationProvider(
-      "booking",
-      BAC_CANONICAL_IDS.bookingSchema,
+    new BookingPostgresMigrationProvider(),
+    new ManifestMigrationProvider("booking", [
       bookingSchemaMigration,
-    ),
-    new StaticMigrationProvider(
-      "booking",
-      BAC_CANONICAL_IDS.bookingHardening,
       bookingHardeningMigration,
-    ),
-    new CanonicalIdProvider(new CitadellePostgresMigrationProvider(), [
-      BAC_CANONICAL_IDS.citadelle,
-      BAC_CANONICAL_IDS.citadelleMfaSecrets,
     ]),
-    new CanonicalIdProvider(new CommercePostgresMigrationProvider(), [
-      BAC_CANONICAL_IDS.commerce,
-    ]),
-    new StaticMigrationProvider(
-      "commerce",
-      BAC_CANONICAL_IDS.commerceSchema,
+    new CitadellePostgresMigrationProvider(),
+    new CommercePostgresMigrationProvider(),
+    new ManifestMigrationProvider("commerce", [
       commerceSchemaMigration,
-    ),
-    new StaticMigrationProvider(
-      "commerce",
-      BAC_CANONICAL_IDS.commerceHardening,
       commerceHardeningMigration,
-    ),
-    new StaticMigrationProvider(
-      "commerce",
-      BAC_CANONICAL_IDS.commerceOrderStatus,
       commerceOrderStatusMigration,
-    ),
-    new CanonicalIdProvider(new ImperiaPostgresMigrationProvider(), [
-      BAC_CANONICAL_IDS.imperia,
     ]),
-    new StaticMigrationProvider(
-      "imperia",
-      BAC_CANONICAL_IDS.imperiaSchema,
-      imperiaSchemaMigration,
-    ),
-    new StaticMigrationProvider(
-      "portfolio",
-      BAC_CANONICAL_IDS.portfolioTables,
+    new ImperiaPostgresMigrationProvider(),
+    new ManifestMigrationProvider("imperia", [imperiaSchemaMigration]),
+    new ManifestMigrationProvider("portfolio", [
       portfolioTablesMigration,
-    ),
-    new StaticMigrationProvider(
-      "portfolio",
-      BAC_CANONICAL_IDS.portfolioProposals,
       portfolioProposalsMigration,
-    ),
-    new StaticMigrationProvider(
-      "portfolio",
-      BAC_CANONICAL_IDS.portfolioSchema,
       portfolioSchemaMigration,
-    ),
-    new StaticMigrationProvider(
-      "portfolio",
-      BAC_CANONICAL_IDS.portfolioHardening,
       portfolioHardeningMigration,
-    ),
-    new StaticMigrationProvider(
-      "portfolio",
-      BAC_CANONICAL_IDS.portfolioNormalize,
       portfolioNormalizeMigration,
-    ),
-    new StaticMigrationProvider(
-      "portfolio",
-      BAC_CANONICAL_IDS.portfolioNormalizeFixes,
       portfolioNormalizeFixesMigration,
-    ),
-    new StaticMigrationProvider(
-      "portfolio",
-      BAC_CANONICAL_IDS.portfolioApprovalFields,
       portfolioApprovalFieldsMigration,
-    ),
-    new StaticMigrationProvider(
-      "portfolio",
-      BAC_CANONICAL_IDS.portfolioTenantId,
       portfolioTenantIdMigration,
-    ),
-    new CanonicalIdProvider(new SolaraPostgresMigrationProvider(), [
-      BAC_CANONICAL_IDS.solara,
     ]),
-    new StaticMigrationProvider(
-      "solara",
-      BAC_CANONICAL_IDS.solaraSchema,
-      solaraSchemaMigration,
-    ),
-    new StaticMigrationProvider(
-      "solara",
-      BAC_CANONICAL_IDS.solaraHardening,
-      solaraHardeningMigration,
-    ),
-    new CanonicalIdProvider(new SolidarityPostgresMigrationProvider(), [
-      BAC_CANONICAL_IDS.solidarity,
-    ]),
-    new StaticMigrationProvider(
-      "solidarity",
-      BAC_CANONICAL_IDS.solidaritySchema,
+    new SolaraPostgresMigrationProvider(),
+    new SolidarityPostgresMigrationProvider(),
+    new ManifestMigrationProvider("solidarity", [
       solidaritySchemaMigration,
-    ),
-    new StaticMigrationProvider(
-      "solidarity",
-      BAC_CANONICAL_IDS.solidarityAllocations,
       solidarityAllocationsMigration,
-    ),
-    new StaticMigrationProvider(
-      "spaces",
-      BAC_CANONICAL_IDS.spaces,
+    ]),
+    new ManifestMigrationProvider("spaces", [
       spacesMigration,
-    ),
-    new StaticMigrationProvider(
-      "spaces",
-      BAC_CANONICAL_IDS.spacesSchema,
       spacesSchemaMigration,
-    ),
-    new StaticMigrationProvider(
-      "spaces",
-      BAC_CANONICAL_IDS.spacesHardening,
       spacesHardeningMigration,
-    ),
-    new SubscriptionPhase0Provider(),
-    new StaticMigrationProvider(
-      "subscription",
-      BAC_CANONICAL_IDS.subscriptionSchema,
+    ]),
+    new SubscriptionPostgresMigrationProvider(),
+    new ManifestMigrationProvider("subscription", [
       subscriptionSchemaMigration,
-    ),
-    new StaticMigrationProvider(
-      "subscription",
-      BAC_CANONICAL_IDS.subscriptionHardening,
       subscriptionHardeningMigration,
-    ),
+    ]),
   ];
+}
+
+/**
+ * Every BAC migration, flattened — the shell-side view used by the tests to
+ * check the canonical ids and the resource ownership matrix.
+ */
+export function createBacMigrations(): readonly Migration[] {
+  return createBacMigrationProviders().flatMap((provider) =>
+    provider.migrations(),
+  );
 }
 
 /**

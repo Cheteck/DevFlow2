@@ -11,6 +11,7 @@
  */
 
 import type { SchemaBuilder } from "./schema-builder.js";
+import type { DataBuilder } from "./data-builder.js";
 
 /** Journalisation de migration. */
 export interface MigrationLogger {
@@ -33,33 +34,10 @@ export interface MigrationRuntime {
 }
 
 /**
- * Instruction SQL brute déclarée explicitement dans une migration.
- *
- * Doit être utilisée avec parcimonie, uniquement lorsque le DSL SchemaBuilder
- * ne suffit pas (ex. ALTER TYPE PostgreSQL, CREATE EXTENSION, index partiels).
- * Déclarer rawSql rend la migration dépendante d'un dialecte spécifique.
- */
-export interface RawSqlStatement {
-  readonly sql: string;
-  readonly params: readonly unknown[];
-  /** Dialecte cible. "both" signifie que le SQL est compatible les deux. */
-  readonly dialect: "sqlite" | "postgres" | "both";
-  /**
-   * Ressources SQL déclarées par cette instruction SQL brute.
-   * Doit être un sous-ensemble de migration.resources pour permettre
-   * la détection de collisions de ressources (R9).
-   */
-  readonly resources?: readonly string[];
-}
-
-/**
  * Accès base de données à privilèges contrôlés.
  *
  * Une migration ne doit pas utiliser cette interface pour exécuter du SQL
  * brut qui contournerait l'ownership d'une ressource appartenant à un autre
- * owner. Les instructions SQL brutes doivent passer par `rawSql`, déclaré
- * explicitement dans la migration et validé par le MigrationValidator
- * (Phase 04).
  *
  * Cette interface est un sous-ensemble contraduits de `DatabasePort` :
  * seule l'exécution d'instructions SQL déjà compilées est autorisée.
@@ -85,6 +63,12 @@ export interface MigrationDatabase {
  */
 export interface MigrationContext {
   readonly schema: SchemaBuilder;
+  /**
+   * Data statements (backfill, seed, normalization) — the Laravel
+   * `DB::table()` equivalent. Both builders write into the same ordered
+   * list of statements: the interleaving of DDL and DML is preserved.
+   */
+  readonly data: DataBuilder;
   readonly database: MigrationDatabase;
   readonly logger: MigrationLogger;
   readonly runtime: MigrationRuntime;

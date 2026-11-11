@@ -1,8 +1,11 @@
 /**
- * @mosaix/migrations — MigrationValidator tests (Phase 04).
+ * @mosaix/migrations — MigrationValidator tests (Phase 04, durci Phase 07).
  *
  * Tests négatifs : les déclarations invalides doivent être rejetées,
  * jamais interprétées silencieusement.
+ *
+ * Le moteur n'accepte QUE des migrations TypeScript natives : les
+ * déclarations SQL legacy (`content`, `down`, `kind`) sont rejetées.
  */
 
 import { describe, it, expect } from "vitest";
@@ -13,53 +16,72 @@ import type { MigrationProvider } from "./migration.js";
 function migration(overrides: Partial<Migration> = {}): Migration {
   return {
     id: "bac.citadelle.identity.v1.001_create_users",
-    checksum: "abc123",
-    kind: "sql",
+    checksum: "a1b2c3d4e5f6a7b8",
     resources: ["table:users"],
+    up: async () => {},
     ...overrides,
   };
 }
 
-// ─── Mode exclusif : SQL et TypeScript ne se mélangent pas ───
+// ─── TypeScript natif uniquement ───
 
-describe("Validator — exclusive mode", () => {
+describe("Validator — TypeScript native only", () => {
   const validator = new MigrationValidator();
 
-  it("rejette une migration déclarant à la fois content et up", () => {
-    const result = validator.validate({
-      ...migration(),
-      kind: "typescript",
-      content: "CREATE TABLE t (id TEXT);",
-      up: async () => {},
-    });
+  it("accepte une migration TypeScript native (up + checksum)", () => {
+    const result = validator.validate(migration());
 
-    expect(result.valid).toBe(false);
-    expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.errors[0]!.message).toContain("mutuellement exclusifs");
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
   });
 
-  it("accepte une migration SQL legacy (content seulement)", () => {
+  it("rejette une migration déclarant le SQL legacy 'content'", () => {
+    const result = validator.validate({
+      ...migration(),
+      content: "CREATE TABLE t (id TEXT);",
+    } as unknown as Migration);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]!.message).toContain("content");
+    expect(result.errors[0]!.message).toContain(
+      "only accepts TypeScript native migrations",
+    );
+  });
+
+  it("rejette une migration déclarant le SQL legacy 'down'", () => {
+    const result = validator.validate({
+      ...migration(),
+      down: "DROP TABLE t;",
+    } as unknown as Migration);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]!.message).toContain("down");
+  });
+
+  it("rejette une migration déclarant le discriminant 'kind'", () => {
     const result = validator.validate({
       ...migration(),
       kind: "sql",
-      content: "CREATE TABLE t (id TEXT);",
-      up: undefined,
-    });
+    } as unknown as Migration);
 
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]!.message).toContain("kind");
   });
+});
 
-  it("accepte une migration TypeScript native (up seulement)", () => {
+// ─── Corps d'upgrade ───
+
+describe("Validator — up body", () => {
+  const validator = new MigrationValidator();
+
+  it("rejette une migration sans fonction 'up'", () => {
     const result = validator.validate({
       ...migration(),
-      kind: "typescript",
-      checksum: "a1b2c3d4e5f6a7b8",
-      up: async () => {},
-    });
+      up: undefined,
+    } as unknown as Migration);
 
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.message.includes("'up'"))).toBe(true);
   });
 });
 
@@ -68,55 +90,73 @@ describe("Validator — exclusive mode", () => {
 describe("Validator — TypeScript rules", () => {
   const validator = new MigrationValidator();
 
-  it("rejette une migration kind typescript sans up", () => {
+  it("exige un checksum explicite", () => {
     const result = validator.validate({
       ...migration(),
-      kind: "typescript",
-      checksum: "build-hash-1234",
-      up: undefined,
-    });
-
-    expect(result.valid).toBe(false);
-    expect(result.errors[0]!.message).toContain("ne fournit pas de fonction 'up'");
-  });
-
-  it("rejette une migration kind typescript avec content", () => {
-    const result = validator.validate({
-      ...migration(),
-      kind: "typescript",
-      checksum: "build-hash-1234",
-      up: async () => {},
-      content: "CREATE TABLE t (id TEXT);",
-    });
-
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.message.includes("SQL legacy 'content'"))).toBe(true);
-  });
-
-  it("exige un checksum explicite pour TypeScript", () => {
-    // kind typescript avec checksum explicite valide : acceptée
-    const result = validator.validate({
-      ...migration(),
-      kind: "typescript",
-      checksum: "a1b2c3d4e5f6a7b8c9d0e1f2",
-      up: async () => {},
-    });
-
-    // Une migration TypeScript avec checksum valide et up est acceptée.
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
-  });
-
-  it("rejette une migration TypeScript sans checksum", () => {
-    const result = validator.validate({
-      ...migration(),
-      kind: "typescript",
       checksum: undefined,
-      up: async () => {},
+    } as unknown as Migration);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.message.includes("checksum"))).toBe(
+      true,
+    );
+  });
+
+  it("rejette un checksum qui n'est pas un digest hexadécimal", () => {
+    const result = validator.validate({
+      ...migration(),
+      checksum: "not-a-hex-digest",
     });
 
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.message.includes("checksum"))).toBe(true);
+    expect(result.errors.some((e) => e.message.includes("hexadécimal"))).toBe(
+      true,
+    );
+  });
+
+  it("accepte un checksum hexadécimal d'au moins 16 caractères", () => {
+    const result = validator.validate({
+      ...migration(),
+      checksum: "a1b2c3d4e5f6a7b8c9d0e1f2",
+    });
+
+    expect(result.valid).toBe(true);
+  });
+});
+
+// ─── legacyChecksums ───
+
+describe("Validator — legacy checksums", () => {
+  const validator = new MigrationValidator();
+
+  it("accepte des checksums historiques hexadécimaux", () => {
+    const result = validator.validate({
+      ...migration(),
+      legacyChecksums: ["227693bae95b7667"],
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejette un checksum historique non hexadécimal", () => {
+    const result = validator.validate({
+      ...migration(),
+      legacyChecksums: ["legacy"],
+    });
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some((e) => e.message.includes("legacyChecksums")),
+    ).toBe(true);
+  });
+
+  it("rejette le checksum courant déclaré comme checksum historique", () => {
+    const result = validator.validate({
+      ...migration(),
+      legacyChecksums: ["a1b2c3d4e5f6a7b8"],
+    });
+
+    expect(result.valid).toBe(false);
   });
 });
 
@@ -128,8 +168,6 @@ describe("Validator — dependencies", () => {
   it("rejette une dépendance sur soi-même", () => {
     const result = validator.validate({
       ...migration(),
-      kind: "sql",
-      content: "CREATE TABLE t (id TEXT);",
       dependencies: ["bac.citadelle.identity.v1.001_create_users"],
     });
 
@@ -140,8 +178,6 @@ describe("Validator — dependencies", () => {
   it("accepte des dépendances externes", () => {
     const result = validator.validate({
       ...migration(),
-      kind: "sql",
-      content: "CREATE TABLE t (id TEXT);",
       dependencies: ["framework.core.schema.v1.001_bootstrap"],
     });
 
@@ -156,12 +192,7 @@ describe("Validator — resources", () => {
   const validator = new MigrationValidator();
 
   it("rejette une migration sans ressources", () => {
-    const result = validator.validate({
-      ...migration(),
-      kind: "sql",
-      content: "CREATE TABLE t (id TEXT);",
-      resources: [],
-    });
+    const result = validator.validate({ ...migration(), resources: [] });
 
     expect(result.valid).toBe(false);
     expect(result.errors[0]!.message).toContain("ne déclare aucune ressource");
@@ -170,8 +201,6 @@ describe("Validator — resources", () => {
   it("accepte une migration avec ressources", () => {
     const result = validator.validate({
       ...migration(),
-      kind: "sql",
-      content: "CREATE TABLE t (id TEXT);",
       resources: ["table:users", "index:users.email"],
     });
 
@@ -190,8 +219,8 @@ describe("Validator — identity collision between providers", () => {
     migrations: () => [
       {
         id: "bac.citadelle.identity.v1.001_create_users",
-        kind: "sql",
-        content: "CREATE TABLE users (id TEXT PRIMARY KEY);",
+        checksum: "a1b2c3d4e5f6a7b8",
+        up: async () => {},
         resources: ["table:users"],
       },
     ],
@@ -202,15 +231,18 @@ describe("Validator — identity collision between providers", () => {
     migrations: () => [
       {
         id: "bac.citadelle.identity.v1.001_create_users",
-        kind: "sql",
-        content: "CREATE TABLE users (id TEXT PRIMARY KEY);",
+        checksum: "a1b2c3d4e5f6a7b8",
+        up: async () => {},
         resources: ["table:users"],
       },
     ],
   };
 
   it("détecte une collision d'identité entre deux providers", () => {
-    const result = validator.validateNoIdentityCollision([providerA, providerB]);
+    const result = validator.validateNoIdentityCollision([
+      providerA,
+      providerB,
+    ]);
 
     expect(result.valid).toBe(false);
     expect(result.errors.length).toBeGreaterThan(0);
@@ -223,14 +255,17 @@ describe("Validator — identity collision between providers", () => {
       migrations: () => [
         {
           id: "bac.commerce.shop.v1.001_create_orders",
-          kind: "sql",
-          content: "CREATE TABLE orders (id TEXT PRIMARY KEY);",
+          checksum: "a1b2c3d4e5f6a7b8",
+          up: async () => {},
           resources: ["table:orders"],
         },
       ],
     };
 
-    const result = validator.validateNoIdentityCollision([providerA, providerC]);
+    const result = validator.validateNoIdentityCollision([
+      providerA,
+      providerC,
+    ]);
 
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
@@ -249,20 +284,14 @@ describe("Validator — resource collision", () => {
     return { ownerId: () => ownerId, migrations: () => migrations };
   }
 
-  it("pas de faux positif : même ressource dans resources et rawSql.resources d'une même migration", () => {
+  it("pas de faux positif : même ressource déclarée une seule fois par migration", () => {
     const result = validator.validateNoResourceCollision([
       provider("bac.citadelle", [
         {
           id: "bac.citadelle.identity.v1.001_create_users",
-          kind: "sql",
-          content: "CREATE TABLE users (id TEXT PRIMARY KEY);",
+          checksum: "a1b2c3d4e5f6a7b8",
+          up: async () => {},
           resources: ["table:users"],
-          rawSql: {
-            sql: "ALTER TABLE users ADD COLUMN name TEXT;",
-            params: [],
-            dialect: "sqlite",
-            resources: ["table:users"],
-          },
         },
       ]),
     ]);
@@ -276,14 +305,14 @@ describe("Validator — resource collision", () => {
       provider("bac.citadelle", [
         {
           id: "bac.citadelle.identity.v1.001_create_users",
-          kind: "sql",
-          content: "CREATE TABLE users (id TEXT PRIMARY KEY);",
+          checksum: "a1b2c3d4e5f6a7b8",
+          up: async () => {},
           resources: ["table:users"],
         },
         {
           id: "bac.citadelle.identity.v1.002_add_column",
-          kind: "sql",
-          content: "ALTER TABLE users ADD COLUMN name TEXT;",
+          checksum: "a1b2c3d4e5f6a7b9",
+          up: async () => {},
           resources: ["table:users"],
         },
       ]),
@@ -298,16 +327,16 @@ describe("Validator — resource collision", () => {
       provider("bac.citadelle", [
         {
           id: "bac.citadelle.identity.v1.001_create_users",
-          kind: "sql",
-          content: "CREATE TABLE users (id TEXT PRIMARY KEY);",
+          checksum: "a1b2c3d4e5f6a7b8",
+          up: async () => {},
           resources: ["table:users"],
         },
       ]),
       provider("bac.commerce", [
         {
           id: "bac.commerce.shop.v1.001_create_users",
-          kind: "sql",
-          content: "CREATE TABLE users (id TEXT PRIMARY KEY);",
+          checksum: "a1b2c3d4e5f6a7b8",
+          up: async () => {},
           resources: ["table:users"],
         },
       ]),
@@ -324,16 +353,16 @@ describe("Validator — resource collision", () => {
       provider("bac.citadelle", [
         {
           id: "bac.citadelle.identity.v1.001_create_users",
-          kind: "sql",
-          content: "CREATE TABLE users (id TEXT PRIMARY KEY);",
+          checksum: "a1b2c3d4e5f6a7b8",
+          up: async () => {},
           resources: ["table:users"],
         },
       ]),
       provider("bac.commerce", [
         {
           id: "bac.commerce.shop.v1.001_create_orders",
-          kind: "sql",
-          content: "CREATE TABLE orders (id TEXT PRIMARY KEY);",
+          checksum: "a1b2c3d4e5f6a7b8",
+          up: async () => {},
           resources: ["table:orders"],
         },
       ]),
@@ -344,112 +373,60 @@ describe("Validator — resource collision", () => {
   });
 });
 
-// ─── Matrice stricte des modes de migration ───
+// ─── Le SQL brut est refusé ───
 
-describe("Validator — strict mode matrix", () => {
+describe("Validator — refus du SQL brut", () => {
   const validator = new MigrationValidator();
 
-  it("accepte kind typescript avec up et checksum", () => {
+  it("rejette une migration déclarant un `rawSql`", () => {
     const result = validator.validate({
-      id: "bac.citadelle.identity.v1.001_create_users",
-      kind: "typescript",
-      checksum: "a1b2c3d4e5f6a7b8",
-      up: async () => {},
-      resources: ["table:users"],
+      ...migration(),
+      rawSql: [
+        {
+          sql: "ALTER TABLE t ADD COLUMN x INT;",
+          params: [],
+          dialect: "sqlite",
+        },
+      ],
+    } as unknown as Parameters<typeof validator.validate>[0]);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some((e) =>
+        e.message.includes("TypeScript native migrations"),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejette une migration déclarant un `downRawSql`", () => {
+    const result = validator.validate({
+      ...migration(),
+      downRawSql: [{ sql: "DROP TABLE t;", params: [], dialect: "sqlite" }],
+    } as unknown as Parameters<typeof validator.validate>[0]);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.message.includes("downRawSql"))).toBe(
+      true,
+    );
+  });
+
+  it("rejette une migration déclarant l'ancien champ `content`", () => {
+    const result = validator.validate({
+      ...migration(),
+      content: "CREATE TABLE users (id TEXT);",
+    } as unknown as Parameters<typeof validator.validate>[0]);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.message.includes("content"))).toBe(true);
+  });
+
+  it("accepte une migration TypeScript native sans aucun champ SQL", () => {
+    const result = validator.validate({
+      ...migration(),
+      up: () => {},
     });
+
     expect(result.valid).toBe(true);
-  });
-
-  it("rejette kind typescript sans up", () => {
-    const result = validator.validate({
-      id: "bac.citadelle.identity.v1.001_create_users",
-      kind: "typescript",
-      checksum: "a1b2c3d4e5f6a7b8",
-      up: undefined,
-      resources: ["table:users"],
-    });
-    expect(result.valid).toBe(false);
-  });
-
-  it("rejette kind typescript avec content", () => {
-    const result = validator.validate({
-      id: "bac.citadelle.identity.v1.001_create_users",
-      kind: "typescript",
-      checksum: "a1b2c3d4e5f6a7b8",
-      up: async () => {},
-      content: "CREATE TABLE t (id TEXT);",
-      resources: ["table:users"],
-    });
-    expect(result.valid).toBe(false);
-  });
-
-  it("accepte kind sql avec content et sans up", () => {
-    const result = validator.validate({
-      id: "bac.citadelle.identity.v1.001_create_users",
-      kind: "sql",
-      content: "CREATE TABLE users (id TEXT PRIMARY KEY);",
-      up: undefined,
-      resources: ["table:users"],
-    });
-    expect(result.valid).toBe(true);
-  });
-
-  it("rejette kind sql sans content", () => {
-    const result = validator.validate({
-      id: "bac.citadelle.identity.v1.001_create_users",
-      kind: "sql",
-      content: undefined,
-      up: undefined,
-      resources: ["table:users"],
-    });
-    expect(result.valid).toBe(false);
-  });
-
-  it("rejette kind sql avec up", () => {
-    const result = validator.validate({
-      id: "bac.citadelle.identity.v1.001_create_users",
-      kind: "sql",
-      content: "CREATE TABLE users (id TEXT PRIMARY KEY);",
-      up: async () => {},
-      resources: ["table:users"],
-    });
-    expect(result.valid).toBe(false);
-  });
-
-  it("rejette typescript sans checksum", () => {
-    const result = validator.validate({
-      id: "bac.citadelle.identity.v1.001_create_users",
-      kind: "typescript",
-      checksum: undefined,
-      up: async () => {},
-      resources: ["table:users"],
-    });
-    expect(result.valid).toBe(false);
-  });
-
-  it("rejette sql avec downMigration (réservé au TypeScript)", () => {
-    const result = validator.validate({
-      id: "bac.citadelle.identity.v1.001_create_users",
-      kind: "sql",
-      content: "CREATE TABLE users (id TEXT PRIMARY KEY);",
-      downMigration: async () => {},
-      resources: ["table:users"],
-    });
-    expect(result.valid).toBe(false);
-  });
-
-  it("rejette sql avec rawSql (réservé au TypeScript)", () => {
-    const result = validator.validate({
-      id: "bac.citadelle.identity.v1.001_create_users",
-      kind: "sql",
-      content: "CREATE TABLE users (id TEXT PRIMARY KEY);",
-      rawSql: {
-        sql: "ALTER TABLE t ADD COLUMN x INT;",
-        params: [],
-        dialect: "sqlite",
-      },
-      resources: ["table:users"],
-    });
-    expect(result.valid).toBe(false);
+    expect(result.errors).toHaveLength(0);
   });
 });

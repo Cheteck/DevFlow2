@@ -24,10 +24,10 @@ function mockMigration(
 ): Migration {
   return {
     id,
-    content: "CREATE TABLE dummy;",
-    checksum: "hash",
+    checksum: "a1b2c3d4e5f6a7b8",
     resources: [],
     dependencies,
+    up: async () => {},
   };
 }
 
@@ -147,7 +147,7 @@ describe("SQLiteGrammar", () => {
 
   it("compiles createIndex and table alterations", () => {
     const schema = new SchemaBuilder();
-    schema.createIndex("users", "idx_users_email", ["email"], true);
+    schema.createIndex("users", "idx_users_email", ["email"], { unique: true });
     schema.dropTable("users");
     schema.addColumn("users", "phone", "string");
     schema.dropColumn("users", "phone");
@@ -218,7 +218,7 @@ describe("PostgresGrammar", () => {
 
   it("compiles createIndex and table alterations", () => {
     const schema = new SchemaBuilder();
-    schema.createIndex("users", "idx_users_email", ["email"], true);
+    schema.createIndex("users", "idx_users_email", ["email"], { unique: true });
     schema.dropTable("users");
     schema.addColumn("users", "phone", "string");
     schema.dropColumn("users", "phone");
@@ -304,8 +304,9 @@ describe("MigrationCLI (Phase 5 CLI command handlers)", () => {
     );
     expect(created.id).toBe("framework.database.v1.101_create_users");
     expect(created.content).toContain(
-      "-- Migration: framework.database.v1.101_create_users",
+      'id: "framework.database.v1.101_create_users"',
     );
+    expect(created.content).toContain("up: (context: MigrationContext)");
   });
 
   it("handles migrate, status, and rollback flows", async () => {
@@ -315,8 +316,16 @@ describe("MigrationCLI (Phase 5 CLI command handlers)", () => {
       migrations: () => [
         {
           id: "mosaix.core.v1.001_base",
-          content: "CREATE TABLE mosaix_core;",
+          checksum: "a1b2c3d4e5f6a7b8",
           resources: ["table:mosaix_core"],
+          up: async (context: MigrationContext) => {
+            context.schema.createTable("mosaix_core", (table) => {
+              table.string("id").primary();
+            });
+          },
+          downMigration: async (context: MigrationContext) => {
+            context.schema.dropTable("mosaix_core", { ifExists: true });
+          },
         },
       ],
     });
@@ -333,15 +342,16 @@ describe("MigrationCLI (Phase 5 CLI command handlers)", () => {
     // Migrate
     const migrationRes = await cli.migrate();
     expect(migrationRes.applied).toEqual(["mosaix.core.v1.001_base"]);
-    expect(db.executed).toEqual(["CREATE TABLE mosaix_core;"]);
+    expect(db.executed[0]).toContain("CREATE TABLE");
 
     // Post-migrate status
     status = await cli.status();
     expect(status[0]?.applied).toBe(true);
 
-    // Rollback
+    // Rollback: the migration declares a down body, it is undone.
     const rollbackRes = await cli.rollback();
-    expect(rollbackRes.rolledBack).toEqual([]);
+    expect(rollbackRes.rolledBack).toEqual(["mosaix.core.v1.001_base"]);
+    expect(db.executed.some((sql) => sql.includes("DROP TABLE"))).toBe(true);
   });
 });
 
@@ -353,9 +363,16 @@ describe("MigrationRunner (Phase 7 Production Hardening - dry-run & preview)", (
       migrations: () => [
         {
           id: "mosaix.core.v1.001_base",
-          content: "CREATE TABLE t1;",
-          down: "DROP TABLE t1;",
+          checksum: "a1b2c3d4e5f6a7b8",
           resources: ["table:t1"],
+          up: async (context: MigrationContext) => {
+            context.schema.createTable("t1", (table) => {
+              table.string("id").primary();
+            });
+          },
+          downMigration: async (context: MigrationContext) => {
+            context.schema.dropTable("t1", { ifExists: true });
+          },
         },
       ],
     });
@@ -368,7 +385,7 @@ describe("MigrationRunner (Phase 7 Production Hardening - dry-run & preview)", (
     const preview = await runner.previewSQL(plan);
     expect(preview).toHaveLength(1);
     expect(preview[0]?.id).toBe("mosaix.core.v1.001_base");
-    expect(preview[0]?.sql).toBe("CREATE TABLE t1;");
+    expect(preview[0]?.sql).toContain("CREATE TABLE");
   });
 
   it("executes the plan in dry-run mode without mutating state or acquiring locks", async () => {
@@ -378,9 +395,16 @@ describe("MigrationRunner (Phase 7 Production Hardening - dry-run & preview)", (
       migrations: () => [
         {
           id: "mosaix.core.v1.001_base",
-          content: "CREATE TABLE t1;",
-          down: "DROP TABLE t1;",
+          checksum: "a1b2c3d4e5f6a7b8",
           resources: ["table:t1"],
+          up: async (context: MigrationContext) => {
+            context.schema.createTable("t1", (table) => {
+              table.string("id").primary();
+            });
+          },
+          downMigration: async (context: MigrationContext) => {
+            context.schema.dropTable("t1", { ifExists: true });
+          },
         },
       ],
     });
@@ -398,7 +422,7 @@ describe("MigrationRunner (Phase 7 Production Hardening - dry-run & preview)", (
 
     expect(result.logs).toBeDefined();
     expect(result.logs![0]).toContain("Starting dry-run");
-    expect(result.logs![1]).toContain("CREATE TABLE t1;");
+    expect(result.logs![1]).toContain("CREATE TABLE");
     expect(result.logs![2]).toContain("Dry-run completed successfully");
   });
 });

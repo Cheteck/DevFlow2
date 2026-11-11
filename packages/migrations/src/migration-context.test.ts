@@ -1,20 +1,9 @@
-/**
- * @mosaix/migrations — MigrationContext contract tests (Phase 03).
- *
- * Validates the new native TypeScript migration contracts:
- * - MigrationContext, MigrationLogger, MigrationRuntime
- * - Migration.up(context) / down(context)? / rawSql
- * - Backward compatibility with SQL legacy migrations
- * - Mutual exclusivity of SQL and TypeScript modes
- */
-
 import { describe, it, expect } from "vitest";
-import { computeChecksum } from "./checksum.js";
 import {
-  loadMigration,
-  MigrationRegistry,
-} from "./registry.js";
-import type { Migration } from "./migration.js";
+  assertTypeScriptNativeMigration,
+  type Migration,
+} from "./migration.js";
+import { loadMigration, MigrationRegistry } from "./registry.js";
 import type { MigrationContext } from "./migration-context.js";
 import { SchemaBuilder } from "./schema-builder.js";
 
@@ -55,7 +44,6 @@ describe("MigrationContext (C01)", () => {
     expect(ctx.database.query).toBeInstanceOf(Function);
     expect(ctx.logger).toBeDefined();
     expect(ctx.logger.log).toBeInstanceOf(Function);
-    expect(ctx.logger.warn).toBeInstanceOf(Function);
     expect(ctx.logger.error).toBeInstanceOf(Function);
     expect(ctx.runtime).toBeDefined();
     expect(ctx.runtime.dialect).toBe("sqlite");
@@ -68,10 +56,14 @@ describe("MigrationContext (C01)", () => {
 describe("MigrationLogger (C02)", () => {
   it("can be implemented with any logging backend", () => {
     const messages: string[] = [];
-    const logger: { log: (m: string) => void; warn: (m: string) => void; error: (m: string) => void } = {
-      log: (m) => messages.push("LOG:" + m),
-      warn: (m) => messages.push("WARN:" + m),
-      error: (m) => messages.push("ERR:" + m),
+    const logger: {
+      log: (m: string) => void;
+      warn: (m: string) => void;
+      error: (m: string) => void;
+    } = {
+      log: (m) => messages.push(`LOG:${m}`),
+      warn: (m) => messages.push(`WARN:${m}`),
+      error: (m) => messages.push(`ERROR:${m}`),
     };
 
     logger.log("migration started");
@@ -80,15 +72,16 @@ describe("MigrationLogger (C02)", () => {
 
     expect(messages).toContain("LOG:migration started");
     expect(messages).toContain("WARN:low entropy");
-    expect(messages).toContain("ERR:failed");
+    expect(messages).toContain("ERROR:failed");
   });
 });
 
-// ─── C03: MigrationRuntime documented and typed ──────────────────────
+// ─── C03: MigrationRuntime documented and typed ───────────────────────
 
 describe("MigrationRuntime (C03)", () => {
   it("declares dialect and capabilities", () => {
     const ctx = buildContext();
+
     expect(typeof ctx.runtime.dialect).toBe("string");
     expect(typeof ctx.runtime.capabilities.transactions).toBe("boolean");
     expect(typeof ctx.runtime.capabilities.lock.distributed).toBe("boolean");
@@ -97,23 +90,22 @@ describe("MigrationRuntime (C03)", () => {
   });
 });
 
-// ─── C04: up(context) async supported contractually ──────────────────
+// ─── C04: up(context) async supported contractually ───────────────────
 
 describe("Migration.up(context) (C04)", () => {
   it("accepts an async function receiving MigrationContext", async () => {
     let received: MigrationContext | undefined;
     const migration: Migration = {
       id: "framework.core.schema.v1.001_test_async",
-      checksum: "abc",
-      resources: [],
-      kind: "typescript",
+      checksum: "a1b2c3d4e5f6a7b8",
+      resources: ["table:t"],
       up: async (context) => {
         received = context;
       },
     };
 
     const ctx = buildContext();
-    await migration.up!(ctx);
+    await migration.up(ctx);
     expect(received).toBe(ctx);
     expect(received!.schema).toBeDefined();
   });
@@ -122,29 +114,27 @@ describe("Migration.up(context) (C04)", () => {
     let called = false;
     const migration: Migration = {
       id: "framework.core.schema.v1.002_test_sync",
-      checksum: "def",
-      resources: [],
-      kind: "typescript",
+      checksum: "a1b2c3d4e5f6a7b8",
+      resources: ["table:t"],
       up: (context) => {
         called = true;
         expect(context.schema).toBeDefined();
       },
     };
 
-    await migration.up!(buildContext());
+    await migration.up(buildContext());
     expect(called).toBe(true);
   });
 });
 
-// ─── C05: down(context) optional ─────────────────────────────────────
+// ─── C05: downMigration optional ─────────────────────────────────────
 
 describe("Migration.downMigration (C05)", () => {
   it("is optional: migration without downMigration is valid", () => {
     const migration: Migration = {
       id: "framework.core.schema.v1.003_irreversible",
-      checksum: "ghi",
-      resources: [],
-      kind: "typescript",
+      checksum: "a1b2c3d4e5f6a7b8",
+      resources: ["table:t"],
       up: async () => {},
     };
 
@@ -154,9 +144,8 @@ describe("Migration.downMigration (C05)", () => {
   it("can declare a downMigration function", () => {
     const migration: Migration = {
       id: "framework.core.schema.v1.004_reversible",
-      checksum: "jkl",
-      resources: [],
-      kind: "typescript",
+      checksum: "a1b2c3d4e5f6a7b8",
+      resources: ["table:t"],
       up: async () => {},
       downMigration: async () => {},
     };
@@ -165,139 +154,178 @@ describe("Migration.downMigration (C05)", () => {
   });
 });
 
-// ─── C06: Legacy SQL migrations always valid ─────────────────────────
+// ─── C06: le mode SQL legacy a été retiré ─────────────────────────────
 
-describe("Legacy SQL migration (C06)", () => {
-  it("content string migration loads without up/down functions", () => {
+describe("SQL legacy mode removed (C06)", () => {
+  it("rejette une migration déclarant 'content'", () => {
     const registry = new MigrationRegistry();
-    registry.register({
-      ownerId: () => "framework.core",
-      migrations: () => [
-        {
-          id: "framework.core.schema.v1.010_legacy",
-          content: "CREATE TABLE legacy_table (id TEXT PRIMARY KEY);",
-          down: "DROP TABLE legacy_table;",
-          resources: ["table:legacy_table"],
-        },
-      ],
-    });
 
-    const migration = registry.get("framework.core.schema.v1.010_legacy");
-    expect(migration).toBeDefined();
-    expect(migration!.kind).toBe("sql");
-    expect(migration!.content).toBe("CREATE TABLE legacy_table (id TEXT PRIMARY KEY);");
-    expect(migration!.down).toBe("DROP TABLE legacy_table;");
-    expect(migration!.up).toBeUndefined();
+    expect(() =>
+      registry.register({
+        ownerId: () => "framework.core",
+        migrations: () =>
+          [
+            {
+              id: "framework.core.schema.v1.010_legacy",
+              content: "CREATE TABLE legacy_table (id TEXT PRIMARY KEY);",
+              resources: ["table:legacy_table"],
+            },
+          ] as never,
+      }),
+    ).toThrow(/only accepts TypeScript native migrations/);
   });
 
-  it("legacy migration with no down is valid", () => {
+  it("rejette une migration déclarant 'down'", () => {
     const registry = new MigrationRegistry();
-    registry.register({
-      ownerId: () => "framework.core",
-      migrations: () => [
-        {
-          id: "framework.core.schema.v1.011_legacy_no_down",
-          content: "CREATE TABLE t (id TEXT);",
-          resources: ["table:t"],
-        },
-      ],
-    });
 
-    const migration = registry.get("framework.core.schema.v1.011_legacy_no_down");
-    expect(migration!.down).toBeUndefined();
+    expect(() =>
+      registry.register({
+        ownerId: () => "framework.core",
+        migrations: () =>
+          [
+            {
+              id: "framework.core.schema.v1.011_legacy_no_down",
+              checksum: "a1b2c3d4e5f6a7b8",
+              up: async () => {},
+              down: "DROP TABLE legacy_table;",
+              resources: ["table:legacy_table"],
+            },
+          ] as never,
+      }),
+    ).toThrow(/only accepts TypeScript native migrations/);
   });
 });
 
-// ─── C07: TypeScript and SQL modes mutually exclusive ────────────────
+// ─── C07: contrat natif ───────────────────────────────────────────────
 
-describe("Mutual exclusivity (C07)", () => {
-  it("TypeScript migration declares up but no content", () => {
+describe("Native contract (C07)", () => {
+  it("accepte une migration TypeScript native (up, sans content)", () => {
     const migration: Migration = {
       id: "framework.core.schema.v1.020_ts_only",
-      checksum: "mno",
-      resources: [],
-      kind: "typescript",
+      checksum: "a1b2c3d4e5f6a7b8",
+      resources: ["table:t"],
       up: async () => {},
     };
 
-    expect(migration.kind).toBe("typescript");
     expect(migration.up).toBeInstanceOf(Function);
-    expect(migration.content).toBeUndefined();
+    expect("content" in migration).toBe(false);
   });
 
-  it("SQL migration declares content but no up", () => {
-    const migration: Migration = {
-      id: "framework.core.schema.v1.021_sql_only",
-      checksum: "pqr",
-      resources: [],
-      kind: "sql",
-      content: "CREATE TABLE t (id TEXT);",
-    };
-
-    expect(migration.kind).toBe("sql");
-    expect(migration.content).toBe("CREATE TABLE t (id TEXT);");
-    expect(migration.up).toBeUndefined();
+  it("rejette une migration qui déclare les deux modes", () => {
+    expect(() =>
+      assertTypeScriptNativeMigration(
+        {
+          id: "framework.core.schema.v1.021_mixed",
+          content: "CREATE TABLE t (id TEXT);",
+          up: async () => {},
+        },
+        "framework.core.schema.v1.021_mixed",
+      ),
+    ).toThrow(/only accepts TypeScript native migrations/);
   });
 });
 
-// ─── C08: rawSql explicitly declared ─────────────────────────────────
+// ─── C08: le SQL brut est refusé au chargement ───────────────────────
 
-describe("rawSql declaration (C08)", () => {
-  it("rawSql is optional and explicitly declared", () => {
+describe("refus du SQL brut (C08)", () => {
+  it("refuse une migration déclarant un `rawSql`", () => {
+    const registry = new MigrationRegistry();
+
+    expect(() =>
+      registry.register({
+        ownerId: () => "bac.citadelle",
+        migrations: () =>
+          [
+            {
+              id: "bac.citadelle.identity.v1.005_raw_sql",
+              checksum: "a1b2c3d4e5f6a7b8",
+              up: async () => {},
+              rawSql: [
+                {
+                  sql: "ALTER TABLE identities ADD COLUMN mfa_enabled INTEGER DEFAULT 0;",
+                  params: [],
+                  dialect: "sqlite",
+                },
+              ],
+              resources: ["table:identities"],
+            },
+          ] as unknown as Migration[],
+      }),
+    ).toThrow(/TypeScript native migrations/);
+  });
+
+  it("refuse une migration déclarant un `downRawSql`", () => {
+    const registry = new MigrationRegistry();
+
+    expect(() =>
+      registry.register({
+        ownerId: () => "bac.citadelle",
+        migrations: () =>
+          [
+            {
+              id: "bac.citadelle.identity.v1.006_down_raw_sql",
+              checksum: "a1b2c3d4e5f6a7b8",
+              up: async () => {},
+              downRawSql: [
+                {
+                  sql: "ALTER TABLE identities DROP COLUMN mfa_enabled;",
+                  params: [],
+                  dialect: "sqlite",
+                },
+              ],
+              resources: ["table:identities"],
+            },
+          ] as unknown as Migration[],
+      }),
+    ).toThrow(/TypeScript native migrations/);
+  });
+
+  it("accepte une migration TypeScript native (up + downMigration)", () => {
     const registry = new MigrationRegistry();
     registry.register({
       ownerId: () => "bac.citadelle",
       migrations: () => [
         {
-          id: "bac.citadelle.identity.v1.005_raw_sql",
-          kind: "typescript",
+          id: "bac.citadelle.identity.v1.007_native",
           checksum: "a1b2c3d4e5f6a7b8",
           up: async () => {},
-          rawSql: {
-            sql: "ALTER TABLE identities ADD COLUMN mfa_enabled INTEGER DEFAULT 0;",
-            params: [],
-            dialect: "sqlite",
-          },
+          downMigration: async () => {},
           resources: ["table:identities"],
         },
       ],
     });
 
-    const migration = registry.get("bac.citadelle.identity.v1.005_raw_sql");
-    expect(migration!.rawSql).toBeDefined();
-    expect(migration!.rawSql!.dialect).toBe("sqlite");
-    expect(migration!.rawSql!.sql).toContain("ALTER TABLE");
+    const migration = registry.get("bac.citadelle.identity.v1.007_native");
+    expect(migration).toBeDefined();
+    expect(migration!.downMigration).toBeDefined();
   });
 });
 
-// ─── C09: No historical ID modification ──────────────────────────────
+// ─── C09: checksum explicite au build ────────────────────────────────
 
 describe("Checksum explicit at build time (reserve P1)", () => {
   it("uses the explicit checksum provided at build time", () => {
     const migration = loadMigration({
       id: "bac.citadelle.identity.v1.010_checksum_explicit",
-      kind: "typescript",
-      checksum: "explicit-build-hash-1234",
+      checksum: "explicitbuildhash1234",
       resources: ["table:identities"],
       up: async () => {},
     });
 
-    expect(migration.checksum).toBe("explicit-build-hash-1234");
+    expect(migration.checksum).toBe("explicitbuildhash1234");
   });
 
   it("two migrations with same structure but different explicit checksums are distinct", () => {
     const migrationA = loadMigration({
       id: "bac.citadelle.identity.v1.011_checksum_a",
-      kind: "typescript",
-      checksum: "hash-a",
+      checksum: "aaaaaaaaaaaaaaaa",
       resources: ["table:identities"],
       up: async () => {},
     });
 
     const migrationB = loadMigration({
       id: "bac.citadelle.identity.v1.011_checksum_b",
-      kind: "typescript",
-      checksum: "hash-b",
+      checksum: "bbbbbbbbbbbbbbbb",
       resources: ["table:identities"],
       up: async () => {},
     });
@@ -305,61 +333,24 @@ describe("Checksum explicit at build time (reserve P1)", () => {
     expect(migrationA.checksum).not.toBe(migrationB.checksum);
   });
 
-  it("legacy SQL migration without explicit checksum computes from content", () => {
-    const migration = loadMigration({
-      id: "bac.citadelle.identity.v1.012_legacy_checksum",
-      content: "CREATE TABLE t (id TEXT);",
-      resources: ["table:t"],
-    });
-
-    expect(migration.checksum).toBe(computeChecksum("CREATE TABLE t (id TEXT);"));
+  it("rejects a TypeScript migration without explicit checksum", () => {
+    expect(() =>
+      loadMigration({
+        id: "bac.citadelle.identity.v1.012_no_checksum",
+        resources: ["table:identities"],
+        up: async () => {},
+      }),
+    ).toThrow(/explicit build-time checksum/);
   });
 });
 
-// ─── C09: No historical ID modification ──────────────────────────────
-
-describe("Historical IDs preserved (C09)", () => {
-  it("canonical BAC IDs are unchanged", () => {
-    const registry = new MigrationRegistry();
-    registry.register({
-      ownerId: () => "bac.citadelle",
-      migrations: () => [
-        {
-          id: "bac.citadelle.identity.v1.001_create_auth_tables",
-          content: "CREATE TABLE citadelle_audit_logs (id TEXT PRIMARY KEY);",
-          resources: ["table:citadelle_audit_logs"],
-        },
-      ],
-    });
-
-    const migration = registry.get("bac.citadelle.identity.v1.001_create_auth_tables");
-    expect(migration!.id).toBe("bac.citadelle.identity.v1.001_create_auth_tables");
-  });
-});
-
-// ─── C10: Compilation and compatibility tests ────────────────────────
+// ─── C10: compatibilité ascendante et collisions ──────────────────────
 
 describe("loadMigration compatibility (C10)", () => {
-  it("loads a legacy SQL raw migration", () => {
-    const loaded = loadMigration({
-      id: "bac.solara.social.v1.001_legacy",
-      content: "CREATE TABLE solara_posts (id TEXT PRIMARY KEY);",
-      down: "DROP TABLE solara_posts;",
-      resources: ["table:solara_posts"],
-    });
-
-    expect(loaded.kind).toBe("sql");
-    expect(loaded.content).toBe("CREATE TABLE solara_posts (id TEXT PRIMARY KEY);");
-    expect(loaded.down).toBe("DROP TABLE solara_posts;");
-    expect(loaded.up).toBeUndefined();
-    expect(loaded.checksum).toBeDefined();
-  });
-
   it("loads a TypeScript native raw migration", () => {
     let upCalled = false;
     const loaded = loadMigration({
       id: "bac.solara.social.v1.002_native",
-      kind: "typescript",
       checksum: "a1b2c3d4e5f6a7b8",
       up: async () => {
         upCalled = true;
@@ -367,14 +358,12 @@ describe("loadMigration compatibility (C10)", () => {
       resources: ["table:solara_posts"],
     });
 
-    expect(loaded.kind).toBe("typescript");
     expect(loaded.up).toBeInstanceOf(Function);
-    expect(loaded.content).toBeUndefined();
+    expect("content" in loaded).toBe(false);
     expect(loaded.checksum).toBeDefined();
 
-    // Execute the function to confirm it works
     const ctx = buildContext();
-    loaded.up!(ctx);
+    loaded.up(ctx);
     expect(upCalled).toBe(true);
   });
 
@@ -385,21 +374,25 @@ describe("loadMigration compatibility (C10)", () => {
       migrations: () => [
         {
           id: "bac.citadelle.identity.v1.001_create_auth_tables",
-          content: "CREATE TABLE t (id TEXT);",
-          resources: ["table:t"],
+          checksum: "a1b2c3d4e5f6a7b8",
+          up: async () => {},
+          resources: ["table:citadelle_audit_logs"],
         },
       ],
     });
 
-    expect(() => registry.register({
-      ownerId: () => "bac.commerce",
-      migrations: () => [
-        {
-          id: "bac.citadelle.identity.v1.001_create_auth_tables",
-          content: "CREATE TABLE t2 (id TEXT);",
-          resources: ["table:t2"],
-        },
-      ],
-    })).toThrow(/Migration conflict/);
+    expect(() =>
+      registry.register({
+        ownerId: () => "bac.commerce",
+        migrations: () => [
+          {
+            id: "bac.citadelle.identity.v1.001_create_auth_tables",
+            checksum: "a1b2c3d4e5f6a7b8",
+            up: async () => {},
+            resources: ["table:citadelle_audit_logs"],
+          },
+        ],
+      }),
+    ).toThrow(/Migration conflict/);
   });
 });

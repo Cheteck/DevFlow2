@@ -14,9 +14,25 @@ import {
   MigrationPlanner,
   MigrationRunner,
   SqlMigrationStore,
+  type MigrationRuntime,
   type RunResult,
 } from "@mosaix/migrations";
 import { createShellMigrationRegistry } from "./migration-registry.js";
+
+/**
+ * Runtime passed to the Planner: the Planner compiles the migrations, it
+ * therefore needs the dialect and the capabilities of the adapter that will
+ * execute the compiled statements.
+ */
+function runtimeOf(db: DatabasePort): MigrationRuntime {
+  return {
+    dialect: db.capabilities.dialect,
+    capabilities: {
+      transactions: db.capabilities.transactions,
+      lock: db.capabilities.lock,
+    },
+  };
+}
 
 /**
  * Apply pending shell migrations. Idempotent: a second call with no new
@@ -25,7 +41,7 @@ import { createShellMigrationRegistry } from "./migration-registry.js";
 export async function runShellMigrations(db: DatabasePort): Promise<RunResult> {
   const registry = createShellMigrationRegistry(db.capabilities.dialect);
   const store = new SqlMigrationStore(db);
-  const planner = new MigrationPlanner(registry, store);
+  const planner = new MigrationPlanner(registry, store, runtimeOf(db));
   const plan = await planner.plan();
   const runner = new MigrationRunner(db, store);
   const result = await runner.run(plan);
@@ -67,7 +83,7 @@ export async function getPendingMigrationIds(
     return registry.all().map((m) => m.id);
   }
   const store = new SqlMigrationStore(db);
-  const planner = new MigrationPlanner(registry, store);
+  const planner = new MigrationPlanner(registry, store, runtimeOf(db));
   const plan = await planner.plan();
   return plan.operations
     .filter((o) => o.operation === "up")

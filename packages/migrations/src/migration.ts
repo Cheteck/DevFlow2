@@ -11,10 +11,8 @@
  * names.
  */
 
-import type {
-  MigrationContext,
-  RawSqlStatement,
-} from "./migration-context.js";
+import { MigrationError } from "./errors.js";
+import type { MigrationContext } from "./migration-context.js";
 
 /** Canonical identity parts of a migration id. */
 export interface MigrationIdParts {
@@ -25,64 +23,100 @@ export interface MigrationIdParts {
   readonly name: string;
 }
 
-/** Mode d'exécution d'une migration. */
-export type MigrationKind = "sql" | "typescript";
+/**
+ * Fields of the retired SQL legacy mode.
+ *
+ * The engine accepts TypeScript native migrations ONLY. A migration
+ * declaring one of these fields is rejected — the rule is enforced in code
+ * (see {@link assertTypeScriptNativeMigration}), never merely documented.
+ *
+ * - `content` / `down` / `kind`: the historical SQL-string contract.
+ * - `rawSql` / `downRawSql`: the former raw-SQL escape hatch.
+ */
+export const LEGACY_SQL_FIELDS = [
+  "content",
+  "down",
+  "kind",
+  "rawSql",
+  "downRawSql",
+] as const;
+
+/**
+ * Rejects any declaration that carries the retired SQL legacy fields.
+ *
+ * @throws MigrationError when the candidate declares `content`, `down` or
+ *   `kind` — the engine only accepts TypeScript native migrations.
+ */
+export function assertTypeScriptNativeMigration(
+  candidate: unknown,
+  migrationId: string,
+): void {
+  if (typeof candidate !== "object" || candidate === null) {
+    throw new MigrationError(
+      `Migration "${migrationId}" must be an object describing a TypeScript native migration.`,
+    );
+  }
+  const record = candidate as Record<string, unknown>;
+  const found = LEGACY_SQL_FIELDS.filter(
+    (field) => record[field] !== undefined,
+  );
+  if (found.length > 0) {
+    throw new MigrationError(
+      `Migration "${migrationId}" declares ${found.join(", ")}: the migration engine only accepts ` +
+        `TypeScript native migrations (up(context) / downMigration(context)). ` +
+        `The SQL legacy mode has been removed.`,
+    );
+  }
+}
 
 /**
  * A single schema migration (up body, optional rollback, content checksum).
  *
- * Two execution modes are supported:
+ * The engine accepts TypeScript native migrations ONLY:
  *
- * 1. SQL legacy mode (`kind === "sql"`): `content` / `down` are raw SQL
- *    strings executed directly by the Runner. This is the historical format,
- *    preserved for backward compatibility.
- * 2. TypeScript native mode (`kind === "typescript"`): `up` / `downMigration`
- *    are functions receiving a `MigrationContext`. The Runner compiles the
- *    resulting blueprints via the Grammar before execution.
+ * 1. `up(context)` is the mandatory upgrade body. It receives a
+ *    `MigrationContext` and declares its schema changes through
+ *    `context.schema` (the SchemaBuilder DSL) and its data changes through
+ *    `context.data` (the data statements).
+ * 2. `downMigration(context)` is the optional rollback body. When absent
+ *    the migration is irreversible: a rollback is refused before any
+ *    mutation.
  *
- * The two modes are mutually exclusive: a migration must not declare both
- * `content` and `up`. This invariant is enforced by the MigrationValidator
- * (Phase 04), not by the type system alone.
+ * There is no raw SQL escape hatch: every statement is built from the
+ * structured primitives of the engine.
  */
 export interface Migration {
   readonly id: string;
-  /** Content checksum computed at load time (R2). */
+  /** Content checksum computed at build time (R2). */
   readonly checksum: string;
   /**
    * Blueprint of the SQL resources created by this migration (e.g.
-   * `["table:users", "index:users.email]`). Declared by the provider;
+   * `["table:users", "index:users.email"]`). Declared by the provider;
    * validated by the Planner for resource collisions (R9).
    */
   readonly resources: readonly string[];
   /** Optional list of named migrations or module versions this migration depends on. */
   readonly dependencies?: readonly string[];
   /**
-   * Execution mode discriminant. Defaults to `"sql"` for backward
-   * compatibility with historical migrations.
+   * Upgrade body. Receives the MigrationContext; the Planner compiles the
+   * declared blueprints into SQL statements before the Runner executes them.
    */
-  readonly kind?: MigrationKind;
-  // ── SQL legacy mode (kind === "sql") ──────────────────────────────
-  /** SQL executed on upgrade. Required when kind === "sql". */
-  readonly content?: string;
-  /** Optional SQL executed on rollback (dev-only, ADR-0006 §12). */
-  readonly down?: string;
-  // ── TypeScript native mode (kind === "typescript") ────────────────
+  readonly up: (context: MigrationContext) => Promise<void> | void;
   /**
-   * Upgrade function receiving a MigrationContext. Required when
-   * kind === "typescript".
-   */
-  readonly up?: (context: MigrationContext) => Promise<void> | void;
-  /**
-   * Optional rollback function receiving a MigrationContext. When absent,
-   * the migration is considered irreversible.
+   * Optional rollback body receiving a MigrationContext. When absent, the
+   * migration is irreversible.
    */
   readonly downMigration?: (context: MigrationContext) => Promise<void> | void;
   /**
-   * Optional raw SQL statement declared explicitly. Used when the DSL
-   * SchemaBuilder is insufficient (dialect-specific DDL, extensions, …).
-   * Declaring rawSql makes the migration dialect-dependent.
+   * Checksums previously recorded in the migration ledger for this
+   * migration id. Used when a migration is reworked (e.g. SQL string → Type
+   * native) without changing its historical identity: the Planner accepts an
+   * executed migration whose checksum belongs to this list.
+   *
+   * The declared `checksum` always remains the effective one — this list
+   * only widens the acceptance window for already-applied migrations.
    */
-  readonly rawSql?: RawSqlStatement;
+  readonly legacyChecksums?: readonly string[];
 }
 
 /**

@@ -14,20 +14,21 @@
 import type { Blueprint } from "./schema-builder.js";
 import type { Grammar, SqlStatement } from "./grammar.js";
 import type { Migration } from "./migration.js";
+import { assertTypeScriptNativeMigration } from "./migration.js";
 import type {
   MigrationContext,
   MigrationDatabase,
   MigrationLogger,
   MigrationRuntime,
 } from "./migration-context.js";
-import { MigrationError } from "./errors.js";
 import { SchemaBuilder } from "./schema-builder.js";
+import { DataBuilder } from "./data-builder.js";
 
 /**
  * Résultat de compilation d'une migration.
  *
  * Le `dialect` retourné correspond toujours au dialecte effectif des
- * instructions compilées (Grammar du compilateur + rawSql compatible).
+ * instructions compilées (Grammar du compilateur).
  * Il ne doit jamais différer du dialecte utilisé pour générer les statements.
  */
 export interface CompilationResult {
@@ -43,16 +44,18 @@ export interface CompilationResult {
  */
 class CompilationContext implements MigrationContext {
   readonly schema: SchemaBuilder;
+  readonly data: DataBuilder;
   readonly database: MigrationDatabase;
   readonly logger: MigrationLogger;
   readonly runtime: MigrationRuntime;
 
   constructor(runtime: MigrationRuntime) {
     this.schema = new SchemaBuilder();
+    this.data = new DataBuilder(this.schema);
     this.database = {
       execute: async () => {
         throw new Error(
-          "MigrationCompiler: database.execute() ne doit pas être appelé pendant la compilation. Utilisez rawSql pour le SQL dialecte spécifique.",
+          "MigrationCompiler: database.execute() ne doit pas être appelé pendant la compilation. Le schéma et les données se déclarent via context.schema et context.data.",
         );
       },
       query: async () => {
@@ -81,7 +84,6 @@ class CompilationContext implements MigrationContext {
  *
  * @constructor Vérifie à la construction la cohérence entre le dialecte du
  * Compiler, celui de la Grammar et celui du Runtime. Rejette explicitement
- * un rawSql dont le dialecte est incompatible avec le dialecte courant.
  */
 export class MigrationCompiler {
   constructor(
@@ -103,88 +105,63 @@ export class MigrationCompiler {
   }
 
   /**
-   * Vérifie que la migration est en mode TypeScript natif.
-   *
-   * @throws MigrationError si la migration n'est pas en kind "typescript".
-   */
-  private assertTypeScript(migration: Migration): void {
-    if (migration.kind !== "typescript") {
-      throw new Error(
-        `Migration "${migration.id}" n'est pas une migration TypeScript native (kind !== "typescript").`,
-      );
-    }
-  }
-
-  /**
    * Compile la partie up() d'une migration TypeScript native (version sync).
    *
-   * Les blueprints produits par up() sont compilés via la Grammar, puis les
-   * instructions rawSql déclarées explicitement sont ajoutées à la fin.
-   *
-   * @deprecated Utilisez {@link compileUpAsync} à la place. Le chemin
+   * @deprecated Utilisez {@link compileUpAsync} [à] la place. Le chemin
    *   asynchrone est le chemin canonique de compilation `up`.
    */
   compileUp(migration: Migration): CompilationResult {
-    this.assertTypeScript(migration);
+    assertTypeScriptNativeMigration(migration, migration.id);
     if (migration.up === undefined) {
-      throw new Error(
-        `Migration "${migration.id}" déclare kind "typescript" mais n'a pas de fonction up().`,
-      );
+      throw new Error(`Migration "${migration.id}" n'a pas de fonction up().`);
     }
 
     const ctx = new CompilationContext(this.runtime);
     const result = migration.up(ctx);
     if (result instanceof Promise) {
       throw new Error(
-        `Migration "${migration.id}" up() retourne une Promise. Utilisez compileUpAsync() à la place.`,
+        `Migration "${migration.id}" up() retourne une Promise. Utilisez compileUpAsync() [à] la place.`,
       );
     }
 
-    return this.buildResultWithRawSql(migration, ctx.schema.blueprints);
+    return this.buildResult(migration, ctx.schema.blueprints);
   }
 
   /**
    * Compile la partie up() d'une migration TypeScript native (version async).
    *
    * C'est le chemin canonique de compilation `up`. Il compile les blueprints
-   * produits par up() via la Grammar, puis intègre automatiquement les
-   * instructions rawSql déclarées (après les blueprints, dans l'ordre
-   * contractuel). Le dialecte retourné correspond au dialecte du compilateur.
+   * produits par up() via la Grammar — les instructions de schéma
+   * (`context.schema`) et de données (`context.data`) sont compilées dans
+   * l'ordre déclaré par la migration. Le dialecte retourné correspond au
+   * dialecte du compilateur.
    *
    * Contrairement à {@link compileUp}, cette méthode supporte les up()
-   * asynchrones. Contrairement à {@link compileUpWithRawSql}, elle est le
-   * point d'entrée recommandé : compileUpWithRawSql n'est qu'un alias.
+   * asynchrones.
    */
   async compileUpAsync(migration: Migration): Promise<CompilationResult> {
-    this.assertTypeScript(migration);
+    assertTypeScriptNativeMigration(migration, migration.id);
     if (migration.up === undefined) {
-      throw new Error(
-        `Migration "${migration.id}" déclare kind "typescript" mais n'a pas de fonction up().`,
-      );
+      throw new Error(`Migration "${migration.id}" n'a pas de fonction up().`);
     }
 
     const ctx = new CompilationContext(this.runtime);
     await migration.up(ctx);
-    return this.buildResultWithRawSql(migration, ctx.schema.blueprints);
+    return this.buildResult(migration, ctx.schema.blueprints);
   }
 
   /**
    * Compile la partie downMigration() d'une migration TypeScript native.
    *
-   * La méthode downMigration ne compile PAS les instructions rawSql :
-   * les instructions rawSql sont définies pour la phase up uniquement.
-   * Il n'y a pas de rollback automatique via rawSql : si aucune instruction
-   * inverse n'est déclarée (pas de downMigration), la migration reste
-   * irréversible et cette méthode retourne `undefined`.
-   *
-   * Une migration sans downMigration est considérée comme irréversible.
+   * Les blueprints produits par downMigration() sont compilés via la Grammar.
+   * Une migration sans downMigration est consid[ée]r[ée]e comme irr[ée]versible.
    */
   async compileDownAsync(
     migration: Migration,
   ): Promise<CompilationResult | undefined> {
-    this.assertTypeScript(migration);
+    assertTypeScriptNativeMigration(migration, migration.id);
     if (migration.downMigration === undefined) {
-      return undefined; // migration irréversible
+      return undefined; // migration irr[ée]versible
     }
 
     const ctx = new CompilationContext(this.runtime);
@@ -193,99 +170,12 @@ export class MigrationCompiler {
   }
 
   /**
-   * Compile une migration SQL legacy (content string) en une seule statement.
-   * Le SQL n'est pas parsé : il est retourné tel quel.
+   * Construit le résultat de compilation d'une migration TypeScript.
+   *
+   * Les blueprints du SchemaBuilder sont compilés par la Grammar ; les
+   * instructions de données (`context.data`) suivent les blueprints, dans
+   * l'ordre déclaré par la migration.
    */
-  compileSql(migration: Migration): CompilationResult {
-    if (migration.content === undefined) {
-      throw new Error(
-        `Migration "${migration.id}" n'a pas de content à compiler.`,
-      );
-    }
-
-    return {
-      migrationId: migration.id,
-      statements: [{ sql: migration.content, params: [] }],
-      dialect: this.dialect,
-    };
-  }
-
-  /**
-   * Compile une migration TypeScript native en SqlStatement[], y compris
-   * les instructions rawSql déclarées explicitement.
-   *
-   * Les instructions rawSql sont compilées en SqlStatement supplémentaires,
-   * avec leur dialecte et leurs paramètres. Elles sont placées après les
-   * blueprints du SchemaBuilder.
-   *
-   * Cette méthode est un alias temporaire compatible de {@link compileUpAsync}.
-   * Elle est conservée pour les appelants existants. Le chemin canonique est
-   * compileUpAsync().
-   */
-  async compileUpWithRawSql(migration: Migration): Promise<CompilationResult> {
-    return this.compileUpAsync(migration);
-  }
-
-  /**
-   * Vérifie que le dialecte d'un rawSql est compatible avec le dialecte
-   * du compilateur.
-   *
-   * Si le dialecte du rawSql est "both", il est compatible avec tous les
-   * dialectes. Sinon, il doit correspondre exactement au dialecte du
-   * compilateur.
-   *
-   * @throws MigrationError si le dialecte du rawSql est incompatible.
-   */
-  private validateRawSqlDialect(migration: Migration): void {
-    if (!migration.rawSql) return;
-
-    const rawDialect = migration.rawSql.dialect;
-    if (rawDialect === "both") return; // Compatible avec tous les dialectes
-
-    if (rawDialect !== this.dialect) {
-      throw new MigrationError(
-        `Migration "${migration.id}" déclare un rawSql avec le dialect "${migration.rawSql.dialect}" ` +
-          `mais le compilateur utilise le dialect "${this.dialect}". ` +
-          `Le dialecte du rawSql doit être compatible avec celui du compilateur. ` +
-          `Utilisez "both" pour une compatibilité universelle.`,
-      );
-    }
-  }
-
-  /**
-   * Construit le résultat de compilation d'une migration TypeScript, y compris
-   * les instructions rawSql déclarées explicitement.
-   *
-   * Les blueprints du SchemaBuilder sont compilés en premier, puis les
-   * instructions rawSql sont ajoutées à la fin, avec leur dialecte propre.
-   */
-  private buildResultWithRawSql(
-    migration: Migration,
-    blueprints: readonly Blueprint[],
-  ): CompilationResult {
-    // Vérifier la compatibilité du dialecte du rawSql
-    this.validateRawSqlDialect(migration);
-
-    const statements: SqlStatement[] = [];
-    for (const bp of blueprints) {
-      statements.push(...this.grammar.compile(bp));
-    }
-
-    // Ajouter les instructions rawSql déclarées explicitement, après les blueprints
-    if (migration.rawSql) {
-      statements.push({
-        sql: migration.rawSql.sql,
-        params: migration.rawSql.params,
-      });
-    }
-
-    return {
-      migrationId: migration.id,
-      statements,
-      dialect: this.dialect,
-    };
-  }
-
   private buildResult(
     migration: Migration,
     blueprints: readonly Blueprint[],

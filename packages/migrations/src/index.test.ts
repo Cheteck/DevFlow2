@@ -24,11 +24,45 @@ import type {
 
 function rawMigration(
   id: string,
-  content: string,
+  sql: string,
   resources: readonly string[] = ["table:default"],
-  down?: string,
+  downSql?: string,
 ) {
-  return { id, content, resources, ...(down !== undefined ? { down } : {}) };
+  // The SQL is only used as the checksum input (the historical contract);
+  // the statements themselves are declared with the SchemaBuilder DSL.
+  const table = resources[0]?.replace(/^table:/, "") ?? "default";
+  const isSeed = sql.trim().toUpperCase().startsWith("INSERT");
+  return {
+    id,
+    checksum: computeChecksum(sql),
+    resources,
+    up: (context: MigrationContext) => {
+      if (isSeed) {
+        context.data.insert(table, { id: "1" });
+        return;
+      }
+      context.schema.createTable(table, (t) => {
+        t.string("id").primary();
+      });
+    },
+    ...(downSql !== undefined
+      ? {
+          downMigration: (context: MigrationContext) => {
+            if (isSeed) {
+              context.data.delete(table, [
+                {
+                  kind: "equals",
+                  column: "id",
+                  value: { kind: "literal", value: "1" },
+                },
+              ]);
+              return;
+            }
+            context.schema.dropTable(table, { ifExists: true });
+          },
+        }
+      : {}),
+  };
 }
 
 function frameworkProvider(
@@ -375,7 +409,8 @@ describe("runner — executes the plan only (R13)", () => {
     const result = await runner.run(plan);
 
     expect(result.applied).toEqual(["mosaix.core.v1.001_base"]);
-    expect(db.committed).toEqual(["CREATE TABLE core;"]);
+    expect(db.committed).toHaveLength(1);
+    expect(db.committed[0]).toContain("CREATE TABLE");
     const recorded = await store.get("mosaix.core.v1.001_base");
     expect(recorded?.owner).toBe("mosaix");
     expect(recorded?.checksum).toBe(
@@ -415,7 +450,8 @@ describe("runner — executes the plan only (R13)", () => {
     const result = await runner.run(plan);
 
     expect(result.rolledBack).toEqual(["mosaix.core.v1.001_base"]);
-    expect(db.committed).toEqual(["DROP TABLE core;"]);
+    expect(db.committed).toHaveLength(1);
+    expect(db.committed[0]).toContain("DROP TABLE");
     expect(await store.get("mosaix.core.v1.001_base")).toBeUndefined();
   });
 });
@@ -434,10 +470,9 @@ describe("runner — transactions and batches (T-MIG-1)", () => {
       "mosaix.core.v1.001_base",
       "mosaix.core.v1.002_seed",
     ]);
-    expect(db.committed).toEqual([
-      "CREATE TABLE core;",
-      "INSERT INTO core VALUES (1);",
-    ]);
+    expect(db.committed).toHaveLength(2);
+    expect(db.committed[0]).toContain("CREATE TABLE");
+    expect(db.committed[1]).toContain("INSERT INTO");
   });
 
   it("assigns the same batch id to all migrations of one run (PRD §30)", async () => {
@@ -573,7 +608,6 @@ describe("integration — validation blocks execution", () => {
     // Migration invalide : kind "sql" sans content
     const invalidMigration = {
       id: "mosaix.core.v1.999_invalid",
-      kind: "sql",
       resources: ["table:invalid"],
     };
 
@@ -605,12 +639,18 @@ describe("integration — validation blocks execution", () => {
     const registry = new MigrationRegistry();
     const store = new InMemoryMigrationStore();
 
-    // Migration valide : kind "sql" avec content et resources
+    // Migration valide : TypeScript native avec checksum explicite
     const validMigration = {
       id: "mosaix.core.v1.001_valid",
-      kind: "sql",
-      content: "CREATE TABLE valid_table (id TEXT PRIMARY KEY);",
+      checksum: computeChecksum(
+        "CREATE TABLE valid_table (id TEXT PRIMARY KEY);",
+      ),
       resources: ["table:valid_table"],
+      up: (context: MigrationContext) => {
+        context.schema.createTable("valid_table", (table) => {
+          table.string("id").primary();
+        });
+      },
     };
 
     // Le register doit accepter

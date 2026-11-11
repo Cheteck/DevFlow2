@@ -34,21 +34,9 @@ function testRuntimePostgres(): MigrationRuntime {
 function tsMigration(overrides: Partial<Migration> = {}): Migration {
   return {
     id: "bac.citadelle.identity.v1.001_create_users",
-    checksum: "build-hash-1234",
-    kind: "typescript",
+    checksum: "a1b2c3d4e5f6a7b8",
     resources: ["table:users"],
     up: async () => {},
-    ...overrides,
-  };
-}
-
-function sqlMigration(overrides: Partial<Migration> = {}): Migration {
-  return {
-    id: "bac.citadelle.identity.v1.001_create_users",
-    checksum: "abc",
-    kind: "sql",
-    resources: ["table:users"],
-    content: "CREATE TABLE users (id TEXT PRIMARY KEY);",
     ...overrides,
   };
 }
@@ -75,34 +63,19 @@ describe("Compiler — SQLite", () => {
 
     const result = await compiler.compileUpAsync(migration);
 
-    expect(result.migrationId).toBe("bac.citadelle.identity.v1.001_create_users");
+    expect(result.migrationId).toBe(
+      "bac.citadelle.identity.v1.001_create_users",
+    );
     expect(result.dialect).toBe("sqlite");
     expect(result.statements.length).toBeGreaterThan(0);
     expect(result.statements[0]!.sql).toContain('CREATE TABLE "users"');
   });
 
-  it("compile une migration SQL legacy tel quel", () => {
-    const migration = sqlMigration();
-    const result = compiler.compileSql(migration);
-
-    expect(result.statements).toHaveLength(1);
-    expect(result.statements[0]!.sql).toBe("CREATE TABLE users (id TEXT PRIMARY KEY);");
-    expect(result.statements[0]!.params).toEqual([]);
-  });
-
-  it("rejette une migration SQL legacy avec compileUp", () => {
-    const migration = sqlMigration();
-
-    expect(() => compiler.compileUp(migration)).toThrow(
-      /TypeScript native/,
-    );
-  });
-
-  it("rejette une migration TypeScript sans up", () => {
-    const migration: Migration = {
+  it("rejette une migration sans up()", () => {
+    const migration = {
       ...tsMigration(),
       up: undefined,
-    };
+    } as unknown as Migration;
 
     expect(() => compiler.compileUp(migration)).toThrow(/fonction up\(\)/);
   });
@@ -219,16 +192,69 @@ describe("Compiler — async up()", () => {
   });
 });
 
-// ─── rawSql dans le chemin canonique (compileUpAsync) ───
+// ─── Le SQL brut est refusé (règle inscrite dans le code) ───
 
-describe("Compiler — rawSql integration", () => {
+describe("Compiler — refus du SQL brut", () => {
   const compiler = new MigrationCompiler(
     new SQLiteGrammar(),
     "sqlite",
     testRuntime(),
   );
 
-  it("compileUpAsync retourne les blueprints et rawSql", async () => {
+  it("refuse une migration déclarant un `rawSql`", async () => {
+    const migration = {
+      ...tsMigration(),
+      up: async () => {},
+      rawSql: [
+        {
+          sql: "CREATE EXTENSION IF NOT EXISTS pgcrypto;",
+          params: [],
+          dialect: "both",
+        },
+      ],
+    } as unknown as Migration;
+
+    await expect(compiler.compileUpAsync(migration)).rejects.toThrow(
+      /TypeScript native migrations/,
+    );
+  });
+
+  it("refuse une migration déclarant un `downRawSql`", async () => {
+    const migration = {
+      ...tsMigration(),
+      up: async () => {},
+      downMigration: async () => {},
+      downRawSql: [{ sql: "DROP TABLE users;", params: [], dialect: "both" }],
+    } as unknown as Migration;
+
+    await expect(compiler.compileDownAsync(migration)).rejects.toThrow(
+      /TypeScript native migrations/,
+    );
+  });
+
+  it("refuse une migration déclarant l'ancien champ `content`", async () => {
+    const migration = {
+      ...tsMigration(),
+      content: "CREATE TABLE users (id TEXT);",
+      up: async () => {},
+    } as unknown as Migration;
+
+    await expect(compiler.compileUpAsync(migration)).rejects.toThrow(
+      /TypeScript native migrations/,
+    );
+  });
+});
+
+// ─── Le DSL produit les instructions (chemin canonique) ───
+
+describe("Compiler — DSL et data API", () => {
+  const compiler = new MigrationCompiler(
+    new SQLiteGrammar(),
+    "sqlite",
+    testRuntime(),
+  );
+
+  it("compileUpAsync compile les blueprints du SchemaBuilder", async () => {
     const migration: Migration = {
       ...tsMigration(),
       resources: ["table:users", "table:audit_log"],
@@ -237,39 +263,31 @@ describe("Compiler — rawSql integration", () => {
           table.string("id").primary();
         });
       },
-      rawSql: {
-        sql: "CREATE EXTENSION IF NOT EXISTS pgcrypto;",
-        params: [],
-        dialect: "both",
-        resources: ["table:audit_log"],
-      },
     };
 
     const result = await compiler.compileUpAsync(migration);
 
     expect(result.statements.length).toBeGreaterThan(0);
-    // La dernière statement doit être le rawSql
-    const lastStmt = result.statements[result.statements.length - 1]!;
-    expect(lastStmt.sql).toContain("CREATE EXTENSION");
+    expect(result.statements[0]!.sql).toContain("CREATE TABLE");
   });
 
-  it("migration sans rawSql conserve son comportement", async () => {
+  it("compileUpAsync compile les instructions de données (context.data)", async () => {
     const migration: Migration = {
       ...tsMigration(),
+      resources: ["table:audit_log"],
       up: async (context) => {
-        context.schema.createTable("users", (table) => {
-          table.string("id").primary();
-        });
+        context.data.insert("audit_log", { id: "1", action: "login" });
       },
     };
 
     const result = await compiler.compileUpAsync(migration);
 
-    expect(result.statements.length).toBeGreaterThan(0);
-    expect(result.dialect).toBe("sqlite");
+    expect(result.statements.length).toBe(1);
+    expect(result.statements[0]!.sql).toContain("INSERT INTO");
+    expect(result.statements[0]!.params).toEqual(["1", "login"]);
   });
 
-  it("instructions rawSql après les blueprints (ordre contractuel)", async () => {
+  it("les instructions de données suivent les blueprints (ordre contractuel)", async () => {
     const migration: Migration = {
       ...tsMigration(),
       resources: ["table:users"],
@@ -277,18 +295,12 @@ describe("Compiler — rawSql integration", () => {
         context.schema.createTable("users", (table) => {
           table.string("id").primary();
         });
-      },
-      rawSql: {
-        sql: "ALTER TABLE users ADD COLUMN name TEXT;",
-        params: [],
-        dialect: "both",
-        resources: ["table:users"],
+        context.schema.addColumn("users", "name", "string");
       },
     };
 
     const result = await compiler.compileUpAsync(migration);
 
-    // Le rawSql doit être après les blueprints du SchemaBuilder
     const createTableStmt = result.statements.find((s) =>
       s.sql.toUpperCase().includes("CREATE TABLE"),
     );
@@ -297,9 +309,9 @@ describe("Compiler — rawSql integration", () => {
     );
     expect(createTableStmt).toBeDefined();
     expect(alterStmt).toBeDefined();
-    const createIdx = result.statements.indexOf(createTableStmt!);
-    const alterIdx = result.statements.indexOf(alterStmt!);
-    expect(alterIdx).toBeGreaterThan(createIdx);
+    expect(result.statements.indexOf(alterStmt!)).toBeGreaterThan(
+      result.statements.indexOf(createTableStmt!),
+    );
   });
 
   it("chemin synchrone et asynchrone produisent le même résultat", async () => {
@@ -309,12 +321,7 @@ describe("Compiler — rawSql integration", () => {
         context.schema.createTable("users", (table) => {
           table.string("id").primary();
         });
-      },
-      rawSql: {
-        sql: "ALTER TABLE users ADD COLUMN name TEXT;",
-        params: [],
-        dialect: "both",
-        resources: ["table:users"],
+        context.schema.addColumn("users", "name", "string");
       },
     };
 
@@ -334,9 +341,7 @@ describe("Compiler — rawSql integration", () => {
 // ─── Cohérence des dialectes ───
 
 describe("Compiler — dialect consistency", () => {
-  function makeCompiler(
-    dialect: "sqlite" | "postgres",
-  ): MigrationCompiler {
+  function makeCompiler(dialect: "sqlite" | "postgres"): MigrationCompiler {
     return new MigrationCompiler(
       dialect === "sqlite" ? new SQLiteGrammar() : new PostgresGrammar(),
       dialect,
@@ -344,91 +349,106 @@ describe("Compiler — dialect consistency", () => {
     );
   }
 
-  it("Compiler PostgreSQL + rawSql PostgreSQL : accepté", async () => {
+  it("Compiler PostgreSQL + DSL PostgreSQL : accepté", async () => {
     const compiler = makeCompiler("postgres");
     const migration: Migration = {
       ...tsMigration(),
-      kind: "typescript",
       resources: ["table:users"],
-      up: async () => {},
-      rawSql: {
-        sql: "CREATE EXTENSION IF NOT EXISTS pgcrypto;",
-        params: [],
-        dialect: "postgres",
-        resources: ["table:users"],
+      up: async (context) => {
+        context.schema.createTable("users", (table) => {
+          table.string("id").primary();
+        });
       },
     };
 
     const result = await compiler.compileUpAsync(migration);
     expect(result.dialect).toBe("postgres");
+    expect(result.statements[0]!.sql).toContain("VARCHAR(255)");
   });
 
-  it("Compiler SQLite + rawSql SQLite : accepté", async () => {
+  it("Compiler SQLite + DSL SQLite : accepté", async () => {
     const compiler = makeCompiler("sqlite");
     const migration: Migration = {
       ...tsMigration(),
-      kind: "typescript",
       resources: ["table:users"],
-      up: async () => {},
-      rawSql: {
-        sql: "ALTER TABLE users ADD COLUMN name TEXT;",
-        params: [],
-        dialect: "sqlite",
-        resources: ["table:users"],
+      up: async (context) => {
+        context.schema.createTable("users", (table) => {
+          table.string("id").primary();
+        });
       },
     };
 
     const result = await compiler.compileUpAsync(migration);
     expect(result.dialect).toBe("sqlite");
+    expect(result.statements[0]!.sql).toContain("TEXT");
   });
 
-  it("Compiler PostgreSQL + rawSql SQLite : rejeté", async () => {
-    const compiler = makeCompiler("postgres");
-    const migration: Migration = {
-      ...tsMigration(),
-      kind: "typescript",
-      resources: ["table:users"],
-      up: async () => {},
-      rawSql: {
-        sql: "ALTER TABLE users ADD COLUMN name TEXT;",
-        params: [],
-        dialect: "sqlite",
-        resources: ["table:users"],
-      },
-    };
-
-    await expect(compiler.compileUpAsync(migration)).rejects.toThrow(/dialect/);
-  });
-
-  it("Compiler SQLite + rawSql PostgreSQL : rejeté", async () => {
+  it("un blueprint PostgreSQL-only est refusé sur SQLite", async () => {
     const compiler = makeCompiler("sqlite");
     const migration: Migration = {
       ...tsMigration(),
-      kind: "typescript",
       resources: ["table:users"],
-      up: async () => {},
-      rawSql: {
-        sql: "CREATE EXTENSION IF NOT EXISTS pgcrypto;",
-        params: [],
-        dialect: "postgres",
-        resources: ["table:users"],
+      up: async (context) => {
+        context.schema.createTable("users", (table) => {
+          table.string("id").primary();
+        });
+        context.schema.createSchema("commerce");
       },
     };
 
-    await expect(compiler.compileUpAsync(migration)).rejects.toThrow(/dialect/);
+    await expect(compiler.compileUpAsync(migration)).rejects.toThrow(
+      /Unsupported blueprint type on sqlite/,
+    );
   });
 
-  it("rawSql dialect 'both' accepté par les deux compilateurs", async () => {
+  it("un blueprint PostgreSQL-only est accepté sur PostgreSQL", async () => {
+    const compiler = makeCompiler("postgres");
     const migration: Migration = {
       ...tsMigration(),
-      kind: "typescript",
+      resources: ["table:users"],
+      up: async (context) => {
+        context.schema.createSchema("commerce");
+      },
+    };
+
+    const result = await compiler.compileUpAsync(migration);
+    expect(result.dialect).toBe("postgres");
+    expect(result.statements[0]!.sql).toContain("CREATE SCHEMA");
+  });
+
+  it("une migration à dialecte non-SQL est refusée par les deux compilateurs", async () => {
+    const migration = {
+      ...tsMigration(),
       resources: ["table:users"],
       up: async () => {},
-      rawSql: {
-        sql: "ALTER TABLE users ADD COLUMN name TEXT;",
-        params: [],
-        dialect: "both",
-        resources: ["table:users"],
+      rawSql: [
+        {
+          sql: "ALTER TABLE users ADD COLUMN name TEXT;",
+          params: [],
+          dialect: "sqlite",
+        },
+      ],
+    } as unknown as Migration;
+
+    const sqliteCompiler = makeCompiler("sqlite");
+    await expect(sqliteCompiler.compileUpAsync(migration)).rejects.toThrow(
+      /TypeScript native migrations/,
+    );
+
+    const postgresCompiler = makeCompiler("postgres");
+    await expect(postgresCompiler.compileUpAsync(migration)).rejects.toThrow(
+      /TypeScript native migrations/,
+    );
+  });
+
+  it("le DSL est accepté par les deux compilateurs", async () => {
+    const migration: Migration = {
+      ...tsMigration(),
+      resources: ["table:users"],
+      up: async (context) => {
+        context.schema.createTable("users", (table) => {
+          table.string("id").primary();
+        });
       },
     };
 
