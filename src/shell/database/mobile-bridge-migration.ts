@@ -6,64 +6,17 @@
  * (`mosaix migrate`), tracked in the `mosaix_migrations` ledger.
  */
 import {
-  computeChecksum,
   type Migration,
+  type MigrationContext,
   type MigrationProvider,
 } from "@mosaix/migrations";
 
-export const MOBILE_BRIDGE_MIGRATION_ID = "shell.mobile.v1.001_create_mobile_bridge_tables";
+export const MOBILE_BRIDGE_MIGRATION_ID =
+  "shell.mobile.v1.001_create_mobile_bridge_tables";
 
-const UP = `
-CREATE TABLE IF NOT EXISTS oauth_auth_codes (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  code_challenge TEXT NOT NULL,
-  code_challenge_method TEXT NOT NULL DEFAULT 'S256',
-  expires_at INTEGER NOT NULL,
-  created_at INTEGER NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_oauth_auth_codes_user ON oauth_auth_codes (user_id);
-CREATE INDEX IF NOT EXISTS idx_oauth_auth_codes_expires ON oauth_auth_codes (expires_at);
-
-CREATE TABLE IF NOT EXISTS mobile_devices (
-  device_id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  fcm_token TEXT NOT NULL,
-  platform TEXT NOT NULL,
-  app_version TEXT,
-  os_version TEXT,
-  device_model TEXT,
-  subscribed_topics TEXT,
-  registered_at INTEGER NOT NULL,
-  last_active_at INTEGER NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_mobile_devices_user ON mobile_devices (user_id);
-
-CREATE TABLE IF NOT EXISTS refresh_token_sessions (
-  session_id TEXT PRIMARY KEY,
-  family_id TEXT NOT NULL,
-  user_id TEXT NOT NULL,
-  device_id TEXT NOT NULL,
-  current_refresh_token TEXT NOT NULL,
-  previous_refresh_tokens TEXT,
-  scope TEXT NOT NULL,
-  expires_at INTEGER NOT NULL,
-  is_revoked INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_refresh_token_sessions_user ON refresh_token_sessions (user_id);
-CREATE INDEX IF NOT EXISTS idx_refresh_token_sessions_family ON refresh_token_sessions (family_id);
-CREATE INDEX IF NOT EXISTS idx_refresh_token_sessions_token ON refresh_token_sessions (current_refresh_token);
-`;
-
-const DOWN = `
-DROP TABLE IF EXISTS refresh_token_sessions;
-DROP TABLE IF EXISTS mobile_devices;
-DROP TABLE IF EXISTS oauth_auth_codes;
-`;
+/* checksum:begin */
+export const MIGRATION_CHECKSUM = "8ea8f667263944fafca234659302671147b7096da4fb2cd5e9a47d5cdddc7793";
+/* checksum:end */
 
 export class MobileBridgeMigrationProvider implements MigrationProvider {
   ownerId(): string {
@@ -74,9 +27,99 @@ export class MobileBridgeMigrationProvider implements MigrationProvider {
     return [
       {
         id: MOBILE_BRIDGE_MIGRATION_ID,
-        content: UP,
-        down: DOWN,
-        checksum: computeChecksum(UP),
+        checksum: MIGRATION_CHECKSUM,
+        legacyChecksums: ["f15538e064f8e49d"],
+        up: (context: MigrationContext) => {
+          context.schema.createTable(
+            "oauth_auth_codes",
+            (table) => {
+              table.text("id").primary();
+              table.text("user_id");
+              table.text("code_challenge");
+              table.text("code_challenge_method").default("S256");
+              table.integer("expires_at");
+              table.integer("created_at");
+            },
+            { ifNotExists: true },
+          );
+          context.schema.createIndex(
+            "oauth_auth_codes",
+            "idx_oauth_auth_codes_user",
+            ["user_id"],
+            { ifNotExists: true },
+          );
+          context.schema.createIndex(
+            "oauth_auth_codes",
+            "idx_oauth_auth_codes_expires",
+            ["expires_at"],
+            { ifNotExists: true },
+          );
+
+          context.schema.createTable(
+            "mobile_devices",
+            (table) => {
+              table.text("device_id").primary();
+              table.text("user_id");
+              table.text("fcm_token");
+              table.text("platform");
+              table.text("app_version").nullable();
+              table.text("os_version").nullable();
+              table.text("device_model").nullable();
+              table.text("subscribed_topics").nullable();
+              table.integer("registered_at");
+              table.integer("last_active_at");
+            },
+            { ifNotExists: true },
+          );
+          context.schema.createIndex(
+            "mobile_devices",
+            "idx_mobile_devices_user",
+            ["user_id"],
+            { ifNotExists: true },
+          );
+
+          context.schema.createTable(
+            "refresh_token_sessions",
+            (table) => {
+              table.text("session_id").primary();
+              table.text("family_id");
+              table.text("user_id");
+              table.text("device_id");
+              table.text("current_refresh_token");
+              table.text("previous_refresh_tokens").nullable();
+              table.text("scope");
+              table.integer("expires_at");
+              table.integer("is_revoked").default(0);
+              table.integer("created_at");
+            },
+            { ifNotExists: true },
+          );
+          context.schema.createIndex(
+            "refresh_token_sessions",
+            "idx_refresh_token_sessions_user",
+            ["user_id"],
+            { ifNotExists: true },
+          );
+          context.schema.createIndex(
+            "refresh_token_sessions",
+            "idx_refresh_token_sessions_family",
+            ["family_id"],
+            { ifNotExists: true },
+          );
+          context.schema.createIndex(
+            "refresh_token_sessions",
+            "idx_refresh_token_sessions_token",
+            ["current_refresh_token"],
+            { ifNotExists: true },
+          );
+        },
+        downMigration: (context: MigrationContext) => {
+          context.schema.dropTable("refresh_token_sessions", {
+            ifExists: true,
+          });
+          context.schema.dropTable("mobile_devices", { ifExists: true });
+          context.schema.dropTable("oauth_auth_codes", { ifExists: true });
+        },
         resources: [
           "table:oauth_auth_codes",
           "table:mobile_devices",
