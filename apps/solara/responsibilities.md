@@ -38,6 +38,7 @@ Monte sur `RuntimeKernel` via conteneur enfant par tenant. Communique inter-apps
 ## Ecarts cible-vs-reel
 
 - [ ] `sponsoredPool` : formaliser la frontiere publicitaire (post sponsorise ≠ offre Commerce) ou extraire vers Billing/Ads plus tard.
+- [ ] Audit 2026-11-10 (42 constats : 5 P0 / 8 P1 / 16 P2 / 13 P3) : le BAC n'est pas branche sur la base en production, son namespace de permissions diverge de celui du shell, et la moderation n'est active sur aucun chemin de creation. Registre et preuves dans `backlog/` — voir `backlog/solara-audit-index.md`.
 
 ## Frontieres
 
