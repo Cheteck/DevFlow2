@@ -1,4 +1,9 @@
-import { computeChecksum, type Migration } from "@mosaix/migrations";
+import { type Migration, type MigrationContext } from "@mosaix/migrations";
+
+/* checksum:begin */
+export const MIGRATION_CHECKSUM =
+  "41c0923ac529f75a49048891214d704c923a89ea0e6dae9d1412978047d50eb3";
+/* checksum:end */
 
 /**
  * beam.messaging.v1.002 — move the 4 Beam tables from `public`
@@ -7,6 +12,24 @@ import { computeChecksum, type Migration } from "@mosaix/migrations";
  *
  * Data-preserving: SET SCHEMA + RENAME move rows, PKs, FKs (all intra-BAC),
  * indexes and constraints with the table. Postgres-only.
+ *
+ * The SchemaBuilder DSL cannot express `SET SCHEMA`: the DDL is therefore
+ * declared explicitly as raw SQL (PostgreSQL only), the documented escape
+ * hatch of the engine for dialect-specific DDL.
+ *
+ * Historical note: this migration was previously declared as a raw SQL
+ * string (SQL legacy mode, removed from the engine). Its historical
+ * checksum is kept in `legacyChecksums` so that databases where it is
+ * already applied are not rejected by the Planner.
+ *
+ * The schema is declared with the SchemaBuilder DSL: the engine compiles the
+ * blueprints with the PostgreSQL grammar and executes the resulting
+ * statements. No SQL string is carried by the migration.
+ *
+ * Historical note: this migration was previously declared as a raw SQL
+ * string (SQL legacy mode, removed from the engine). Its historical
+ * checksum is kept in `legacyChecksums` so that databases where it is
+ * already applied are not rejected by the Planner.
  */
 
 const MOVES: Array<{ legacy: string; clean: string }> = [
@@ -16,29 +39,27 @@ const MOVES: Array<{ legacy: string; clean: string }> = [
   { legacy: "beam_push_subscriptions", clean: "push_subscriptions" },
 ];
 
-const upStatements: string[] = [`CREATE SCHEMA IF NOT EXISTS "beam";`];
-for (const table of MOVES) {
-  upStatements.push(
-    `ALTER TABLE IF EXISTS "public"."${table.legacy}" SET SCHEMA "beam";`,
-    `ALTER TABLE IF EXISTS "beam"."${table.legacy}" RENAME TO "${table.clean}";`,
-  );
-}
-
-const downStatements: string[] = [];
-for (const table of [...MOVES].reverse()) {
-  downStatements.push(
-    `ALTER TABLE IF EXISTS "beam"."${table.clean}" RENAME TO "${table.legacy}";`,
-    `ALTER TABLE IF EXISTS "beam"."${table.legacy}" SET SCHEMA "public";`,
-  );
-}
-
-const sqlContent = upStatements.join("\n");
-const sqlDown = downStatements.join("\n");
-
 export const migration: Migration = {
-  id: "20260926090000_move_to_beam_schema",
-  content: sqlContent,
-  down: sqlDown,
-  checksum: computeChecksum(sqlContent),
+  id: "beam.messaging.v1.002_move_to_schema",
+  checksum: MIGRATION_CHECKSUM,
+  legacyChecksums: ["9c84024ca9173299"],
   resources: MOVES.map((table) => `table:beam.${table.clean}`),
+  up: (context: MigrationContext) => {
+    context.schema.createSchema("beam");
+    for (const table of MOVES) {
+      context.schema.moveTableToSchema(table.legacy, "public", "beam");
+      // Same-name tables must NOT be renamed to themselves (Postgres error).
+      if (table.legacy !== table.clean) {
+        context.schema.renameTableInSchema("beam", table.legacy, table.clean);
+      }
+    }
+  },
+  downMigration: (context: MigrationContext) => {
+    for (const table of [...MOVES].reverse()) {
+      if (table.legacy !== table.clean) {
+        context.schema.renameTableInSchema("beam", table.clean, table.legacy);
+      }
+      context.schema.moveTableToSchema(table.legacy, "beam", "public");
+    }
+  },
 };

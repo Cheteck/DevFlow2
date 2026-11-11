@@ -1,5 +1,5 @@
 /**
- * @apps/citadelle — Postgres migration provider (Phase-0 BAC wiring).
+ * @apps/citadelle — Postgres migration manifest (Phase-0 BAC wiring).
  *
  * OWNERSHIP RÉSOLUE : le shell possède les tables d'authentification core
  * (`identities`, `credentials`, `sessions`, `tokens`, `external_identities`
@@ -17,13 +17,18 @@
  * via une migration `citadelle.auth.v1.002_...`.
  */
 import {
-  SchemaBuilder,
-  PostgresGrammar,
-  computeChecksum,
   type Migration,
+  type MigrationContext,
   type MigrationProvider,
 } from "@mosaix/migrations";
-import { migration as mfaSecretsMigration } from "./migrations/20261108130000_create_mfa_secrets.ts";
+import { migration as mfaSecretsMigration } from "./migrations/20261108130000_create_mfa_secrets.js";
+
+export const CITADELLE_MIGRATION_ID =
+  "citadelle.auth.v1.001_create_auth_tables";
+
+/* checksum:begin */
+export const MIGRATION_CHECKSUM = "e6248723a96eb3e8a572c2a21e14a11da545abfdbc7a3c8a26843bba74da6e2f";
+/* checksum:end */
 
 export class CitadellePostgresMigrationProvider implements MigrationProvider {
   ownerId(): string {
@@ -31,30 +36,22 @@ export class CitadellePostgresMigrationProvider implements MigrationProvider {
   }
 
   migrations(): readonly Migration[] {
-    const builder = new SchemaBuilder();
-    const grammar = new PostgresGrammar();
-
-    // No-op : tables d'auth core possédées par le shell (identities, credentials,
-    // sessions, tokens, external_identities). Cette migration existe uniquement
-    // pour satisfaire le garde de longueur Phase-0 (1 migration attendue).
-    builder.createTable("__citadelle_noop", (table) => {
-      table.string("placeholder").primary().default("migrated");
-    });
-
-    const statements = builder.blueprints.flatMap((bp) => grammar.compile(bp));
-    const sqlContent = statements.map((s) => s.sql).join("\n");
-
-    const downStatements = [
-      { type: "dropTable" as const, table: "__citadelle_noop" },
-    ].flatMap((bp) => grammar.compile(bp));
-    const downContent = downStatements.map((s) => s.sql).join("\n");
-
     return [
       {
-        id: "citadelle.auth.v1.001_create_auth_tables",
-        content: sqlContent,
-        down: downContent,
-        checksum: computeChecksum(sqlContent),
+        id: CITADELLE_MIGRATION_ID,
+        checksum: MIGRATION_CHECKSUM,
+        legacyChecksums: ["f27844be7badbd53"],
+        up: (context: MigrationContext) => {
+          // No-op : tables d'auth core possédées par le shell (identities, credentials,
+          // sessions, tokens, external_identities). Cette migration existe uniquement
+          // pour satisfaire le garde de longueur Phase-0 (1 migration attendue).
+          context.schema.createTable("__citadelle_noop", (table) => {
+            table.string("placeholder").primary().default("migrated");
+          });
+        },
+        downMigration: (context: MigrationContext) => {
+          context.schema.dropTable("__citadelle_noop");
+        },
         resources: ["table:__citadelle_noop"],
       },
       mfaSecretsMigration,

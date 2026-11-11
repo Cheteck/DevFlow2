@@ -1,11 +1,27 @@
-import { computeChecksum, type Migration } from "@mosaix/migrations";
+import type { Migration, MigrationContext } from "@mosaix/migrations";
+
+/* checksum:begin */
+export const MIGRATION_CHECKSUM =
+  "e2a3119dcff7f75caf0dc891e3a3e31e84977287744d37d59300fdab8396a587";
+/* checksum:end */
 
 /**
- * solara.social.v1.002 — move the 6 Solara tables from `public`
- * into the dedicated `solara` schema and strip the redundant prefix.
+ * solara.social.v1.002_move_to_schema
+ *
+ * Moves the six Solara tables from `public` into the dedicated `solara`
+ * schema and strips the redundant prefix.
  *
  * Data-preserving: SET SCHEMA + RENAME move rows, PKs, FKs (all intra-BAC),
- * indexes and constraints with the table. Postgres-only.
+ * indexes and constraints with the table.
+ *
+ * The schema is declared with the SchemaBuilder DSL: the engine compiles the
+ * blueprints with the PostgreSQL grammar and executes the resulting
+ * statements. No SQL string is carried by the migration.
+ *
+ * Historical note: this migration was previously declared as a raw SQL
+ * string (SQL legacy mode, removed from the engine). Its historical
+ * checksum is kept in `legacyChecksums` so that databases where it is
+ * already applied are not rejected by the Planner.
  */
 
 const MOVES: Array<{ legacy: string; clean: string }> = [
@@ -17,29 +33,22 @@ const MOVES: Array<{ legacy: string; clean: string }> = [
   { legacy: "solara_translations", clean: "translations" },
 ];
 
-const upStatements: string[] = [`CREATE SCHEMA IF NOT EXISTS "solara";`];
-for (const table of MOVES) {
-  upStatements.push(
-    `ALTER TABLE IF EXISTS "public"."${table.legacy}" SET SCHEMA "solara";`,
-    `ALTER TABLE IF EXISTS "solara"."${table.legacy}" RENAME TO "${table.clean}";`,
-  );
-}
-
-const downStatements: string[] = [];
-for (const table of [...MOVES].reverse()) {
-  downStatements.push(
-    `ALTER TABLE IF EXISTS "solara"."${table.clean}" RENAME TO "${table.legacy}";`,
-    `ALTER TABLE IF EXISTS "solara"."${table.legacy}" SET SCHEMA "public";`,
-  );
-}
-
-const sqlContent = upStatements.join("\n");
-const sqlDown = downStatements.join("\n");
-
 export const migration: Migration = {
-  id: "20260926094000_move_to_solara_schema",
-  content: sqlContent,
-  down: sqlDown,
-  checksum: computeChecksum(sqlContent),
+  id: "solara.social.v1.002_move_to_schema",
+  checksum: MIGRATION_CHECKSUM,
+  legacyChecksums: ["7c3518b3ffb0081d"],
   resources: MOVES.map((table) => `table:solara.${table.clean}`),
+  up: (context: MigrationContext) => {
+    context.schema.createSchema("solara");
+    for (const table of MOVES) {
+      context.schema.moveTableToSchema(table.legacy, "public", "solara");
+      context.schema.renameTableInSchema("solara", table.legacy, table.clean);
+    }
+  },
+  downMigration: (context: MigrationContext) => {
+    for (const table of [...MOVES].reverse()) {
+      context.schema.renameTableInSchema("solara", table.clean, table.legacy);
+      context.schema.moveTableToSchema(table.legacy, "solara", "public");
+    }
+  },
 };
