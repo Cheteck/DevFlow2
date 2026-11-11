@@ -62,5 +62,134 @@
 | PLG-07 | Diagnostic CLI & Guide développeur plugins | OPEN | P3 | Rédiger docs/plugins-guide.md et valider CLI plugin (GAP-PLG-01..05) |
 | MIG-IMMUT-01 | Garde CI : migrations appliquées immuables (snapshot checksums) | OPEN | P1 | Test snapshot des checksums du registre shell : toute édition en place d'une migration déjà appliquée (cf. incident `commerce.shop.v1.001` 2026-10-13) échoue en CI au lieu de casser le boot dev/prod |
 | CLI-MIGRATE-01 | CLI `migrate`/`rollback` sqlite : `database is not open` + seed vide | DONE | P1 | Corrigé 2026-10-14 : `closeCliDatabase()` (vide le cache bootstrap) dans les 8 `finally` CLI ; 19/19 `cli.test.ts` verts (repro + cycle migrate→seed→rollback prouvés) |
+| CLI-SEED-01 | Refactor seeder : SQL brut → InsertQueryBuilder typé (@mosaix/ports-database) | OPEN | P2 | Remplacer les 8 blocs INSERT SQL de `database-seeder.ts` par `InsertQueryBuilder` + `transaction()` pour l'atomicité |
 | OBS-METRICS-01 | Exporteur `/metrics` Prometheus absent (prétention fausse) | DONE | P2 | Livré 2026-10-14 : `GET /metrics` exposition texte (3 jauges process, sans couplage DB), testé (4 tests) + vérifié live 200 |
 | TEST-RED-01 | 5 tests rouges prouvés pré-existants (différentiel stash 2026-10-13) | DONE | P1 | Tous corrigés 2026-10-14 : CLI×3 (fermeture), FEAT-04 (await), plugin-e2e (devDep + contrat errors[]), http (clone hermétique) + durcissement timeout auction-wiring (flaky 5 s sous charge). Suite : voir §suivi |
+
+---
+
+## Tâche détaillée — CLI-SEED-01 : Refactor seeder SQL brut → InsertQueryBuilder typé
+
+### 1. Contexte et état actuel
+
+**Fichier concerné :** `src/shell/seeders/database-seeder.ts` (198 lignes)
+
+**Problème :** Le seeder exécute 8 blocs d'insertion de données de démonstration via du **SQL brut** (`INSERT INTO ... VALUES ...`) avec adaptation manuelle des placeholders `?` → `$1, $2` via la fonction `bind()` :
+
+```ts
+function bind(db: DatabasePort, sql: string): string {
+  if (db.capabilities.dialect !== "postgres") return sql;
+  let i = 0;
+  return sql.replace(/\?/g, () => `$${++i}`);
+}
+```
+
+Chaque bloc est précédé d'un guard `tableCount(db, table) === 0` pour l'idempotence. Les tables concernées : `shell_feed`, `commerce_products`, `portfolio_items`, `spaces`, `beam_channels`, `beam_messages`, `booking_slots`, `imperia_proposals`, `solidarity_campaigns`.
+
+**Problèmes identifiés :**
+
+| ID | Problème | Impact |
+|----|----------|--------|
+| S1 | **Incohérence architecturale** : le système de migrations utilise `SchemaBuilder` + `Grammar` (typé, dialect-agnostique) pour le DDL, mais le seeder utilise du SQL brut pour le DML. Deux façons d'interagir avec la base coexistent. | Duplication de logique, surcharge cognitive, risque de divergence entre dialectes. |
+| S2 | **Pas de typage des données** : les enregistrements sont passés comme chaînes brutes dans le SQL. Aucune vérification de type au moment de l'écriture. | Risque d'erreur silencieuse (type mismatched, NULL sur NOT NULL) détecté seulement à l'exécution sur la vraie base. |
+| S3 | **Pas de transaction** : chaque bloc d'insertion s'exécute indépendamment. Si le seeder échoue au bloc 5 (ex: `imperia_proposals`), les blocs 1-4 sont déjà persistes. | État partiel de la base, impossible de relancer proprement sans nettoyage manuel. |
+| S4 | **Adaptation manuelle des placeholders** : `bind()` remplace `?` par `$N` avec un compteur global. Fragile si des `?` apparaissent dans des chaînes de caractères SQL. | Bug potentiel si une valeur contient un `?`. |
+| S5 | **Pas de test unitaire** : aucune couverture de test sur le seeder. | Régressions non détectées. |
+
+### 2. Solution cible
+
+**Objectif :** Remplacer les 8 blocs SQL brut par des appels typés via `InsertQueryBuilder` (déjà disponible dans `@mosaix/ports-database`), enveloppés dans une `transaction()` pour l'atomicité, et garder les guards d'idempotence existants.
+
+**API disponible (déjà implémentée et exportée) :**
+
+```ts
+import { createQueryBuilder, type DatabasePort } from "@mosaix/ports-database";
+
+const qb = createQueryBuilder();
+
+// INSERT multiple lignes
+await qb.insert()
+  .into("shell_feed")
+  .values([{ id, type, author, ... }, { ... }])
+  .execute(db);
+
+// Transaction
+await db.transaction(async (tx) => {
+  await qb.insert().into("shell_feed").values([...]).execute(tx);
+  await qb.insert().into("commerce_products").values([...]).execute(tx);
+});
+```
+
+`InsertQueryBuilder.toSql(dialect)` génère automatiquement les bons placeholders (`$1` pour Postgres, `?` pour SQLite) via `formatPlaceholder()`.
+
+### 3. Étapes d'implémentation
+
+#### Étape 1 — Audit du seeder actuel (30 min)
+- Lire `src/shell/seeders/database-seeder.ts` en entier
+- Inventorier chaque bloc INSERT : table, colonnes, nombre de lignes, types de données
+- Vérifier qu'aucune logique métier cachée n'est dans le SQL (ex: calculs, sous-requêtes)
+
+#### Étape 2 — Créer le nouveau seeder typé (2h)
+- Remplacer chaque bloc `INSERT INTO ... VALUES` par `qb.insert().into(table).values([...]).execute(db)`
+- Utiliser `createQueryBuilder()` depuis `@mosaix/ports-database`
+- Conserver les guards `tableCount(db, table) === 0` pour l'idempotence
+- Conserver les commentaires métier existants (ils documentent l'intention)
+
+#### Étape 3 — Envelopper dans une transaction (30 min)
+- Envelopper l'ensemble des insertions dans `db.transaction(async (tx) => { ... })`
+- Si un bloc échoue, tout est rollback (atomicité du seed)
+
+#### Étape 4 — Tests (1h)
+- Créer `src/shell/seeders/database-seeder.test.ts`
+- Tester l'insertion sur un `DatabasePort` mock (SQLite en mémoire ou double)
+- Vérifier l'idempotence (deuxième appel ne duplique pas)
+- Vérifier l'atomicité (si un insert échoue, rien n'est persiste)
+
+#### Étape 5 — Vérification compilation + tests existants (30 min)
+- `npx tsc --noEmit` : 0 erreur
+- `vitest run` : pas de régression sur les tests existants
+
+### 4. Critères de sortie (Définition de Done)
+
+- [ ] `src/shell/seeders/database-seeder.ts` ne contient plus de SQL brut `INSERT` (le moteur n'accepte plus aucun SQL brut : l'echappement `rawSql` a ete retire de `@mosaix/migrations`)
+- [ ] Chaque insertion utilise `InsertQueryBuilder` depuis `@mosaix/ports-database`
+- [ ] Toutes les insertions sont enveloppées dans `db.transaction()`
+- [ ] Les guards d'idempotence (`tableCount === 0`) sont préservés
+- [ ] `npx tsc --noEmit` : 0 erreur dans le projet
+- [ ] `vitest run` : tous les tests passent, y compris les nouveaux tests du seeder
+- [ ] Le seeder fonctionne sur SQLite et Postgres (dialect géré automatiquement par `InsertQueryBuilder.toSql()`)
+
+### 5. Risques et mitigation
+
+| Risque | Probabilité | Impact | Mitigation |
+|--------|-------------|--------|------------|
+| `InsertQueryBuilder` ne gère pas un cas particulier du seeder actuel (ex: valeur NULL, type spécial) | Moyenne | Moyen | Tester chaque bloc individuellement ; garder un fallback SQL brut documenté si nécessaire |
+| Récupération des IDs générés (SERIAL/UUID) non gérée | Faible | Moyen | Vérifier que `InsertQueryBuilder.execute()` retourne le count ; si besoin d'IDs, utiliser `RETURNING` ou séparer les inserts |
+| Régression sur le comportement idempotent existant | Faible | Élevé | Tests dédiés sur l'idempotence avant/après refactor |
+
+### 6. Dépendances
+
+- **Aucune nouvelle dépendance** : `@mosaix/ports-database` est déjà une dépendance interne du monorepo, et `createQueryBuilder` + `InsertQueryBuilder` sont déjà exportés depuis son `index.ts`
+- Le seeder importe déjà `type { DatabasePort } from "@mosaix/ports-database"` — il suffit d'ajouter `createQueryBuilder`
+
+### 7. Preuve attendue
+
+```
+git diff src/shell/seeders/database-seeder.ts
+# → plus de "INSERT INTO" en SQL brut, seulement qb.insert().into().values().execute()
+
+npx tsc --noEmit -p tsconfig.json
+# → 0 erreur
+
+vitest run src/shell/seeders/database-seeder.test.ts
+# → tous les tests verts
+
+pnpm mosaix db:setup (ou migrate + seed)
+# → seed appliqué sans erreur sur SQLite et Postgres
+```
+
+### 8. Estimation
+
+- **Temps total estimé : 4h**
+- **Priorité : P2** (hygiène architecturale, cohérence du système de migration)
+- **Statut : OPEN** — non commencé
