@@ -221,9 +221,12 @@ Règle : tout nouveau terme métier rencontré doit être ajouté ici avant d'ê
 - Installer un package sans vérifier qu'il existe (typosquatting / package halluciné).
 - Supprimer un fichier sans save point et confirmation.
 - Modifier un fichier hors du périmètre annoncé.
+- **Aucune commande Git qui écrit dans l'arbre de travail ou dans l'historique sans accord explicite, imminent et spécifique** — `git add`, `git commit`, `git push`, `git checkout -- <fichier>`, `git restore`, `git reset --hard`, `git clean -fd`, `git stash drop`, `git rm`, le changement de branche, la suppression ou le déplacement d'un fichier modifié. Motif : l'agent ne peut pas supposer qu'un diff est le sien (l'utilisateur, un autre agent ou une session concurrente ont pu modifier le même fichier). Procédure : annoncer la commande, les fichiers concernés et l'intention, puis **attendre l'accord** — un accord antérieur, implicite ou hors sujet ne vaut pas autorisation. Après une restauration, ne plus jamais reformater le fichier : c'est la trace de l'écart annulé, la reformater l'effacerait.
+  <!-- ajouté: 2026-11-11 · statut: stable · dernier-signal: 2026-11-11 -->
+- **Un reformatage hors périmètre reste une modification hors périmètre.** Un outil de formatage (`prettier --write`, `eslint --fix`) appliqué à un ensemble large touche des fichiers que la mission ne couvre pas : l'agent **liste les fichiers concernés** avant de l'appliquer et ne formate que son périmètre. Un fichier mêlant une modification fonctionnelle et du formatage ne doit **jamais** être « restauré pour ne garder que le formatage » — cela effacerait la modification fonctionnelle.
+  <!-- ajouté: 2026-11-11 · statut: stable · dernier-signal: 2026-11-11 -->
 - Factoriser entre deux modules métier sans demande explicite.
 - Réécrire un fichier entier quand une modification localisée suffit.
-- Commiter, pousser, changer de branche sans instruction.
 - Exposer un secret, une clé, un token.
 - **Réécrire ce fichier en entier** — toujours éditer chirurgicalement (§2.6).
 - **Dupliquer un nom de fichier** : chaque fichier doit avoir un basename unique dans le repository (pas de `domain/user-repository.ts` ET `infrastructure/user-repository.ts`). Un port et son adaptateur portent des noms distincts.
@@ -239,6 +242,7 @@ Règle : tout nouveau terme métier rencontré doit être ajouté ici avant d'ê
 | 2026-11-10 | v2 | Réécriture selon le modèle auto-améliorant : protocole d'amélioration (§2), anti-obésité 250 lignes (§2.4), nettoyage périodique (§2.5) | demande utilisateur |
 | 2026-11-11 | v2 | Ajout du workflow `migration-conversion` au catalogue (§8) | pattern répété côté humain |
 | 2026-11-11 | v2 | Catalogue §8 corrigé : chemins workflows réels (`.project/workflows/`) au lieu de `.rescue/workflows/` inexistant | chemin obsolète |
+| 2026-11-11 | v2 | §10 : aucune commande Git écrivant dans l'arbre ou l'historique sans accord explicite ; reformatage soumis au périmètre annoncé | règle contrariée (restauration unilatérale) |
 
 ## 12. Règles locales — OPTIONNEL
 
