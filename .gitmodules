@@ -61,3 +61,6 @@
 [submodule "packages/security"]
 	path = packages/security
 	url = http://localhost:3400/mosaix/mosaix-security.git
+[submodule "packages/http"]
+	path = packages/http
+	url = http://localhost:3400/mosaix/mosaix-http.git
