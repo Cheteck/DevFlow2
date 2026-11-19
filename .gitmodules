@@ -193,3 +193,6 @@
 [submodule "packages/ports/metrics"]
 	path = packages/ports/metrics
 	url = http://localhost:3400/mosaix/mosaix-ports-metrics.git
+[submodule "packages/ports/pubsub"]
+	path = packages/ports/pubsub
+	url = http://localhost:3400/mosaix/mosaix-ports-pubsub.git
