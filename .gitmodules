@@ -340,3 +340,6 @@
 [submodule "packages/adapters/otp-rate-limiter"]
 	path = packages/adapters/otp-rate-limiter
 	url = http://localhost:3400/mosaix/mosaix-otp-rate-limiter.git
+[submodule "packages/adapters/rabbitmq"]
+	path = packages/adapters/rabbitmq
+	url = http://localhost:3400/mosaix/mosaix-rabbitmq.git
