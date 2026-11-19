@@ -67,3 +67,6 @@
 [submodule "packages/telemetry"]
 	path = packages/telemetry
 	url = http://localhost:3400/mosaix/mosaix-telemetry.git
+[submodule "packages/mobile-bridge"]
+	path = packages/mobile-bridge
+	url = http://localhost:3400/mosaix/mosaix-mobile-bridge.git
