@@ -226,3 +226,6 @@
 [submodule "packages/cli"]
 	path = packages/cli
 	url = http://localhost:3400/mosaix/mosaix-cli.git
+[submodule "packages/dev-server"]
+	path = packages/dev-server
+	url = http://localhost:3400/mosaix/mosaix-dev-server.git
