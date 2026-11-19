@@ -190,3 +190,6 @@
 [submodule "packages/ports/message-bus"]
 	path = packages/ports/message-bus
 	url = http://localhost:3400/mosaix/mosaix-ports-message-bus.git
+[submodule "packages/ports/metrics"]
+	path = packages/ports/metrics
+	url = http://localhost:3400/mosaix/mosaix-ports-metrics.git
