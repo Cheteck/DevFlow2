@@ -355,3 +355,6 @@
 [submodule "packages/adapters/session-store-postgres"]
 	path = packages/adapters/session-store-postgres
 	url = http://localhost:3400/mosaix/mosaix-session-store-postgres.git
+[submodule "packages/adapters/session-store-redis"]
+	path = packages/adapters/session-store-redis
+	url = http://localhost:3400/mosaix/mosaix-session-store-redis.git
