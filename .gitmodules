@@ -319,3 +319,6 @@
 [submodule "packages/adapters/kafka"]
 	path = packages/adapters/kafka
 	url = http://localhost:3400/mosaix/mosaix-kafka.git
+[submodule "packages/adapters/logger-pino"]
+	path = packages/adapters/logger-pino
+	url = http://localhost:3400/mosaix/mosaix-logger-pino.git
