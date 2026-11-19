@@ -88,3 +88,6 @@
 [submodule "packages/ui-runtime"]
 	path = packages/ui-runtime
 	url = http://localhost:3400/mosaix/mosaix-ui-runtime.git
+[submodule "packages/feed-engine"]
+	path = packages/feed-engine
+	url = http://localhost:3400/mosaix/mosaix-feed-engine.git
