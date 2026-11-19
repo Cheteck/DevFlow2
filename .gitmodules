@@ -268,3 +268,6 @@
 [submodule "packages/adapters/config-env"]
 	path = packages/adapters/config-env
 	url = http://localhost:3400/mosaix/mosaix-config-env.git
+[submodule "packages/adapters/credential-store-postgres"]
+	path = packages/adapters/credential-store-postgres
+	url = http://localhost:3400/mosaix/mosaix-credential-store-postgres.git
