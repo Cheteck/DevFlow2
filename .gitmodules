@@ -220,3 +220,6 @@
 [submodule "packages/ports/tracing"]
 	path = packages/ports/tracing
 	url = http://localhost:3400/mosaix/mosaix-ports-tracing.git
+[submodule "packages/ports/whatsapp"]
+	path = packages/ports/whatsapp
+	url = http://localhost:3400/mosaix/mosaix-ports-whatsapp.git
