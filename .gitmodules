@@ -262,3 +262,6 @@
 [submodule "packages/adapters/clock-fake"]
 	path = packages/adapters/clock-fake
 	url = http://localhost:3400/mosaix/mosaix-clock-fake.git
+[submodule "packages/adapters/clock-system"]
+	path = packages/adapters/clock-system
+	url = http://localhost:3400/mosaix/mosaix-clock-system.git
