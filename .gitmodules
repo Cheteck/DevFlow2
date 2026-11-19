@@ -328,3 +328,6 @@
 [submodule "packages/adapters/messagebus-mosaix"]
 	path = packages/adapters/messagebus-mosaix
 	url = http://localhost:3400/mosaix/mosaix-messagebus-mosaix.git
+[submodule "packages/adapters/metrics-otel"]
+	path = packages/adapters/metrics-otel
+	url = http://localhost:3400/mosaix/mosaix-metrics-otel.git
