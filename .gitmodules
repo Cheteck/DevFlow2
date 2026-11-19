@@ -127,3 +127,6 @@
 [submodule "apps/spaces"]
 	path = apps/spaces
 	url = http://localhost:3400/IJIDeals/spaces.git
+[submodule "apps/subscription"]
+	path = apps/subscription
+	url = http://localhost:3400/IJIDeals/subscription.git
