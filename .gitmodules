@@ -259,3 +259,6 @@
 [submodule "packages/adapters/cache-redis"]
 	path = packages/adapters/cache-redis
 	url = http://localhost:3400/mosaix/mosaix-cache-redis.git
+[submodule "packages/adapters/clock-fake"]
+	path = packages/adapters/clock-fake
+	url = http://localhost:3400/mosaix/mosaix-clock-fake.git
