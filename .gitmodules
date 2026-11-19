@@ -115,3 +115,6 @@
 [submodule "apps/inventory"]
 	path = apps/inventory
 	url = http://localhost:3400/IJIDeals/inventory.git
+[submodule "apps/portfolio"]
+	path = apps/portfolio
+	url = http://localhost:3400/IJIDeals/portfolio.git
