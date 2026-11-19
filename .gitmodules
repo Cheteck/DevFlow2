@@ -103,3 +103,6 @@
 [submodule "apps/booking"]
 	path = apps/booking
 	url = http://localhost:3400/IJIDeals/booking.git
+[submodule "apps/citadelle"]
+	path = apps/citadelle
+	url = http://localhost:3400/IJIDeals/citadelle.git
