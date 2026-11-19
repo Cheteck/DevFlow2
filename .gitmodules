@@ -160,3 +160,6 @@
 [submodule "packages/ports/crypto"]
 	path = packages/ports/crypto
 	url = http://localhost:3400/mosaix/mosaix-ports-crypto.git
+[submodule "packages/ports/database"]
+	path = packages/ports/database
+	url = http://localhost:3400/mosaix/mosaix-ports-database.git
