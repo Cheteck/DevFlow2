@@ -315,6 +315,9 @@ export function renderThemeStyleTag(_mode: ThemeMode = "dark"): string {
   lines.push(
     `  --color-outline-variant: var(--mx-color-border, ${fb(lightVars, "--mx-color-border", "#e2e8f0")});`,
   );
+  lines.push(
+    `  --color-outline: var(--mx-tailwind-outline, ${fb(lightTw, "outline", "#cbd5e1")});`,
+  );
   lines.push("  /* Semantic status tokens (Material 3) */");
   lines.push(...renderStatusColorDeclarations(lightTw));
   lines.push("}");
@@ -364,6 +367,9 @@ export function renderThemeStyleTag(_mode: ThemeMode = "dark"): string {
   );
   lines.push(
     `  --color-outline-variant: var(--mx-color-border, ${fb(darkVars, "--mx-color-border", "#334155")});`,
+  );
+  lines.push(
+    `  --color-outline: var(--mx-tailwind-outline, ${fb(darkTw, "outline", "#958ea0")});`,
   );
   lines.push("  /* Semantic status tokens (Material 3) */");
   lines.push(...renderStatusColorDeclarations(darkTw));
