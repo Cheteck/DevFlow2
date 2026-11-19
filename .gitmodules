@@ -199,3 +199,6 @@
 [submodule "packages/ports/search"]
 	path = packages/ports/search
 	url = http://localhost:3400/mosaix/mosaix-ports-search.git
+[submodule "packages/ports/secrets"]
+	path = packages/ports/secrets
+	url = http://localhost:3400/mosaix/mosaix-ports-secrets.git
