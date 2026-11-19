@@ -112,3 +112,6 @@
 [submodule "apps/imperia"]
 	path = apps/imperia
 	url = http://localhost:3400/IJIDeals/imperia.git
+[submodule "apps/inventory"]
+	path = apps/inventory
+	url = http://localhost:3400/IJIDeals/inventory.git
