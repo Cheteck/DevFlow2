@@ -7,3 +7,6 @@
 [submodule "packages/schemas"]
 	path = packages/schemas
 	url = http://localhost:3400/mosaix/mosaix-schemas.git
+[submodule "packages/ports/cache"]
+	path = packages/ports/cache
+	url = http://localhost:3400/mosaix/mosaix-ports-cache.git
