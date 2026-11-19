@@ -166,3 +166,6 @@
 [submodule "packages/ports/email"]
 	path = packages/ports/email
 	url = http://localhost:3400/mosaix/mosaix-ports-email.git
+[submodule "packages/ports/event-store"]
+	path = packages/ports/event-store
+	url = http://localhost:3400/mosaix/mosaix-ports-event-store.git
