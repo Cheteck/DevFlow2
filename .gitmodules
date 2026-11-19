@@ -136,3 +136,6 @@
 [submodule "plugins/commerce-comparator-plugin"]
 	path = plugins/commerce-comparator-plugin
 	url = http://localhost:3400/IJIDeals/plugin-commerce-comparator.git
+[submodule "plugins/commerce-recently-viewed-plugin"]
+	path = plugins/commerce-recently-viewed-plugin
+	url = http://localhost:3400/IJIDeals/plugin-commerce-recently-viewed.git
