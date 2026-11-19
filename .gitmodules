@@ -4,3 +4,6 @@
 [submodule "packages/contracts"]
 	path = packages/contracts
 	url = http://localhost:3400/mosaix/mosaix-contracts.git
+[submodule "packages/schemas"]
+	path = packages/schemas
+	url = http://localhost:3400/mosaix/mosaix-schemas.git
