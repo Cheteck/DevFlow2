@@ -22,3 +22,6 @@
 [submodule "packages/core"]
 	path = packages/core
 	url = http://localhost:3400/mosaix/mosaix-core.git
+[submodule "packages/database"]
+	path = packages/database
+	url = http://localhost:3400/mosaix/mosaix-database.git
