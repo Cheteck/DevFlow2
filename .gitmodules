@@ -232,3 +232,6 @@
 [submodule "packages/dev-session"]
 	path = packages/dev-session
 	url = http://localhost:3400/mosaix/mosaix-dev-session.git
+[submodule "packages/command-center"]
+	path = packages/command-center
+	url = http://localhost:3400/mosaix/mosaix-command-center.git
