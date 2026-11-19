@@ -100,3 +100,6 @@
 [submodule "apps/beam"]
 	path = apps/beam
 	url = http://localhost:3400/IJIDeals/beam.git
+[submodule "apps/booking"]
+	path = apps/booking
+	url = http://localhost:3400/IJIDeals/booking.git
