@@ -274,3 +274,6 @@
 [submodule "packages/adapters/credential-store-sqlite"]
 	path = packages/adapters/credential-store-sqlite
 	url = http://localhost:3400/mosaix/mosaix-credential-store-sqlite.git
+[submodule "packages/adapters/crypto-node"]
+	path = packages/adapters/crypto-node
+	url = http://localhost:3400/mosaix/mosaix-crypto-node.git
