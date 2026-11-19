@@ -334,3 +334,6 @@
 [submodule "packages/adapters/otp-database"]
 	path = packages/adapters/otp-database
 	url = http://localhost:3400/mosaix/mosaix-otp-database.git
+[submodule "packages/adapters/otp-delivery"]
+	path = packages/adapters/otp-delivery
+	url = http://localhost:3400/mosaix/mosaix-otp-delivery.git
