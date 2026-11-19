@@ -76,3 +76,6 @@
 [submodule "packages/otp"]
 	path = packages/otp
 	url = http://localhost:3400/mosaix/mosaix-otp.git
+[submodule "packages/support"]
+	path = packages/support
+	url = http://localhost:3400/mosaix/mosaix-support.git
