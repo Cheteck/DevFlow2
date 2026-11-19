@@ -208,3 +208,6 @@
 [submodule "packages/ports/session-store"]
 	path = packages/ports/session-store
 	url = http://localhost:3400/mosaix/mosaix-ports-session-store.git
+[submodule "packages/ports/sms"]
+	path = packages/ports/sms
+	url = http://localhost:3400/mosaix/mosaix-ports-sms.git
