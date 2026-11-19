@@ -223,3 +223,6 @@
 [submodule "packages/ports/whatsapp"]
 	path = packages/ports/whatsapp
 	url = http://localhost:3400/mosaix/mosaix-ports-whatsapp.git
+[submodule "packages/cli"]
+	path = packages/cli
+	url = http://localhost:3400/mosaix/mosaix-cli.git
