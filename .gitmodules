@@ -28,3 +28,6 @@
 [submodule "packages/orm"]
 	path = packages/orm
 	url = http://localhost:3400/mosaix/mosaix-orm.git
+[submodule "packages/migrations"]
+	path = packages/migrations
+	url = http://localhost:3400/mosaix/mosaix-migrations.git
