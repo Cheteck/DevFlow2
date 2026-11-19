@@ -7,11 +7,10 @@ export interface ResolvedTheme {
   manifest: ThemeManifest;
 }
 
-const DEFAULT_THEME_ID = "mosaix-default";
-
 export async function resolveTheme(spaceThemeId?: string): Promise<ResolvedTheme> {
   const allThemes = await themeCatalogueCache.getAll();
-  const defaultTheme = allThemes.find((t) => t.id === DEFAULT_THEME_ID) || allThemes[0];
+  const defaultThemeId = process.env.MOSAIX_DEFAULT_THEME || "mosaix-default";
+  const defaultTheme = allThemes.find((t) => t.id === defaultThemeId) || allThemes[0];
 
   if (!defaultTheme) {
     throw new Error("No platform default theme found in theme catalogue");
