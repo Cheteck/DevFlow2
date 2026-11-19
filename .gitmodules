@@ -196,3 +196,6 @@
 [submodule "packages/ports/pubsub"]
 	path = packages/ports/pubsub
 	url = http://localhost:3400/mosaix/mosaix-ports-pubsub.git
+[submodule "packages/ports/search"]
+	path = packages/ports/search
+	url = http://localhost:3400/mosaix/mosaix-ports-search.git
