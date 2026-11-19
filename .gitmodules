@@ -256,3 +256,6 @@
 [submodule "packages/adapters/cache-memory"]
 	path = packages/adapters/cache-memory
 	url = http://localhost:3400/mosaix/mosaix-cache-memory.git
+[submodule "packages/adapters/cache-redis"]
+	path = packages/adapters/cache-redis
+	url = http://localhost:3400/mosaix/mosaix-cache-redis.git
