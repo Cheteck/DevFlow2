@@ -19,7 +19,7 @@ import type {
   ThemeTarget,
   ThemeResolutionContext,
 } from "@mosaix/contracts";
-import { container } from "@mosaix/core";
+import { container } from "@mosaix/container";
 import {
   compile,
   createThemeRuntime,
