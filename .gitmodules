@@ -367,3 +367,6 @@
 [submodule "packages/adapters/storage-s3"]
 	path = packages/adapters/storage-s3
 	url = http://localhost:3400/mosaix/mosaix-storage-s3.git
+[submodule "packages/adapters/token-store-postgres"]
+	path = packages/adapters/token-store-postgres
+	url = http://localhost:3400/mosaix/mosaix-token-store-postgres.git
