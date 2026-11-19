@@ -70,3 +70,6 @@
 [submodule "packages/mobile-bridge"]
 	path = packages/mobile-bridge
 	url = http://localhost:3400/mosaix/mosaix-mobile-bridge.git
+[submodule "packages/auth"]
+	path = packages/auth
+	url = http://localhost:3400/mosaix/mosaix-auth.git
