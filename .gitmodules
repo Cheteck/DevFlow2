@@ -283,3 +283,6 @@
 [submodule "packages/adapters/database-sqlite"]
 	path = packages/adapters/database-sqlite
 	url = http://localhost:3400/mosaix/mosaix-database-sqlite.git
+[submodule "packages/adapters/email-ses"]
+	path = packages/adapters/email-ses
+	url = http://localhost:3400/mosaix/mosaix-email-ses.git
