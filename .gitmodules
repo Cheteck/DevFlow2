@@ -169,3 +169,6 @@
 [submodule "packages/ports/event-store"]
 	path = packages/ports/event-store
 	url = http://localhost:3400/mosaix/mosaix-ports-event-store.git
+[submodule "packages/ports/feature-flags"]
+	path = packages/ports/feature-flags
+	url = http://localhost:3400/mosaix/mosaix-ports-feature-flags.git
