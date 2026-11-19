@@ -364,3 +364,6 @@
 [submodule "packages/adapters/storage-local"]
 	path = packages/adapters/storage-local
 	url = http://localhost:3400/mosaix/mosaix-storage-local.git
+[submodule "packages/adapters/storage-s3"]
+	path = packages/adapters/storage-s3
+	url = http://localhost:3400/mosaix/mosaix-storage-s3.git
