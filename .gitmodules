@@ -64,3 +64,6 @@
 [submodule "packages/http"]
 	path = packages/http
 	url = http://localhost:3400/mosaix/mosaix-http.git
+[submodule "packages/telemetry"]
+	path = packages/telemetry
+	url = http://localhost:3400/mosaix/mosaix-telemetry.git
