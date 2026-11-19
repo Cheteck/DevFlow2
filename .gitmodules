@@ -286,3 +286,6 @@
 [submodule "packages/adapters/email-ses"]
 	path = packages/adapters/email-ses
 	url = http://localhost:3400/mosaix/mosaix-email-ses.git
+[submodule "packages/adapters/email-smtp"]
+	path = packages/adapters/email-smtp
+	url = http://localhost:3400/mosaix/mosaix-email-smtp.git
