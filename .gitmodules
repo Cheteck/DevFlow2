@@ -13,3 +13,6 @@
 [submodule "packages/container"]
 	path = packages/container
 	url = http://localhost:3400/mosaix/mosaix-container.git
+[submodule "packages/foundation"]
+	path = packages/foundation
+	url = http://localhost:3400/mosaix/mosaix-foundation.git
