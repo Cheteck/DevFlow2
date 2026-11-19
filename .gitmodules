@@ -43,3 +43,6 @@
 [submodule "packages/commands"]
 	path = packages/commands
 	url = http://localhost:3400/mosaix/mosaix-commands.git
+[submodule "packages/pipeline"]
+	path = packages/pipeline
+	url = http://localhost:3400/mosaix/mosaix-pipeline.git
