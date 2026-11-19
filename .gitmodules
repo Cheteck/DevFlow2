@@ -181,3 +181,6 @@
 [submodule "packages/ports/identity-store"]
 	path = packages/ports/identity-store
 	url = http://localhost:3400/mosaix/mosaix-ports-identity-store.git
+[submodule "packages/ports/intelligence"]
+	path = packages/ports/intelligence
+	url = http://localhost:3400/mosaix/mosaix-ports-intelligence.git
