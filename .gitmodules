@@ -289,3 +289,6 @@
 [submodule "packages/adapters/email-smtp"]
 	path = packages/adapters/email-smtp
 	url = http://localhost:3400/mosaix/mosaix-email-smtp.git
+[submodule "packages/adapters/featureflags-launchdarkly"]
+	path = packages/adapters/featureflags-launchdarkly
+	url = http://localhost:3400/mosaix/mosaix-featureflags-launchdarkly.git
