@@ -18,7 +18,17 @@ import {
 } from "../renderer.js";
 import type { SsrAuthContext } from "../ssr-auth-context.js";
 import { getShellClientScripts } from "../client/shell-client-scripts.js";
-import { getTailwindThemeColors } from "../theme/theme-bridge.js";
+const TAILWIND_COLOR_KEYS: readonly string[] = [
+  "primary", "primary-hover", "on-primary", "secondary", "surface",
+  "on-surface", "on-surface-variant", "surface-variant",
+  "surface-container-lowest", "surface-container-low", "surface-container",
+  "surface-container-high", "surface-container-highest", "outline-variant",
+  "success", "success-hover", "success-container", "on-success",
+  "warning", "warning-hover", "warning-container", "on-warning",
+  "error", "error-hover", "error-container", "on-error",
+  "info", "info-hover", "info-container", "on-info",
+  "background",
+] as const;
 
 export interface BacPageOptions {
   activeMode: ThemeMode;
@@ -73,7 +83,11 @@ export function renderBacPage(opts: BacPageOptions): string {
       darkMode: "class",
       theme: {
         extend: {
-          colors: ${JSON.stringify(getTailwindThemeColors(activeMode)).replace(/</g, "\\u003c")}
+          colors: ${JSON.stringify(
+            Object.fromEntries(
+              TAILWIND_COLOR_KEYS.map((k) => [k, `var(--color-${k})`])
+            )
+          ).replace(/</g, "\\u003c")}
         }
       }
     };

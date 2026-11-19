@@ -33,7 +33,6 @@ import {
 } from "@mosaix/theme";
 import {
   tryGetRenderContext,
-  type RenderContext,
 } from "../../server/context/render-context.js";
 import { InMemoryGuard } from "@mosaix/support";
 
@@ -89,6 +88,7 @@ function getRuntime(): ThemeRuntime {
       const db = container.resolve<StoreDb>("databasePort");
       store = new PostgresThemeAssignmentsStore(db);
     } else {
+      // eslint-disable-next-line no-restricted-syntax -- legitimate fallback (reports via InMemoryGuard, dev-only with explicit signal)
       store = new InMemoryThemeAssignmentsStore();
       InMemoryGuard.reportFallback("ThemeBridge:inMemoryStore");
     }
@@ -247,11 +247,10 @@ function renderStatusColorDeclarations(
   ];
 }
 
-export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
+export function renderThemeStyleTag(_mode: ThemeMode = "dark"): string {
   const state = getState();
   const runtime = state?.runtime ?? getRuntime();
   const themeId = state?.themeId ?? getEffectiveThemeId();
-  const mode = state?.mode ?? "dark";
 
   const manifest = runtime.getTheme(themeId);
   if (!manifest) {
@@ -286,6 +285,9 @@ export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
   lines.push("  --color-on-primary: #ffffff;");
   lines.push(
     `  --color-secondary: var(--mx-color-secondary, ${fb(lightVars, "--mx-color-secondary", "#06b6d4")});`,
+  );
+  lines.push(
+    `  --color-background: var(--mx-color-background, ${fb(lightVars, "--mx-color-background", "#ffffff")});`,
   );
   lines.push(
     `  --color-surface: var(--mx-color-surface, ${fb(lightVars, "--mx-color-surface", "#ffffff")});`,
@@ -333,6 +335,9 @@ export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
   lines.push("  --color-on-primary: #ffffff;");
   lines.push(
     `  --color-secondary: var(--mx-color-secondary, ${fb(darkVars, "--mx-color-secondary", "#06b6d4")});`,
+  );
+  lines.push(
+    `  --color-background: var(--mx-color-background, ${fb(darkVars, "--mx-color-background", "#0f172a")});`,
   );
   lines.push(
     `  --color-surface: var(--mx-color-surface, ${fb(darkVars, "--mx-color-surface", "#1e293b")});`,
