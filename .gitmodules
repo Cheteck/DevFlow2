@@ -79,3 +79,6 @@
 [submodule "packages/support"]
 	path = packages/support
 	url = http://localhost:3400/mosaix/mosaix-support.git
+[submodule "packages/theme"]
+	path = packages/theme
+	url = http://localhost:3400/mosaix/mosaix-theme.git
