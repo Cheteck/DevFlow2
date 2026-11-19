@@ -1,1 +1,0 @@
-export type OtpChannel = "email" | "sms" | "whatsapp";

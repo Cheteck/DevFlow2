@@ -73,3 +73,6 @@
 [submodule "packages/auth"]
 	path = packages/auth
 	url = http://localhost:3400/mosaix/mosaix-auth.git
+[submodule "packages/otp"]
+	path = packages/otp
+	url = http://localhost:3400/mosaix/mosaix-otp.git
