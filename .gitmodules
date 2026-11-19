@@ -37,3 +37,6 @@
 [submodule "packages/filesystem"]
 	path = packages/filesystem
 	url = http://localhost:3400/mosaix/mosaix-filesystem.git
+[submodule "packages/events"]
+	path = packages/events
+	url = http://localhost:3400/mosaix/mosaix-events.git
