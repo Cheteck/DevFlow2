@@ -94,3 +94,6 @@
 [submodule "packages/intelligence"]
 	path = packages/intelligence
 	url = http://localhost:3400/mosaix/mosaix-intelligence.git
+[submodule "packages/analytics"]
+	path = packages/analytics
+	url = http://localhost:3400/mosaix/mosaix-analytics.git
