@@ -304,3 +304,6 @@
 [submodule "packages/adapters/identity-store-postgres"]
 	path = packages/adapters/identity-store-postgres
 	url = http://localhost:3400/mosaix/mosaix-identity-store-postgres.git
+[submodule "packages/adapters/identity-store-sqlite"]
+	path = packages/adapters/identity-store-sqlite
+	url = http://localhost:3400/mosaix/mosaix-identity-store-sqlite.git
