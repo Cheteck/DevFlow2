@@ -148,3 +148,6 @@
 [submodule "plugins/solara-content-moderator"]
 	path = plugins/solara-content-moderator
 	url = http://localhost:3400/IJIDeals/plugin-solara-content-moderator.git
+[submodule "packages/ports/clock"]
+	path = packages/ports/clock
+	url = http://localhost:3400/mosaix/mosaix-ports-clock.git
