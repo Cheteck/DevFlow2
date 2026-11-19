@@ -133,3 +133,6 @@
 [submodule "plugins/commerce-badge-plugin"]
 	path = plugins/commerce-badge-plugin
 	url = http://localhost:3400/IJIDeals/plugin-commerce-badge.git
+[submodule "plugins/commerce-comparator-plugin"]
+	path = plugins/commerce-comparator-plugin
+	url = http://localhost:3400/IJIDeals/plugin-commerce-comparator.git
