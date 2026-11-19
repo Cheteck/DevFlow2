@@ -325,3 +325,6 @@
 [submodule "packages/adapters/logger-winston"]
 	path = packages/adapters/logger-winston
 	url = http://localhost:3400/mosaix/mosaix-logger-winston.git
+[submodule "packages/adapters/messagebus-mosaix"]
+	path = packages/adapters/messagebus-mosaix
+	url = http://localhost:3400/mosaix/mosaix-messagebus-mosaix.git
