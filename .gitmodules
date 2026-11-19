@@ -34,3 +34,6 @@
 [submodule "packages/cache"]
 	path = packages/cache
 	url = http://localhost:3400/mosaix/mosaix-cache.git
+[submodule "packages/filesystem"]
+	path = packages/filesystem
+	url = http://localhost:3400/mosaix/mosaix-filesystem.git
