@@ -91,3 +91,6 @@
 [submodule "packages/feed-engine"]
 	path = packages/feed-engine
 	url = http://localhost:3400/mosaix/mosaix-feed-engine.git
+[submodule "packages/intelligence"]
+	path = packages/intelligence
+	url = http://localhost:3400/mosaix/mosaix-intelligence.git
