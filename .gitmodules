@@ -19,3 +19,6 @@
 [submodule "packages/config"]
 	path = packages/config
 	url = http://localhost:3400/mosaix/mosaix-config.git
+[submodule "packages/core"]
+	path = packages/core
+	url = http://localhost:3400/mosaix/mosaix-core.git
