@@ -97,3 +97,6 @@
 [submodule "packages/analytics"]
 	path = packages/analytics
 	url = http://localhost:3400/mosaix/mosaix-analytics.git
+[submodule "apps/beam"]
+	path = apps/beam
+	url = http://localhost:3400/IJIDeals/beam.git
