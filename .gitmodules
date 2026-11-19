@@ -142,3 +142,6 @@
 [submodule "plugins/commerce-reviews-plugin"]
 	path = plugins/commerce-reviews-plugin
 	url = http://localhost:3400/IJIDeals/plugin-commerce-reviews.git
+[submodule "plugins/commerce-wishlist-plugin"]
+	path = plugins/commerce-wishlist-plugin
+	url = http://localhost:3400/IJIDeals/plugin-commerce-wishlist.git
