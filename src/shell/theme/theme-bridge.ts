@@ -366,10 +366,10 @@ export function renderThemeStyleTag(_mode: ThemeMode = "dark"): string {
     `  --color-surface-container-highest: ${darkTw["surface-container-highest"]};`,
   );
   lines.push(
-    `  --color-outline-variant: var(--mx-color-border, ${fb(darkVars, "--mx-color-border", "#334155")});`,
+    `  --color-outline-variant: color-mix(in srgb, var(--color-on-surface) 15%, transparent);`,
   );
   lines.push(
-    `  --color-outline: var(--mx-tailwind-outline, ${fb(darkTw, "outline", "#958ea0")});`,
+    `  --color-outline: var(--mx-tailwind-outline, ${fb(darkTw, "outline", "#595d63")});`,
   );
   lines.push("  /* Semantic status tokens (Material 3) */");
   lines.push(...renderStatusColorDeclarations(darkTw));
