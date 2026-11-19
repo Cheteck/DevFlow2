@@ -31,3 +31,6 @@
 [submodule "packages/migrations"]
 	path = packages/migrations
 	url = http://localhost:3400/mosaix/mosaix-migrations.git
+[submodule "packages/cache"]
+	path = packages/cache
+	url = http://localhost:3400/mosaix/mosaix-cache.git
