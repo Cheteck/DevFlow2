@@ -337,3 +337,6 @@
 [submodule "packages/adapters/otp-delivery"]
 	path = packages/adapters/otp-delivery
 	url = http://localhost:3400/mosaix/mosaix-otp-delivery.git
+[submodule "packages/adapters/otp-rate-limiter"]
+	path = packages/adapters/otp-rate-limiter
+	url = http://localhost:3400/mosaix/mosaix-otp-rate-limiter.git
