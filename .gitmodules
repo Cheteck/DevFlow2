@@ -211,3 +211,6 @@
 [submodule "packages/ports/sms"]
 	path = packages/ports/sms
 	url = http://localhost:3400/mosaix/mosaix-ports-sms.git
+[submodule "packages/ports/storage"]
+	path = packages/ports/storage
+	url = http://localhost:3400/mosaix/mosaix-ports-storage.git
