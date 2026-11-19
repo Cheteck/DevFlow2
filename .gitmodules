@@ -346,3 +346,6 @@
 [submodule "packages/adapters/search-elasticsearch"]
 	path = packages/adapters/search-elasticsearch
 	url = http://localhost:3400/mosaix/mosaix-search-elasticsearch.git
+[submodule "packages/adapters/search-memory"]
+	path = packages/adapters/search-memory
+	url = http://localhost:3400/mosaix/mosaix-search-memory.git
