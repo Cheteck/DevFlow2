@@ -238,3 +238,6 @@
 [submodule "packages/conformance"]
 	path = packages/conformance
 	url = http://localhost:3400/mosaix/mosaix-conformance.git
+[submodule "packages/mcp"]
+	path = packages/mcp
+	url = http://localhost:3400/mosaix/mosaix-mcp.git
