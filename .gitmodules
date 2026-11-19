@@ -250,3 +250,6 @@
 [submodule "packages/adapters/auth-oidc"]
 	path = packages/adapters/auth-oidc
 	url = http://localhost:3400/mosaix/mosaix-auth-oidc.git
+[submodule "packages/adapters/auth-webauthn"]
+	path = packages/adapters/auth-webauthn
+	url = http://localhost:3400/mosaix/mosaix-auth-webauthn.git
