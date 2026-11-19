@@ -253,3 +253,6 @@
 [submodule "packages/adapters/auth-webauthn"]
 	path = packages/adapters/auth-webauthn
 	url = http://localhost:3400/mosaix/mosaix-auth-webauthn.git
+[submodule "packages/adapters/cache-memory"]
+	path = packages/adapters/cache-memory
+	url = http://localhost:3400/mosaix/mosaix-cache-memory.git
