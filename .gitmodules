@@ -85,3 +85,6 @@
 [submodule "packages/plugin-engine"]
 	path = packages/plugin-engine
 	url = http://localhost:3400/mosaix/mosaix-plugin-engine.git
+[submodule "packages/ui-runtime"]
+	path = packages/ui-runtime
+	url = http://localhost:3400/mosaix/mosaix-ui-runtime.git
