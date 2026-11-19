@@ -25,3 +25,6 @@
 [submodule "packages/database"]
 	path = packages/database
 	url = http://localhost:3400/mosaix/mosaix-database.git
+[submodule "packages/orm"]
+	path = packages/orm
+	url = http://localhost:3400/mosaix/mosaix-orm.git
