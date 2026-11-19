@@ -214,3 +214,6 @@
 [submodule "packages/ports/storage"]
 	path = packages/ports/storage
 	url = http://localhost:3400/mosaix/mosaix-ports-storage.git
+[submodule "packages/ports/token-store"]
+	path = packages/ports/token-store
+	url = http://localhost:3400/mosaix/mosaix-ports-token-store.git
