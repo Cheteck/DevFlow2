@@ -58,3 +58,6 @@
 [submodule "packages/gateway"]
 	path = packages/gateway
 	url = http://localhost:3400/mosaix/mosaix-gateway.git
+[submodule "packages/security"]
+	path = packages/security
+	url = http://localhost:3400/mosaix/mosaix-security.git
