@@ -106,3 +106,6 @@
 [submodule "apps/citadelle"]
 	path = apps/citadelle
 	url = http://localhost:3400/IJIDeals/citadelle.git
+[submodule "apps/commerce"]
+	path = apps/commerce
+	url = http://localhost:3400/IJIDeals/commerce.git
