@@ -139,3 +139,6 @@
 [submodule "plugins/commerce-recently-viewed-plugin"]
 	path = plugins/commerce-recently-viewed-plugin
 	url = http://localhost:3400/IJIDeals/plugin-commerce-recently-viewed.git
+[submodule "plugins/commerce-reviews-plugin"]
+	path = plugins/commerce-reviews-plugin
+	url = http://localhost:3400/IJIDeals/plugin-commerce-reviews.git
