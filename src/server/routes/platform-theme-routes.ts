@@ -13,7 +13,7 @@
  */
 import type * as http from "node:http";
 import type { URL } from "node:url";
-import { ThemeDiscovery } from "@mosaix/core";
+import { ThemeDiscovery } from "@mosaix/theme";
 import * as path from "node:path";
 import {
   getPlatformThemeId,

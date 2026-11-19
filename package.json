@@ -109,6 +109,7 @@
     "@mosaix/sdk": "workspace:*",
     "@mosaix/security": "workspace:*",
     "@mosaix/support": "workspace:*",
+    "@mosaix/theme": "workspace:*",
     "zod": "^3.25.76"
   },
   "pnpm": {
