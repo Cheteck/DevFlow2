@@ -235,3 +235,6 @@
 [submodule "packages/command-center"]
 	path = packages/command-center
 	url = http://localhost:3400/mosaix/mosaix-command-center.git
+[submodule "packages/conformance"]
+	path = packages/conformance
+	url = http://localhost:3400/mosaix/mosaix-conformance.git
