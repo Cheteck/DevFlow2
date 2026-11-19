@@ -154,3 +154,6 @@
 [submodule "packages/ports/config"]
 	path = packages/ports/config
 	url = http://localhost:3400/mosaix/mosaix-ports-config.git
+[submodule "packages/ports/credential-store"]
+	path = packages/ports/credential-store
+	url = http://localhost:3400/mosaix/mosaix-ports-credential-store.git
