@@ -16,3 +16,6 @@
 [submodule "packages/foundation"]
 	path = packages/foundation
 	url = http://localhost:3400/mosaix/mosaix-foundation.git
+[submodule "packages/config"]
+	path = packages/config
+	url = http://localhost:3400/mosaix/mosaix-config.git
