@@ -55,3 +55,6 @@
 [submodule "packages/sdk"]
 	path = packages/sdk
 	url = http://localhost:3400/mosaix/mosaix-sdk.git
+[submodule "packages/gateway"]
+	path = packages/gateway
+	url = http://localhost:3400/mosaix/mosaix-gateway.git
