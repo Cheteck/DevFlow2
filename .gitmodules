@@ -370,3 +370,6 @@
 [submodule "packages/adapters/token-store-postgres"]
 	path = packages/adapters/token-store-postgres
 	url = http://localhost:3400/mosaix/mosaix-token-store-postgres.git
+[submodule "packages/adapters/token-store-sqlite"]
+	path = packages/adapters/token-store-sqlite
+	url = http://localhost:3400/mosaix/mosaix-token-store-sqlite.git
