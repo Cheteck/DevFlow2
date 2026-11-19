@@ -162,6 +162,8 @@ Chaque domaine vit dans son dossier racine (`booking/`, `profile/`, `payments/`,
 3. Indiquer quoi tester manuellement.
 4. Proposer un save point si le test est concluant.
 5. Détecter un signal (§2.1) et, s'il y en a un, formuler la proposition avant de clore.
+6. **Toute correction d'un contrat partagé inclut le balayage de ses consommateurs** : `grep` des usages hors périmètre + exécution de leurs tests avant clôture.
+   <!-- ajouté: 2026-11-19 · statut: experimental · dernier-signal: 2026-11-19 -->
 
 ## 8. Workflows disponibles
 
@@ -243,6 +245,7 @@ Règle : tout nouveau terme métier rencontré doit être ajouté ici avant d'ê
 | 2026-11-11 | v2 | Ajout du workflow `migration-conversion` au catalogue (§8) | pattern répété côté humain |
 | 2026-11-11 | v2 | Catalogue §8 corrigé : chemins workflows réels (`.project/workflows/`) au lieu de `.rescue/workflows/` inexistant | chemin obsolète |
 | 2026-11-11 | v2 | §10 : aucune commande Git écrivant dans l'arbre ou l'historique sans accord explicite ; reformatage soumis au périmètre annoncé | règle contrariée (restauration unilatérale) |
+| 2026-11-19 | v2 | §7.6 : toute correction d'un contrat partagé inclut le balayage de ses consommateurs (grep + tests) | erreur de l'agent due au contexte (P0-3 → 9 tests portfolio cassés) |
 
 ## 12. Règles locales — OPTIONNEL
 
