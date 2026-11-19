@@ -172,3 +172,6 @@
 [submodule "packages/ports/feature-flags"]
 	path = packages/ports/feature-flags
 	url = http://localhost:3400/mosaix/mosaix-ports-feature-flags.git
+[submodule "packages/ports/http"]
+	path = packages/ports/http
+	url = http://localhost:3400/mosaix/mosaix-ports-http.git
