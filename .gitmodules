@@ -280,3 +280,6 @@
 [submodule "packages/adapters/crypto-web"]
 	path = packages/adapters/crypto-web
 	url = http://localhost:3400/mosaix/mosaix-crypto-web.git
+[submodule "packages/adapters/database-sqlite"]
+	path = packages/adapters/database-sqlite
+	url = http://localhost:3400/mosaix/mosaix-database-sqlite.git
