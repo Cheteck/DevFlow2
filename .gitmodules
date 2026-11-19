@@ -10,3 +10,6 @@
 [submodule "packages/ports/cache"]
 	path = packages/ports/cache
 	url = http://localhost:3400/mosaix/mosaix-ports-cache.git
+[submodule "packages/container"]
+	path = packages/container
+	url = http://localhost:3400/mosaix/mosaix-container.git
