@@ -121,3 +121,6 @@
 [submodule "apps/solara"]
 	path = apps/solara
 	url = http://localhost:3400/IJIDeals/solara.git
+[submodule "apps/solidarity"]
+	path = apps/solidarity
+	url = http://localhost:3400/IJIDeals/solidarity.git
