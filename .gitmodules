@@ -310,3 +310,6 @@
 [submodule "packages/adapters/id-ulid"]
 	path = packages/adapters/id-ulid
 	url = http://localhost:3400/mosaix/mosaix-id-ulid.git
+[submodule "packages/adapters/id-uuid"]
+	path = packages/adapters/id-uuid
+	url = http://localhost:3400/mosaix/mosaix-id-uuid.git
