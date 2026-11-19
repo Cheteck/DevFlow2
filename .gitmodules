@@ -373,3 +373,6 @@
 [submodule "packages/adapters/token-store-sqlite"]
 	path = packages/adapters/token-store-sqlite
 	url = http://localhost:3400/mosaix/mosaix-token-store-sqlite.git
+[submodule "packages/adapters/tracing-otel"]
+	path = packages/adapters/tracing-otel
+	url = http://localhost:3400/mosaix/mosaix-tracing-otel.git
