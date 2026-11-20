@@ -8,13 +8,15 @@
     { "id": "@apps/spaces", "version": "^1.0.0" },
     { "id": "@apps/portfolio", "version": "^1.0.0" },
     { "id": "@apps/solara", "version": "^1.0.0" },
-    { "id": "@apps/beam", "version": "^1.0.0" }
+    { "id": "@apps/beam", "version": "^1.0.0" },
+    { "id": "@ijideals/developer-portal", "version": "^0.1.0" }
   ],
   "capabilities": [
     { "id": "identity.manage" },
     { "id": "spaces.create" },
     { "id": "portfolio.vendables" },
     { "id": "solara.publish" },
-    { "id": "beam.conversations" }
+    { "id": "beam.conversations" },
+    { "id": "developer-portal.resources" }
   ]
 }
