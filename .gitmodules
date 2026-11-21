@@ -376,3 +376,6 @@
 [submodule "packages/adapters/tracing-otel"]
 	path = packages/adapters/tracing-otel
 	url = http://localhost:3400/mosaix/mosaix-tracing-otel.git
+[submodule "src/workbench"]
+	path = src/workbench
+	url = C:\\Users\\HP\\AppData\\Local\\Temp\\opencode\\mosaix-workbench
