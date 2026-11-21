@@ -379,3 +379,6 @@
 [submodule "src/workbench"]
 	path = src/workbench
 	url = C:\\Users\\HP\\AppData\\Local\\Temp\\opencode\\mosaix-workbench
+[submodule "apps/developer-portal"]
+	path = apps/developer-portal
+	url = http://localhost:3400/cheteck/developer-portal.git
