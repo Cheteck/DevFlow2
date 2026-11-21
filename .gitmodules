@@ -382,3 +382,6 @@
 [submodule "apps/developer-portal"]
 	path = apps/developer-portal
 	url = http://localhost:3400/cheteck/developer-portal.git
+[submodule "packages/adapters/event-store-database"]
+	path = packages/adapters/event-store-database
+	url = http://localhost:3400/cheteck/mosaix-adapter-event-store-database.git
