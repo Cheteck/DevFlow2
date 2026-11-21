@@ -1,0 +1,39 @@
+{
+  "type": "application",
+  "id": "@ijideals/developer-portal",
+  "name": "Universal Developer Portal",
+  "version": "0.1.0",
+  "domain": {
+    "name": "developer-portal"
+  },
+  "runtime": {
+    "entrypoint": "./src/index.ts",
+    "isolation": "trusted"
+  },
+  "database": {
+    "strategy": "per-app"
+  },
+  "capabilities": [
+    {
+      "id": "ijideals.developer-portal.resource.read",
+      "version": "1.0.0"
+    },
+    {
+      "id": "ijideals.developer-portal.publishing.submit",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [
+    "developer-portal:resource:read:tenant",
+    "developer-portal:publishing:submit:tenant"
+  ],
+  "events": ["ijideals.developer-portal.resource.catalog-updated"],
+  "experience": {
+    "appCard": {
+      "title": "Developer Portal",
+      "icon": "🌐",
+      "description": "Portail universel de découverte, documentation et publication pour l'écosystème IJIDeals / MosaiX"
+    }
+  },
+  "themeContract": "mosaix-default@^1.0.0"
+}

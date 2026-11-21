@@ -12,7 +12,7 @@
  * adapter) so tests run against `:memory:` without touching `data/`.
  */
 import type { DatabasePort } from "@mosaix/ports-database";
-import { ThemeDiscovery } from "@mosaix/core";
+import { ThemeDiscovery } from "@mosaix/theme";
 import * as path from "node:path";
 import { initDatabase } from "../database-bootstrap.js";
 import { setActiveThemeId, getActiveThemeId } from "./theme-bridge.js";

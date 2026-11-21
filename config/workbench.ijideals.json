@@ -1,0 +1,66 @@
+{
+  "version": "1.0.0",
+  "branding": {
+    "platformName": "IJIDeals",
+    "defaultThemeId": "mosaix-default"
+  },
+  "regions": [
+    {
+      "id": "header",
+      "label": "En-tête principal",
+      "surfaceId": "surface-header",
+      "ownedBy": "shell"
+    },
+    {
+      "id": "primary-rail",
+      "label": "Rail primaire",
+      "surfaceId": "surface-primary-rail",
+      "ownedBy": "shell"
+    },
+    {
+      "id": "main-workspace",
+      "label": "Espace de travail principal",
+      "surfaceId": "surface-main",
+      "ownedBy": "application"
+    },
+    {
+      "id": "status-area",
+      "label": "Zone de statut",
+      "surfaceId": "surface-status",
+      "ownedBy": "shell"
+    }
+  ],
+  "layouts": [
+    {
+      "id": "default",
+      "label": "Layout par défaut IJIDeals"
+    },
+    {
+      "id": "minimal",
+      "label": "Layout minimal"
+    }
+  ],
+  "presets": [
+    {
+      "id": "standard",
+      "label": "Preset standard",
+      "layoutId": "default",
+      "regionIds": ["header", "primary-rail", "main-workspace", "status-area"]
+    },
+    {
+      "id": "minimal",
+      "label": "Preset minimal",
+      "layoutId": "minimal",
+      "regionIds": ["main-workspace"]
+    }
+  ],
+  "defaultLayoutId": "default",
+  "defaultPresetId": "standard",
+  "uiCapabilities": {
+    "commandPalette": true,
+    "liveEditor": false,
+    "notifications": true,
+    "mobileDrawer": true,
+    "presence": false
+  }
+}

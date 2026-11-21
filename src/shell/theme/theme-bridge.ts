@@ -19,7 +19,7 @@ import type {
   ThemeTarget,
   ThemeResolutionContext,
 } from "@mosaix/contracts";
-import { container } from "@mosaix/core";
+import { container } from "@mosaix/container";
 import {
   compile,
   createThemeRuntime,
@@ -33,7 +33,6 @@ import {
 } from "@mosaix/theme";
 import {
   tryGetRenderContext,
-  type RenderContext,
 } from "../../server/context/render-context.js";
 import { InMemoryGuard } from "@mosaix/support";
 
@@ -89,6 +88,7 @@ function getRuntime(): ThemeRuntime {
       const db = container.resolve<StoreDb>("databasePort");
       store = new PostgresThemeAssignmentsStore(db);
     } else {
+      // eslint-disable-next-line no-restricted-syntax -- legitimate fallback (reports via InMemoryGuard, dev-only with explicit signal)
       store = new InMemoryThemeAssignmentsStore();
       InMemoryGuard.reportFallback("ThemeBridge:inMemoryStore");
     }
@@ -247,11 +247,10 @@ function renderStatusColorDeclarations(
   ];
 }
 
-export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
+export function renderThemeStyleTag(_mode: ThemeMode = "dark"): string {
   const state = getState();
   const runtime = state?.runtime ?? getRuntime();
   const themeId = state?.themeId ?? getEffectiveThemeId();
-  const mode = state?.mode ?? "dark";
 
   const manifest = runtime.getTheme(themeId);
   if (!manifest) {
@@ -288,6 +287,9 @@ export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
     `  --color-secondary: var(--mx-color-secondary, ${fb(lightVars, "--mx-color-secondary", "#06b6d4")});`,
   );
   lines.push(
+    `  --color-background: var(--mx-color-background, ${fb(lightVars, "--mx-color-background", "#ffffff")});`,
+  );
+  lines.push(
     `  --color-surface: var(--mx-color-surface, ${fb(lightVars, "--mx-color-surface", "#ffffff")});`,
   );
   lines.push(
@@ -313,6 +315,9 @@ export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
   lines.push(
     `  --color-outline-variant: var(--mx-color-border, ${fb(lightVars, "--mx-color-border", "#e2e8f0")});`,
   );
+  lines.push(
+    `  --color-outline: var(--mx-tailwind-outline, ${fb(lightTw, "outline", "#cbd5e1")});`,
+  );
   lines.push("  /* Semantic status tokens (Material 3) */");
   lines.push(...renderStatusColorDeclarations(lightTw));
   lines.push("}");
@@ -333,6 +338,9 @@ export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
   lines.push("  --color-on-primary: #ffffff;");
   lines.push(
     `  --color-secondary: var(--mx-color-secondary, ${fb(darkVars, "--mx-color-secondary", "#06b6d4")});`,
+  );
+  lines.push(
+    `  --color-background: var(--mx-color-background, ${fb(darkVars, "--mx-color-background", "#0f172a")});`,
   );
   lines.push(
     `  --color-surface: var(--mx-color-surface, ${fb(darkVars, "--mx-color-surface", "#1e293b")});`,
@@ -358,7 +366,10 @@ export function renderThemeStyleTag(_overrideMode?: ThemeMode): string {
     `  --color-surface-container-highest: ${darkTw["surface-container-highest"]};`,
   );
   lines.push(
-    `  --color-outline-variant: var(--mx-color-border, ${fb(darkVars, "--mx-color-border", "#334155")});`,
+    `  --color-outline-variant: color-mix(in srgb, var(--color-on-surface) 15%, transparent);`,
+  );
+  lines.push(
+    `  --color-outline: var(--mx-tailwind-outline, ${fb(darkTw, "outline", "#595d63")});`,
   );
   lines.push("  /* Semantic status tokens (Material 3) */");
   lines.push(...renderStatusColorDeclarations(darkTw));

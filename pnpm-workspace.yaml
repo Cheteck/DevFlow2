@@ -5,3 +5,4 @@ packages:
   - 'apps/*'
   - '!apps/_template'
   - 'plugins/*'
+  - 'src/workbench'

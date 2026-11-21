@@ -152,7 +152,7 @@ export function renderHeadBlock(
                 'info-hover': 'var(--color-info-hover)',
                 'info-container': 'var(--color-info-container)',
                 'on-info': 'var(--color-on-info)',
-                'background': 'var(--color-surface, #ffffff)',
+                'background': 'var(--color-background, #ffffff)',
               }
             }
           }

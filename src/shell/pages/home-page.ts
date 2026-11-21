@@ -429,7 +429,8 @@ ${renderHeadBlock("Midnight Pulse", activeMode, renderThemeStyleTag(activeMode),
   ${renderShellConfirmModal()}
 
   <script>
-    function setTheme(mode) { if (window.setTheme) window.setTheme(mode); }
+    // Theme switcher buttons call window.setTheme directly (defined in shell-client-scripts.ts).
+    // No local wrapper needed.
 
     function toggleSecondarySidebar() {
       const isCollapsed = document.documentElement.classList.toggle('sidebar-collapsed');

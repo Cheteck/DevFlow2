@@ -1,0 +1,381 @@
+[submodule "packages/types"]
+	path = packages/types
+	url = http://localhost:3400/mosaix/mosaix-types.git
+[submodule "packages/contracts"]
+	path = packages/contracts
+	url = http://localhost:3400/mosaix/mosaix-contracts.git
+[submodule "packages/schemas"]
+	path = packages/schemas
+	url = http://localhost:3400/mosaix/mosaix-schemas.git
+[submodule "packages/ports/cache"]
+	path = packages/ports/cache
+	url = http://localhost:3400/mosaix/mosaix-ports-cache.git
+[submodule "packages/container"]
+	path = packages/container
+	url = http://localhost:3400/mosaix/mosaix-container.git
+[submodule "packages/foundation"]
+	path = packages/foundation
+	url = http://localhost:3400/mosaix/mosaix-foundation.git
+[submodule "packages/config"]
+	path = packages/config
+	url = http://localhost:3400/mosaix/mosaix-config.git
+[submodule "packages/core"]
+	path = packages/core
+	url = http://localhost:3400/mosaix/mosaix-core.git
+[submodule "packages/database"]
+	path = packages/database
+	url = http://localhost:3400/mosaix/mosaix-database.git
+[submodule "packages/orm"]
+	path = packages/orm
+	url = http://localhost:3400/mosaix/mosaix-orm.git
+[submodule "packages/migrations"]
+	path = packages/migrations
+	url = http://localhost:3400/mosaix/mosaix-migrations.git
+[submodule "packages/cache"]
+	path = packages/cache
+	url = http://localhost:3400/mosaix/mosaix-cache.git
+[submodule "packages/filesystem"]
+	path = packages/filesystem
+	url = http://localhost:3400/mosaix/mosaix-filesystem.git
+[submodule "packages/events"]
+	path = packages/events
+	url = http://localhost:3400/mosaix/mosaix-events.git
+[submodule "packages/commands"]
+	path = packages/commands
+	url = http://localhost:3400/mosaix/mosaix-commands.git
+[submodule "packages/pipeline"]
+	path = packages/pipeline
+	url = http://localhost:3400/mosaix/mosaix-pipeline.git
+[submodule "packages/orchestration"]
+	path = packages/orchestration
+	url = http://localhost:3400/mosaix/mosaix-orchestration.git
+[submodule "packages/control-plane"]
+	path = packages/control-plane
+	url = http://localhost:3400/mosaix/mosaix-control-plane.git
+[submodule "packages/sdk"]
+	path = packages/sdk
+	url = http://localhost:3400/mosaix/mosaix-sdk.git
+[submodule "packages/gateway"]
+	path = packages/gateway
+	url = http://localhost:3400/mosaix/mosaix-gateway.git
+[submodule "packages/security"]
+	path = packages/security
+	url = http://localhost:3400/mosaix/mosaix-security.git
+[submodule "packages/http"]
+	path = packages/http
+	url = http://localhost:3400/mosaix/mosaix-http.git
+[submodule "packages/telemetry"]
+	path = packages/telemetry
+	url = http://localhost:3400/mosaix/mosaix-telemetry.git
+[submodule "packages/mobile-bridge"]
+	path = packages/mobile-bridge
+	url = http://localhost:3400/mosaix/mosaix-mobile-bridge.git
+[submodule "packages/auth"]
+	path = packages/auth
+	url = http://localhost:3400/mosaix/mosaix-auth.git
+[submodule "packages/otp"]
+	path = packages/otp
+	url = http://localhost:3400/mosaix/mosaix-otp.git
+[submodule "packages/support"]
+	path = packages/support
+	url = http://localhost:3400/mosaix/mosaix-support.git
+[submodule "packages/theme"]
+	path = packages/theme
+	url = http://localhost:3400/mosaix/mosaix-theme.git
+[submodule "packages/plugin-engine"]
+	path = packages/plugin-engine
+	url = http://localhost:3400/mosaix/mosaix-plugin-engine.git
+[submodule "packages/ui-runtime"]
+	path = packages/ui-runtime
+	url = http://localhost:3400/mosaix/mosaix-ui-runtime.git
+[submodule "packages/feed-engine"]
+	path = packages/feed-engine
+	url = http://localhost:3400/mosaix/mosaix-feed-engine.git
+[submodule "packages/intelligence"]
+	path = packages/intelligence
+	url = http://localhost:3400/mosaix/mosaix-intelligence.git
+[submodule "packages/analytics"]
+	path = packages/analytics
+	url = http://localhost:3400/mosaix/mosaix-analytics.git
+[submodule "apps/beam"]
+	path = apps/beam
+	url = http://localhost:3400/IJIDeals/beam.git
+[submodule "apps/booking"]
+	path = apps/booking
+	url = http://localhost:3400/IJIDeals/booking.git
+[submodule "apps/citadelle"]
+	path = apps/citadelle
+	url = http://localhost:3400/IJIDeals/citadelle.git
+[submodule "apps/commerce"]
+	path = apps/commerce
+	url = http://localhost:3400/IJIDeals/commerce.git
+[submodule "apps/imperia"]
+	path = apps/imperia
+	url = http://localhost:3400/IJIDeals/imperia.git
+[submodule "apps/inventory"]
+	path = apps/inventory
+	url = http://localhost:3400/IJIDeals/inventory.git
+[submodule "apps/portfolio"]
+	path = apps/portfolio
+	url = http://localhost:3400/IJIDeals/portfolio.git
+[submodule "apps/solara"]
+	path = apps/solara
+	url = http://localhost:3400/IJIDeals/solara.git
+[submodule "apps/solidarity"]
+	path = apps/solidarity
+	url = http://localhost:3400/IJIDeals/solidarity.git
+[submodule "apps/spaces"]
+	path = apps/spaces
+	url = http://localhost:3400/IJIDeals/spaces.git
+[submodule "apps/subscription"]
+	path = apps/subscription
+	url = http://localhost:3400/IJIDeals/subscription.git
+[submodule "plugins/commerce-badge-plugin"]
+	path = plugins/commerce-badge-plugin
+	url = http://localhost:3400/IJIDeals/plugin-commerce-badge.git
+[submodule "plugins/commerce-comparator-plugin"]
+	path = plugins/commerce-comparator-plugin
+	url = http://localhost:3400/IJIDeals/plugin-commerce-comparator.git
+[submodule "plugins/commerce-recently-viewed-plugin"]
+	path = plugins/commerce-recently-viewed-plugin
+	url = http://localhost:3400/IJIDeals/plugin-commerce-recently-viewed.git
+[submodule "plugins/commerce-reviews-plugin"]
+	path = plugins/commerce-reviews-plugin
+	url = http://localhost:3400/IJIDeals/plugin-commerce-reviews.git
+[submodule "plugins/commerce-wishlist-plugin"]
+	path = plugins/commerce-wishlist-plugin
+	url = http://localhost:3400/IJIDeals/plugin-commerce-wishlist.git
+[submodule "plugins/solara-content-moderator"]
+	path = plugins/solara-content-moderator
+	url = http://localhost:3400/IJIDeals/plugin-solara-content-moderator.git
+[submodule "packages/ports/clock"]
+	path = packages/ports/clock
+	url = http://localhost:3400/mosaix/mosaix-ports-clock.git
+[submodule "packages/ports/config"]
+	path = packages/ports/config
+	url = http://localhost:3400/mosaix/mosaix-ports-config.git
+[submodule "packages/ports/credential-store"]
+	path = packages/ports/credential-store
+	url = http://localhost:3400/mosaix/mosaix-ports-credential-store.git
+[submodule "packages/ports/crypto"]
+	path = packages/ports/crypto
+	url = http://localhost:3400/mosaix/mosaix-ports-crypto.git
+[submodule "packages/ports/database"]
+	path = packages/ports/database
+	url = http://localhost:3400/mosaix/mosaix-ports-database.git
+[submodule "packages/ports/email"]
+	path = packages/ports/email
+	url = http://localhost:3400/mosaix/mosaix-ports-email.git
+[submodule "packages/ports/event-store"]
+	path = packages/ports/event-store
+	url = http://localhost:3400/mosaix/mosaix-ports-event-store.git
+[submodule "packages/ports/feature-flags"]
+	path = packages/ports/feature-flags
+	url = http://localhost:3400/mosaix/mosaix-ports-feature-flags.git
+[submodule "packages/ports/http"]
+	path = packages/ports/http
+	url = http://localhost:3400/mosaix/mosaix-ports-http.git
+[submodule "packages/ports/id"]
+	path = packages/ports/id
+	url = http://localhost:3400/mosaix/mosaix-ports-id.git
+[submodule "packages/ports/identity-store"]
+	path = packages/ports/identity-store
+	url = http://localhost:3400/mosaix/mosaix-ports-identity-store.git
+[submodule "packages/ports/intelligence"]
+	path = packages/ports/intelligence
+	url = http://localhost:3400/mosaix/mosaix-ports-intelligence.git
+[submodule "packages/ports/logging"]
+	path = packages/ports/logging
+	url = http://localhost:3400/mosaix/mosaix-ports-logging.git
+[submodule "packages/ports/message-bus"]
+	path = packages/ports/message-bus
+	url = http://localhost:3400/mosaix/mosaix-ports-message-bus.git
+[submodule "packages/ports/metrics"]
+	path = packages/ports/metrics
+	url = http://localhost:3400/mosaix/mosaix-ports-metrics.git
+[submodule "packages/ports/pubsub"]
+	path = packages/ports/pubsub
+	url = http://localhost:3400/mosaix/mosaix-ports-pubsub.git
+[submodule "packages/ports/search"]
+	path = packages/ports/search
+	url = http://localhost:3400/mosaix/mosaix-ports-search.git
+[submodule "packages/ports/secrets"]
+	path = packages/ports/secrets
+	url = http://localhost:3400/mosaix/mosaix-ports-secrets.git
+[submodule "packages/ports/session-creation"]
+	path = packages/ports/session-creation
+	url = http://localhost:3400/mosaix/mosaix-ports-session-creation.git
+[submodule "packages/ports/session-store"]
+	path = packages/ports/session-store
+	url = http://localhost:3400/mosaix/mosaix-ports-session-store.git
+[submodule "packages/ports/sms"]
+	path = packages/ports/sms
+	url = http://localhost:3400/mosaix/mosaix-ports-sms.git
+[submodule "packages/ports/storage"]
+	path = packages/ports/storage
+	url = http://localhost:3400/mosaix/mosaix-ports-storage.git
+[submodule "packages/ports/token-store"]
+	path = packages/ports/token-store
+	url = http://localhost:3400/mosaix/mosaix-ports-token-store.git
+[submodule "packages/ports/tracing"]
+	path = packages/ports/tracing
+	url = http://localhost:3400/mosaix/mosaix-ports-tracing.git
+[submodule "packages/ports/whatsapp"]
+	path = packages/ports/whatsapp
+	url = http://localhost:3400/mosaix/mosaix-ports-whatsapp.git
+[submodule "packages/cli"]
+	path = packages/cli
+	url = http://localhost:3400/mosaix/mosaix-cli.git
+[submodule "packages/dev-server"]
+	path = packages/dev-server
+	url = http://localhost:3400/mosaix/mosaix-dev-server.git
+[submodule "packages/dev-session"]
+	path = packages/dev-session
+	url = http://localhost:3400/mosaix/mosaix-dev-session.git
+[submodule "packages/command-center"]
+	path = packages/command-center
+	url = http://localhost:3400/mosaix/mosaix-command-center.git
+[submodule "packages/conformance"]
+	path = packages/conformance
+	url = http://localhost:3400/mosaix/mosaix-conformance.git
+[submodule "packages/mcp"]
+	path = packages/mcp
+	url = http://localhost:3400/mosaix/mosaix-mcp.git
+[submodule "packages/adapters/database-postgres"]
+	path = packages/adapters/database-postgres
+	url = http://localhost:3400/mosaix/mosaix-database-postgres.git
+[submodule "packages/adapters/auth-local"]
+	path = packages/adapters/auth-local
+	url = http://localhost:3400/mosaix/mosaix-auth-local.git
+[submodule "packages/adapters/auth-oidc"]
+	path = packages/adapters/auth-oidc
+	url = http://localhost:3400/mosaix/mosaix-auth-oidc.git
+[submodule "packages/adapters/auth-webauthn"]
+	path = packages/adapters/auth-webauthn
+	url = http://localhost:3400/mosaix/mosaix-auth-webauthn.git
+[submodule "packages/adapters/cache-memory"]
+	path = packages/adapters/cache-memory
+	url = http://localhost:3400/mosaix/mosaix-cache-memory.git
+[submodule "packages/adapters/cache-redis"]
+	path = packages/adapters/cache-redis
+	url = http://localhost:3400/mosaix/mosaix-cache-redis.git
+[submodule "packages/adapters/clock-fake"]
+	path = packages/adapters/clock-fake
+	url = http://localhost:3400/mosaix/mosaix-clock-fake.git
+[submodule "packages/adapters/clock-system"]
+	path = packages/adapters/clock-system
+	url = http://localhost:3400/mosaix/mosaix-clock-system.git
+[submodule "packages/adapters/config-env"]
+	path = packages/adapters/config-env
+	url = http://localhost:3400/mosaix/mosaix-config-env.git
+[submodule "packages/adapters/credential-store-postgres"]
+	path = packages/adapters/credential-store-postgres
+	url = http://localhost:3400/mosaix/mosaix-credential-store-postgres.git
+[submodule "packages/adapters/credential-store-sqlite"]
+	path = packages/adapters/credential-store-sqlite
+	url = http://localhost:3400/mosaix/mosaix-credential-store-sqlite.git
+[submodule "packages/adapters/crypto-node"]
+	path = packages/adapters/crypto-node
+	url = http://localhost:3400/mosaix/mosaix-crypto-node.git
+[submodule "packages/adapters/crypto-web"]
+	path = packages/adapters/crypto-web
+	url = http://localhost:3400/mosaix/mosaix-crypto-web.git
+[submodule "packages/adapters/database-sqlite"]
+	path = packages/adapters/database-sqlite
+	url = http://localhost:3400/mosaix/mosaix-database-sqlite.git
+[submodule "packages/adapters/email-ses"]
+	path = packages/adapters/email-ses
+	url = http://localhost:3400/mosaix/mosaix-email-ses.git
+[submodule "packages/adapters/email-smtp"]
+	path = packages/adapters/email-smtp
+	url = http://localhost:3400/mosaix/mosaix-email-smtp.git
+[submodule "packages/adapters/featureflags-launchdarkly"]
+	path = packages/adapters/featureflags-launchdarkly
+	url = http://localhost:3400/mosaix/mosaix-featureflags-launchdarkly.git
+[submodule "packages/adapters/featureflags-memory"]
+	path = packages/adapters/featureflags-memory
+	url = http://localhost:3400/mosaix/mosaix-featureflags-memory.git
+[submodule "packages/adapters/featureflags-postgres"]
+	path = packages/adapters/featureflags-postgres
+	url = http://localhost:3400/mosaix/mosaix-featureflags-postgres.git
+[submodule "packages/adapters/http-fetch"]
+	path = packages/adapters/http-fetch
+	url = http://localhost:3400/mosaix/mosaix-http-fetch.git
+[submodule "packages/adapters/identity-store-postgres"]
+	path = packages/adapters/identity-store-postgres
+	url = http://localhost:3400/mosaix/mosaix-identity-store-postgres.git
+[submodule "packages/adapters/identity-store-sqlite"]
+	path = packages/adapters/identity-store-sqlite
+	url = http://localhost:3400/mosaix/mosaix-identity-store-sqlite.git
+[submodule "packages/adapters/id-ulid"]
+	path = packages/adapters/id-ulid
+	url = http://localhost:3400/mosaix/mosaix-id-ulid.git
+[submodule "packages/adapters/id-uuid"]
+	path = packages/adapters/id-uuid
+	url = http://localhost:3400/mosaix/mosaix-id-uuid.git
+[submodule "packages/adapters/intelligence-typesafe"]
+	path = packages/adapters/intelligence-typesafe
+	url = http://localhost:3400/mosaix/mosaix-intelligence-typesafe.git
+[submodule "packages/adapters/kafka"]
+	path = packages/adapters/kafka
+	url = http://localhost:3400/mosaix/mosaix-kafka.git
+[submodule "packages/adapters/logger-pino"]
+	path = packages/adapters/logger-pino
+	url = http://localhost:3400/mosaix/mosaix-logger-pino.git
+[submodule "packages/adapters/logger-winston"]
+	path = packages/adapters/logger-winston
+	url = http://localhost:3400/mosaix/mosaix-logger-winston.git
+[submodule "packages/adapters/messagebus-mosaix"]
+	path = packages/adapters/messagebus-mosaix
+	url = http://localhost:3400/mosaix/mosaix-messagebus-mosaix.git
+[submodule "packages/adapters/metrics-otel"]
+	path = packages/adapters/metrics-otel
+	url = http://localhost:3400/mosaix/mosaix-metrics-otel.git
+[submodule "packages/adapters/otp-database"]
+	path = packages/adapters/otp-database
+	url = http://localhost:3400/mosaix/mosaix-otp-database.git
+[submodule "packages/adapters/otp-delivery"]
+	path = packages/adapters/otp-delivery
+	url = http://localhost:3400/mosaix/mosaix-otp-delivery.git
+[submodule "packages/adapters/otp-rate-limiter"]
+	path = packages/adapters/otp-rate-limiter
+	url = http://localhost:3400/mosaix/mosaix-otp-rate-limiter.git
+[submodule "packages/adapters/rabbitmq"]
+	path = packages/adapters/rabbitmq
+	url = http://localhost:3400/mosaix/mosaix-rabbitmq.git
+[submodule "packages/adapters/search-elasticsearch"]
+	path = packages/adapters/search-elasticsearch
+	url = http://localhost:3400/mosaix/mosaix-search-elasticsearch.git
+[submodule "packages/adapters/search-memory"]
+	path = packages/adapters/search-memory
+	url = http://localhost:3400/mosaix/mosaix-search-memory.git
+[submodule "packages/adapters/secrets-env"]
+	path = packages/adapters/secrets-env
+	url = http://localhost:3400/mosaix/mosaix-secrets-env.git
+[submodule "packages/adapters/session-store-postgres"]
+	path = packages/adapters/session-store-postgres
+	url = http://localhost:3400/mosaix/mosaix-session-store-postgres.git
+[submodule "packages/adapters/session-store-redis"]
+	path = packages/adapters/session-store-redis
+	url = http://localhost:3400/mosaix/mosaix-session-store-redis.git
+[submodule "packages/adapters/session-store-sqlite"]
+	path = packages/adapters/session-store-sqlite
+	url = http://localhost:3400/mosaix/mosaix-session-store-sqlite.git
+[submodule "packages/adapters/storage-local"]
+	path = packages/adapters/storage-local
+	url = http://localhost:3400/mosaix/mosaix-storage-local.git
+[submodule "packages/adapters/storage-s3"]
+	path = packages/adapters/storage-s3
+	url = http://localhost:3400/mosaix/mosaix-storage-s3.git
+[submodule "packages/adapters/token-store-postgres"]
+	path = packages/adapters/token-store-postgres
+	url = http://localhost:3400/mosaix/mosaix-token-store-postgres.git
+[submodule "packages/adapters/token-store-sqlite"]
+	path = packages/adapters/token-store-sqlite
+	url = http://localhost:3400/mosaix/mosaix-token-store-sqlite.git
+[submodule "packages/adapters/tracing-otel"]
+	path = packages/adapters/tracing-otel
+	url = http://localhost:3400/mosaix/mosaix-tracing-otel.git
+[submodule "src/workbench"]
+	path = src/workbench
+	url = C:\\Users\\HP\\AppData\\Local\\Temp\\opencode\\mosaix-workbench

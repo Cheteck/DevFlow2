@@ -67,6 +67,24 @@ describe("ThemeResolutionService", () => {
     expect(result.source).toBe("platform");
   });
 
+  it("honors MOSAIX_DEFAULT_THEME env override", async () => {
+    vi.mocked(themeCatalogueCache.getAll).mockResolvedValue([
+      mockTheme("arctic", "Arctic"),
+      mockTheme("mosaix-default", "Default"),
+    ]);
+
+    const previous = process.env.MOSAIX_DEFAULT_THEME;
+    process.env.MOSAIX_DEFAULT_THEME = "arctic";
+    try {
+      const result = await resolveTheme(undefined);
+      expect(result.themeId).toBe("arctic");
+      expect(result.source).toBe("platform");
+    } finally {
+      if (previous === undefined) delete process.env.MOSAIX_DEFAULT_THEME;
+      else process.env.MOSAIX_DEFAULT_THEME = previous;
+    }
+  });
+
   it("throws when catalogue is empty", async () => {
     vi.mocked(themeCatalogueCache.getAll).mockResolvedValue([]);
 
