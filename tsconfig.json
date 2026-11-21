@@ -27,7 +27,8 @@
       "@mosaix/ports-whatsapp": ["./packages/ports/whatsapp/src/index.ts"],
       "@mosaix/adapter-crypto-node": ["./packages/adapters/crypto-node/src/index.ts"],
       "@mosaix/adapter-clock-system": ["./packages/adapters/clock-system/src/index.ts"],
-      "@mosaix/adapter-id-uuid": ["./packages/adapters/id-uuid/src/index.ts"]
+      "@mosaix/adapter-id-uuid": ["./packages/adapters/id-uuid/src/index.ts"],
+      "@mosaix/workbench/*": ["./src/workbench/*"]
     }
   },
   "include": [

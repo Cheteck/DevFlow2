@@ -113,6 +113,10 @@ Quand une modification est validée :
 
 MosaiX / IJIDeals : plateforme d'ingénierie autonome (framework + packages internes `@mosaix/*`). Constitution AGENTS.md en place ; procédures détaillées dans `.project/`. À mettre à jour quand l'état change (signal niveau 2).
 
+- **Prérequis d'exécution locale : Docker + Verdaccio.**
+  <!-- ajouté: 2026-11-19 · statut: experimental · dernier-signal: 2026-11-19 -->
+  `pnpm dev` exige `docker compose up -d db cache` et une base `mosaix_dev` migrée (`pnpm mosaix migrate`). Le `.npmrc` utilisateur ne configure que `@mosaix` et `@ijideals` vers Verdaccio ; aucun `.npmrc` contenant des identifiants ne doit être créé dans le dépôt.
+
 ## 4. Organisation du code
 
 ### Rangement par défaut
@@ -124,7 +128,7 @@ MosaiX / IJIDeals : plateforme d'ingénierie autonome (framework + packages inte
 
 ### Règles structurelles
 - Un fichier = un job.
-- **Aucun fichier > 300 lignes.**  <!-- ajouté: 2026-11-10 · statut: stable · dernier-signal: 2026-11-10 -->
+- **Aucun fichier > 300 lignes et une seule responsabilité par fichier (SRP).**  <!-- ajouté: 2026-11-10 · statut: stable · dernier-signal: 2026-11-21 -->
 - Aucune logique métier dans les composants UI.
 - Aucun accès direct aux données depuis un écran.
 - Réutiliser avant de créer : chercher dans `components/`, `lib/`, `data/` avant toute création.
@@ -132,6 +136,8 @@ MosaiX / IJIDeals : plateforme d'ingénierie autonome (framework + packages inte
 ### Nommage
 - Fichiers logique : `kebab-case.ts`. Composants : `PascalCase.tsx`.
 - Variables/fonctions : `camelCase` en anglais, sauf termes du glossaire.
+- BACs : Les nouveaux BACs utilisent le namespace `@ijideals/*` et vivent dans `apps/<nom>/`. `@apps/*` est réservé aux BACs historiques. Aucune permission n'inclut le namespace (grammaire 4-parties : `domain:resource:action:scope`).
+  <!-- ajouté: 2026-11-20 · statut: stable · dernier-signal: 2026-11-20 -->
 
 ## 5. Frontières entre modules métier — OPTIONNEL
 
@@ -164,6 +170,10 @@ Chaque domaine vit dans son dossier racine (`booking/`, `profile/`, `payments/`,
 5. Détecter un signal (§2.1) et, s'il y en a un, formuler la proposition avant de clore.
 6. **Toute correction d'un contrat partagé inclut le balayage de ses consommateurs** : `grep` des usages hors périmètre + exécution de leurs tests avant clôture.
    <!-- ajouté: 2026-11-19 · statut: experimental · dernier-signal: 2026-11-19 -->
+7. **Vérifier qu'un fichier écrit compile, avant de rendre la main** : lancer une vérification minimale qui prouve que le fichier parse (typecheck, transpile ou commande réelle), pas seulement le relire.
+   <!-- ajouté: 2026-11-20 · statut: experimental · dernier-signal: 2026-11-20 -->
+8. **Envoi à un bridge LLM externe** : tout fichier source transmis à un service d'analyse externe (ex: `@chatgpt-web`) est découpé en prompts de moins de 50 000 caractères ; chaque partie est numérotée et annoncée dans le prompt ; la réponse est vérifiée pour confirmer que **toutes** les parties ont été exploitées. Une analyse déclarant ne pas avoir reçu une partie est relancée, jamais acceptée telle quelle.
+   <!-- ajouté: 2026-11-21 · statut: experimental · dernier-signal: 2026-11-21 -->
 
 ## 8. Workflows disponibles
 
@@ -214,6 +224,10 @@ Un workflow sans critère de succès ou sans rollback est refusé.
 
 | Terme | Définition | Ne pas confondre avec |
 |---|---|---|
+| `SetupProvider` | Extension d'installation fournissant une liste d'étapes d'initialisation | ServiceProvider |
+| `SetupStep` | Étape unitaire d'installation avec exécution idempotente et vérification facultative | Migration |
+| `SetupContext` | Contexte d'exécution de l'assistant d'installation (chemin racine, loggers, état) | CommandContext |
+| `Contrat transversal réutilisable` | Contrat de `@mosaix/contracts` couvrant une responsabilité déjà définie (ex: SurfaceContract, ContributionContract, CompositionContext, LayoutContract, NavigationContract, WidgetContract) | Nouveau contrat spécifique au Workbench créé sans vérification d'existant |
 
 Règle : tout nouveau terme métier rencontré doit être ajouté ici avant d'être utilisé ailleurs. Signal de **niveau 1** — l'agent ajoute directement et le mentionne.
 
@@ -234,6 +248,11 @@ Règle : tout nouveau terme métier rencontré doit être ajouté ici avant d'ê
 - **Dupliquer un nom de fichier** : chaque fichier doit avoir un basename unique dans le repository (pas de `domain/user-repository.ts` ET `infrastructure/user-repository.ts`). Un port et son adaptateur portent des noms distincts.
 - **Imports** : privilégier les aliases de module (`@mosaix/core`, `@mosaix/ports-database`, …) définis dans `tsconfig.json` plutôt que les chemins relatifs en dur (`../../...`).
 - **Dogfooding Mosaix** : avant toute dépendance externe ou nouvelle abstraction, vérifier qu'une capacité équivalente n'existe pas déjà dans le monorepo et la réutiliser/étendre plutôt que de réimplémenter.
+- **SOLID — OCP** : ajouter un BAC, une route API ou une config CTA ne doit jamais éditer un fichier existant ; extension par registre / interface / découverte externe.
+- **SOLID — LSP** : aucun paramètre n'accepte un union type nécessitant une discrimination `typeof`/`instanceof` au runtime pour choisir son comportement.
+- **SOLID — ISP** : aucun contexte d'API ni option de page n'expose l'ensemble des dépendances ; sous-interfaces spécialisées par domaine.
+- **SOLID — DIP** : interdiction d'importer des implémentations concrètes (SQLite*, Postgres*, services d'app) dans un composition root / bootstrapper ; interdiction des singletons globaux avec cache "premier appel gagne" (`getFeedService`, `getAnonymizationOrchestrator`, `getPlatformFeatureFlags`, `DynamicBacRegistry` statique, `export const bacOrchestrator = new ...`).
+  <!-- ajouté: 2026-11-21 · statut: experimental · dernier-signal: 2026-11-21 -->
 
 ## 11. Changelog de ce fichier
 
@@ -246,9 +265,10 @@ Règle : tout nouveau terme métier rencontré doit être ajouté ici avant d'ê
 | 2026-11-11 | v2 | Catalogue §8 corrigé : chemins workflows réels (`.project/workflows/`) au lieu de `.rescue/workflows/` inexistant | chemin obsolète |
 | 2026-11-11 | v2 | §10 : aucune commande Git écrivant dans l'arbre ou l'historique sans accord explicite ; reformatage soumis au périmètre annoncé | règle contrariée (restauration unilatérale) |
 | 2026-11-19 | v2 | §7.6 : toute correction d'un contrat partagé inclut le balayage de ses consommateurs (grep + tests) | erreur de l'agent due au contexte (P0-3 → 9 tests portfolio cassés) |
+| 2026-11-19 | v2 | §3 : prérequis d'exécution locale (Docker `db`/`cache`, base `mosaix_dev` migrée, `.npmrc` limité à `@mosaix`/`@ijideals`, aucun secret dans le dépôt) | erreur de l'agent due au contexte (401 Verdaccio + `localhost:3000` injoignable) |
+| 2026-11-20 | v2 | §7.7 : vérifier qu'un fichier écrit compile (typecheck/transpile/commande réelle) avant de rendre la main | erreur de l'agent due au contexte (`steps.ts` livré avec exports dupliqués, découvert par l'utilisateur sur `pnpm mosaix migrate`) |
+| 2026-11-21 | v2 | §7.8 : envoi à un bridge LLM externe — découpage < 50 000 chars, vérification des parties reçues | erreur de l'agent due au contexte (renderer.ts analysé à 1/3 sans détection initiale, relance requise) |
+| 2026-11-21 | v2 | §4 enrichi SRP ; règles SOLID (OCP, LSP, ISP, DIP) intégrées dans §10 ; §12 et §13 supprimés | analyse violations SOLID dans src/ (15 violations, 5 principes) |
+| 2026-11-21 | v2 | §9 : ajout du terme "Contrat transversal réutilisable" pour prévenir la duplication des contrats @mosaix/contracts dans le Workbench | audit Phase 0 MosaiX Workbench (découverte des contrats experience existants) |
 
-## 12. Règles locales — OPTIONNEL
 
-> Activer quand un module dépasse ~10 fichiers ou a des conventions propres.
-
-Chaque module peut avoir son `AGENTS.md` local, chargé uniquement quand l'agent travaille dedans. Une règle locale **précise** une règle racine, elle ne la **contredit** jamais. En cas de conflit, c'est la racine qui gagne et le conflit est signalé.
