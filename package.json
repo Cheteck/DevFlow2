@@ -53,7 +53,12 @@
     "serve": "tsx src/start.ts",
     "docker:build": "docker build -t mosaix-platform .",
     "docker:up": "docker compose up --build",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "release:publish": "node scripts/release-on-tag.mjs",
+    "release:publish:dry": "node scripts/release-on-tag.mjs --dry-run",
+    "release:publish:tag": "node scripts/release-on-tag.mjs --tag=",
+    "release:verdaccio:start": "powershell -ExecutionPolicy Bypass -File L:/Dev-Setup/PackMan-Infra/scripts/start-verdaccio.ps1",
+    "release:verdaccio:stop": "powershell -Command \"Get-Process -Name 'node' | Where-Object { $_.Path -like '*verdaccio*' } | Stop-Process -Force\""
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

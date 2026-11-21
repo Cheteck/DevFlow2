@@ -1,0 +1,192 @@
+name: Release - Publish to Verdaccio (Local)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      registry:
+        description: "Target npm registry URL (Verdaccio)"
+        required: false
+        default: "http://localhost:4873/"
+      scope:
+        description: "Scope filter (comma-separated)"
+        required: false
+        default: "@mosaix,@mosaix-plugin,@ijideals,@ijideals-projects,@apps"
+      dry_run:
+        description: "Dry run - build & validate only, no publish"
+        required: false
+        default: "false"
+      start_registry:
+        description: "Start Verdaccio if not running"
+        required: false
+        default: "true"
+
+jobs:
+  publish:
+    name: Build & Publish to Verdaccio
+    runs-on: [self-hosted, windows]  # Runner must have access to L:\Dev-Setup
+    timeout-minutes: 90
+
+    env:
+      PACKMAN_REGISTRY: ${{ github.event.inputs.registry || 'http://localhost:4873/' }}
+      PACKMAN_SCOPES: ${{ github.event.inputs.scope || '@mosaix,@mosaix-plugin,@ijideals,@ijideals-projects,@apps' }}
+      PACKMAN_WORKSPACE: D:\Téléchargements\devflow
+      NPMRC: L:\Dev-Setup\PackMan-Infra\registry\secrets\npmrc-admin
+      INFRA_ROOT: L:\Dev-Setup\PackMan-Infra
+      VERDACCIO_CONFIG: L:\Dev-Setup\PackMan-Infra\registry\config\local.yaml
+
+    steps:
+      # ---------------------------------------------------------
+      # 0. Ensure Verdaccio registry is running
+      # ---------------------------------------------------------
+      - name: Check / Start Verdaccio Registry
+        if: github.event.inputs.start_registry == 'true'
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $resp = Invoke-WebRequest -Uri "http://localhost:4873/-/ping" -UseBasicParsing -TimeoutSec 5 -ErrorAction SilentlyContinue
+          if ($resp -and $resp.StatusCode -eq 200) {
+            Write-Host "✅ Verdaccio already running on http://localhost:4873"
+          } else {
+            Write-Host "🚀 Starting Verdaccio..."
+            & "L:\Dev-Setup\PackMan-Infra\scripts\start-verdaccio.ps1"
+            # Wait for ready
+            $ready = $false
+            for ($i=0; $i -lt 30; $i++) {
+              Start-Sleep -Seconds 2
+              try {
+                $r = Invoke-WebRequest -Uri "http://localhost:4873/-/ping" -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
+                if ($r.StatusCode -eq 200) { $ready = $true; break }
+              } catch {}
+            }
+            if (-not $ready) { throw "Verdaccio failed to start within 60s" }
+            Write-Host "✅ Verdaccio started successfully"
+          }
+        shell: pwsh
+
+      # ---------------------------------------------------------
+      # 1. Checkout source code (at the release tag)
+      # ---------------------------------------------------------
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.target_commitish || github.ref }}
+          submodules: recursive
+          fetch-depth: 0
+
+      # ---------------------------------------------------------
+      # 2. Setup Node.js & pnpm
+      # ---------------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        run: corepack enable pnpm && pnpm --version
+
+      # ---------------------------------------------------------
+      # 3. Install dependencies
+      # ---------------------------------------------------------
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: ${{ env.PACKMAN_WORKSPACE }}
+
+      # ---------------------------------------------------------
+      # 4. Build all packages (required for staging)
+      # ---------------------------------------------------------
+      - name: Build workspace
+        run: pnpm build
+        working-directory: ${{ env.PACKMAN_WORKSPACE }}
+
+      # ---------------------------------------------------------
+      # 5. Copy publish scripts from infrastructure
+      # ---------------------------------------------------------
+      - name: Prepare publish scripts
+        run: |
+          mkdir -p .release-scripts
+          copy "%INFRA_ROOT%\scripts\release\publish-mosaix.mjs" .release-scripts\
+          copy "%INFRA_ROOT%\scripts\release\staging.mjs" .release-scripts\
+          copy "%INFRA_ROOT%\scripts\release\validation.mjs" .release-scripts\
+          copy "%INFRA_ROOT%\scripts\release\validate-staging.mjs" .release-scripts\
+        shell: cmd
+
+      # ---------------------------------------------------------
+      # 6. Run publish script (with validation gate)
+      # ---------------------------------------------------------
+      - name: Publish to Verdaccio
+        id: publish
+        env:
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          SKIP_EXISTING: 'true'
+        run: |
+          node .release-scripts/publish-mosaix.mjs `
+            --registry="${PACKMAN_REGISTRY}" `
+            --workspace="${PACKMAN_WORKSPACE}" `
+            --npmrc="${NPMRC}" `
+            --scope="${PACKMAN_SCOPES}" `
+            ${{ env.DRY_RUN == 'true' && '--dry-run' || '' }} `
+            --skip-existing
+
+      # ---------------------------------------------------------
+      # 7. Summarize results
+      # ---------------------------------------------------------
+      - name: Publish Summary
+        if: always()
+        run: |
+          echo "## 📦 Release Publication Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release:** ${{ github.event.release.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** ${{ env.PACKMAN_REGISTRY }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Scopes:** ${{ env.PACKMAN_SCOPES }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Dry Run:** ${{ env.DRY_RUN }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.publish.outcome }}" == "success" ]; then
+            echo "✅ **Publication succeeded**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Publication failed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Check the logs above for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ---------------------------------------------------------
+  # 8. Optional: Attach build artifacts to Gitea Release page
+  # ---------------------------------------------------------
+  attach-artifacts:
+    name: Attach Build Artifacts to Release
+    needs: publish
+    if: success() && github.event_name == 'release' && github.event.inputs.dry_run != 'true'
+    runs-on: [self-hosted, windows]
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.target_commitish || github.ref }}
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Find staged tarballs
+        id: pack
+        run: |
+          $artifacts = Get-ChildItem -Path "$env:INFRA_ROOT\.release-stage" -Filter "*.tgz" -Recurse | Select-Object -First 50 -ExpandProperty FullName
+          if ($artifacts) {
+            $joined = $artifacts -join ","
+            echo "artifacts=$joined" >> $env:GITHUB_OUTPUT
+            Write-Host "Found $($artifacts.Count) tarball(s) to attach"
+          } else {
+            Write-Warning "No tarballs found in .release-stage"
+          }
+        shell: pwsh
+        env:
+          INFRA_ROOT: L:\Dev-Setup\PackMan-Infra
+
+      - name: Upload artifacts to Release
+        if: steps.pack.outputs.artifacts != ''
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.pack.outputs.artifacts }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITEA_TOKEN }}
